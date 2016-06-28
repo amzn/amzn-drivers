@@ -1,2 +1,11 @@
-# aws-ena-driver
-Official repository of the Elastic Network Adapter (ENA) network adapter for Linux and FreeBSD operating systems
+AMAZON DRIVERS
+==============
+
+Official repository of the open source drivers for devices used on AWS platforms.
+
+The following drivers are included:
+
+
+* Linux driver for Elastic Network Adapter (ENA)
+
+Please refer to /kernel/linux/ena
