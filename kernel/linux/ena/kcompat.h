@@ -71,6 +71,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 #include <linux/sizes.h>
 #endif
+
 #ifndef SZ_4K
 #define SZ_4K 0x00001000
 #endif
@@ -252,6 +253,25 @@ static inline void _kc_eth_random_addr(u8 *addr)
 #endif
 #endif /* < 3.6.0 */
 
+/******************************************************************************/
+#ifndef CONFIG_NET_RX_BUSY_POLL
+static inline void skb_mark_napi_id(struct sk_buff *skb,
+				    struct napi_struct *napi)
+{
+
+}
+
+static inline void napi_hash_del(struct napi_struct *napi)
+{
+
+}
+
+static inline void napi_hash_add(struct napi_struct *napi)
+{
+
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
+
 /*****************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0) )
 /* cpu_rmap is buggy on older version and causes dead lock */
@@ -376,6 +396,13 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
 {
 	get_random_bytes(buffer, len);
 }
+
+static inline void napi_schedule_irqoff(struct napi_struct *n)
+{
+	napi_schedule(n);
+}
+
+#define READ_ONCE(var) (*((volatile typeof(var) *)(&(var))))
 #endif /* Kernel 3.19 */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0) \

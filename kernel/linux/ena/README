@@ -3,28 +3,28 @@ Linux kernel driver for Elastic Network Adapter (ENA) family:
 
 Overview:
 =========
-The ENA driver provides a modern Ethernet device interface optimized
-for high performance and low CPU overhead.
+ENA is a networking interface designed to make good use of modern CPU
+features and system architectures.
 
-The ENA driver exposes a lightweight management interface with a
+The ENA device exposes a lightweight management interface with a
 minimal set of memory mapped registers and extendable command set
 through an Admin Queue.
 
-The driver supports a wide range of ENA devices, is link-speed
-independent (i.e., the same driver is used for 10GbE, 25GbE, 40GbE,
-etc.), and it has a negotiated and extendable feature set.
+The driver supports a range of ENA devices, is link-speed independent
+(i.e., the same driver is used for 10GbE, 25GbE, 40GbE, etc.), and has
+a negotiated and extendable feature set.
 
 Some ENA devices support SR-IOV. This driver is used for both the
 SR-IOV Physical Function (PF) and Virtual Function (VF) devices.
 
-ENA devices allow high speed and low overhead Ethernet traffic
-processing by providing a dedicated Tx/Rx queue pair per host CPU, a
-dedicated MSI-X interrupt vector per Tx/Rx queue pair, adaptive
-interrupt moderation, and CPU cacheline optimized data placement.
+ENA devices enable high speed and low overhead network traffic
+processing by providing multiple Tx/Rx queue pairs (the maximum number
+is advertised by the device via the Admin Queue), a dedicated MSI-X
+interrupt vector per Tx/Rx queue pair, adaptive interrupt moderation,
+and CPU cacheline optimized data placement.
 
 The ENA driver supports industry standard TCP/IP offload features such
 as checksum offload and TCP transmit segmentation offload (TSO).
-
 Receive-side scaling (RSS) is supported for multi-core scaling.
 
 The ENA driver and its corresponding devices implement health
@@ -34,6 +34,7 @@ debug logs.
 
 Some of the ENA devices support a working mode called Low-latency
 Queue (LLQ), which saves several more microseconds.
+#ifndef MAINLINE
 
 Driver compilation:
 ===================
@@ -74,6 +75,7 @@ insert "ena" to the file
 copy the ena.ko to /lib/modules/(uname -r)/
 sudo depmod
 restart the OS (sudo reboot and reconnect)
+#endif
 
 Supported PCI vendor ID/device IDs:
 ===================================
@@ -217,64 +219,44 @@ Interrupt Moderation:
 =====================
 ENA driver and device can operate in conventional or adaptive interrupt
 moderation mode.
-In conventional mode the driver instructs device to postpone interrupt posting
-according to static interrupt delay value. The interrupt delay value can be
-configured through ethtool(8). The following ethtool parameters are supported
-by the driver: tx-usecs, rx-usecs
-In adaptive interrupt moderation mode the interrupt delay value is updated by
-the driver dynamically and adjusted every NAPI cycle according to the traffic
-nature.
-By default ENA driver applies adaptive coalescing on Rx traffic and conventional
-coalescing on Tx traffic.
-Adaptive coalescing can be switched on/off through ethtool(8) adaptive_rx on|off
-parameter.
-The driver chooses interrupt delay value according to the number of bytes and
-packets received between interrupt unmasking and interrupt posting. The driver
-uses interrupt delay table that subdivides the range of received bytes/packets
-into 5 levels and assigns interrupt delay value to each level.
-The user can enable/disable adaptive moderation, modify the interrupt delay
-table and restore its default values through sysfs.
 
-Memory Allocations:
-===================
-DMA Coherent buffers are allocated for the following DMA rings:
-- Tx submission ring (For regular mode; for LLQ mode it is allocated
-  using kzalloc)
-- Tx completion ring
-- Rx submission ring
-- Rx completion ring
-- Admin submission ring
-- Admin completion ring
-- AENQ ring
+In conventional mode the driver instructs device to postpone interrupt
+posting according to static interrupt delay value. The interrupt delay
+value can be configured through ethtool(8). The following ethtool
+parameters are supported by the driver: tx-usecs, rx-usecs
 
-The ENA device AQ and AENQ are allocated on probe and freed on termination.
+In adaptive interrupt moderation mode the interrupt delay value is
+updated by the driver dynamically and adjusted every NAPI cycle
+according to the traffic nature.
 
-Regular allocations:
-- Tx buffers info ring
-- Tx free indexes ring
-- Rx buffers info ring
-- MSI-X table
-- ENA device structure
+By default ENA driver applies adaptive coalescing on Rx traffic and
+conventional coalescing on Tx traffic.
 
-Tx/Rx buffers and the MSI-X table are allocated on Open and freed on Close.
+Adaptive coalescing can be switched on/off through ethtool(8)
+adaptive_rx on|off parameter.
 
-Rx buffer allocation:
-- The driver allocates buffers using netdev_alloc_frag()
-- Buffers are allocated when:
-  1. enabling an interface -- open()
-  2. Once per Rx poll for all the frames received and not copied to
-     the newly allocated SKB
+The driver chooses interrupt delay value according to the number of
+bytes and packets received between interrupt unmasking and interrupt
+posting. The driver uses interrupt delay table that subdivides the
+range of received bytes/packets into 5 levels and assigns interrupt
+delay value to each level.
 
-These buffers are freed on close().
+The user can enable/disable adaptive moderation, modify the interrupt
+delay table and restore its default values through sysfs.
 
-The small_packet_len is initialized by default to
-ENA_DEFAULT_SMALL_PACKET_LEN and can be configured by the sysfs path
-/sys/bus/pci/devices/<domain:bus:slot.function>/small_packet_len.
+The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
+#ifndef MAINLINE
+and can be configured by the sysfs path
+/sys/bus/pci/devices/<domain:bus:slot.function>/rx_copybreak.
+#else
+and can be configured by the ETHTOOL_STUNABLE command of the
+SIOCETHTOOL ioctl.
+#endif
 
 SKB:
 The driver-allocated SKB for frames received from Rx handling using
 NAPI context. The allocation method depends on the size of the packet.
-If the frame length is larger than small_packet_len, napi_get_frags()
+If the frame length is larger than rx_copybreak, napi_get_frags()
 is used, otherwise netdev_alloc_skb_ip_align() is used, the buffer
 content is copied (by CPU) to the SKB, and the buffer is recycled.
 
@@ -291,7 +273,7 @@ MTU:
 The driver supports an arbitrarily large MTU with a maximum that is
 negotiated with the device. The driver configures MTU using the
 SetFeature command (ENA_ADMIN_MTU property). The user can change MTU
-via ifconfig(8) and ip(8).
+via ip(8) and similar legacy tools.
 
 Stateless Offloads:
 ===================
@@ -358,9 +340,9 @@ Rx:
   no new packet is found.
 - Then it calls the ena_clean_rx_irq() function.
 - ena_eth_rx_skb() checks packet length:
-  * If the packet is small (len < small_packet_len), the driver
-    allocates a SKB for the new packet, and copies the packet payload
-    into the SKB data buffer.
+  * If the packet is small (len < rx_copybreak), the driver allocates
+    a SKB for the new packet, and copies the packet payload into the
+    SKB data buffer.
     - In this way the original data buffer is not passed to the stack
       and is reused for future Rx packets.
   * Otherwise the function unmaps the Rx buffer, then allocates the

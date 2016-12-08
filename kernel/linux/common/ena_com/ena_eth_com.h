@@ -111,8 +111,8 @@ static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 
 	tail = io_sq->tail;
 
-	ena_trc_dbg("write submission queue doorbell for queue: %d tail: %d\n",
-		    io_sq->qid, tail);
+	pr_debug("write submission queue doorbell for queue: %d tail: %d\n",
+		 io_sq->qid, tail);
 
 	writel(tail, io_sq->db_addr);
 
@@ -129,8 +129,8 @@ static inline int ena_com_update_dev_comp_head(struct ena_com_io_cq *io_cq)
 	need_update = unreported_comp > (io_cq->q_depth / ENA_COMP_HEAD_THRESH);
 
 	if (io_cq->cq_head_db_reg && need_update) {
-		ena_trc_dbg("Write completion queue doorbell for queue %d: head: %d\n",
-			    io_cq->qid, head);
+		pr_debug("Write completion queue doorbell for queue %d: head: %d\n",
+			 io_cq->qid, head);
 		writel(head, io_cq->cq_head_db_reg);
 		io_cq->last_head_update = head;
 	}

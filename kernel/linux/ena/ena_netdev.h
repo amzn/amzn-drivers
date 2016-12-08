@@ -45,8 +45,8 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	1
-#define DRV_MODULE_VER_MINOR	0
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_MINOR	1
+#define DRV_MODULE_VER_SUBMINOR 2
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -55,7 +55,6 @@
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
 	__stringify(DRV_MODULE_VER_SUBMINOR)
 #endif
-#define DRV_MODULE_RELDATE      "22-JUNE-2016"
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
@@ -69,7 +68,7 @@
 #define ENA_DEFAULT_RING_SIZE	(1024)
 
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
-#define ENA_DEFAULT_SMALL_PACKET_LEN		(128 - NET_IP_ALIGN)
+#define ENA_DEFAULT_RX_COPYBREAK	(128 - NET_IP_ALIGN)
 
 /* limit the buffer size to 600 bytes to handle MTU changes from very
  * small to very large, in which case the number of buffers per packet
@@ -102,7 +101,7 @@
 /* Number of queues to check for missing queues per timer service */
 #define ENA_MONITORED_TX_QUEUES	4
 /* Max timeout packets before device reset */
-#define MAX_NUM_OF_TIMEOUTED_PACKETS 32
+#define MAX_NUM_OF_TIMEOUTED_PACKETS 128
 
 #define ENA_TX_RING_IDX_NEXT(idx, ring_size) (((idx) + 1) & ((ring_size) - 1))
 
@@ -118,9 +117,9 @@
 #define ENA_IO_IRQ_IDX(q)		(ENA_IO_IRQ_FIRST_IDX + (q))
 
 /* ENA device should send keep alive msg every 1 sec.
- * We wait for 3 sec just to be on the safe side.
+ * We wait for 6 sec just to be on the safe side.
  */
-#define ENA_DEVICE_KALIVE_TIMEOUT	(3 * HZ)
+#define ENA_DEVICE_KALIVE_TIMEOUT	(6 * HZ)
 
 #define ENA_MMIO_DISABLE_REG_READ	BIT(0)
 
@@ -137,6 +136,7 @@ struct ena_napi {
 	struct napi_struct napi ____cacheline_aligned;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
+	atomic_t unmask_interrupt;
 	u32 qid;
 };
 
@@ -148,7 +148,18 @@ struct ena_tx_buffer {
 	u32 tx_descs;
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
-	/* Save the last jiffies to detect missing tx packets */
+
+	/* Used for detect missing tx packets to limit the number of prints */
+	u32 print_once;
+	/* Save the last jiffies to detect missing tx packets
+	 *
+	 * sets to non zero value on ena_start_xmit and set to zero on
+	 * napi and timer_Service_routine.
+	 *
+	 * while this value is not protected by lock,
+	 * a given packet is not expected to be handled by ena_start_xmit
+	 * and by napi/timer_service at the same time.
+	 */
 	unsigned long last_jiffies;
 	struct ena_com_buf bufs[ENA_PKT_MAX_BUFS];
 } ____cacheline_aligned;
@@ -172,7 +183,6 @@ struct ena_stats_tx {
 	u64 napi_comp;
 	u64 tx_poll;
 	u64 doorbells;
-	u64 missing_tx_comp;
 	u64 bad_req_id;
 };
 
@@ -185,7 +195,12 @@ struct ena_stats_rx {
 	u64 skb_alloc_fail;
 	u64 dma_mapping_err;
 	u64 bad_desc_num;
-	u64 small_copy_len_pkt;
+	u64 rx_copybreak_pkt;
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	u64 bp_yield;
+	u64 bp_missed;
+	u64 bp_cleaned;
+#endif
 };
 
 struct ena_ring {
@@ -208,7 +223,7 @@ struct ena_ring {
 
 	u16 next_to_use;
 	u16 next_to_clean;
-	u16 rx_small_copy_len;
+	u16 rx_copybreak;
 	u16 qid;
 	u16 mtu;
 	u16 sgl_size;
@@ -233,8 +248,19 @@ struct ena_ring {
 		struct ena_stats_tx tx_stats;
 		struct ena_stats_rx rx_stats;
 	};
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	atomic_t bp_state;
+#endif
 } ____cacheline_aligned;
 
+#ifdef CONFIG_NET_RX_BUSY_POLL
+enum ena_busy_poll_state_t {
+	ENA_BP_STATE_IDLE = 0,
+	ENA_BP_STATE_NAPI,
+	ENA_BP_STATE_POLL,
+	ENA_BP_STATE_DISABLE
+};
+#endif
 struct ena_stats_dev {
 	u64 tx_timeout;
 	u64 io_suspend;
@@ -243,6 +269,7 @@ struct ena_stats_dev {
 	u64 interface_up;
 	u64 interface_down;
 	u64 admin_q_pause;
+	u64 rx_drops;
 };
 
 enum ena_flags_t {
@@ -263,13 +290,15 @@ struct ena_adapter {
 	/* rx packets that shorter that this len will be copied to the skb
 	 * header
 	 */
-	u32 small_copy_len;
+	u32 rx_copybreak;
 	u32 max_mtu;
 
 	int num_queues;
 
 	struct msix_entry *msix_entries;
 	int msix_vecs;
+
+	u32 missing_tx_completion_threshold;
 
 	u32 tx_usecs, rx_usecs; /* interrupt moderation */
 	u32 tx_frames, rx_frames; /* interrupt moderation */
@@ -283,6 +312,9 @@ struct ena_adapter {
 	u16 max_rx_sgl_size;
 
 	u8 mac_addr[ETH_ALEN];
+
+	unsigned long keep_alive_timeout;
+	unsigned long missing_tx_completion_to;
 
 	char name[ENA_NAME_MAX_LEN];
 
@@ -305,6 +337,7 @@ struct ena_adapter {
 	struct work_struct resume_io_task;
 	struct timer_list timer_service;
 
+	bool wd_state;
 	unsigned long last_keep_alive_jiffies;
 
 	struct u64_stats_sync syncp;
@@ -321,5 +354,107 @@ void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static inline void ena_bp_init_lock(struct ena_ring *rx_ring)
+{
+	/* reset state to idle */
+	atomic_set(&rx_ring->bp_state, ENA_BP_STATE_IDLE);
+}
+
+/* called from the napi routine to get ownership of the ring */
+static inline bool ena_bp_lock_napi(struct ena_ring *rx_ring)
+{
+	int rc = atomic_cmpxchg(&rx_ring->bp_state, ENA_BP_STATE_IDLE,
+				ENA_BP_STATE_NAPI);
+	if (rc != ENA_BP_STATE_IDLE) {
+		u64_stats_update_begin(&rx_ring->syncp);
+		rx_ring->rx_stats.bp_yield++;
+		u64_stats_update_end(&rx_ring->syncp);
+	}
+
+	return rc == ENA_BP_STATE_IDLE;
+}
+
+static inline void ena_bp_unlock_napi(struct ena_ring *rx_ring)
+{
+	WARN_ON(atomic_read(&rx_ring->bp_state) != ENA_BP_STATE_NAPI);
+
+	/* flush any outstanding Rx frames */
+	if (rx_ring->napi->gro_list)
+		napi_gro_flush(rx_ring->napi, false);
+
+	/* reset state to idle */
+	atomic_set(&rx_ring->bp_state, ENA_BP_STATE_IDLE);
+}
+
+/* called from ena_ll_busy_poll() */
+static inline bool ena_bp_lock_poll(struct ena_ring *rx_ring)
+{
+	int rc = atomic_cmpxchg(&rx_ring->bp_state, ENA_BP_STATE_IDLE,
+				ENA_BP_STATE_POLL);
+	if (rc != ENA_BP_STATE_IDLE) {
+		u64_stats_update_begin(&rx_ring->syncp);
+		rx_ring->rx_stats.bp_yield++;
+		u64_stats_update_end(&rx_ring->syncp);
+	}
+
+	return rc == ENA_BP_STATE_IDLE;
+}
+
+static inline void ena_bp_unlock_poll(struct ena_ring *rx_ring)
+{
+	WARN_ON(atomic_read(&rx_ring->bp_state) != ENA_BP_STATE_POLL);
+
+	/* reset state to idle */
+	atomic_set(&rx_ring->bp_state, ENA_BP_STATE_IDLE);
+}
+
+/* true if a socket is polling, even if it did not get the lock */
+static inline bool ena_bp_busy_polling(struct ena_ring *rx_ring)
+{
+	return atomic_read(&rx_ring->bp_state) == ENA_BP_STATE_POLL;
+}
+
+static inline bool ena_bp_disable(struct ena_ring *rx_ring)
+{
+	int rc = atomic_cmpxchg(&rx_ring->bp_state, ENA_BP_STATE_IDLE,
+				ENA_BP_STATE_DISABLE);
+
+	return rc == ENA_BP_STATE_IDLE;
+}
+#else
+static inline void ena_bp_init_lock(struct ena_ring *rx_ring)
+{
+}
+
+static inline bool ena_bp_lock_napi(struct ena_ring *rx_ring)
+{
+       return true;
+}
+
+static inline void ena_bp_unlock_napi(struct ena_ring *rx_ring)
+{
+}
+
+static inline bool ena_bp_lock_poll(struct ena_ring *rx_ring)
+{
+       return false;
+}
+
+static inline void ena_bp_unlock_poll(struct ena_ring *rx_ring)
+{
+}
+
+static inline bool ena_bp_busy_polling(struct ena_ring *rx_ring)
+{
+       return false;
+}
+
+static inline bool ena_bp_disable(struct ena_ring *rx_ring)
+{
+	return true;
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #endif /* !(ENA_H) */

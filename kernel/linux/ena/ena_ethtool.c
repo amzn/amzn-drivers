@@ -80,7 +80,6 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(tx_poll),
 	ENA_STAT_TX_ENTRY(doorbells),
 	ENA_STAT_TX_ENTRY(prepare_ctx_err),
-	ENA_STAT_TX_ENTRY(missing_tx_comp),
 	ENA_STAT_TX_ENTRY(bad_req_id),
 };
 
@@ -93,7 +92,12 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(skb_alloc_fail),
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
-	ENA_STAT_RX_ENTRY(small_copy_len_pkt),
+	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	ENA_STAT_RX_ENTRY(bp_yield),
+	ENA_STAT_RX_ENTRY(bp_missed),
+	ENA_STAT_RX_ENTRY(bp_cleaned),
+#endif
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
@@ -195,12 +199,13 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 
 int ena_get_sset_count(struct net_device *netdev, int sset)
 {
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
 
-	return  netdev->num_tx_queues *
-		(ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX) +
-		ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
+	return  adapter->num_queues * (ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX)
+		+ ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
 }
 
 static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
@@ -262,6 +267,40 @@ static void ena_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 	ena_com_dev_strings(&data);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+static int ena_get_link_ksettings(struct net_device *netdev,
+				  struct ethtool_link_ksettings *link_ksettings)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	struct ena_admin_get_feature_link_desc *link;
+	struct ena_admin_get_feat_resp feat_resp;
+	int rc;
+
+	rc = ena_com_get_link_params(ena_dev, &feat_resp);
+	if (rc)
+		return rc;
+
+	link = &feat_resp.u.link;
+	link_ksettings->base.speed = link->speed;
+
+	if (link->flags & ENA_ADMIN_GET_FEATURE_LINK_DESC_AUTONEG_MASK) {
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, Autoneg);
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, Autoneg);
+	}
+
+	link_ksettings->base.autoneg =
+		(link->flags & ENA_ADMIN_GET_FEATURE_LINK_DESC_AUTONEG_MASK) ?
+		AUTONEG_ENABLE : AUTONEG_DISABLE;
+
+	link_ksettings->base.duplex = DUPLEX_FULL;
+
+	return 0;
+}
+
+#else
 static int ena_get_settings(struct net_device *netdev,
 			    struct ethtool_cmd *ecmd)
 {
@@ -292,6 +331,7 @@ static int ena_get_settings(struct net_device *netdev,
 	return 0;
 }
 
+#endif
 static int ena_get_coalesce(struct net_device *net_dev,
 			    struct ethtool_coalesce *coalesce)
 {
@@ -305,10 +345,11 @@ static int ena_get_coalesce(struct net_device *net_dev,
 	coalesce->tx_coalesce_usecs =
 		ena_com_get_nonadaptive_moderation_interval_tx(ena_dev) /
 			ena_dev->intr_delay_resolution;
-	if (!ena_com_get_adaptive_moderation_enabled(ena_dev))
+	if (!ena_com_get_adaptive_moderation_enabled(ena_dev)) {
 		coalesce->rx_coalesce_usecs =
 			ena_com_get_nonadaptive_moderation_interval_rx(ena_dev)
 			/ ena_dev->intr_delay_resolution;
+	}
 	coalesce->use_adaptive_rx_coalesce =
 		ena_com_get_adaptive_moderation_enabled(ena_dev);
 
@@ -338,9 +379,7 @@ static int ena_set_coalesce(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 	}
 
-	/* Note, adaptive coalescing settings are updated through sysfs */
 	if (coalesce->rx_coalesce_usecs_irq ||
-	    coalesce->rx_max_coalesced_frames ||
 	    coalesce->rx_max_coalesced_frames_irq ||
 	    coalesce->tx_coalesce_usecs_irq ||
 	    coalesce->tx_max_coalesced_frames ||
@@ -348,22 +387,25 @@ static int ena_set_coalesce(struct net_device *net_dev,
 	    coalesce->stats_block_coalesce_usecs ||
 	    coalesce->use_adaptive_tx_coalesce ||
 	    coalesce->pkt_rate_low ||
-	    coalesce->rx_coalesce_usecs_low ||
-	    coalesce->rx_max_coalesced_frames_low ||
 	    coalesce->tx_coalesce_usecs_low ||
 	    coalesce->tx_max_coalesced_frames_low ||
 	    coalesce->pkt_rate_high ||
-	    coalesce->rx_coalesce_usecs_high ||
-	    coalesce->rx_max_coalesced_frames_high ||
 	    coalesce->tx_coalesce_usecs_high ||
 	    coalesce->tx_max_coalesced_frames_high ||
 	    coalesce->rate_sample_interval)
 		return -EINVAL;
 
+	/* Note, adaptive coalescing settings are updated through sysfs */
+	if (coalesce->rx_max_coalesced_frames ||
+	    coalesce->rx_coalesce_usecs_low ||
+	    coalesce->rx_max_coalesced_frames_low ||
+	    coalesce->rx_coalesce_usecs_high ||
+	    coalesce->rx_max_coalesced_frames_high)
+		return -EINVAL;
 	rc = ena_com_update_nonadaptive_moderation_interval_tx(ena_dev,
 							       coalesce->tx_coalesce_usecs);
 	if (rc)
-		goto err;
+		return rc;
 
 	ena_update_tx_rings_intr_moderation(adapter);
 
@@ -372,11 +414,10 @@ static int ena_set_coalesce(struct net_device *net_dev,
 			ena_com_disable_adaptive_moderation(ena_dev);
 			rc = ena_com_update_nonadaptive_moderation_interval_rx(ena_dev,
 									       coalesce->rx_coalesce_usecs);
-			if (rc)
-				goto err;
+			return rc;
 		} else {
 			/* was in adaptive mode and remains in it,
-			 * allow to update only tx_usecs
+			 * allow to update only tx_usecs, rx is managed through sysfs
 			 */
 			if (coalesce->rx_coalesce_usecs)
 				return -EINVAL;
@@ -387,18 +428,11 @@ static int ena_set_coalesce(struct net_device *net_dev,
 		} else {
 			rc = ena_com_update_nonadaptive_moderation_interval_rx(ena_dev,
 									       coalesce->rx_coalesce_usecs);
-			goto err;
+			return rc;
 		}
 	}
 
 	return 0;
-err:
-	return rc;
-}
-
-static int ena_nway_reset(struct net_device *netdev)
-{
-	return -ENODEV;
 }
 
 static u32 ena_get_msglevel(struct net_device *netdev)
@@ -663,8 +697,10 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	switch (ena_func) {
 	case ENA_ADMIN_TOEPLITZ:
 		func = ETH_RSS_HASH_TOP;
+		break;
 	case ENA_ADMIN_CRC32:
 		func = ETH_RSS_HASH_XOR;
+		break;
 	default:
 		netif_err(adapter, drv, netdev,
 			  "Command parameter is not supported\n");
@@ -812,12 +848,60 @@ static void ena_get_channels(struct net_device *netdev,
 }
 #endif /* ETHTOOL_SCHANNELS */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
+static int ena_get_tunable(struct net_device *netdev,
+			   const struct ethtool_tunable *tuna, void *data)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	int ret = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = adapter->rx_copybreak;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int ena_set_tunable(struct net_device *netdev,
+			   const struct ethtool_tunable *tuna,
+			   const void *data)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	int ret = 0;
+	u32 len;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		len = *(u32 *)data;
+		if (len > adapter->netdev->mtu) {
+			ret = -EINVAL;
+			break;
+		}
+		adapter->rx_copybreak = len;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+#endif /* 3.18.0 */
+
 static const struct ethtool_ops ena_ethtool_ops = {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+	.get_link_ksettings	= ena_get_link_ksettings,
+#else
 	.get_settings		= ena_get_settings,
+#endif
 	.get_drvinfo		= ena_get_drvinfo,
 	.get_msglevel		= ena_get_msglevel,
 	.set_msglevel		= ena_set_msglevel,
-	.nway_reset		= ena_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= ena_get_coalesce,
 	.set_coalesce		= ena_set_coalesce,
@@ -843,6 +927,10 @@ static const struct ethtool_ops ena_ethtool_ops = {
 #ifdef ETHTOOL_SCHANNELS
 	.get_channels		= ena_get_channels,
 #endif /* ETHTOOL_SCHANNELS */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
+	.get_tunable		= ena_get_tunable,
+	.set_tunable		= ena_set_tunable,
+#endif
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev)

@@ -32,35 +32,30 @@
 #ifndef _ENA_ETH_IO_H_
 #define _ENA_ETH_IO_H_
 
-/* Layer 3 protocol index */
 enum ena_eth_io_l3_proto_index {
-	ENA_ETH_IO_L3_PROTO_UNKNOWN = 0,
+	ENA_ETH_IO_L3_PROTO_UNKNOWN	= 0,
 
-	ENA_ETH_IO_L3_PROTO_IPV4 = 8,
+	ENA_ETH_IO_L3_PROTO_IPV4	= 8,
 
-	ENA_ETH_IO_L3_PROTO_IPV6 = 11,
+	ENA_ETH_IO_L3_PROTO_IPV6	= 11,
 
-	ENA_ETH_IO_L3_PROTO_FCOE = 21,
+	ENA_ETH_IO_L3_PROTO_FCOE	= 21,
 
-	ENA_ETH_IO_L3_PROTO_ROCE = 22,
+	ENA_ETH_IO_L3_PROTO_ROCE	= 22,
 };
 
-/* Layer 4 protocol index */
 enum ena_eth_io_l4_proto_index {
-	ENA_ETH_IO_L4_PROTO_UNKNOWN = 0,
+	ENA_ETH_IO_L4_PROTO_UNKNOWN		= 0,
 
-	ENA_ETH_IO_L4_PROTO_TCP = 12,
+	ENA_ETH_IO_L4_PROTO_TCP			= 12,
 
-	ENA_ETH_IO_L4_PROTO_UDP = 13,
+	ENA_ETH_IO_L4_PROTO_UDP			= 13,
 
-	ENA_ETH_IO_L4_PROTO_ROUTEABLE_ROCE = 23,
+	ENA_ETH_IO_L4_PROTO_ROUTEABLE_ROCE	= 23,
 };
 
-/* ENA IO Queue Tx descriptor */
 struct ena_eth_io_tx_desc {
-	/* word 0 : */
-	/* length, request id and control flags
-	 * 15:0 : length - Buffer length in bytes, must
+	/* 15:0 : length - Buffer length in bytes, must
 	 *    include any packet trailers that the ENA supposed
 	 *    to update like End-to-End CRC, Authentication GMAC
 	 *    etc. This length must not include the
@@ -83,9 +78,7 @@ struct ena_eth_io_tx_desc {
 	 */
 	u32 len_ctrl;
 
-	/* word 1 : */
-	/* ethernet control
-	 * 3:0 : l3_proto_idx - L3 protocol. This field
+	/* 3:0 : l3_proto_idx - L3 protocol. This field
 	 *    required when l3_csum_en,l3_csum or tso_en are set.
 	 * 4 : DF - IPv4 DF, must be 0 if packet is IPv4 and
 	 *    DF flags of the IPv4 header is 0. Otherwise must
@@ -117,10 +110,8 @@ struct ena_eth_io_tx_desc {
 	 */
 	u32 meta_ctrl;
 
-	/* word 2 : Buffer address bits[31:0] */
 	u32 buff_addr_lo;
 
-	/* word 3 : */
 	/* address high and header size
 	 * 15:0 : addr_hi - Buffer Pointer[47:32]
 	 * 23:16 : reserved16_w2
@@ -139,11 +130,8 @@ struct ena_eth_io_tx_desc {
 	u32 buff_addr_hi_hdr_sz;
 };
 
-/* ENA IO Queue Tx Meta descriptor */
 struct ena_eth_io_tx_meta_desc {
-	/* word 0 : */
-	/* length, request id and control flags
-	 * 9:0 : req_id_lo - Request ID[9:0]
+	/* 9:0 : req_id_lo - Request ID[9:0]
 	 * 11:10 : reserved10 - MBZ
 	 * 12 : reserved12 - MBZ
 	 * 13 : reserved13 - MBZ
@@ -172,19 +160,13 @@ struct ena_eth_io_tx_meta_desc {
 	 */
 	u32 len_ctrl;
 
-	/* word 1 : */
-	/* word 1
-	 * 5:0 : req_id_hi
+	/* 5:0 : req_id_hi
 	 * 31:6 : reserved6 - MBZ
 	 */
 	u32 word1;
 
-	/* word 2 : */
-	/* word 2
-	 * 7:0 : l3_hdr_len - the header length L3 IP header.
-	 * 15:8 : l3_hdr_off - the offset of the first byte
-	 *    in the L3 header from the beginning of the to-be
-	 *    transmitted packet.
+	/* 7:0 : l3_hdr_len
+	 * 15:8 : l3_hdr_off
 	 * 21:16 : l4_hdr_len_in_words - counts the L4 header
 	 *    length in words. there is an explicit assumption
 	 *    that L4 header appears right after L3 header and
@@ -193,13 +175,10 @@ struct ena_eth_io_tx_meta_desc {
 	 */
 	u32 word2;
 
-	/* word 3 : */
 	u32 reserved;
 };
 
-/* ENA IO Queue Tx completions descriptor */
 struct ena_eth_io_tx_cdesc {
-	/* word 0 : */
 	/* Request ID[15:0] */
 	u16 req_id;
 
@@ -211,24 +190,19 @@ struct ena_eth_io_tx_cdesc {
 	 */
 	u8 flags;
 
-	/* word 1 : */
 	u16 sub_qid;
 
-	/* indicates location of submission queue head */
 	u16 sq_head_idx;
 };
 
-/* ENA IO Queue Rx descriptor */
 struct ena_eth_io_rx_desc {
-	/* word 0 : */
 	/* In bytes. 0 means 64KB */
 	u16 length;
 
 	/* MBZ */
 	u8 reserved2;
 
-	/* control flags
-	 * 0 : phase
+	/* 0 : phase
 	 * 1 : reserved1 - MBZ
 	 * 2 : first - Indicates first descriptor in
 	 *    transaction
@@ -239,32 +213,27 @@ struct ena_eth_io_rx_desc {
 	 */
 	u8 ctrl;
 
-	/* word 1 : */
 	u16 req_id;
 
 	/* MBZ */
 	u16 reserved6;
 
-	/* word 2 : Buffer address bits[31:0] */
 	u32 buff_addr_lo;
 
-	/* word 3 : */
-	/* Buffer Address bits[47:16] */
 	u16 buff_addr_hi;
 
 	/* MBZ */
 	u16 reserved16_w3;
 };
 
-/* ENA IO Queue Rx Completion Base Descriptor (4-word format). Note: all
- * ethernet parsing information are valid only when last=1
+/* 4-word format Note: all ethernet parsing information are valid only when
+ * last=1
  */
 struct ena_eth_io_rx_cdesc_base {
-	/* word 0 : */
-	/* 4:0 : l3_proto_idx - L3 protocol index
-	 * 6:5 : src_vlan_cnt - Source VLAN count
+	/* 4:0 : l3_proto_idx
+	 * 6:5 : src_vlan_cnt
 	 * 7 : reserved7 - MBZ
-	 * 12:8 : l4_proto_idx - L4 protocol index
+	 * 12:8 : l4_proto_idx
 	 * 13 : l3_csum_err - when set, either the L3
 	 *    checksum error detected, or, the controller didn't
 	 *    validate the checksum. This bit is valid only when
@@ -289,56 +258,43 @@ struct ena_eth_io_rx_cdesc_base {
 	 */
 	u32 status;
 
-	/* word 1 : */
 	u16 length;
 
 	u16 req_id;
 
-	/* word 2 : 32-bit hash result */
+	/* 32-bit hash result */
 	u32 hash;
 
-	/* word 3 : */
-	/* submission queue number */
 	u16 sub_qid;
 
 	u16 reserved;
 };
 
-/* ENA IO Queue Rx Completion Descriptor (8-word format) */
+/* 8-word format */
 struct ena_eth_io_rx_cdesc_ext {
-	/* words 0:3 : Rx Completion Extended */
 	struct ena_eth_io_rx_cdesc_base base;
 
-	/* word 4 : Completed Buffer address bits[31:0] */
 	u32 buff_addr_lo;
 
-	/* word 5 : */
-	/* the buffer address used bits[47:32] */
 	u16 buff_addr_hi;
 
 	u16 reserved16;
 
-	/* word 6 : Reserved */
 	u32 reserved_w6;
 
-	/* word 7 : Reserved */
 	u32 reserved_w7;
 };
 
-/* ENA Interrupt Unmask Register */
 struct ena_eth_io_intr_reg {
-	/* word 0 : */
-	/* 14:0 : rx_intr_delay - rx interrupt delay value
-	 * 29:15 : tx_intr_delay - tx interrupt delay value
-	 * 30 : intr_unmask - if set, unmasks interrupt
+	/* 14:0 : rx_intr_delay
+	 * 29:15 : tx_intr_delay
+	 * 30 : intr_unmask
 	 * 31 : reserved
 	 */
 	u32 intr_control;
 };
 
-/* ENA NUMA Node configuration register */
 struct ena_eth_io_numa_node_cfg_reg {
-	/* word 0 : */
 	/* 7:0 : numa
 	 * 30:8 : reserved
 	 * 31 : enabled

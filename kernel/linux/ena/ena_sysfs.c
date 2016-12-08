@@ -40,54 +40,48 @@
 #include "ena_sysfs.h"
 
 #define to_ext_attr(x) container_of(x, struct dev_ext_attribute, attr)
-static int ena_validate_small_copy_len(struct ena_adapter *adapter,
-				       unsigned long len)
-{
-	if (len > adapter->netdev->mtu)
-		return -EINVAL;
 
-	return 0;
-}
-
-static ssize_t ena_store_small_copy_len(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t len)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+static ssize_t ena_store_rx_copybreak(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t len)
 {
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
-	unsigned long small_copy_len;
+	unsigned long rx_copybreak;
 	struct ena_ring *rx_ring;
 	int err, i;
 
-	err = kstrtoul(buf, 10, &small_copy_len);
+	err = kstrtoul(buf, 10, &rx_copybreak);
 	if (err < 0)
 		return err;
 
-	err = ena_validate_small_copy_len(adapter, small_copy_len);
-	if (err)
-		return err;
+	if (len > adapter->netdev->mtu)
+		return -EINVAL;
 
 	rtnl_lock();
-	adapter->small_copy_len = small_copy_len;
+	adapter->rx_copybreak = rx_copybreak;
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		rx_ring = &adapter->rx_ring[i];
-		rx_ring->rx_small_copy_len = small_copy_len;
+		rx_ring->rx_copybreak = rx_copybreak;
 	}
 	rtnl_unlock();
 
 	return len;
 }
 
-static ssize_t ena_show_small_copy_len(struct device *dev,
-				       struct device_attribute *attr, char *buf)
+static ssize_t ena_show_rx_copybreak(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", adapter->small_copy_len);
+	return sprintf(buf, "%d\n", adapter->rx_copybreak);
 }
 
-static DEVICE_ATTR(small_copy_len, S_IRUGO | S_IWUSR, ena_show_small_copy_len,
-		   ena_store_small_copy_len);
+static DEVICE_ATTR(rx_copybreak, S_IRUGO | S_IWUSR, ena_show_rx_copybreak,
+		   ena_store_rx_copybreak);
+#endif /* kernel version < 3.18 */
+
 
 /* adaptive interrupt moderation */
 static ssize_t ena_show_intr_moderation(struct device *dev,
@@ -215,8 +209,11 @@ int ena_sysfs_init(struct device *dev)
 	int i, rc;
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 
-	if (device_create_file(dev, &dev_attr_small_copy_len))
-		dev_err(dev, "failed to create small_copy_len sysfs entry");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+	if (device_create_file(dev, &dev_attr_rx_copybreak))
+		dev_err(dev, "failed to create rx_copybreak sysfs entry");
+#endif
 
 	if (ena_com_interrupt_moderation_supported(adapter->ena_dev)) {
 		if (device_create_file(dev,
@@ -251,7 +248,9 @@ void ena_sysfs_terminate(struct device *dev)
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 	int i;
 
-	device_remove_file(dev, &dev_attr_small_copy_len);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+	device_remove_file(dev, &dev_attr_rx_copybreak);
+#endif
 	if (ena_com_interrupt_moderation_supported(adapter->ena_dev)) {
 		for (i = 0; i < ARRAY_SIZE(dev_attr_intr_moderation); i++)
 			sysfs_remove_file(&dev->kobj,
