@@ -39,6 +39,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/u64_stats_sync.h>
 
 #include "kcompat.h"
 #include "ena_com.h"
@@ -46,7 +47,7 @@
 
 #define DRV_MODULE_VER_MAJOR	1
 #define DRV_MODULE_VER_MINOR	1
-#define DRV_MODULE_VER_SUBMINOR 2
+#define DRV_MODULE_VER_SUBMINOR 3
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -136,7 +137,9 @@ struct ena_napi {
 	struct napi_struct napi ____cacheline_aligned;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
 	atomic_t unmask_interrupt;
+#endif
 	u32 qid;
 };
 

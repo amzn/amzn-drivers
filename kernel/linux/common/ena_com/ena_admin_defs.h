@@ -639,22 +639,22 @@ enum ena_admin_flow_hash_proto {
 /* RSS flow hash fields */
 enum ena_admin_flow_hash_fields {
 	/* Ethernet Dest Addr */
-	ENA_ADMIN_RSS_L2_DA	= 0x1,
+	ENA_ADMIN_RSS_L2_DA	= BIT(0),
 
 	/* Ethernet Src Addr */
-	ENA_ADMIN_RSS_L2_SA	= 0x2,
+	ENA_ADMIN_RSS_L2_SA	= BIT(1),
 
 	/* ipv4/6 Dest Addr */
-	ENA_ADMIN_RSS_L3_DA	= 0x4,
+	ENA_ADMIN_RSS_L3_DA	= BIT(2),
 
 	/* ipv4/6 Src Addr */
-	ENA_ADMIN_RSS_L3_SA	= 0x8,
+	ENA_ADMIN_RSS_L3_SA	= BIT(3),
 
 	/* tcp/udp Dest Port */
-	ENA_ADMIN_RSS_L4_DP	= 0x10,
+	ENA_ADMIN_RSS_L4_DP	= BIT(4),
 
 	/* tcp/udp Src Port */
-	ENA_ADMIN_RSS_L4_SP	= 0x20,
+	ENA_ADMIN_RSS_L4_SP	= BIT(5),
 };
 
 struct ena_admin_proto_input {

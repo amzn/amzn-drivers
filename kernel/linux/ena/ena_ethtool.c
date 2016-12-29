@@ -637,8 +637,13 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
 }
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 2, 0)
+static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
+			 void *rules)
+#else
 static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 			 u32 *rules)
+#endif
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	int rc = 0;
@@ -830,6 +835,7 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir)
 }
 #endif /* Kernel > 3.16 */
 #endif /* ETHTOOL_GRXFH */
+#ifndef HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
 
 #ifdef ETHTOOL_SCHANNELS
 static void ena_get_channels(struct net_device *netdev,
@@ -848,6 +854,7 @@ static void ena_get_channels(struct net_device *netdev,
 }
 #endif /* ETHTOOL_SCHANNELS */
 
+#endif /* HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 static int ena_get_tunable(struct net_device *netdev,
 			   const struct ethtool_tunable *tuna, void *data)
@@ -924,9 +931,11 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_rxfh_indir		= ena_get_rxfh,
 	.set_rxfh_indir		= ena_set_rxfh,
 #endif /* >= 3.8.0 */
+#ifndef HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
 #ifdef ETHTOOL_SCHANNELS
 	.get_channels		= ena_get_channels,
 #endif /* ETHTOOL_SCHANNELS */
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 	.get_tunable		= ena_get_tunable,
 	.set_tunable		= ena_set_tunable,

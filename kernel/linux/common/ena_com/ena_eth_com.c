@@ -51,7 +51,6 @@ static inline struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	if (desc_phase != expected_phase)
 		return NULL;
 
-
 	return cdesc;
 }
 

@@ -1188,13 +1188,17 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 		ret = 0;
 
 	} else if ((budget > rx_work_done) && (tx_budget > tx_work_done)) {
-		napi_complete_done(napi, rx_work_done);
-
 		napi_comp_call = 1;
+
 		/* Update numa and unmask the interrupt only when schedule
 		 * from the interrupt context (vs from sk_busy_loop)
 		 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
+		if (napi_complete_done(napi, rx_work_done)) {
+#else
+		napi_complete_done(napi, 0);
 		if (atomic_cmpxchg(&ena_napi->unmask_interrupt, 1, 0)) {
+#endif
 			/* Tx and Rx share the same interrupt vector */
 			if (ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev))
 				ena_adjust_intr_moderation(rx_ring, tx_ring);
@@ -1252,8 +1256,14 @@ static irqreturn_t ena_intr_msix_io(int irq, void *data)
 {
 	struct ena_napi *ena_napi = data;
 
-	atomic_set(&ena_napi->unmask_interrupt, 1);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
 	napi_schedule_irqoff(&ena_napi->napi);
+#else
+	if (napi_schedule_prep(&ena_napi->napi)) {
+		atomic_set(&ena_napi->unmask_interrupt, 1);
+		__napi_schedule_irqoff(&ena_napi->napi);
+	}
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -2309,6 +2319,7 @@ err:
 	ena_com_delete_debug_area(adapter->ena_dev);
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36))
 static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 						 struct rtnl_link_stats64 *stats)
 {
@@ -2369,6 +2380,66 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 
 	return stats;
 }
+#else
+static struct net_device_stats *ena_get_stats(struct net_device *netdev)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_ring *rx_ring, *tx_ring;
+	unsigned int rx_drops;
+	struct net_device_stats *stats = &netdev->stats;
+	unsigned int start;
+	int i;
+
+	memset(stats, 0, sizeof(*stats));
+	for (i = 0; i < adapter->num_queues; i++) {
+		unsigned int  bytes, packets;
+
+		tx_ring = &adapter->tx_ring[i];
+		do {
+			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
+			packets = (unsigned int)tx_ring->tx_stats.cnt;
+			bytes = (unsigned int)tx_ring->tx_stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+
+		stats->tx_packets += packets;
+		stats->tx_bytes += bytes;
+
+		rx_ring = &adapter->rx_ring[i];
+
+		do {
+			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
+			packets = (unsigned int)rx_ring->rx_stats.cnt;
+			bytes = (unsigned int)rx_ring->rx_stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+
+		stats->rx_packets += packets;
+		stats->rx_bytes += bytes;
+	}
+
+	do {
+		start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
+		rx_drops = (unsigned int)adapter->dev_stats.rx_drops;
+	} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+
+	stats->rx_dropped = rx_drops;
+
+	stats->multicast = 0;
+	stats->collisions = 0;
+
+	stats->rx_length_errors = 0;
+	stats->rx_crc_errors = 0;
+	stats->rx_frame_errors = 0;
+	stats->rx_fifo_errors = 0;
+	stats->rx_missed_errors = 0;
+	stats->tx_window_errors = 0;
+
+	stats->rx_errors = 0;
+	stats->tx_errors = 0;
+
+	return stats;
+}
+#endif
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3,10,0))
 #ifdef CONFIG_NET_RX_BUSY_POLL
 
 #define ENA_BP_NAPI_BUDGET 8
@@ -2396,13 +2467,18 @@ static int ena_busy_poll(struct napi_struct *napi)
 	return done;
 }
 #endif
+#endif
 
 static const struct net_device_ops ena_netdev_ops = {
 	.ndo_open		= ena_open,
 	.ndo_stop		= ena_close,
 	.ndo_start_xmit		= ena_start_xmit,
 	.ndo_select_queue	= ena_select_queue,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36))
 	.ndo_get_stats64	= ena_get_stats64,
+#else
+	.ndo_get_stats		= ena_get_stats,
+#endif
 	.ndo_tx_timeout		= ena_tx_timeout,
 	.ndo_change_mtu		= ena_change_mtu,
 	.ndo_set_mac_address	= NULL,
@@ -2413,7 +2489,9 @@ static const struct net_device_ops ena_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ena_netpoll,
 #ifdef CONFIG_NET_RX_BUSY_POLL
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3,10,0))
 	.ndo_busy_poll		= ena_busy_poll,
+#endif
 #endif
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 };
@@ -2984,7 +3062,15 @@ static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
 #endif /* NETIF_F_RXHASH */
 		NETIF_F_HIGHDMA;
 
+#ifdef HAVE_RHEL6_NET_DEVICE_OPS_EXT
+	do {
+		u32 hw_features = get_netdev_hw_features(netdev);
+		hw_features |= netdev->features;
+		set_netdev_hw_features(netdev, hw_features);
+	} while (0);
+#else
 	netdev->hw_features |= netdev->features;
+#endif
 	netdev->vlan_features |= netdev->features;
 }
 

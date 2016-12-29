@@ -1,5 +1,37 @@
 ==== ENA Driver Release notes ====
 
+
+---- Supported kernels/distributions ----
+
+ENA driver is supported on kernels 3.2 and above
+with an addition of kernel 2.6.32.
+
+The driver was verified on the following distributions:
+
+Red Hat:
+* Red Hat Enterprise Linux 6.7
+* Red Hat Enterprise Linux 6.8
+* Red Hat Enterprise Linux 7.2
+* Red Hat Enterprise Linux 7.3
+
+Ubuntu:
+* ubuntu Trusty 14.04 amd64 server
+* Ubuntu Xenial 16.04 amd64 server
+
+Amazon Linux:
+* Amazon Linux AMI 2016.09.1
+
+Cent OS:
+* Cent OS 6
+* Cent OS 7
+
+Suse:
+SUSE Linux Enterprise Server 12 SP2
+
+
+---- r1.1.3 ----
+* Add support for RHEL 6.7/6.8 and 7.3
+
 ---- r1.1.2 ----
 
 New Features:
@@ -20,10 +52,10 @@ Bug Fixes:
 	while the OS is running.
 * Reorder the initialization of the workqueues and the timer service
 	In the highly unlikely event of driver failing on probe the reset workqueue
-	cause access to freed aread.
+	cause access to freed area.
 * Remove redundant logic in napi callback for busy poll mode.
 	Impact the performance on kernel >= 4.5 when CONFIG_NET_RX_BUSY_POLL is enable
-		and socket is openned with SO_BUSY_POLL
+		and socket is opened with SO_BUSY_POLL
 * In RSS hash configuration add missing variable initialization.
 * Fix type mismatch in structs initialization
 * Fix kernel starvation when get_statistics is called from atomic context
