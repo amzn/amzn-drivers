@@ -1,0 +1,8 @@
+%defattr(644,root,root,755)
+/etc/depmod.d/%{kmod_name}.conf
+/lib/modules/%2-%1
+/usr/share/doc/kmod-%{kmod_name}/greylist.txt
+/usr/share/doc/kmod-%{kmod_name}/README
+/usr/share/doc/kmod-%{kmod_name}/RELEASENOTES.md
+/usr/share/doc/kmod-%{kmod_name}/COPYING
+

@@ -1,0 +1,11 @@
+#!/bin/bash
+filelist=$(sed "s/['\"]/\\\&/g")
+kolist=$(echo $filelist | tr '[:blank:]' \\n | grep -E '/lib/modules/.+\.ko$')
+echo $filelist | tr '[:blank:]' \\n | /usr/lib/rpm/redhat/find-provides.ksyms
+
+for module in $kolist; do
+	modname=$(echo $module | sed 's|^.*/\([^/]*\)\.ko$|\1|')
+	if [ "$modname" != "$1" ]; then
+		echo "kmod-$modname = $2"
+	fi
+done | sort -u

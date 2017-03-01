@@ -1,0 +1,2 @@
+Requires: kernel-uname-r >= %{kernel_version}
+Provides: %{kmod_name} = %{version}-%{release}

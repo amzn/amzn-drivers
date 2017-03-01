@@ -1,0 +1,6 @@
+#!/bin/bash
+kver=${2%%-*}
+find $3 -name '*.ko' | sed 's|^.*/\([^/]*\)\.ko$|\1|' | sort -u | \
+while read -r module; do
+	echo "override $module $kver-* weak-updates/$1"
+done

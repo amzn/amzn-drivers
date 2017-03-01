@@ -1,0 +1,63 @@
+#! /bin/bash
+
+IFS=$'\n'
+
+all_provides() {
+    nm "$@" \
+    | sed -r -ne 's:^([0-9a-f]+) A __crc_(.+):\1\t\2:p' \
+    | sort -k2 -u
+}
+
+all_requires() {
+    for module in "$@"; do
+        set -- $(/sbin/modinfo -F vermagic "$module" | sed -e 's: .*::' -e q)
+        /sbin/modprobe --dump-modversions "$module" \
+        | awk --non-decimal-data '
+            BEGIN { FS = "\t" ; OFS = "\t" }
+            {printf("0x%08x\t%s\n", $1, $2)}' \
+        | sed -r -e 's:$:\t'"$1"':'
+    done \
+    | sort -k2 -u
+}
+
+if ! [ -e /sbin/modinfo -a -e /sbin/modprobe ]; then
+    cat > /dev/null
+    exit 0
+fi
+
+modules=($(grep -E '/lib/modules/.+\.ko$'))
+
+if [ ${#modules[@]} -gt 0 ]; then
+    kernel=$(/sbin/modinfo -F vermagic "${modules[0]}" | sed -e 's: .*::' -e q)
+
+    # get all that kernel provides
+    symvers=$(mktemp -t ${0##*/}.XXXXX)
+    cat /usr/src/kernels/$kernel/Module.symvers | awk '
+        BEGIN { FS = "\t" ; OFS = "\t" }
+        { print $2 "\t" $1 }
+    ' \
+    | sed -r -e 's:$:\t'"$1"':' \
+    | sort -u -k2 > $symvers
+
+    # get all that we demands
+    reqs=$(mktemp -t ${0##*/}.XXXXX)
+    join -t $'\t' -j 2 -v 1 \
+            <(all_requires "${modules[@]}") \
+            <(all_provides "${modules[@]}") \
+    | sort -u -k2 > $reqs
+
+    # get kernel dependencies - kernel(symbol) = 0xHEX
+    join -t $'\t' -j2 -o 1.1 1.2 $symvers $reqs \
+    | sort -u \
+    | awk '
+    { FS = "\t" ; OFS = "\t" }
+            { print "kernel(" $1 ") = " $2 }
+    '
+
+    # get module dependencies - ksym(symbol) = 0xHEX
+    join -t $'\t' -j2 -v2 $symvers $reqs \
+    | sort -u | awk '
+    { FS = "\t" ; OFS = "\t" }
+            { print "ksym(" $2 ") = " $1 }
+    '
+fi

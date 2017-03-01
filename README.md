@@ -7,5 +7,7 @@ The following drivers are included:
 
 
 * Linux driver for Elastic Network Adapter (ENA)
-
 Please refer to /kernel/linux/ena
+
+For Linux driver SPRM build instruction please refer to
+/kernel/linux/rpm/README-rpm.txt
