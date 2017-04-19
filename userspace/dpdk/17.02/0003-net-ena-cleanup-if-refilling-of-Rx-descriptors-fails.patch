@@ -1,0 +1,39 @@
+From 87751e3752243b14268cfc1da98cc0c262efea30 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Mon, 10 Apr 2017 16:28:10 +0200
+Subject: [PATCH 3/6] net/ena: cleanup if refilling of Rx descriptors fails
+
+[ upstream commit 2732e07ad1e54c648c8ca5bc6965af5bf607ba10 ]
+
+If wrong number of descriptors for refilling was passed to the Rx
+repopulate function, there was memory leak which caused memory pool to
+run out of resources in longer go.
+
+In case of fail when refilling Rx descriptors, all additional mbufs
+have to be released.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Jakub Palider <jpalider@gmail.com>
+Acked-by: Jan Medala <jan.medala@outlook.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index b4c713f..e6e889b 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1172,6 +1172,8 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 		rc = ena_com_add_single_rx_desc(rxq->ena_com_io_sq,
+ 						&ebuf, next_to_use_masked);
+ 		if (unlikely(rc)) {
++			rte_mempool_put_bulk(rxq->mb_pool, (void **)(&mbuf),
++					     count - i);
+ 			RTE_LOG(WARNING, PMD, "failed adding rx desc\n");
+ 			break;
+ 		}
+-- 
+2.7.4
+

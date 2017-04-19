@@ -1,0 +1,70 @@
+From ca70c58c46b5df9c5a5d8d050320b8f0ee68f831 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 18 May 2017 17:41:50 +0200
+Subject: [PATCH 2/5] net/ena: fix Rx descriptors allocation
+
+[ backported from upstream commit a467e8f37a3eec98210c0c3ec04bf6e9506ddd81 ]
+
+When application tried to allocate 1024 descriptors, device was not
+initializing properly.
+
+This patch solves it by avoiding allocation of all descriptors in the
+ring in one attempt. At least one descriptor must remain unused in the
+HW ring.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Jakub Palider <jpalider@gmail.com>
+Acked-by: Jan Medala <jan.medala@outlook.com>
+---
+ drivers/net/ena/ena_ethdev.c | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index dd53c32..2318cf3 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -913,7 +913,7 @@ static int ena_start(struct rte_eth_dev *dev)
+ 
+ static int ena_queue_restart(struct ena_ring *ring)
+ {
+-	int rc;
++	int rc, bufs_num;
+ 
+ 	ena_assert_msg(ring->configured == 1,
+ 		       "Trying to restart unconfigured queue\n");
+@@ -924,9 +924,10 @@ static int ena_queue_restart(struct ena_ring *ring)
+ 	if (ring->type == ENA_RING_TYPE_TX)
+ 		return 0;
+ 
+-	rc = ena_populate_rx_queue(ring, ring->ring_size);
+-	if ((unsigned int)rc != ring->ring_size) {
+-		PMD_INIT_LOG(ERR, "Failed to populate rx ring !\n");
++	bufs_num = ring->ring_size - 1;
++	rc = ena_populate_rx_queue(ring, bufs_num);
++	if (rc != bufs_num) {
++		PMD_INIT_LOG(ERR, "Failed to populate rx ring !");
+ 		return (-1);
+ 	}
+ 
+@@ -1137,7 +1138,7 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 		return 0;
+ 
+ 	in_use = rxq->next_to_use - rxq->next_to_clean;
+-	ena_assert_msg(((in_use + count) <= ring_size), "bad ring state");
++	ena_assert_msg(((in_use + count) < ring_size), "bad ring state");
+ 
+ 	count = RTE_MIN(count,
+ 			(uint16_t)(ring_size - (next_to_use & ring_mask)));
+@@ -1563,6 +1564,7 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 		recv_idx++;
+ 	}
+ 
++	desc_in_use += 1;
+ 	/* Burst refill to save doorbells, memory barriers, const interval */
+ 	if (ring_size - desc_in_use > ENA_RING_DESCS_RATIO(ring_size))
+ 		ena_populate_rx_queue(rx_ring, ring_size - desc_in_use);
+-- 
+2.7.4
+

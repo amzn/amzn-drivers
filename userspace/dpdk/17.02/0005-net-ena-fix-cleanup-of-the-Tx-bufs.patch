@@ -1,0 +1,45 @@
+From d01de580d9c37d947ed5694554e54650155c8f6f Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 16 Jun 2017 08:19:16 +0000
+Subject: [PATCH 5/6] net/ena: fix cleanup of the Tx bufs
+
+After cleanup of the mbuf on Tx path, queue was still pointing to this
+mbuf and upon cleanup of the Tx buffers, it was being freed second time.
+
+Moreover, to make sure that upon interrupt all mbufs will be freed,
+whole ring is being cleaned up instead of part of it - originally only
+range between head and tail was being cleaned up.
+---
+ drivers/net/ena/ena_ethdev.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 3ba9901..7fca027 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -688,11 +688,10 @@ static void ena_rx_queue_release_bufs(struct ena_ring *ring)
+ 
+ static void ena_tx_queue_release_bufs(struct ena_ring *ring)
+ {
+-	unsigned int ring_mask = ring->ring_size - 1;
++	unsigned int i;
+ 
+-	while (ring->next_to_clean != ring->next_to_use) {
+-		struct ena_tx_buffer *tx_buf =
+-			&ring->tx_buffer_info[ring->next_to_clean & ring_mask];
++	for (i = 0; i < ring->ring_size; ++i) {
++		struct ena_tx_buffer *tx_buf = &ring->tx_buffer_info[i];
+ 
+ 		if (tx_buf->mbuf)
+ 			rte_pktmbuf_free(tx_buf->mbuf);
+@@ -1771,6 +1770,7 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 		/* Free whole mbuf chain  */
+ 		mbuf = tx_info->mbuf;
+ 		rte_pktmbuf_free(mbuf);
++		tx_info->mbuf = NULL;
+ 
+ 		/* Put back descriptor to the ring for reuse */
+ 		tx_ring->empty_tx_reqs[next_to_clean & ring_mask] = req_id;
+-- 
+2.7.4
+

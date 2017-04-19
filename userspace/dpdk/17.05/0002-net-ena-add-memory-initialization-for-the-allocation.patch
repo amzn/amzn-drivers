@@ -1,0 +1,35 @@
+From 639348ce1f9d7a23c57a3db151084cf39b5d3099 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 16 Jun 2017 09:10:48 +0000
+Subject: [PATCH 2/2] net/ena: add memory initialization for the allocation
+ macros
+
+Uninitilized memory could cause memory corruption, by indicating
+completion of the invalid mbuf.
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 7eaebf4..71a8c1e 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -207,6 +207,7 @@ typedef uint64_t dma_addr_t;
+ 		snprintf(z_name, sizeof(z_name),			\
+ 				"ena_alloc_%d", ena_alloc_cnt++);	\
+ 		mz = rte_memzone_reserve(z_name, size, node, 0); \
++		memset(mz->addr, 0, size);				\
+ 		virt = mz->addr;					\
+ 		phys = mz->phys_addr;					\
+ 	} while (0)
+@@ -219,6 +220,7 @@ typedef uint64_t dma_addr_t;
+ 		snprintf(z_name, sizeof(z_name),			\
+ 				"ena_alloc_%d", ena_alloc_cnt++);	\
+ 		mz = rte_memzone_reserve(z_name, size, node, 0); \
++		memset(mz->addr, 0, size);				\
+ 		virt = mz->addr;					\
+ 	} while (0)
+ 
+-- 
+2.7.4
+

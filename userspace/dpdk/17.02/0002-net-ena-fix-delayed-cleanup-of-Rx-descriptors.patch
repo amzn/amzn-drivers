@@ -1,0 +1,51 @@
+From a5777d43c67c4cca34ccaec06b09b4cc33e40699 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Mon, 10 Apr 2017 16:28:09 +0200
+Subject: [PATCH 2/6] net/ena: fix delayed cleanup of Rx descriptors
+
+[ upstream commit ec78af6bc0556cf2a1133185ca33fb835b38afe0 ]
+
+On RX path, after receiving bunch of packets, variable tracking
+available descriptors in HW queue was not updated.
+
+To fix this issue, variable tracking used descriptors must be updated
+after receiving packets - it must be reduced by the amount of received
+descriptors in current batch.
+
+Additionally, variable next_to_clean in rx_ring must be updated before
+entering ena_populate_rx_queue() to keep it up to date with the current
+ring state.
+
+Fixes: 1daff5260ff8 ("net/ena: use unmasked head and tail")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Jakub Palider <jpalider@gmail.com>
+Acked-by: Jan Medala <jan.medala@outlook.com>
+---
+ drivers/net/ena/ena_ethdev.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 90cf2ad..b4c713f 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1575,13 +1575,13 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 		recv_idx++;
+ 	}
+ 
+-	desc_in_use += 1;
++	rx_ring->next_to_clean = next_to_clean;
++
++	desc_in_use = desc_in_use - completed + 1;
+ 	/* Burst refill to save doorbells, memory barriers, const interval */
+ 	if (ring_size - desc_in_use > ENA_RING_DESCS_RATIO(ring_size))
+ 		ena_populate_rx_queue(rx_ring, ring_size - desc_in_use);
+ 
+-	rx_ring->next_to_clean = next_to_clean;
+-
+ 	return recv_idx;
+ }
+ 
+-- 
+2.7.4
+

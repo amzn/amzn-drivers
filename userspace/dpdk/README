@@ -1,0 +1,15 @@
+DPDK driver for Elastic Network Adapter (ENA):
+========================================================
+
+Overview:
+=========
+This folder includes critical bug fixes on previous DPDK releases
+
+Applying the fixes:
+===================
+In order to apply the fixes, follow these steps:
+* Download the dpdk version from the dpdk tree
+* Apply all patches for the same version
+ git am <DPDK_VERSION>/00*
+
+

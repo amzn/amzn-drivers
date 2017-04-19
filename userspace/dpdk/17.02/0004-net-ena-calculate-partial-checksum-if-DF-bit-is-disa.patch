@@ -1,0 +1,85 @@
+From c0f6478a684b86bf2f7eb99640dd8e5a1e1d9a4c Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Mon, 10 Apr 2017 16:28:11 +0200
+Subject: [PATCH 4/6] net/ena: calculate partial checksum if DF bit is disabled
+
+When TSO is disabled we still have to calculate partial checksum if DF bit
+if turned off. This is caused by firmware bug.
+
+First of all, we must make sure that we are dealing with IPV4 packet.
+If not, we will just skip further checking of this packet and move to
+the next one.
+
+If application will not set m2_len field, we assume we that it was Ethernet
+frame because we have to look inside the packet to check for the DF flag.
+To make it work properly, PMD is assuming that before sending
+packet application called function rte_eth_tx_prepare().
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Jakub Palider <jpalider@gmail.com>
+Acked-by: Jan Medala <jan.medala@outlook.com>
+---
+ drivers/net/ena/ena_ethdev.c | 36 +++++++++++++++++++++++-------------
+ 1 file changed, 23 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index e6e889b..3ba9901 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1599,14 +1599,33 @@ eth_ena_prep_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 	uint64_t ol_flags;
+ 	uint16_t frag_field;
+ 
+-	/* ENA needs partial checksum for TSO packets only, skip early */
+-	if (!tx_ring->adapter->tso4_supported)
+-		return nb_pkts;
+-
+ 	for (i = 0; i != nb_pkts; i++) {
+ 		m = tx_pkts[i];
+ 		ol_flags = m->ol_flags;
+ 
++		if (!(ol_flags & PKT_TX_IPV4))
++			continue;
++
++		/* If there was not L2 header length specified, assume it is
++		 * length of the ethernet header.
++		 */
++		if (unlikely(m->l2_len == 0))
++			m->l2_len = sizeof(struct ether_hdr);
++
++		ip_hdr = rte_pktmbuf_mtod_offset(m, struct ipv4_hdr *,
++						 m->l2_len);
++		frag_field = rte_be_to_cpu_16(ip_hdr->fragment_offset);
++
++		if ((frag_field & IPV4_HDR_DF_FLAG) != 0) {
++			m->packet_type |= RTE_PTYPE_L4_NONFRAG;
++
++			/* If IPv4 header has DF flag enabled and TSO support is
++			 * disabled, partial chcecksum should not be calculated.
++			 */
++			if (!tx_ring->adapter->tso4_supported)
++				continue;
++		}
++
+ 		if ((ol_flags & ENA_TX_OFFLOAD_NOTSUP_MASK) != 0 ||
+ 				(ol_flags & PKT_TX_L4_MASK) ==
+ 				PKT_TX_SCTP_CKSUM) {
+@@ -1622,15 +1641,6 @@ eth_ena_prep_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 		}
+ #endif
+ 
+-		if (!(m->ol_flags & PKT_TX_IPV4))
+-			continue;
+-
+-		ip_hdr = rte_pktmbuf_mtod_offset(m, struct ipv4_hdr *,
+-						 m->l2_len);
+-		frag_field = rte_be_to_cpu_16(ip_hdr->fragment_offset);
+-		if (frag_field & IPV4_HDR_DF_FLAG)
+-			continue;
+-
+ 		/* In case we are supposed to TSO and have DF not set (DF=0)
+ 		 * hardware must be provided with partial checksum, otherwise
+ 		 * it will take care of necessary calculations.
+-- 
+2.7.4
+
