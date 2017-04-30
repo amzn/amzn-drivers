@@ -465,7 +465,7 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) ) && \
     !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) && \
-    !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,9))
+    !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,0))
 
 static inline void napi_schedule_irqoff(struct napi_struct *n)
 {
