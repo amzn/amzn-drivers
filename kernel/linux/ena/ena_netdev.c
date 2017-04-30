@@ -1490,7 +1490,9 @@ static void ena_init_napi(struct ena_adapter *adapter)
 			       &adapter->ena_napi[i].napi,
 			       ena_io_poll,
 			       ENA_NAPI_BUDGET);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 		napi_hash_add(&adapter->ena_napi[i].napi);
+#endif
 		napi->rx_ring = &adapter->rx_ring[i];
 		napi->tx_ring = &adapter->tx_ring[i];
 		napi->qid = i;
