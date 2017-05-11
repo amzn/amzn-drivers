@@ -367,7 +367,9 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 #endif
 
 #if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) && \
-	!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,8))
+	!(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,8) && \
+	                        (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) \
+                            || (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1))))
 static inline void reinit_completion(struct completion *x)
 {
          x->done = 0;
@@ -399,7 +401,9 @@ static inline void skb_set_hash(struct sk_buff *skb, __u32 hash,
 /* for ndo_dfwd_ ops add_station, del_station and _start_xmit */
 #define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
 #else
-#if !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3)) && \
+#if !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3) \
+                        && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)) \
+                        || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) && \
     !(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
 static inline int pci_msix_vec_count(struct pci_dev *dev)
 {
@@ -413,7 +417,8 @@ static inline int pci_msix_vec_count(struct pci_dev *dev)
 	pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
 	return (control & 0x7FF) + 1;
 }
-#if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))
+#if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) && \
+    !(RHEL_RELEASE_CODE == RHEL_RELEASE_VERSION(7,0))
 static inline void ether_addr_copy(u8 *dst, const u8 *src)
 {
 	memcpy(dst, src, 6);
@@ -429,7 +434,9 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0) || \
 	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE > UBUNTU_VERSION(3,13,0,24))) || \
 	(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) || \
-	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3))
+	(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3) \
+	                     && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2)) \
+                           || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
 #else
 static inline bool u64_stats_fetch_retry_irq(const struct u64_stats_sync *syncp,
 					     unsigned int start)
@@ -455,7 +462,9 @@ static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0) ) \
 	|| (SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) \
-	|| (RHEL_RELEASE_CODE && RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3))
+	|| (RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3) \
+	                        && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)) \
+	                        || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
 #else
 static inline void netdev_rss_key_fill(void *buffer, size_t len)
 {
@@ -465,7 +474,7 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) ) && \
     !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) && \
-    !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,0))
+    !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2))
 
 static inline void napi_schedule_irqoff(struct napi_struct *n)
 {
@@ -485,7 +494,9 @@ static inline void __napi_schedule_irqoff(struct napi_struct *n)
 /*****************************************************************************/
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0) \
-	|| (RHEL_RELEASE_CODE && RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,7)) \
+	|| (RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,7)) && \
+	                          (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) \
+	                      || RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2)) \
 	|| (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,19,0,51))
 #else
 static inline void napi_complete_done(struct napi_struct *n, int work_done)
