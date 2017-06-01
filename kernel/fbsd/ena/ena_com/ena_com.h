@@ -84,8 +84,14 @@
 #define ENA_INTR_INITIAL_RX_INTERVAL_USECS		4
 #define ENA_INTR_DELAY_OLD_VALUE_WEIGHT			6
 #define ENA_INTR_DELAY_NEW_VALUE_WEIGHT			4
-#define ENA_INTR_MODER_LEVEL_STRIDE				1
+#ifdef MAINLINE
+#define ENA_INTR_MODER_LEVEL_STRIDE			2
+#else
+#define ENA_INTR_MODER_LEVEL_STRIDE			1
+#endif
 #define ENA_INTR_BYTE_COUNT_NOT_SUPPORTED		0xFFFFFF
+
+#define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
 
 enum ena_intr_moder_level {
 	ENA_INTR_MODER_LOWEST = 0,
@@ -236,6 +242,7 @@ struct ena_com_admin_queue {
 	ena_spinlock_t q_lock; /* spinlock for the admin queue */
 
 	struct ena_comp_ctx *comp_ctx;
+	u32 completion_timeout;
 	u16 q_depth;
 	struct ena_com_admin_cq cq;
 	struct ena_com_admin_sq sq;
@@ -272,6 +279,7 @@ struct ena_com_mmio_read {
 	struct ena_admin_ena_mmio_req_read_less_resp *read_resp;
 	dma_addr_t read_resp_dma_addr;
 	ena_mem_handle_t read_resp_mem_handle;
+	u32 reg_read_to; /* in us */
 	u16 seq_num;
 	bool readless_supported;
 	/* spin lock to ensure a single outstanding read */
@@ -348,6 +356,7 @@ struct ena_com_dev_get_features_ctx {
 	struct ena_admin_device_attr_feature_desc dev_attr;
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
+	struct ena_admin_ena_hw_hints hw_hints;
 };
 
 struct ena_com_create_io_ctx {
@@ -1051,9 +1060,22 @@ static inline void ena_com_update_intr_reg(struct ena_eth_io_intr_reg *intr_reg,
 		intr_reg->intr_control |= ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK;
 }
 
+#ifdef ENA_DEBUG
 int ena_com_get_dev_extended_stats(struct ena_com_dev *ena_dev, char *buff,
 				   u32 len);
 
 int ena_com_extended_stats_set_func_queue(struct ena_com_dev *ena_dev,
 					  u32 funct_queue);
+
+int ena_com_set_trace(struct ena_com_dev *ena_dev, u32 severity,
+		      u32 type);
+
+void ena_com_get_trace(struct ena_com_dev *ena_dev, u32 *severity,
+		       u32 *type);
+
+int ena_com_trace_usage(char *buf, size_t size);
+#endif /* ENA_DEBUG */
+#if defined(__cplusplus)
+}
+#endif /* __cplusplus */
 #endif /* !(ENA_COM) */

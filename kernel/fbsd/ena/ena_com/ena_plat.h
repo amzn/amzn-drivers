@@ -34,7 +34,6 @@
 #ifndef ENA_PLAT_H_
 #define ENA_PLAT_H_
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -92,36 +91,38 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 extern struct ena_bus_space ebs;
-extern uint32_t debug_level;
 
-#define ENA_DEBUG
+/* Levels */
+#define ENA_ALERT 	(1 << 0) /* Alerts are providing more error info.     */
+#define ENA_WARNING 	(1 << 1) /* Driver output is more error sensitive.    */
+#define ENA_INFO 	(1 << 2) /* Provides additional driver info. 	      */
+#define ENA_DBG 	(1 << 3) /* Driver output for debugging.	      */
+/* Detailed info that will be printed with ENA_INFO or ENA_DEBUG flag. 	      */
+#define ENA_TXPTH 	(1 << 4) /* Allows TX path tracing. 		      */
+#define ENA_RXPTH 	(1 << 5) /* Allows RX path tracing.		      */
+#define ENA_RSC 	(1 << 6) /* Goes with TXPTH or RXPTH, free/alloc res. */
+#define ENA_IOQ 	(1 << 7) /* Detailed info about IO queues. 	      */
+#define ENA_ADMQ	(1 << 8) /* Detailed info about admin queue. 	      */
 
-//#define ENA_TRACE
+#ifndef ENA_DEBUG_LEVEL
+#define ENA_DEBUG_LEVEL (ENA_ALERT | ENA_WARNING)
+#endif
+
 #ifdef ENA_TRACE
-#define ena_trace_raw(level, fmt, args...)		\
-	do {						\
-		if (((level) & debug_level) == 0)	\
-			break;				\
-		printf(fmt, ##args);			\
+#define ena_trace_raw(level, fmt, args...)			\
+	do {							\
+		if (((level) & ENA_DEBUG_LEVEL) != (level))	\
+			break;					\
+		printf(fmt, ##args);				\
 	} while (0)
 
 #define ena_trace(level, fmt, args...)				\
 	ena_trace_raw(level, "%s() [TID:%d]: "			\
 	    fmt " \n", __func__, curthread->td_tid, ##args)
 
-#define ena_trace_func(level, func)				\
-	do {							\
-		if (((level) & debug_level) == 0)		\
-			break;					\
-		critical_enter();				\
-		func;						\
-		critical_exit();				\
-	} while (0)
-
 #else /* ENA_TRACE */
 #define ena_trace_raw(...)
 #define ena_trace(...)
-#define ena_trace_func(...)
 #endif /* ENA_TRACE */
 
 #define ena_trc_dbg(format, arg...) 	ena_trace(ENA_DBG, format, ##arg)
@@ -163,16 +164,6 @@ extern uint32_t debug_level;
 		}							\
 	} while (0)
 
-#define ENA_ALERT 	(1 << 0)
-#define ENA_WARNING 	(1 << 1)
-#define ENA_INFO 	(1 << 2)
-#define ENA_DBG 	(1 << 3)
-#define ENA_TXPTH 	(1 << 4)
-#define ENA_RXPTH 	(1 << 5)
-#define ENA_RSC 	(1 << 6)
-#define ENA_IOQ 	(1 << 7)
-#define ENA_ADMQ	(1 << 8)
-
 static inline long IS_ERR(const void *ptr)
 {
 	return IS_ERR_VALUE((unsigned long)ptr);
@@ -210,8 +201,10 @@ static inline long PTR_ERR(const void *ptr)
 
 #define ENA_MSLEEP(x) 		pause_sbt("ena", SBT_1MS * (x), SBT_1MS, 0)
 #define ENA_UDELAY(x) 		DELAY(x)
+#define ENA_GET_SYSTEM_TIMEOUT(timeout_us) \
+    ((long)cputick2usec(cpu_ticks()) + (timeout_us))
+#define ENA_TIME_EXPIRE(timeout)  ((timeout) < (long)cputick2usec(cpu_ticks()))
 #define ENA_MIGHT_SLEEP()
-#define ENA_GET_SYSTEM_USECS()	((u32)cputick2usec(cpu_ticks()))
 
 #define min_t(type, _x, _y) ((type)(_x) < (type)(_y) ? (type)(_x) : (type)(_y))
 #define max_t(type, _x, _y) ((type)(_x) > (type)(_y) ? (type)(_x) : (type)(_y))
@@ -228,6 +221,11 @@ static inline long PTR_ERR(const void *ptr)
 #define ena_spinlock_t 	struct mtx
 #define ENA_SPINLOCK_INIT(spinlock)				\
 	mtx_init(&(spinlock), "ena_spin", NULL, MTX_SPIN)
+#define ENA_SPINLOCK_DESTROY(spinlock)				\
+	do {							\
+		if (mtx_initialized(&(spinlock)))		\
+		    mtx_destroy(&(spinlock));			\
+	} while (0)
 #define ENA_SPINLOCK_LOCK(spinlock, flags)			\
 	do {							\
 		(void)(flags);					\
@@ -314,6 +312,9 @@ int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
 		(void)size;						\
 		bus_dmamap_unload((dma).tag, (dma).map);		\
 		bus_dmamem_free((dma).tag, (virt), (dma).map);		\
+		bus_dma_tag_destroy((dma).tag);				\
+		(dma).tag = NULL;					\
+		(virt) = NULL;						\
 	} while (0)
 
 /* Register R/W methods */
@@ -356,6 +357,16 @@ void prefetch(void *x)
 #define ATOMIC32_DEC(I32_PTR) 		atomic_add_int(I32_PTR, -1)
 #define ATOMIC32_READ(I32_PTR) 		atomic_load_acq_int(I32_PTR)
 #define ATOMIC32_SET(I32_PTR, VAL) 	atomic_store_rel_int(I32_PTR, VAL)
+
+#define	barrier() __asm__ __volatile__("": : :"memory")
+#define	ACCESS_ONCE(x) (*(volatile __typeof(x) *)&(x))
+#define READ_ONCE(x)  ({			\
+			__typeof(x) __var;	\
+			barrier();		\
+			__var = ACCESS_ONCE(x);	\
+			barrier();		\
+			__var;			\
+		})
 
 #include "ena_common_defs.h"
 #include "ena_admin_defs.h"

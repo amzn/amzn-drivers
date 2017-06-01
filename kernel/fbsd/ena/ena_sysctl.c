@@ -8,15 +8,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in
- * the documentation and/or other materials provided with the
- * distribution.
- * * Neither the name of copyright holder nor the names of its
- * contributors may be used to endorse or promote products derived
- * from this software without specific prior written permission.
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -35,7 +32,6 @@
 
 static int	ena_sysctl_update_stats(SYSCTL_HANDLER_ARGS);
 static void	ena_sysctl_add_stats(struct ena_adapter *);
-
 #ifdef ENA_DEBUG
 static void	ena_sysctl_add_debug(struct ena_adapter *);
 static int	ena_sysctl_update_state(SYSCTL_HANDLER_ARGS);
@@ -92,19 +88,26 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	admin_stats = &adapter->ena_dev->admin_queue.stats;
 
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "tx_timeout",
-	    CTLFLAG_RD, &dev_stats->tx_timeout, "Driver TX timeouts");
+	    CTLFLAG_RD, &dev_stats->tx_timeout,
+	    "Driver TX timeouts");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "io_suspend",
-	    CTLFLAG_RD, &dev_stats->io_suspend, "IO queue suspends");
+	    CTLFLAG_RD, &dev_stats->io_suspend,
+	    "IO queue suspends");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "io_resume",
-	    CTLFLAG_RD, &dev_stats->io_resume, "IO queue resumes");
+	    CTLFLAG_RD, &dev_stats->io_resume,
+	    "IO queue resumes");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "wd_expired",
-	    CTLFLAG_RD, &dev_stats->wd_expired, "Watchdog expires");
+	    CTLFLAG_RD, &dev_stats->wd_expired,
+	    "Watchdog expiry count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "interface_up",
-	    CTLFLAG_RD, &dev_stats->interface_up, "Network interface ups");
+	    CTLFLAG_RD, &dev_stats->interface_up,
+	    "Network interface up count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "interface_down",
-	    CTLFLAG_RD, &dev_stats->interface_down, "Network interface downs");
+	    CTLFLAG_RD, &dev_stats->interface_down,
+	    "Network interface down count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "admin_q_pause",
-	    CTLFLAG_RD, &dev_stats->admin_q_pause, "Admin queue pauses");
+	    CTLFLAG_RD, &dev_stats->admin_q_pause,
+	    "Admin queue pauses");
 
 	for (i = 0; i < adapter->num_queues; ++i, ++tx_ring, ++rx_ring) {
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
@@ -128,23 +131,24 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		    &tx_stats->bytes, "Bytes sent");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "prepare_ctx_err", CTLFLAG_RD,
-		    &tx_stats->prepare_ctx_err, "Preparing TX buff fails");
+		    &tx_stats->prepare_ctx_err,
+		    "TX buffer preparation failures");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "queue_wakeup", CTLFLAG_RD,
 		    &tx_stats->queue_wakeup, "Queue wakeups");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "dma_mapping_err", CTLFLAG_RD,
-		    &tx_stats->dma_mapping_err, "DMA mapping fails");
+		    &tx_stats->dma_mapping_err, "DMA mapping failures");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "unsupported_desc_num", CTLFLAG_RD,
 		    &tx_stats->unsupported_desc_num,
-		    "Wrong number of descriptor");
+		    "Excessive descriptor packet discards");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "napi_comp", CTLFLAG_RD,
 		    &tx_stats->napi_comp, "Napi completions");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "tx_poll", CTLFLAG_RD,
-		    &tx_stats->tx_poll, "TX polling");
+		    &tx_stats->tx_poll, "TX poll count");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "doorbells", CTLFLAG_RD,
 		    &tx_stats->doorbells, "Queue doorbells");
@@ -153,7 +157,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		    &tx_stats->missing_tx_comp, "TX completions missed");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "bad_req_id", CTLFLAG_RD,
-		    &tx_stats->bad_req_id, "Bad requested IDs");
+		    &tx_stats->bad_req_id, "Bad request id count");
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "stops", CTLFLAG_RD,
 		    &tx_stats->queue_stop, "Queue stops");
@@ -167,10 +171,10 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "count", CTLFLAG_RD,
-		    &rx_stats->cnt, "Packets receiver");
+		    &rx_stats->cnt, "Packets received");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "bytes", CTLFLAG_RD,
-		    &rx_stats->bytes, "Bytes receiver");
+		    &rx_stats->bytes, "Bytes received");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "refil_partial", CTLFLAG_RD,
 		    &rx_stats->refil_partial, "Partial refilled mbufs");
@@ -188,10 +192,10 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		    &rx_stats->dma_mapping_err, "DMA mapping errors");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "bad_desc_num", CTLFLAG_RD,
-		    &rx_stats->bad_desc_num, "Bad descriptors number");
+		    &rx_stats->bad_desc_num, "Bad descriptor count");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "small_copy_len_pkt", CTLFLAG_RD,
-		    &rx_stats->small_copy_len_pkt, "Small packets number");
+		    &rx_stats->small_copy_len_pkt, "Small copy packet count");
 	}
 
 	/* Stats read from device */
@@ -208,7 +212,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "tx_bytes", CTLFLAG_RD,
 	    &hw_stats->tx_bytes, 0, "Bytes transmitted");
 	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_drops", CTLFLAG_RD,
-	    &hw_stats->rx_drops, 0, "RX drops");
+	    &hw_stats->rx_drops, 0, "Receive packet drops");
 
 	SYSCTL_ADD_PROC(ctx, hw_list, OID_AUTO, "update_stats",
 	    CTLTYPE_INT|CTLFLAG_RD, adapter, 0, ena_sysctl_update_stats,

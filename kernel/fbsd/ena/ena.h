@@ -8,15 +8,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in
- * the documentation and/or other materials provided with the
- * distribution.
- * * Neither the name of copyright holder nor the names of its
- * contributors may be used to endorse or promote products derived
- * from this software without specific prior written permission.
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -32,12 +29,30 @@
  */
 
 #ifndef ENA_H
-#define	ENA_H
+#define ENA_H
 
 #include <sys/types.h>
 
 #include "ena_com/ena_com.h"
 #include "ena_com/ena_eth_com.h"
+
+#define DRV_MODULE_VER_MAJOR	0
+#define DRV_MODULE_VER_MINOR	7
+#define DRV_MODULE_VER_SUBMINOR 0
+
+#define DRV_MODULE_NAME		"ena"
+
+#ifndef DRV_MODULE_VERSION
+#define DRV_MODULE_VERSION				\
+	__XSTRING(DRV_MODULE_VER_MAJOR) "."		\
+	__XSTRING(DRV_MODULE_VER_MINOR) "."		\
+	__XSTRING(DRV_MODULE_VER_SUBMINOR)
+#endif
+#define DEVICE_NAME	"Elastic Network Adapter (ENA)"
+#define DEVICE_DESC	"ENA adapter"
+
+/* Calculate DMA mask - width for ena cannot exceed 48, so it is safe */
+#define ENA_DMA_BIT_MASK(x)		((1ULL << (x)) - 1ULL)
 
 /* 1 for AENQ + ADMIN */
 #define	ENA_MAX_MSIX_VEC(io_queues)	(1 + (io_queues))
@@ -50,12 +65,6 @@
 #define	ENA_DEFAULT_RING_SIZE		1024
 #define	ENA_DEFAULT_SMALL_PACKET_LEN	128
 #define	ENA_DEFAULT_MAX_RX_BUFF_ALLOC_SIZE	1536
-/*
- * minimum the buffer size to 600 to avoid situation the mtu will be changed
- * from too little buffer to very big one and then the number of buffer per
- * packet could reach the maximum ENA_PKT_MAX_BUFS
- */
-#define	ENA_DEFAULT_MIN_RX_BUFF_ALLOC_SIZE 600
 
 #define	ENA_RX_REFILL_THRESH_DEVIDER	8
 
@@ -78,15 +87,23 @@
 #define	ENA_RX_HASH_KEY_NUM		10
 #define	ENA_RX_THASH_TABLE_SIZE 	(1 << 8)
 
-#define DB_TRESHOLD	16
+#define ENA_TX_CLEANUP_TRESHOLD		128
 
-/*
- * By default we continue to reclaim TX descriptors until none are left.
- * TX cleanup commit budget
+#define DB_THRESHOLD	64
+
+#define TX_COMMIT	32
+ /*
+ * TX budget for cleaning. It should be half of the RX budget to reduce amount
+ *  of TCP retransmissions.
  */
-#define TX_BUDGET	32
+#define TX_BUDGET	128
 /* RX cleanup budget. -1 stands for infinity. */
 #define RX_BUDGET	256
+/*
+ * How many times we can repeat cleanup in the io irq handling routine if the
+ * RX or TX budget was depleted.
+ */
+#define CLEAN_BUDGET	8
 
 #define RX_IRQ_INTERVAL 20
 #define TX_IRQ_INTERVAL 50
@@ -112,6 +129,21 @@
 #define	ENA_IO_IRQ_IDX(q)		(ENA_IO_IRQ_FIRST_IDX + (q))
 
 /*
+ * ENA device should send keep alive msg every 1 sec.
+ * We wait for 6 sec just to be on the safe side.
+ */
+#define DEFAULT_KEEP_ALIVE_TO		(SBT_1S * 6)
+
+/* Time in jiffies before concluding the transmitter is hung. */
+#define DEFAULT_TX_CMP_TO		(SBT_1S * 5)
+
+/* Number of queues to check for missing queues per timer tick */
+#define DEFAULT_TX_MONITORED_QUEUES	(4)
+
+/* Max number of timeouted packets before device reset */
+#define DEFAULT_TX_CMP_THRESHOLD	(128)
+
+/*
  * Supported PCI vendor and devices IDs
  */
 #define	PCI_VENDOR_ID_AMAZON	0x1d0f
@@ -135,7 +167,7 @@ typedef struct _ena_vendor_info_t {
 struct ena_irq {
 	/* Interrupt resources */
 	struct resource *res;
-	driver_filter_t *handler;
+	driver_intr_t *handler;
 	void *data;
 	void *cookie;
 	unsigned int vector;
@@ -161,12 +193,15 @@ struct ena_tx_buffer {
 	unsigned int num_of_bufs;
 	bus_dmamap_t map;
 
+	/* Used to detect missing tx packets */
+	struct bintime timestamp;
+	bool print_once;
+
 	struct ena_com_buf bufs[ENA_PKT_MAX_BUFS];
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_rx_buffer {
 	struct mbuf *mbuf;
-	unsigned int data_size;
 	bus_dmamap_t map;
 	struct ena_com_buf ena_buf;
 } __aligned(CACHE_LINE_SIZE);
@@ -250,8 +285,6 @@ struct ena_ring {
 	struct task cmpl_task;
 	struct taskqueue *cmpl_tq;
 
-	bus_dma_tag_t buf_tag;
-
 	union {
 		struct ena_stats_tx tx_stats;
 		struct ena_stats_rx rx_stats;
@@ -301,20 +334,22 @@ struct ena_adapter {
 	struct resource * registers;
 
 	struct mtx global_mtx;
+	struct sx ioctl_sx;
 
 	/* MSI-X */
 	uint32_t msix_enabled;
 	struct msix_entry *msix_entries;
 	int msix_vecs;
 
+	/* DMA tags used throughout the driver adapter for Tx and Rx */
+	bus_dma_tag_t tx_buf_tag;
+	bus_dma_tag_t rx_buf_tag;
+	int dma_width;
 	/*
 	 * RX packets that shorter that this len will be copied to the skb
 	 * header
 	 */
 	unsigned int small_copy_len;
-
-	/* Size of rx mbuf */
-	uint32_t rx_mbuf_sz;
 
 	uint16_t max_tx_sgl_size;
 	uint16_t max_rx_sgl_size;
@@ -340,8 +375,9 @@ struct ena_adapter {
 
 	char name[ENA_NAME_MAX_LEN];
 	bool link_status;
-
+	bool trigger_reset;
 	bool up;
+	bool running;
 
 	uint32_t wol;
 
@@ -359,8 +395,17 @@ struct ena_adapter {
 
 	struct ena_irq irq_tbl[ENA_MAX_MSIX_VEC(ENA_MAX_NUM_IO_QUEUES)];
 
-	/* Timer service (not implemented yet) */
-	//struct callout timer_service;
+	/* Timer service */
+	struct callout timer_service;
+	sbintime_t keep_alive_timestamp;
+	uint32_t next_monitored_tx_qid;
+	struct task reset_task;
+	struct taskqueue *reset_tq;
+	int wd_active;
+	sbintime_t keep_alive_timeout;
+	sbintime_t missing_tx_timeout;
+	uint32_t missing_tx_max_queues;
+	uint32_t missing_tx_threshold;
 
 	/* Statistics */
 	struct ena_stats_dev dev_stats;
@@ -381,5 +426,15 @@ int ena_register_adapter(struct ena_adapter *adapter);
 void ena_unregister_adapter(struct ena_adapter *adapter);
 
 int ena_update_stats_counters(struct ena_adapter *adapter);
+
+static inline int ena_mbuf_count(struct mbuf *mbuf)
+{
+	int count = 1;
+
+	while ((mbuf = mbuf->m_next) != NULL)
+		++count;
+
+	return count;
+}
 
 #endif /* !(ENA_H) */
