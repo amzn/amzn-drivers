@@ -144,6 +144,7 @@ struct ena_com_tx_meta {
 
 struct ena_com_io_cq {
 	struct ena_com_io_desc_addr cdesc_addr;
+	void *bus;
 
 	/* Interrupt unmask register */
 	u32 __iomem *unmask_reg;
@@ -181,6 +182,7 @@ struct ena_com_io_cq {
 
 struct ena_com_io_sq {
 	struct ena_com_io_desc_addr desc_addr;
+	void *bus;
 
 	u32 __iomem *db_addr;
 	u8 __iomem *header_addr;
@@ -233,7 +235,9 @@ struct ena_com_stats_admin {
 
 struct ena_com_admin_queue {
 	void *q_dmadev;
+	void *bus;
 	spinlock_t q_lock; /* spinlock for the admin queue */
+
 	struct ena_comp_ctx *comp_ctx;
 	u32 completion_timeout;
 	u16 q_depth;
@@ -316,6 +320,7 @@ struct ena_com_dev {
 	u8 __iomem *reg_bar;
 	void __iomem *mem_bar;
 	void *dmadev;
+	void *bus;
 
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 	u32 tx_max_header_size;
@@ -419,10 +424,12 @@ void ena_com_admin_destroy(struct ena_com_dev *ena_dev);
 
 /* ena_com_dev_reset - Perform device FLR to the device.
  * @ena_dev: ENA communication layer struct
+ * @reset_reason: Specify what is the trigger for the reset in case of an error.
  *
  * @return - 0 on success, negative value on failure.
  */
-int ena_com_dev_reset(struct ena_com_dev *ena_dev);
+int ena_com_dev_reset(struct ena_com_dev *ena_dev,
+		      enum ena_regs_reset_reason_types reset_reason);
 
 /* ena_com_create_io_queue - Create io queue.
  * @ena_dev: ENA communication layer struct

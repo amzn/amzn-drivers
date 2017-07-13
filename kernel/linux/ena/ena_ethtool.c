@@ -93,11 +93,13 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
 	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
-#ifdef CONFIG_NET_RX_BUSY_POLL
+#if ENA_BUSY_POLL_SUPPORT
 	ENA_STAT_RX_ENTRY(bp_yield),
 	ENA_STAT_RX_ENTRY(bp_missed),
 	ENA_STAT_RX_ENTRY(bp_cleaned),
 #endif
+	ENA_STAT_RX_ENTRY(bad_req_id),
+	ENA_STAT_RX_ENTRY(empty_rx_ring),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
@@ -561,12 +563,8 @@ static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 	}
 
 	rc = ena_com_get_hash_ctrl(ena_dev, proto, &hash_fields);
-	if (rc) {
-		/* If device don't have permission, return unsupported */
-		if (rc == -EPERM)
-			rc = -EOPNOTSUPP;
+	if (rc)
 		return rc;
-	}
 
 	cmd->data = ena_flow_hash_to_flow_type(hash_fields);
 
@@ -634,7 +632,7 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 2, 0)
@@ -665,7 +663,7 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 #endif /* ETHTOOL_GRXRINGS */
 
