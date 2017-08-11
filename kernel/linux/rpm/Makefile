@@ -23,9 +23,9 @@ all : srpm
 
 tarball : $(TARBALL)
 $(TARBALL) : always
-	cd $(TOPDIR) && \
-		git archive --format=tar --prefix=$(NAME)-$(VERSION)/ -o $(PWD)/$(TARBALL) $(TAG) \
-		kernel/linux/{common,ena}
+	(cd $(TOPDIR) && \
+		git archive --format=tar --prefix=$(NAME)-$(VERSION)/ $(TAG) \
+		kernel/linux/{common,ena}) > $@
 
 srpm : $(TARBALL) Makefile
 	rpmbuild -bs $(RPMDEFS) $(wildcard *.spec)
