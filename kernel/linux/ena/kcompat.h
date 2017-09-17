@@ -545,7 +545,8 @@ static inline void napi_complete_done(struct napi_struct *n, int work_done)
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0) \
+	|| (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,126))
 #else
 
 static inline void ioremap_release(struct device *dev, void *res)
