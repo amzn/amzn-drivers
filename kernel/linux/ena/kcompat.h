@@ -419,7 +419,7 @@ static inline int pci_enable_msix_range(struct pci_dev *dev,
 
 /*****************************************************************************/
 #if (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,8) ) && \
-     !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3)) && \
+     !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4)) && \
      !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)))
 enum pkt_hash_types {
 	PKT_HASH_TYPE_NONE,	/* Undefined type */
@@ -441,7 +441,7 @@ static inline void skb_set_hash(struct sk_buff *skb, __u32 hash,
 /* for ndo_dfwd_ ops add_station, del_station and _start_xmit */
 #define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
 #else
-#if !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3) \
+#if !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4) \
                         && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)) \
                         || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) && \
     !(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
@@ -474,7 +474,7 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0) || \
 	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE > UBUNTU_VERSION(3,13,0,24))) || \
 	(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) || \
-	(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3) \
+	(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4) \
 	                     && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2)) \
                            || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
 #else
@@ -502,7 +502,7 @@ static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0) ) \
 	|| (SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) \
-	|| (RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,3) \
+	|| (RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4) \
 	                        && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)) \
 	                        || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
 #else

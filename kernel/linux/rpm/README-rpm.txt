@@ -32,7 +32,7 @@ Once the pre-requisites have been installed, you can simply issue a
 "make" in this directory to build the kmod src.rpm package:
 
 bash$ make
-cd .. && git archive --format=tar --prefix=ena-1.1.3/ -o rpm/ena-1.1.3.tar ena_linux_1.1.3
+cd .. && git archive --format=tar --prefix=ena-1.3.0/ -o rpm/ena-1.3.0.tar ena_linux_1.3.0
 rpmbuild -bs \
             --define '_topdir %(pwd)' --define '_ntopdir %(pwd)' \
             --define '_builddir  %{_ntopdir}' \
@@ -41,7 +41,7 @@ rpmbuild -bs \
             --define '_rpmdir    %{_ntopdir}' \
             --define '_srcrpmdir %{_ntopdir}' \
         ena.spec
-Wrote: /home/ec2-user/amzn-drivers/rpm/ena-1.1.3-1.el6_7.src.rpm
+Wrote: /home/ec2-user/amzn-drivers/rpm/ena-1.3.0-1.el6_7.src.rpm
 bash$ _
 
 
@@ -50,10 +50,10 @@ COMPILING AND INSTALLING
 Once the src.rpm has been created, you can build binary packages for
 the installed kernel-devel and kernel-headers environments:
 
-bash$ rpmbuild --rebuild ena-1.1.3-1.el6_7.src.rpm
+bash$ rpmbuild --rebuild ena-1.3.0-1.el6_7.src.rpm
 [....]
-Wrote: /home/ec2-user/rpmbuild/RPMS/x86_64/kmod-ena-1.1.3-1.el6_7.x86_64.rpm
-Wrote: /home/ec2-user/rpmbuild/RPMS/x86_64/ena-debuginfo-1.1.3-1.el6_7.x86_64.rpm
+Wrote: /home/ec2-user/rpmbuild/RPMS/x86_64/kmod-ena-1.3.0-1.el6_7.x86_64.rpm
+Wrote: /home/ec2-user/rpmbuild/RPMS/x86_64/ena-debuginfo-1.3.0-1.el6_7.x86_64.rpm
 [...]
 bash$ _
 
