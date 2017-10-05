@@ -1,55 +1,57 @@
-==== ENA Driver Release notes ====
+# ENA Linux Kernel Driver Release notes
 
-
----- Supported kernels/distributions ----
+## Supported Kernel Versions and Distributions
 
 ENA driver is supported on kernels 3.2 and above
 with an addition of kernel 2.6.32.
 
 The driver was verified on the following distributions:
 
-Red Hat:
-* Red Hat Enterprise Linux 6.7
-* Red Hat Enterprise Linux 6.8
-* Red Hat Enterprise Linux 6.9
-* Red Hat Enterprise Linux 7.2
-* Red Hat Enterprise Linux 7.3
-* Red Hat Enterprise Linux 7.4
+**RedHat:**
+* RedHat Enterprise Linux 6.7
+* RedHat Enterprise Linux 6.8
+* RedHat Enterprise Linux 6.9
+* RedHat Enterprise Linux 7.2
+* RedHat Enterprise Linux 7.3
+* RedHat Enterprise Linux 7.4
 
-Ubuntu:
+**Ubuntu:**
 * ubuntu Trusty 14.04 amd64 server
 * Ubuntu Xenial 16.04 amd64 server
 * Ubuntu Yakkety 16.10 amd64 server
 * Ubuntu Zesty 17.04 amd64 server
 
-Amazon Linux:
+**Amazon Linux:**
+* Amazon Linux AMI 2017.09
 * Amazon Linux AMI 2017.03
 * Amazon Linux AMI 2016.09.1
 
-Cent OS:
-* Cent OS 6
-* Cent OS 7
+**CentOS:**
+* CentOS 6
+* CentOS 7
 
-Suse:
+**SUSE:**
 SUSE Linux Enterprise Server 12 SP2
 
----- r1.3.0 ----
-New Features:
+## r1.3.0 release notes
+
+**New Features:**
 * add support for driver hibernation -add PM callbacks to support
 	suspend/resume.
-* improve driver boot time. - Reduce sleeps when driver is working in
+* improve driver boot time: Reduce sleeps when driver is working in
 	polling mode.
 * add statistics for missing tx packets.
 
-Bug Fixes:
+**Bug Fixes:**
 * fix kernel panic when register memory bar map fails.
 * driver used to report wrong value for max Tx/Rx queues (always reported
 	128 queues)
 * fix compilation errors for RedHat 7.4
 * fix ethtool statistics counters overflow for kernels below 3.2.36
 
----- r1.2.0 ----
-New Features:
+## r1.2.0 release notes
+
+**New Features:**
 * add support for receive path filling the previously submitted free buffer
 	in out of order.
 * update enable PCI to use newly introduced IRQ functions in linux.
@@ -58,7 +60,7 @@ New Features:
 * remove redundant call for napi_hash_add() in kernels later than version 4.5.
 * add reset reason for each device FLR.
 
-Bug Fixes:
+**Bug Fixes:**
 * fix compilation error in kernel 4.11
 * fix uncompleted polling admin command false alarm.
 * fix theoretical case - the drive might hang after consecutive open/close
@@ -80,15 +82,17 @@ Bug Fixes:
 	If the queue was empty when the scenario occur and napi completed
 	his task nobody will reschedule napi and refill the Rx queue.
 
----- r1.1.3 ----
+## r1.1.3 release notes
+
 * Add support for RHEL 6.7/6.8 and 7.3
 
----- r1.1.2 ----
+## r1.1.2 release notes
 
-New Features:
+**New Features:**
+
 * Add ndo busy poll callback, that will typically reduce network latency.
 * Use napi_schedule_irqoff when possible
-* move from ena_trc_* to pr_* functions and ENA_ASSERT to WARN
+* move from ena\_trc\_ to pr\_.. functions and ENA_ASSERT to WARN
 * Indentations and fix comments structure
 * Add prefetch to the driver
 * Add hardware hints
@@ -96,7 +100,8 @@ New Features:
 	it depending on the load.
 	Developers can still override affinity using /proc/irq/*/smp_affinity
 
-Bug Fixes:
+**Bug Fixes:**
+
 * Initialized last_keep_alive_jiffies
 	Can cause watchdog reset if the value isn't initialized
 	After this watchdog driver reset it initiated, it will not happen again
@@ -113,30 +118,36 @@ Bug Fixes:
 * Fix potential memory corruption during reset and restart flow.
 * Fix kernel panic when driver reset fail
 
-Minor changes:
+**Minor changes:**
+
 * Reduce the number of printouts
 * Move printing of unsupported negotiated feature to _dbg instead of _notice
 * Increase default admin timeout to 3 sec and Keep-Alive to 5 sec.
 * Change the behaiver of Tx xmit in case of an error.
         drop the packet and return NETDEV_TX_OK instead of retunring NETDEV_TX_BUSY
 
----- r1.0.2 ----
 
-New Features:
+## r1.0.2 release notes
+
+**New Features:**
+
 * Reduce the number of parameters and use context for ena_get_dev_stats
 * Don't initialize variables if the driver don't use their value.
 * Use get_link_ksettings instead get_settings (for kernels > 4.6)
 
-Bug Fixes:
+**Bug Fixes:**
+
 * Move printing of unsupported negotiated feature to _dbg instead of _notice
 * Fix ethtool RSS flow configuration
 * Add missing break in ena_get_rxfh
 
-Minor changes:
+**Minor changes:**
+
 * Remove ena_nway_reset since it only return -ENODEV
 * rename small_copy_len tunable to rx_copybreak to match with main linux tree commit
 
----- r1.0.0 ----
+
+## r1.0.0 release notes
 
 Initial commit
 
