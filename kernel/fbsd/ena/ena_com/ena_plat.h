@@ -104,14 +104,11 @@ extern struct ena_bus_space ebs;
 #define ENA_IOQ 	(1 << 7) /* Detailed info about IO queues. 	      */
 #define ENA_ADMQ	(1 << 8) /* Detailed info about admin queue. 	      */
 
-#ifndef ENA_DEBUG_LEVEL
-#define ENA_DEBUG_LEVEL (ENA_ALERT | ENA_WARNING)
-#endif
+extern int ena_log_level;
 
-#ifdef ENA_TRACE
 #define ena_trace_raw(level, fmt, args...)			\
 	do {							\
-		if (((level) & ENA_DEBUG_LEVEL) != (level))	\
+		if (((level) & ena_log_level) != (level))	\
 			break;					\
 		printf(fmt, ##args);				\
 	} while (0)
@@ -120,10 +117,6 @@ extern struct ena_bus_space ebs;
 	ena_trace_raw(level, "%s() [TID:%d]: "			\
 	    fmt " \n", __func__, curthread->td_tid, ##args)
 
-#else /* ENA_TRACE */
-#define ena_trace_raw(...)
-#define ena_trace(...)
-#endif /* ENA_TRACE */
 
 #define ena_trc_dbg(format, arg...) 	ena_trace(ENA_DBG, format, ##arg)
 #define ena_trc_info(format, arg...) 	ena_trace(ENA_INFO, format, ##arg)
@@ -139,21 +132,12 @@ extern struct ena_bus_space ebs;
 #define MAX_ERRNO 4095
 #define IS_ERR_VALUE(x) unlikely((x) <= (unsigned long)MAX_ERRNO)
 
-#define WARN_ON(condition)						\
-	do {								\
-		int __ret_warn_on = !!(condition);			\
-		if (unlikely(__ret_warn_on))				\
-			printf("%s %s", __FUNCTION__, __FILE__);	\
-		unlikely(__ret_warn_on);				\
-	} while (0)
-
 #define ENA_ASSERT(cond, format, arg...)				\
 	do {								\
 		if (unlikely(!(cond))) {				\
 			ena_trc_err(					\
 				"Assert failed on %s:%s:%d:" format,	\
 				__FILE__, __func__, __LINE__, ##arg);	\
-			WARN_ON(cond);					\
 		}							\
 	} while (0)
 
@@ -195,6 +179,7 @@ static inline long PTR_ERR(const void *ptr)
 #define ENA_COM_NO_MEM		ENOMEM
 #define	ENA_COM_NO_SPACE	ENOSPC
 #define ENA_COM_TRY_AGAIN	-1
+#define	ENA_COM_UNSUPPORTED	EOPNOTSUPP
 #define	ENA_COM_NO_DEVICE	ENODEV
 #define	ENA_COM_PERMISSION	EPERM
 #define ENA_COM_TIMER_EXPIRED	ETIMEDOUT
@@ -265,7 +250,7 @@ static inline long PTR_ERR(const void *ptr)
 #define u8 		uint8_t
 #define u16 		uint16_t
 #define u32 		uint32_t
-#define u64 		uint64_t
+#define u64 		unsigned long long
 
 typedef struct {
 	bus_addr_t              paddr;
@@ -289,6 +274,17 @@ void	ena_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
 int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
     int mapflags);
+
+#define ENA_MEMCPY_TO_DEVICE_64(dst, src, size)				\
+	do {								\
+		int count, i;						\
+		volatile uint64_t *to = (volatile uint64_t *)(dst);	\
+		const uint64_t *from = (const uint64_t *)(src);		\
+		count = (size) / 8;					\
+									\
+		for (i = 0; i < count; i++, from++, to++)		\
+			*to = *from;					\
+	} while (0)
 
 #define ENA_MEM_ALLOC(dmadev, size) malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO)
 #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) (virt = NULL)
@@ -330,6 +326,9 @@ int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
 			 ((struct ena_bus*)bus)->reg_bar_h,		\
 			 (bus_size_t)(offset))
 
+#define ENA_DB_SYNC(mem_handle)	bus_dmamap_sync((mem_handle)->tag,	\
+	(mem_handle)->map, BUS_DMASYNC_PREREAD)
+
 #define time_after(a,b)	((long)((unsigned long)(b) - (unsigned long)(a)) < 0)
 
 #define VLAN_HLEN 	sizeof(struct ether_vlan_header)
@@ -368,9 +367,6 @@ void prefetch(void *x)
 			__var;			\
 		})
 
-#include "ena_common_defs.h"
-#include "ena_admin_defs.h"
-#include "ena_eth_io_defs.h"
-#include "ena_regs_defs.h"
+#include "ena_defs/ena_includes.h"
 
 #endif /* ENA_PLAT_H_ */

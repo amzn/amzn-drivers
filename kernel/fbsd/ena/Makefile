@@ -47,27 +47,6 @@ CFLAGS  += -DSMP -O2
 # Enable debug messages and sysctls
 # CFLAGS  += -DENA_DEBUG
 
-# Print additional driver info
-# CFLAGS  += -DENA_TRACE
-
-# Level of the additional driver infromation that will be printed.
-# Requires ENA_TRACE flag for working. If not set, default value will be 0x003.
-# It is equal to ENA_ALERT and ENA_WARNING flags enabled.
-# We are supporting 4 main level of debug info and 5 detailed flags. To use
-# multiple of them, they must be summed.
-# ENA_ALERT   (0x001) - Alerts are providing additional info about errors.
-# ENA_WARNING (0x002) - Driver output is more error sensitive.
-# ENA_INFO    (0x004) - Provides additional driver info.
-# ENA_DBG     (0x008) - Driver output for debugging purposes.
-# Detailed info that will be printed with ENA_INFO or ENA_DEBUG flag
-# ENA_TXPTH   (0x010) - Allows TX path tracing.
-# ENA_RXPTH   (0x020) - Allows RX path tracing.
-# ENA_RSC     (0x040) - Must go with TXPTH or RXPTH. Info about freeing or
-#	allocating resources. It will make driver initialization very slow.
-# ENA_IOQ     (0x080) - Detailed info about IO queues.
-# ENA_ADMQ    (0x100) - Detailed info about admin queue.
-#CFLAGS  += -DENA_DEBUG_LEVEL=0x003
-
 # NOTE: you can only define RSS if the OS version has support (11.0)
 #CFLAGS  += -DRSS
 
