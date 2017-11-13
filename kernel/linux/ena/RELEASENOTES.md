@@ -33,6 +33,21 @@ The driver was verified on the following distributions:
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
 
+## r1.4.0 release notes
+**New Features:**
+* refactor check_missing_com_in_queue() - improve readability.
+
+**Bug Fixes:**
+* fix driver statistics overflow - ena_get_stats() used wrong variable
+	size which lead to an overflow.
+* fix driver compilation under Ubuntu and RHEL.
+* fix misplace call to netif_carrier_off() during probe
+* fix a rare condition between device reset and link up setup -
+	In rare cashes, ena driver would reset and restart the device.
+	When the driver reset the device a link-up event might arrive
+	before the driver completes the initialization, which lead to
+	a access to unallocated memory.
+
 ## r1.3.0 release notes
 
 **New Features:**

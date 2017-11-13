@@ -39,7 +39,12 @@
 #include "ena_netdev.h"
 #include "ena_sysfs.h"
 
-#define to_ext_attr(x) container_of(x, struct dev_ext_attribute, attr)
+struct dev_ext_ena_attribute {
+        struct device_attribute attr;
+        void *var;
+};
+
+#define to_ext_attr(x) container_of(x, struct dev_ext_ena_attribute, attr)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
 static ssize_t ena_store_rx_copybreak(struct device *dev,
@@ -89,7 +94,7 @@ static ssize_t ena_show_intr_moderation(struct device *dev,
 					char *buf)
 {
 	struct ena_intr_moder_entry entry;
-	struct dev_ext_attribute *ea = to_ext_attr(attr);
+	struct dev_ext_ena_attribute *ea = to_ext_attr(attr);
 	enum ena_intr_moder_level level = (enum ena_intr_moder_level)ea->var;
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 	ssize_t rc = 0;
@@ -110,7 +115,7 @@ static ssize_t ena_store_intr_moderation(struct device *dev,
 					 size_t count)
 {
 	struct ena_intr_moder_entry entry;
-	struct dev_ext_attribute *ea = to_ext_attr(attr);
+	struct dev_ext_ena_attribute *ea = to_ext_attr(attr);
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 	enum ena_intr_moder_level level = (enum ena_intr_moder_level)ea->var;
 	int cnt;
@@ -194,7 +199,7 @@ static DEVICE_ATTR(intr_moderation_restore_default, S_IWUSR | S_IWGRP,
 		(void *)_type }
 
 /* Device attrs - intr moderation */
-static struct dev_ext_attribute dev_attr_intr_moderation[] = {
+static struct dev_ext_ena_attribute dev_attr_intr_moderation[] = {
 	INTR_MODERATION_PREPARE_ATTR(lowest, ENA_INTR_MODER_LOWEST),
 	INTR_MODERATION_PREPARE_ATTR(low, ENA_INTR_MODER_LOW),
 	INTR_MODERATION_PREPARE_ATTR(mid, ENA_INTR_MODER_MID),

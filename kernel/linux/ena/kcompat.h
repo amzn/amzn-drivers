@@ -114,14 +114,10 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *  3.16.0-23-generic
  * ABI is 23
  */
-#ifndef UTS_RELEASE
+#ifndef UTS_UBUNTU_RELEASE_ABI
 #define UTS_UBUNTU_RELEASE_ABI 0
 #define UBUNTU_VERSION_CODE 0
 #else
-
-#ifndef UTS_UBUNTU_RELEASE_ABI
-#define UTS_UBUNTU_RELEASE_ABI 0
-#endif /* UTS_UBUNTU_RELEASE_ABI  is not defined in kernel < 3.16 */
 
 #if UTS_UBUNTU_RELEASE_ABI > 255
 #undef UTS_UBUNTU_RELEASE_ABI
@@ -137,7 +133,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
 #define UBUNTU_VERSION_CODE (((LINUX_VERSION_CODE & ~0xFF) << 8) + (UTS_UBUNTU_RELEASE_ABI))
 
-#endif /* UTS_RELEASE */
+#endif /* UTS_UBUNTU_RELEASE_ABI */
 
 /* Note that the 3rd digit is always zero, and will be ignored. This is
  * because Ubuntu kernels are based on x.y.0-ABI values, and while their linux
@@ -247,13 +243,6 @@ typedef u32 netdev_features_t;
 #define netdev_reset_queue(_n) do {} while (0)
 #endif
 
-#if (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,2,0,0))
-#else
-struct dev_ext_attribute {
-	struct device_attribute attr;
-	void *var;
-};
-#endif
 #endif /* < 3.3.0 */
 
 /******************************************************************************/
@@ -546,7 +535,9 @@ static inline void napi_complete_done(struct napi_struct *n, int work_done)
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0) \
-	|| (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,126))
+	|| (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,126)) && \
+	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,14,0,0))
+
 #else
 
 static inline void ioremap_release(struct device *dev, void *res)

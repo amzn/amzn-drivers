@@ -2871,6 +2871,7 @@ static int ena_restore_device(struct ena_adapter *adapter)
 	bool wd_state;
 	int rc;
 
+	set_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
 	rc = ena_device_init(ena_dev, adapter->pdev, &get_feat_ctx, &wd_state);
 	if (rc) {
 		dev_err(&pdev->dev, "Can not initialize device\n");
@@ -2883,6 +2884,11 @@ static int ena_restore_device(struct ena_adapter *adapter)
 		dev_err(&pdev->dev, "Validation of device parameters failed\n");
 		goto err_device_destroy;
 	}
+
+	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
+	/* Make sure we don't have a race with AENQ Links state handler */
+	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
+		netif_carrier_on(adapter->netdev);
 
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter,
 						      adapter->num_queues);
@@ -2917,7 +2923,7 @@ err_device_destroy:
 	ena_com_admin_destroy(ena_dev);
 err:
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
-
+	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
 	dev_err(&pdev->dev,
 		"Reset attempt failed. Can not reset the device\n");
 
@@ -2961,19 +2967,18 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 
 			tx_buf->print_once = 1;
 			missed_tx++;
-
-			if (unlikely(missed_tx > adapter->missing_tx_completion_threshold)) {
-				netif_err(adapter, tx_err, adapter->netdev,
-					  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
-					  missed_tx,
-					  adapter->missing_tx_completion_threshold);
-				adapter->reset_reason =
-					ENA_REGS_RESET_MISS_TX_CMPL;
-				set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
-				rc = -EIO;
-				break;
-			}
 		}
+	}
+
+	if (unlikely(missed_tx > adapter->missing_tx_completion_threshold)) {
+		netif_err(adapter, tx_err, adapter->netdev,
+			  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
+			  missed_tx,
+			  adapter->missing_tx_completion_threshold);
+		adapter->reset_reason =
+			ENA_REGS_RESET_MISS_TX_CMPL;
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+		rc = -EIO;
 	}
 
 	u64_stats_update_begin(&tx_ring->syncp);
@@ -3579,13 +3584,13 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	memcpy(adapter->netdev->perm_addr, adapter->mac_addr, netdev->addr_len);
 
-	netif_carrier_off(netdev);
-
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
 		goto err_rss;
 	}
+
+	netif_carrier_off(netdev);
 
 	INIT_WORK(&adapter->reset_task, ena_fw_reset_device);
 
@@ -3826,7 +3831,8 @@ static void ena_update_on_link_change(void *adapter_data,
 	if (status) {
 		netdev_dbg(adapter->netdev, "%s\n", __func__);
 		set_bit(ENA_FLAG_LINK_UP, &adapter->flags);
-		netif_carrier_on(adapter->netdev);
+		if (!test_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags))
+			netif_carrier_on(adapter->netdev);
 	} else {
 		clear_bit(ENA_FLAG_LINK_UP, &adapter->flags);
 		netif_carrier_off(adapter->netdev);
