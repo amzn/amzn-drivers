@@ -35,8 +35,8 @@ SUSE Linux Enterprise Server 12 SP2
 
 ## r1.5.0 release notes
 **New Features:**
-* improve driver robustness - add mechanism for detection and recovery from
-	lost/misrouted interrupt.
+* improve driver robustness - add mechanism for detection and recovery for
+	theoretical cases of lost/misrouted interrupt.
 
 **Bug Fixes:**
 * don't enable interrupts until ENA_FLAG_DEV_UP flag is set - this might
@@ -55,7 +55,7 @@ SUSE Linux Enterprise Server 12 SP2
 * fix driver compilation under Ubuntu and RHEL.
 * fix misplace call to netif_carrier_off() during probe
 * fix a rare condition between device reset and link up setup -
-	In rare cashes, ena driver would reset and restart the device.
+	In rare cases, ena driver would reset and restart the device.
 	When the driver reset the device a link-up event might arrive
 	before the driver completes the initialization, which lead to
 	a access to unallocated memory.
