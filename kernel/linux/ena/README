@@ -72,8 +72,11 @@ RHEL / Open Suse / Ubuntu:
 --------------------------
 sudo vi /etc/modules-load.d/ena.conf
 insert "ena" to the file
-copy the ena.ko to /lib/modules/(uname -r)/
+copy the ena.ko to /lib/modules/$(uname -r)/
 sudo depmod
+if previous driver was loaded from initramfs - it will have to be
+updated as well (i.e. dracut)
+
 restart the OS (sudo reboot and reconnect)
 #endif
 

@@ -33,6 +33,17 @@ The driver was verified on the following distributions:
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
 
+## r1.5.0 release notes
+**New Features:**
+* improve driver robustness - add mechanism for detection and recovery
+	from lost/misrouted interrupt.
+
+**Bug Fixes:**
+* don't enable interrupts until ENA_FLAG_DEV_UP flag is set - this
+	might potentially cause a race resulting in ignored interrupts.
+* add error handling to ena_down() sequence - errors, if not handled
+	correctly, might affect subsequent ena_open() procedure.
+
 ## r1.4.0 release notes
 **New Features:**
 * refactor check_missing_com_in_queue() - improve readability.
