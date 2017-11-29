@@ -35,14 +35,15 @@ SUSE Linux Enterprise Server 12 SP2
 
 ## r1.5.0 release notes
 **New Features:**
-* improve driver robustness - add mechanism for detection and recovery for
-	theoretical cases of lost/misrouted interrupt.
+* Improve driver tolerance against theoretical cases of lost/misrouted interrupt.
+	Added a mechanism for detection of lost interrupts and recovery.
 
 **Bug Fixes:**
-* don't enable interrupts until ENA_FLAG_DEV_UP flag is set - this might
-	potentially cause a race resulting in ignored interrupts.
-* add error handling to ena_down() sequence - errors, if not handled correctly,
-	might affect subsequent ena_open() procedure.
+* avoid enabling interrupts until ENA_FLAG_DEV_UP flag is set - this might
+	potentially cause a race during re-open of the interface resulting in missing
+	first interrupt and never rearming the interrupt again.
+* add error handling to ena_down() sequence - if an error is not handled correctly,
+	it might affect subsequent ena_open() procedure.
 
 
 ## r1.4.0 release notes
