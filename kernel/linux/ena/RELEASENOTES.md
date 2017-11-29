@@ -33,6 +33,19 @@ The driver was verified on the following distributions:
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
 
+## r1.5.0 release notes
+**New Features:**
+* Improve driver tolerance against theoretical cases of lost/misrouted interrupt.
+	Added a mechanism for detection of lost interrupts and recovery.
+
+**Bug Fixes:**
+* avoid enabling interrupts until ENA_FLAG_DEV_UP flag is set - this might
+	potentially cause a race during re-open of the interface resulting in missing
+	first interrupt and never rearming the interrupt again.
+* add error handling to ena_down() sequence - if an error is not handled correctly,
+	it might affect subsequent ena_open() procedure.
+
+
 ## r1.4.0 release notes
 **New Features:**
 * refactor check_missing_com_in_queue() - improve readability.
@@ -43,7 +56,7 @@ SUSE Linux Enterprise Server 12 SP2
 * fix driver compilation under Ubuntu and RHEL.
 * fix misplace call to netif_carrier_off() during probe
 * fix a rare condition between device reset and link up setup -
-	In rare cashes, ena driver would reset and restart the device.
+	In rare cases, ena driver would reset and restart the device.
 	When the driver reset the device a link-up event might arrive
 	before the driver completes the initialization, which lead to
 	a access to unallocated memory.
