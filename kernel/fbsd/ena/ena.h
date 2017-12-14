@@ -70,7 +70,6 @@
 
 #define	ENA_RX_REFILL_THRESH_DIVIDER	8
 
-#define	ENA_NAME_MAX_LEN		20
 #define	ENA_IRQNAME_SIZE		40
 
 #define	ENA_PKT_MAX_BUFS 		19
@@ -240,7 +239,7 @@ struct ena_ring {
 	/* Determines if device will use LLQ or normal mode for TX */
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 	/* The maximum length the driver can push to the device (For LLQ) */
-	 uint8_t tx_max_header_size;
+	uint8_t tx_max_header_size;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 
