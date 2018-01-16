@@ -1,0 +1,53 @@
+From 1b7a4729eb1f069850f5b08f9f00057dac2aa33d Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Tue, 9 Jan 2018 16:19:08 +0100
+Subject: [PATCH] net/ena: TX L4 offload flags should not be set in RX path
+
+Information about received packet type detected by NIC should be stored
+in packet_type field of rte_mbuf. TX L4 offload flags should not be set
+in RX path.
+Only fields that could be set in of_flags during packet receiving are
+information if L4 and L3 checksum is correct.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+---
+ drivers/net/ena/ena_ethdev.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 80ce1f353..16a648206 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -260,16 +260,17 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 				       struct ena_com_rx_ctx *ena_rx_ctx)
+ {
+ 	uint64_t ol_flags = 0;
++	uint32_t packet_type = 0;
+ 
+ 	if (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_TCP)
+-		ol_flags |= PKT_TX_TCP_CKSUM;
++		packet_type |= RTE_PTYPE_L4_TCP;
+ 	else if (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP)
+-		ol_flags |= PKT_TX_UDP_CKSUM;
++		packet_type |= RTE_PTYPE_L4_UDP;
+ 
+ 	if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV4)
+-		ol_flags |= PKT_TX_IPV4;
++		packet_type |= RTE_PTYPE_L3_IPV4;
+ 	else if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV6)
+-		ol_flags |= PKT_TX_IPV6;
++		packet_type |= RTE_PTYPE_L3_IPV6;
+ 
+ 	if (unlikely(ena_rx_ctx->l4_csum_err))
+ 		ol_flags |= PKT_RX_L4_CKSUM_BAD;
+@@ -277,6 +278,7 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 		ol_flags |= PKT_RX_IP_CKSUM_BAD;
+ 
+ 	mbuf->ol_flags = ol_flags;
++	mbuf->packet_type = packet_type;
+ }
+ 
+ static inline void ena_tx_mbuf_prepare(struct rte_mbuf *mbuf,
+-- 
+2.14.1
+
