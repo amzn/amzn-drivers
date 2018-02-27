@@ -32,7 +32,7 @@ Once the pre-requisites have been installed, you can simply issue a
 "make" in this directory to build the kmod src.rpm package:
 
 bash$ make
-cd .. && git archive --format=tar --prefix=ena-1.5.0/ -o rpm/ena-1.5.0.tar ena_linux_1.5.0
+cd .. && git archive --format=tar --prefix=ena-1.5.1/ -o rpm/ena-1.5.1.tar ena_linux_1.5.1
 rpmbuild -bs \
             --define '_topdir %(pwd)' --define '_ntopdir %(pwd)' \
             --define '_builddir  %{_ntopdir}' \

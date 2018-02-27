@@ -376,8 +376,9 @@ static inline void reinit_completion(struct completion *x)
 }
 #endif /* SLE 12 */
 
-#if (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0)) && \
-     !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)))
+#if (!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0) && \
+       RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))) \
+     && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)))
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 					struct msix_entry *entries,
 					int minvec,
@@ -430,10 +431,11 @@ static inline void skb_set_hash(struct sk_buff *skb, __u32 hash,
 /* for ndo_dfwd_ ops add_station, del_station and _start_xmit */
 #define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
 #else
-#if !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4) \
-                        && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)) \
-                        || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) && \
-    !(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
+#if !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4) && \
+                             RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)) \
+			    || (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0) && \
+			        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(6,6)))) \
+    && !(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
 static inline int pci_msix_vec_count(struct pci_dev *dev)
 {
 	int pos;
@@ -477,6 +479,13 @@ static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync
 {
 	return u64_stats_fetch_begin(syncp);
 }
+
+#endif
+
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0) && \
+      !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1))))
+
+#define smp_mb__before_atomic()	smp_mb()
 
 #endif
 

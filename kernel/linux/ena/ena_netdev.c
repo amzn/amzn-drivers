@@ -541,7 +541,11 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 
 
 		rc = ena_alloc_rx_page(rx_ring, rx_info,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+				       GFP_ATOMIC | __GFP_COMP);
+#else
 				       __GFP_COLD | GFP_ATOMIC | __GFP_COMP);
+#endif
 		if (unlikely(rc < 0)) {
 			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
 				   "failed to alloc buffer for rx queue %d\n",
@@ -1353,15 +1357,15 @@ static irqreturn_t ena_intr_msix_io(int irq, void *data)
 {
 	struct ena_napi *ena_napi = data;
 
+	ena_napi->tx_ring->first_interrupt = true;
+	ena_napi->rx_ring->first_interrupt = true;
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 	napi_schedule_irqoff(&ena_napi->napi);
 #else
 	atomic_set(&ena_napi->unmask_interrupt, 1);
 	napi_schedule_irqoff(&ena_napi->napi);
 #endif
-
-	ena_napi->tx_ring->first_interrupt = true;
-	ena_napi->rx_ring->first_interrupt = true;
 
 	return IRQ_HANDLED;
 }
@@ -2979,19 +2983,20 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 	rx_ring->no_interrupt_event_cnt++;
 
 	if (rx_ring->no_interrupt_event_cnt == ENA_MAX_NO_INTERRUPT_ITERATIONS) {
-	       netif_err(adapter, rx_err, adapter->netdev,
-			 "Potential MSIX issue on Rx side Queue = %d. Reset the device\n",
-			 rx_ring->qid);
-	       adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
-	       set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
-	       return -EIO;
+		netif_err(adapter, rx_err, adapter->netdev,
+			  "Potential MSIX issue on Rx side Queue = %d. Reset the device\n",
+			  rx_ring->qid);
+		adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+		smp_mb__before_atomic();
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+		return -EIO;
 	}
 
 	return 0;
 }
 
 static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
-				       struct ena_ring *tx_ring)
+					  struct ena_ring *tx_ring)
 {
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
@@ -3007,14 +3012,17 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			continue;
 
 		if (unlikely(!tx_ring->first_interrupt && time_is_before_jiffies(last_jiffies +
-					 2 * adapter->missing_tx_completion_to))) {
-			/* If after graceful period interrupt is still not received, we schedule a reset*/
-			       netif_err(adapter, tx_err, adapter->netdev,
-					 "Potential MSIX issue on Tx side Queue = %d. Reset the device\n",
-					 tx_ring->qid);
-			       adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
-			       set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
-			       return -EIO;
+			     2 * adapter->missing_tx_completion_to))) {
+			/* If after graceful period interrupt is still not
+			 * received, we schedule a reset
+			 */
+			netif_err(adapter, tx_err, adapter->netdev,
+				  "Potential MSIX issue on Tx side Queue = %d. Reset the device\n",
+				  tx_ring->qid);
+			adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+			smp_mb__before_atomic();
+			set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+			return -EIO;
 		}
 
 		if (unlikely(time_is_before_jiffies(last_jiffies +
@@ -3223,9 +3231,15 @@ static void ena_update_host_info(struct ena_admin_host_info *host_info,
 		(netdev->features & GENMASK_ULL(63, 32)) >> 32;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+static void ena_timer_service(struct timer_list *t)
+{
+	struct ena_adapter *adapter = from_timer(adapter, t, timer_service);
+#else
 static void ena_timer_service(unsigned long data)
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)data;
+#endif
 	u8 *debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
 	struct ena_admin_host_info *host_info =
 		adapter->ena_dev->host_attr.host_info;
@@ -3666,8 +3680,12 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ena_update_hints(adapter, &get_feat_ctx.hw_hints);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+	timer_setup(&adapter->timer_service, ena_timer_service, 0);
+#else
 	setup_timer(&adapter->timer_service, ena_timer_service,
 		    (unsigned long)adapter);
+#endif
 	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
 
 	dev_info(&pdev->dev, "%s found at mem %lx, mac addr %pM Queues %d\n",

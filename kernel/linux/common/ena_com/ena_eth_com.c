@@ -510,7 +510,7 @@ bool ena_com_cq_empty(struct ena_com_io_cq *io_cq)
 	struct ena_eth_io_rx_cdesc_base *cdesc;
 
 	cdesc = ena_com_get_next_rx_cdesc(io_cq);
-	if(cdesc)
+	if (cdesc)
 		return false;
 	else
 		return true;

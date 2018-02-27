@@ -33,6 +33,31 @@ The driver was verified on the following distributions:
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
 
+## r1.5.1 release notes
+**Bug Fixes**
+* fix driver compilation errors for centos 6.6 and 7.0.
+* remove __FGP_COLD from Rx page allocation -
+	__GFP_COLD was removed from kernel 4.15.
+	For more information please refer to:
+	https://patchwork.kernel.org/patch/10001293/
+* move to the new kernel timers API -
+	The Linux timer API was changed.
+        use the new API.
+	For more information about the improved kernel timers API:
+	https://lwn.net/Articles/735887/
+* reorder IO interrupt handler -
+	To avoid a very rare race condition, set the interrupt indication to true
+	before calling napi_schedule_irqoff().
+	It is known that we are inside the interrupt routine, but the code could be moved
+	outside of the interrupt routine in the future, so better have these set before
+	scheduling napi.
+* add missing memory barrier after setting the device reset reason and before
+	setting the trigger reset flag.
+
+**Minor Changes**
+* remove redundant call to unlikely().
+* fix indentation in several places.
+
 ## r1.5.0 release notes
 **New Features:**
 * improve driver robustness - add mechanism for detection and recovery
