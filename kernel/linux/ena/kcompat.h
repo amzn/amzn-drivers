@@ -369,7 +369,8 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 #if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) && \
 	!(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,8) && \
 	                        (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) \
-                            || (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1))))
+                            || (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)))) && \
+     !defined(UEK3_RELEASE)
 static inline void reinit_completion(struct completion *x)
 {
          x->done = 0;
@@ -378,7 +379,8 @@ static inline void reinit_completion(struct completion *x)
 
 #if (!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0) && \
        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))) \
-     && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)))
+     && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))&& \
+     !defined(UEK3_RELEASE))
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 					struct msix_entry *entries,
 					int minvec,
