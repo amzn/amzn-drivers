@@ -2493,7 +2493,7 @@ err:
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0))
+#ifdef NDO_GET_STATS_64_V2
 static void ena_get_stats64(struct net_device *netdev,
 			    struct rtnl_link_stats64 *stats)
 #else
@@ -2508,7 +2508,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 	int i;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0))
+#ifdef NDO_GET_STATS_64_V2
 		return;
 #else
 		return NULL;
@@ -2559,7 +2559,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 
 	stats->rx_errors = 0;
 	stats->tx_errors = 0;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,11,0))
+#ifndef NDO_GET_STATS_64_V2
 		return stats;
 #endif
 }

@@ -200,6 +200,12 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #define HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
 #endif /* RHEL >= 6.4 && RHEL < 7.0 */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0) || \
+	 (RHEL_RELEASE_CODE && \
+      RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,5)))
+#define NDO_GET_STATS_64_V2
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0) || \
 	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,5))
 #include <net/busy_poll.h>
@@ -411,7 +417,7 @@ static inline int pci_enable_msix_range(struct pci_dev *dev,
 
 /*****************************************************************************/
 #if (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,8) ) && \
-     !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4)) && \
+     !RHEL_RELEASE_CODE && \
      !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)))
 enum pkt_hash_types {
 	PKT_HASH_TYPE_NONE,	/* Undefined type */
@@ -433,10 +439,8 @@ static inline void skb_set_hash(struct sk_buff *skb, __u32 hash,
 /* for ndo_dfwd_ ops add_station, del_station and _start_xmit */
 #define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
 #else
-#if !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4) && \
-                             RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)) \
-			    || (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0) && \
-			        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(6,6)))) \
+#if !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0) && \
+			        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(6,6)) \
     && !(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
 static inline int pci_msix_vec_count(struct pci_dev *dev)
 {
@@ -467,9 +471,8 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0) || \
 	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE > UBUNTU_VERSION(3,13,0,24))) || \
 	(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) || \
-	(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4) \
-	                     && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2)) \
-                           || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
+	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0) \
+	                     && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,1))
 #else
 static inline bool u64_stats_fetch_retry_irq(const struct u64_stats_sync *syncp,
 					     unsigned int start)
@@ -502,9 +505,7 @@ static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0) ) \
 	|| (SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) \
-	|| (RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7,4) \
-	                        && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)) \
-	                        || RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
+	|| (RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))
 #else
 static inline void netdev_rss_key_fill(void *buffer, size_t len)
 {
@@ -547,7 +548,8 @@ static inline void napi_complete_done(struct napi_struct *n, int work_done)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0) \
 	|| (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,126)) && \
-	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,14,0,0))
+	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,14,0,0)) \
+	|| (RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,5))
 
 #else
 
@@ -576,6 +578,11 @@ static inline void __iomem *devm_ioremap_wc(struct device *dev,
 
 	return addr;
 }
+#endif
+
+#if RHEL_RELEASE_CODE && \
+    RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,5)
+#define ndo_change_mtu ndo_change_mtu_rh74
 #endif
 
 #endif /* _KCOMPAT_H_ */

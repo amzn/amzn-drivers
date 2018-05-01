@@ -33,6 +33,10 @@ The driver was verified on the following distributions:
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
 
+## r1.5.3 release notes
+**Bug Fixes**
+* fix driver compilation errors for RHEL 7.5.
+
 ## r1.5.2 release notes
 **Bug Fixes**
 * fix driver compilation errors for Oracle Linux UEK3 with kernel 3.8.13.
