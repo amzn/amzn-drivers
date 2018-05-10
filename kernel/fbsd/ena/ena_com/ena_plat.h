@@ -165,7 +165,7 @@ static inline long PTR_ERR(const void *ptr)
 
 #define GENMASK(h, l)		(((1U << ((h) - (l) + 1)) - 1) << (l))
 #define GENMASK_ULL(h, l)	(((~0ULL) << (l)) & (~0ULL >> (64 - 1 - (h))))
-#define BIT(x)			(1 << (x))
+#define BIT(x)			(1UL << (x))
 
 #define ENA_ABORT() 		BUG()
 #define BUG() 			panic("ENA BUG")
