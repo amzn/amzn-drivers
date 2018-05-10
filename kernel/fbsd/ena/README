@@ -3,11 +3,12 @@ FreeBSD kernel driver for Elastic Network Adapter (ENA) family:
 
 Version:
 ========
-0.8.1 (beta4)
+0.8.1
 
 Supported FreeBSD Versions:
 ===========================
-- FreeBSD release/11.0.0
+- FreeBSD release/11.0
+- FreeBSD release/11.1
 - FreeBSD 12, starting from rS3091111,
   commit cbc182c1724fcd3ee240ed9933fcc53eb6db5b9b (Nov 24, 2016).
 
@@ -65,8 +66,8 @@ mkdir /usr/src
 # to be adjusted accordingly.
 # - for stable:
 svn checkout https://svn0.us-east.FreeBSD.org/base/stable/11/ /usr/src
-# - for release
-svn checkout https://svn0.us-east.FreeBSD.org/base/releng/11.0/ /usr/src
+# - for release (FreeBSD 11.1)
+svn checkout https://svn0.us-east.FreeBSD.org/base/releng/11.1/ /usr/src
 # - for -CURRENT (unstable)
 svn checkout https://svn0.us-east.freebsd.org/base/head /usr/src
 # - for kernel version currently running in the system
@@ -74,7 +75,7 @@ uname -a # provides revision of running kernel
 # Sample output:
 # FreeBSD host 12.0-CURRENT FreeBSD 12.0-CURRENT #0 r316750: current_date
 # r316750 is indicating revision of current kernel
-# In this example, we have to pull kernel tree with revision r316750:
+# In this example, we have to pull kernel tree with revision r316750 from head:
 svn checkout -r316750 https://svn0.us-east.freebsd.org/base/head /usr/src
 # r316750 must be changed to the revision number from the 'uname -a' output
 
@@ -95,6 +96,18 @@ For automatic driver start upon OS boot
 vi /boot/loader.conf
 # insert 'if_ena_load="YES"' in the above file
 cp if_ena.ko /boot/modules/
+sync; sleep 30;
+
+Then restart the OS (reboot and reconnect).
+
+Driver update - if the kernel was built with ENA
+-------------------------------------------
+vi /boot/loader.conf
+# insert 'if_ena_load="YES"' in the above file
+cp if_ena.ko /boot/modules/
+
+# remove old module
+rm /boot/kernel/if_ena.ko
 sync; sleep 30;
 
 Then restart the OS (reboot and reconnect).
@@ -188,12 +201,11 @@ with it.
 The SQs and CQs are implemented as descriptor rings in contiguous
 physical memory.
 
-The ENA driver in beta4 currently supports one Queue Operation mode for Tx SQs:
+The ENA driver in 0.8.1 currently supports one Queue Operation mode for Tx SQs:
 - Regular mode
   * In this mode the Tx SQs reside in the host's memory. The ENA
     device fetches the ENA Tx descriptors and packet data from host
     memory.
-- Second mode, LLQ will be introduced in the beta5 release.
 
 The Rx SQs support only the regular mode.
 
@@ -259,7 +271,7 @@ RSS:
 - The driver configures RSS settings using the AQ SetFeature command
   (ENA_ADMIN_RSS_HASH_FUNCTION, ENA_ADMIN_RSS_HASH_INPUT and
   ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG properties).
-- The driver sets default CRC32 function and in beta4 it cannot be
+- The driver sets default CRC32 function and in 0.8.1 it cannot be
   configured manually.
 
 DATA PATH:
@@ -332,7 +344,6 @@ Unsupported features:
 =====================
 - LLQ support
 - RSS configuration by user
-- Adaptive Interrupts Modulation
 
 Known issues:
 =============
