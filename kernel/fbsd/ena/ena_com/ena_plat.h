@@ -244,7 +244,12 @@ static inline long PTR_ERR(const void *ptr)
 		    timeout_us * hz / 1000 / 1000 );			\
 		mtx_unlock(&((waitqueue).mtx));				\
 	} while (0)
-#define ENA_WAIT_EVENT_SIGNAL(waitqueue) cv_broadcast(&((waitqueue).wq))
+#define ENA_WAIT_EVENT_SIGNAL(waitqueue)		\
+	do {						\
+		mtx_lock(&((waitqueue).mtx));		\
+		cv_broadcast(&((waitqueue).wq));	\
+		mtx_unlock(&((waitqueue).mtx));		\
+	} while (0)
 
 #define dma_addr_t 	bus_addr_t
 #define u8 		uint8_t
