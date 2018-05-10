@@ -3,7 +3,7 @@ FreeBSD kernel driver for Elastic Network Adapter (ENA) family:
 
 Version:
 ========
-0.8.0 (beta4)
+0.8.1 (beta4)
 
 Supported FreeBSD Versions:
 ===========================
