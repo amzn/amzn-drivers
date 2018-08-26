@@ -9,6 +9,6 @@ The following drivers are included:
 * [FreeBSD kernel driver](./kernel/fbsd/ena) for Elastic Network Adapter (ENA)
 * [DPDK driver for ENA](./userspace/dpdk) for critical fixes to previously released ENA DPDK drivers in DPDK official releases
 
-For Linux driver SPRM build instruction available [here](./kernel/linux/rpm/README-rpm.txt)
+For Linux driver SRPM build instruction available [here](./kernel/linux/rpm/README-rpm.txt)
 
 
