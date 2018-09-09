@@ -46,7 +46,6 @@ struct dev_ext_ena_attribute {
 
 #define to_ext_attr(x) container_of(x, struct dev_ext_ena_attribute, attr)
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
 static ssize_t ena_store_rx_copybreak(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t len)
@@ -85,7 +84,6 @@ static ssize_t ena_show_rx_copybreak(struct device *dev,
 
 static DEVICE_ATTR(rx_copybreak, S_IRUGO | S_IWUSR, ena_show_rx_copybreak,
 		   ena_store_rx_copybreak);
-#endif /* kernel version < 3.18 */
 
 
 /* adaptive interrupt moderation */
@@ -215,10 +213,8 @@ int ena_sysfs_init(struct device *dev)
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
 	if (device_create_file(dev, &dev_attr_rx_copybreak))
 		dev_err(dev, "failed to create rx_copybreak sysfs entry");
-#endif
 
 	if (ena_com_interrupt_moderation_supported(adapter->ena_dev)) {
 		if (device_create_file(dev,
@@ -253,9 +249,7 @@ void ena_sysfs_terminate(struct device *dev)
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 	int i;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
 	device_remove_file(dev, &dev_attr_rx_copybreak);
-#endif
 	if (ena_com_interrupt_moderation_supported(adapter->ena_dev)) {
 		for (i = 0; i < ARRAY_SIZE(dev_attr_intr_moderation); i++)
 			sysfs_remove_file(&dev->kobj,

@@ -26,10 +26,12 @@ ifneq ($(strip $(GENERATED_EXISTS)),)
 
     ifneq ($(strip $(IS_3_8_13)),)
       ccflags-y += -DUEK3_RELEASE
-    else
-      $(error only UEK3 with kernel version 3.8.13 is suppported) 
     endif
   endif
+endif
+
+ifdef UBUNTU_ABI
+	ccflags-y += -DUTS_UBUNTU_RELEASE_ABI=$(UBUNTU_ABI)
 endif
 
 all:

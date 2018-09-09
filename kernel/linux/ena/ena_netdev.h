@@ -46,8 +46,8 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	1
-#define DRV_MODULE_VER_MINOR	5
-#define DRV_MODULE_VER_SUBMINOR 3
+#define DRV_MODULE_VER_MINOR	6
+#define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -97,10 +97,11 @@
  */
 #define ENA_TX_POLL_BUDGET_DIVIDER	4
 
-/* Refill Rx queue when number of available descriptors is below
- * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER
+/* Refill Rx queue when number of required descriptors is above
+ * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER or ENA_RX_REFILL_THRESH_PACKET
  */
 #define ENA_RX_REFILL_THRESH_DIVIDER	8
+#define ENA_RX_REFILL_THRESH_PACKET	256
 
 /* Number of queues to check for missing queues per timer service */
 #define ENA_MONITORED_TX_QUEUES	4
@@ -145,6 +146,16 @@ struct ena_napi {
 	atomic_t unmask_interrupt;
 #endif
 	u32 qid;
+};
+
+struct ena_calc_queue_size_ctx {
+	struct ena_com_dev_get_features_ctx *get_feat_ctx;
+	struct ena_com_dev *ena_dev;
+	struct pci_dev *pdev;
+	u16 rx_queue_size;
+	u16 tx_queue_size;
+	u16 max_tx_sgl_size;
+	u16 max_rx_sgl_size;
 };
 
 struct ena_tx_buffer {
@@ -480,5 +491,16 @@ static inline bool ena_bp_disable(struct ena_ring *rx_ring)
 	return true;
 }
 #endif /* ENA_BUSY_POLL_SUPPORT */
+
+/* The ENA buffer length fields is 16 bit long. So when PAGE_SIZE == 64kB the
+ * driver passas 0.
+ * Since the max packet size the ENA handles is ~9kB limit the buffer length to
+ * 16kB.
+ */
+#if PAGE_SIZE > SZ_16K
+#define ENA_PAGE_SIZE SZ_16K
+#else
+#define ENA_PAGE_SIZE PAGE_SIZE
+#endif
 
 #endif /* !(ENA_H) */

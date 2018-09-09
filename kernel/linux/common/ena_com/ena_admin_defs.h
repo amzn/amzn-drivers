@@ -72,6 +72,8 @@ enum ena_admin_aq_feature_id {
 
 	ENA_ADMIN_HW_HINTS			= 3,
 
+	ENA_ADMIN_MAX_QUEUES_EXT                = 7,
+
 	ENA_ADMIN_RSS_HASH_FUNCTION		= 10,
 
 	ENA_ADMIN_STATELESS_OFFLOAD_CONFIG	= 11,
@@ -456,7 +458,13 @@ struct ena_admin_get_set_feature_common_desc {
 	/* as appears in ena_admin_aq_feature_id */
 	u8 feature_id;
 
-	u16 reserved16;
+	/* The driver specifies the max feature version it supports and the
+	 *    device responsds with the correct feature version. This field is
+	 *    zero based
+	 */
+	u8 feature_version;
+
+	u8 reserved8;
 };
 
 struct ena_admin_device_attr_feature_desc {
@@ -481,6 +489,34 @@ struct ena_admin_device_attr_feature_desc {
 	u8 reserved7[2];
 
 	u32 max_mtu;
+};
+
+struct ena_admin_queue_ext_feature_fields {
+	u32 max_tx_sq_num;
+
+	u32 max_tx_cq_num;
+
+	u32 max_rx_sq_num;
+
+	u32 max_rx_cq_num;
+
+	u32 max_tx_sq_depth;
+
+	u32 max_tx_cq_depth;
+
+	u32 max_rx_sq_depth;
+
+	u32 max_rx_cq_depth;
+
+	u32 max_tx_header_size;
+
+	/* Maximum Descriptors number, including meta descriptor, allowed for
+	 *    a single Tx packet
+	 */
+	u16 max_per_packet_tx_descs;
+
+	/* Maximum Descriptors number allowed for a single Rx packet */
+	u16 max_per_packet_rx_descs;
 };
 
 struct ena_admin_queue_feature_desc {
@@ -727,7 +763,14 @@ struct ena_admin_host_info {
 	u32 driver_version;
 
 	/* features bitmap */
-	u32 supported_network_features[4];
+	u32 supported_network_features[2];
+
+	u32 reserved;
+
+	/* Number of CPUs */
+	u16 num_cpus;
+
+	u16 reserved_2;
 };
 
 struct ena_admin_rss_ind_table_entry {
@@ -792,6 +835,19 @@ struct ena_admin_get_feat_cmd {
 	u32 raw[11];
 };
 
+struct ena_admin_queue_ext_feature_desc {
+	/* version */
+	u8 version;
+
+	u8 reserved1[3];
+
+	union {
+		struct ena_admin_queue_ext_feature_fields max_queue_ext;
+
+		u32 raw[10];
+	};
+};
+
 struct ena_admin_get_feat_resp {
 	struct ena_admin_acq_common_desc acq_common_desc;
 
@@ -801,6 +857,8 @@ struct ena_admin_get_feat_resp {
 		struct ena_admin_device_attr_feature_desc dev_attr;
 
 		struct ena_admin_queue_feature_desc max_queue;
+
+		struct ena_admin_queue_ext_feature_desc max_queue_ext;
 
 		struct ena_admin_feature_aenq_desc aenq;
 

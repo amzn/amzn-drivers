@@ -20,8 +20,8 @@ SR-IOV Physical Function (PF) and Virtual Function (VF) devices.
 ENA devices enable high speed and low overhead network traffic
 processing by providing multiple Tx/Rx queue pairs (the maximum number
 is advertised by the device via the Admin Queue), a dedicated MSI-X
-interrupt vector per Tx/Rx queue pair, adaptive interrupt moderation,
-and CPU cacheline optimized data placement.
+interrupt vector per Tx/Rx queue pair, and CPU cacheline optimized
+data placement.
 
 The ENA driver supports industry standard TCP/IP offload features such
 as checksum offload and TCP transmit segmentation offload (TSO).
@@ -58,8 +58,21 @@ sudo zypper update
 sudo zypper install kernel-devel-$(uname -r)
 
 Compilation:
-Run "make" in the kernel/linux/ena/ folder
+Run "make [UBUNTU_ABI=<ABI>]" in the kernel/linux/ena/ folder.
 ena.ko is created inside the folder
+
+Optional compilation parameters:
+For most kernel versions no special compilation parameters are needed.
+The exceptions are:
+
+UBUNTU_ABI=<ABI>
+   For Ubuntu kernel versions < 3.13.0-31 add the special parameter
+   UBUNTU_ABI=<ABI>. The ABI of an ubuntu kernel is the 4th integer in the
+   kernel version string. To see the kernel version you can run "uname -r".
+
+   Example:
+   if "uname -r" yields the output "3.13.0-29-generic", then the ABI is 29,
+   and the compilation command is "make UBUNTU_ABI=29".
 
 Driver installation:
 ====================
@@ -118,7 +131,7 @@ operation.
 AQ is used for submitting management commands, and the
 results/responses are reported asynchronously through ACQ.
 
-ENA introduces a very small set of management commands with room for
+ENA introduces a small set of management commands with room for
 vendor-specific extensions. Most of the management operations are
 framed in a generic Get/Set feature command.
 
@@ -217,47 +230,17 @@ and for each queue pair, an interrupt is named:
 The ENA device operates in auto-mask and auto-clear interrupt
 modes. That is, once MSI-X is delivered to the host, its Cause bit is
 automatically cleared and the interrupt is masked. The interrupt is
-unmasked by the driver after NAPI processing is complete.
+unmasked by the driver after NAPI processing is complete. As a result,
+interrupt moderation is not required.
 
-Interrupt Moderation:
-=====================
-ENA driver and device can operate in conventional or adaptive interrupt
-moderation mode.
-
-In conventional mode the driver instructs device to postpone interrupt
-posting according to static interrupt delay value. The interrupt delay
-value can be configured through ethtool(8). The following ethtool
-parameters are supported by the driver: tx-usecs, rx-usecs
-
-In adaptive interrupt moderation mode the interrupt delay value is
-updated by the driver dynamically and adjusted every NAPI cycle
-according to the traffic nature.
-
-By default ENA driver applies adaptive coalescing on Rx traffic and
-conventional coalescing on Tx traffic.
-
-Adaptive coalescing can be switched on/off through ethtool(8)
-adaptive_rx on|off parameter.
-
-The driver chooses interrupt delay value according to the number of
-bytes and packets received between interrupt unmasking and interrupt
-posting. The driver uses interrupt delay table that subdivides the
-range of received bytes/packets into 5 levels and assigns interrupt
-delay value to each level.
-
-The user can enable/disable adaptive moderation, modify the interrupt
-delay table and restore its default values through sysfs.
-
+RX copybreak:
+=============
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
-#ifndef MAINLINE
 and can be configured by the sysfs path
 /sys/bus/pci/devices/<domain:bus:slot.function>/rx_copybreak.
-#else
-and can be configured by the ETHTOOL_STUNABLE command of the
-SIOCETHTOOL ioctl.
-#endif
 
 SKB:
+====
 The driver-allocated SKB for frames received from Rx handling using
 NAPI context. The allocation method depends on the size of the packet.
 If the frame length is larger than rx_copybreak, napi_get_frags()

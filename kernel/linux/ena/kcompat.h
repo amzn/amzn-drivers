@@ -76,12 +76,16 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #include <linux/sizes.h>
 #endif
 
+#ifndef SZ_256
+#define SZ_256 0x0000100
+#endif
+
 #ifndef SZ_4K
 #define SZ_4K 0x00001000
 #endif
 
-#ifndef SZ_256
-#define SZ_256 0x0000100
+#ifndef SZ_16K
+#define SZ_16K 0x00004000
 #endif
 
 #ifdef HAVE_POLL_CONTROLLER
@@ -337,35 +341,30 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 	return index % n_rx_rings;
 }
 #endif
-#else /* >= 3.8.0 */
-#ifndef HAVE_SRIOV_CONFIGURE
-#define HAVE_SRIOV_CONFIGURE
-#endif
 #endif /* >= 3.8.0 */
 
-/*****************************************************************************/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0) )
-#if RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(7,2))
-#define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
-#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
+#define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2
+#else
+
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0) && \
+      RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(7,2))) || \
+     (LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0) && \
+      SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) || \
+     (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0)))
+#define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V1
 #endif
 
-/*****************************************************************************/
-#if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0) )
-#if ( SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))
-#define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
-#endif
-#endif /* >= 3.12.0 */
-
-/*****************************************************************************/
-#if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0) )
-#if (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,24))
-#define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
+#if UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,24)
+#define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V1
 #else
 #define HAVE_NDO_SELECT_QUEUE_ACCEL
 #endif
-#else
+#endif /* >= 3.13 */
+#endif /* < 4.19 */
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
 # define u64_stats_init(syncp)  seqcount_init(syncp.seq)
 #else
@@ -383,10 +382,14 @@ static inline void reinit_completion(struct completion *x)
 }
 #endif /* SLE 12 */
 
-#if (!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0) && \
+#endif /* < 3.13.0 */
+
+#if  (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) ) && \
+     (!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0) && \
        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))) \
      && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))&& \
-     !defined(UEK3_RELEASE))
+     !defined(UEK3_RELEASE))) || \
+     (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 					struct msix_entry *entries,
 					int minvec,
@@ -413,12 +416,20 @@ static inline int pci_enable_msix_range(struct pci_dev *dev,
 }
 #endif
 
-#endif /* >= 3.13.0 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) && \
+    !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(7,1))
+static inline void *devm_kcalloc(struct device *dev,
+				 size_t n, size_t size, gfp_t flags)
+{
+	return devm_kzalloc(dev, n * size, flags | __GFP_ZERO);
+}
+#endif
 
 /*****************************************************************************/
 #if (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,8) ) && \
      !RHEL_RELEASE_CODE && \
-     !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)))
+     !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))) || \
+     (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
 enum pkt_hash_types {
 	PKT_HASH_TYPE_NONE,	/* Undefined type */
 	PKT_HASH_TYPE_L2,	/* Input: src_MAC, dest_MAC */
@@ -435,10 +446,7 @@ static inline void skb_set_hash(struct sk_buff *skb, __u32 hash,
 #endif
 
 /*****************************************************************************/
-#if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0) )
-/* for ndo_dfwd_ ops add_station, del_station and _start_xmit */
-#define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
-#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0)
 #if !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0) && \
 			        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(6,6)) \
     && !(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
@@ -469,7 +477,7 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 #endif
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0) || \
-	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE > UBUNTU_VERSION(3,13,0,24))) || \
+	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,30))) || \
 	(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) || \
 	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0) \
 	                     && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,1))
@@ -502,6 +510,18 @@ static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync
 #define GENMASK_ULL(h, l) (((U64_C(1) << ((h) - (l) + 1)) - 1) << (l))
 #endif
 /*****************************************************************************/
+
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) )
+
+#ifndef dma_rmb
+#define dma_rmb rmb
+#endif
+
+#ifndef writel_relaxed
+#define writel_relaxed writel
+#endif
+
+#endif
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0) ) \
 	|| (SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) \

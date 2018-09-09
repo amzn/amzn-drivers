@@ -14,14 +14,18 @@ The driver was verified on the following distributions:
 * RedHat Enterprise Linux 7.2
 * RedHat Enterprise Linux 7.3
 * RedHat Enterprise Linux 7.4
+* RedHat Enterprise Linux 7.5
 
 **Ubuntu:**
 * ubuntu Trusty 14.04 amd64 server
 * Ubuntu Xenial 16.04 amd64 server
 * Ubuntu Yakkety 16.10 amd64 server
 * Ubuntu Zesty 17.04 amd64 server
+* Ubuntu Bionic Beaver 18.04 amd64 server
 
 **Amazon Linux:**
+* Amazon Linux AMI 2
+* Amazon Linux AMI 2018.03
 * Amazon Linux AMI 2017.09
 * Amazon Linux AMI 2017.03
 * Amazon Linux AMI 2016.09.1
@@ -32,6 +36,23 @@ The driver was verified on the following distributions:
 
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
+
+
+## r1.6.0 release notes
+**Bug Fixes**
+* fix driver compilation error in Ubuntu 14.04 kernel 3.13.0-29
+* fix non-functional kernel panic on pcie hot-plug removal on EC2 bare
+metal instances
+* fix compatibility issues with non-x86 platforms using PAGE_SIZE
+larger than 4K
+* add memory barriers for non-x86 platforms with different memory
+ordering rules.
+
+**New Features**
+* Support different queue size for Rx and Tx. A new module param
+to configure that.
+* Optimize performance for MMIO writes to  pcie - use relaxed writes
+when possible.
 
 ## r1.5.3 release notes
 **Bug Fixes**
