@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - 2016 Amazon.com, Inc. or its affiliates.
+ * Copyright 2015 - 2018 Amazon.com, Inc. or its affiliates.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,8 +32,8 @@
 #ifndef _ENA_COMMON_H_
 #define _ENA_COMMON_H_
 
-#define ENA_COMMON_SPEC_VERSION_MAJOR	0 /*  */
-#define ENA_COMMON_SPEC_VERSION_MINOR	10 /*  */
+#define ENA_COMMON_SPEC_VERSION_MAJOR        2
+#define ENA_COMMON_SPEC_VERSION_MINOR        0
 
 /* ENA operates with 48-bit memory addresses. ena_mem_addr_t */
 struct ena_common_mem_addr {

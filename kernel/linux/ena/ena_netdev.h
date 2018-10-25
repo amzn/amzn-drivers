@@ -45,9 +45,9 @@
 #include "ena_com.h"
 #include "ena_eth_com.h"
 
-#define DRV_MODULE_VER_MAJOR	1
-#define DRV_MODULE_VER_MINOR	6
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_MAJOR	2
+#define DRV_MODULE_VER_MINOR	0
+#define DRV_MODULE_VER_SUBMINOR 2
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -63,6 +63,17 @@
 #define ENA_ADMIN_MSIX_VEC		1
 #define ENA_MAX_MSIX_VEC(io_queues)	(ENA_ADMIN_MSIX_VEC + (io_queues))
 
+/* The ENA buffer length fields is 16 bit long. So when PAGE_SIZE == 64kB the
+ * driver passes 0.
+ * Since the max packet size the ENA handles is ~9kB limit the buffer length to
+ * 16kB.
+ */
+#if PAGE_SIZE > SZ_16K
+#define ENA_PAGE_SIZE SZ_16K
+#else
+#define ENA_PAGE_SIZE PAGE_SIZE
+#endif
+
 #define ENA_MIN_MSIX_VEC		2
 
 #define ENA_REG_BAR			0
@@ -72,7 +83,7 @@
 #define ENA_DEFAULT_RING_SIZE	(1024)
 
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
-#define ENA_DEFAULT_RX_COPYBREAK	(128 - NET_IP_ALIGN)
+#define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
 
 /* limit the buffer size to 600 bytes to handle MTU changes from very
  * small to very large, in which case the number of buffers per packet
@@ -167,6 +178,9 @@ struct ena_tx_buffer {
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
 
+	/* Indicate if bufs[0] map the linear data of the skb. */
+	u8 map_linear_data;
+
 	/* Used for detect missing tx packets to limit the number of prints */
 	u32 print_once;
 	/* Save the last jiffies to detect missing tx packets
@@ -202,6 +216,7 @@ struct ena_stats_tx {
 	u64 tx_poll;
 	u64 doorbells;
 	u64 bad_req_id;
+	u64 llq_buffer_copy;
 	u64 missed_tx;
 };
 
@@ -222,6 +237,7 @@ struct ena_stats_rx {
 #endif
 	u64 bad_req_id;
 	u64 empty_rx_ring;
+	u64 csum_unchecked;
 };
 
 struct ena_ring {
@@ -278,6 +294,8 @@ struct ena_ring {
 		struct ena_stats_tx tx_stats;
 		struct ena_stats_rx rx_stats;
 	};
+
+	u8 *push_buf_intermediate_buf;
 	int empty_rx_queue;
 #if ENA_BUSY_POLL_SUPPORT
 	atomic_t bp_state;
@@ -380,6 +398,8 @@ struct ena_adapter {
 	u32 last_monitored_tx_qid;
 
 	enum ena_regs_reset_reason_types reset_reason;
+
+	u8 ena_extra_properties_count;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
@@ -491,16 +511,5 @@ static inline bool ena_bp_disable(struct ena_ring *rx_ring)
 	return true;
 }
 #endif /* ENA_BUSY_POLL_SUPPORT */
-
-/* The ENA buffer length fields is 16 bit long. So when PAGE_SIZE == 64kB the
- * driver passas 0.
- * Since the max packet size the ENA handles is ~9kB limit the buffer length to
- * 16kB.
- */
-#if PAGE_SIZE > SZ_16K
-#define ENA_PAGE_SIZE SZ_16K
-#else
-#define ENA_PAGE_SIZE PAGE_SIZE
-#endif
 
 #endif /* !(ENA_H) */

@@ -92,6 +92,10 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #define CONFIG_NET_POLL_CONTROLLER
 #endif
 
+#ifndef __GFP_COLD
+#define __GFP_COLD 0
+#endif
+
 #define ENA_BUSY_POLL_SUPPORT defined(CONFIG_NET_RX_BUSY_POLL) && \
 	LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0) && \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
@@ -511,16 +515,12 @@ static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync
 #endif
 /*****************************************************************************/
 
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) )
-
 #ifndef dma_rmb
 #define dma_rmb rmb
 #endif
 
 #ifndef writel_relaxed
 #define writel_relaxed writel
-#endif
-
 #endif
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0) ) \

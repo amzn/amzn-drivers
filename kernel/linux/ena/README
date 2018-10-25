@@ -34,7 +34,6 @@ debug logs.
 
 Some of the ENA devices support a working mode called Low-latency
 Queue (LLQ), which saves several more microseconds.
-#ifndef MAINLINE
 
 Driver compilation:
 ===================
@@ -91,7 +90,16 @@ if previous driver was loaded from initramfs - it will have to be
 updated as well (i.e. dracut)
 
 restart the OS (sudo reboot and reconnect)
-#endif
+
+Disable Predictable Network Names:
+==================================
+When predicatable network naming is enabled, Linux might change the
+device name and affect the network configuration.
+This can lead to a lost of network on boot.
+To disable this feature add net.ifnames=0 to the kernel boot params.
+
+Edit /etc/default/grub and add net.ifnames=0 to GRUB_CMDLINE_LINUX.
+On Ubuntu run 'update-grub' as well
 
 Supported PCI vendor ID/device IDs:
 ===================================

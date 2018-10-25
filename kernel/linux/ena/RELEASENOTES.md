@@ -37,22 +37,50 @@ The driver was verified on the following distributions:
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
 
+## r2.0.2 release notes
+**New Features**
+* Low Latency Queues (LLQs) - a new placement policy that enables storing
+  Tx descriptor rings and packet headers in the device memory. LLQs improve
+  average and tail latencies. As part of LLQs enablement new admin
+  capability was defined, device memory was mapped as write-combined
+  and the transmit processing flow was updated.
+* Support for Rx checksum offload.
+* Increase RX copybreak from 128 to 256 to improve memory and receive
+  socket buffer utilization.
+* Add support for maximum TX burst size.
+
+**Bug Fixes**
+* Fix NULL dereference due to untimely napi initialization.
+* Fix rare bug when failed restart/resume is followed by driver removal,
+  and causes memory corruption.
+* Fix illegal access to previously unregistered netdev in ena_remove().
+* Fix warning in rmmod caused by double iounmap.
+* Fix compilation error in distributions that merged __GFP_COLD removal
+  to kernels earlier than 4.15.
+
+**Minor Changes**
+* Remove support for ndo_netpoll_controller.
+* Update host info structure to match the latest ENA spec.
+* Remove redundant parameter in ena_com_admin_init().
+* Fix indentations in ena_defs for better readability.
+* Add section about predictable Network Names to the README.
+* Fix small spelling mistake in RELEASE_NOTES __FGP_COLD => __GFP_COLD.
 
 ## r1.6.0 release notes
 **Bug Fixes**
 * fix driver compilation error in Ubuntu 14.04 kernel 3.13.0-29
 * fix non-functional kernel panic on pcie hot-plug removal on EC2 bare
-metal instances
+  metal instances
 * fix compatibility issues with non-x86 platforms using PAGE_SIZE
-larger than 4K
+  larger than 4K
 * add memory barriers for non-x86 platforms with different memory
-ordering rules.
+  ordering rules.
 
 **New Features**
 * Support different queue size for Rx and Tx. A new module param
-to configure that.
+  to configure that.
 * Optimize performance for MMIO writes to  pcie - use relaxed writes
-when possible.
+  when possible.
 
 ## r1.5.3 release notes
 **Bug Fixes**
@@ -65,7 +93,7 @@ when possible.
 ## r1.5.1 release notes
 **Bug Fixes**
 * fix driver compilation errors for centos 6.6 and 7.0.
-* remove __FGP_COLD from Rx page allocation -
+* remove __GFP_COLD from Rx page allocation -
 	__GFP_COLD was removed from kernel 4.15.
 	For more information please refer to:
 	https://patchwork.kernel.org/patch/10001293/
