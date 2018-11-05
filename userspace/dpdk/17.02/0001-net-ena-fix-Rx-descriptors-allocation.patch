@@ -1,7 +1,7 @@
-From b48023f7ac2a8ddacf646de5dccfbf79f7a917eb Mon Sep 17 00:00:00 2001
+From ad5f91443d2f6596268e7a0619c9509e00ba3b12 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 10 Apr 2017 16:28:08 +0200
-Subject: [PATCH 1/6] net/ena: fix Rx descriptors allocation
+Subject: [PATCH 01/13] net/ena: fix Rx descriptors allocation
 
 [ upstream commit a467e8f37a3eec98210c0c3ec04bf6e9506ddd81 ]
 
@@ -22,7 +22,7 @@ Acked-by: Jan Medala <jan.medala@outlook.com>
  1 file changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index b5e6db6..90cf2ad 100644
+index b5e6db624..90cf2ad3c 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -919,7 +919,7 @@ static int ena_start(struct rte_eth_dev *dev)
@@ -64,5 +64,5 @@ index b5e6db6..90cf2ad 100644
  	if (ring_size - desc_in_use > ENA_RING_DESCS_RATIO(ring_size))
  		ena_populate_rx_queue(rx_ring, ring_size - desc_in_use);
 -- 
-2.7.4
+2.14.1
 

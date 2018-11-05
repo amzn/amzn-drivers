@@ -1,7 +1,7 @@
 From 25d9cb981fbd57a4a501473eb03cab1f3c7a6795 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Tue, 9 Jan 2018 16:19:08 +0100
-Subject: [PATCH 2/2] net/ena: TX L4 offload flags should not be set in RX path
+Subject: [PATCH 2/8] net/ena: TX L4 offload flags should not be set in RX path
 
 Information about received packet type detected by NIC should be stored
 in packet_type field of rte_mbuf. TX L4 offload flags should not be set
