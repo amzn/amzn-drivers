@@ -1,7 +1,8 @@
-From c0f6478a684b86bf2f7eb99640dd8e5a1e1d9a4c Mon Sep 17 00:00:00 2001
+From 5ca7ebc1ea8550f502bfb2b176a1348a6adaff7e Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 10 Apr 2017 16:28:11 +0200
-Subject: [PATCH 4/6] net/ena: calculate partial checksum if DF bit is disabled
+Subject: [PATCH 04/13] net/ena: calculate partial checksum if DF bit is
+ disabled
 
 When TSO is disabled we still have to calculate partial checksum if DF bit
 if turned off. This is caused by firmware bug.
@@ -23,7 +24,7 @@ Acked-by: Jan Medala <jan.medala@outlook.com>
  1 file changed, 23 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index e6e889b..3ba9901 100644
+index e6e889bdd..3ba990142 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1599,14 +1599,33 @@ eth_ena_prep_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
@@ -81,5 +82,5 @@ index e6e889b..3ba9901 100644
  		 * hardware must be provided with partial checksum, otherwise
  		 * it will take care of necessary calculations.
 -- 
-2.7.4
+2.14.1
 
