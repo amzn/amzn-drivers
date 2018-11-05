@@ -1,0 +1,63 @@
+From 6422ee1ea183598921abce8870906225625cde80 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:18 +0200
+Subject: [PATCH 2/7] net/ena: check pointer before memset
+
+[ upstream commit 46916aa17d4b2007df8c0454f99ba0ca8b8cb93b ]
+
+Need to check if memory allocation succeed before using it.
+Using memset on NULL pointer cause segfault.
+
+Fixes: 9ba7981ec992 ("ena: add communication layer for DPDK")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index accecf518..362741aa2 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -189,10 +189,15 @@ typedef uint64_t dma_addr_t;
+ 		snprintf(z_name, sizeof(z_name),			\
+ 				"ena_alloc_%d", ena_alloc_cnt++);	\
+ 		mz = rte_memzone_reserve(z_name, size, SOCKET_ID_ANY, 0); \
+-		memset(mz->addr, 0, size);				\
+-		virt = mz->addr;					\
+-		phys = mz->iova;					\
+ 		handle = mz;						\
++		if (mz == NULL) {					\
++			virt = NULL;					\
++			phys = 0;					\
++		} else {						\
++			memset(mz->addr, 0, size);			\
++			virt = mz->addr;				\
++			phys = mz->iova;				\
++		}							\
+ 	} while (0)
+ #define ENA_MEM_FREE_COHERENT(dmadev, size, virt, phys, handle) 	\
+ 		({ ENA_TOUCH(size); ENA_TOUCH(phys);			\
+@@ -207,9 +212,14 @@ typedef uint64_t dma_addr_t;
+ 		snprintf(z_name, sizeof(z_name),			\
+ 				"ena_alloc_%d", ena_alloc_cnt++);	\
+ 		mz = rte_memzone_reserve(z_name, size, node, 0); \
+-		memset(mz->addr, 0, size);				\
+-		virt = mz->addr;					\
+-		phys = mz->iova;					\
++		if (mz == NULL) {					\
++			virt = NULL;					\
++			phys = 0;					\
++		} else {						\
++			memset(mz->addr, 0, size);			\
++			virt = mz->addr;				\
++			phys = mz->iova;				\
++		}							\
+ 	} while (0)
+ 
+ #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) \
+-- 
+2.14.1
+

@@ -1,0 +1,37 @@
+From 16394f95984c76e5b934d1554d7fc833bc376767 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:22 +0200
+Subject: [PATCH 5/7] net/ena: set link speed as none
+
+[ upstream commit 41e59028dd8ab2038a7655c6fc3098222661aa53 ]
+
+Link speed should is not limited to 10Gb/s and it shouldn't be hardcoded.
+
+They link speed is set to none instead and the applications shouldn't
+rely on this value when using ENA PMD.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 16a648206..e5da94a59 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -709,7 +709,7 @@ static int ena_link_update(struct rte_eth_dev *dev,
+ 	struct rte_eth_link *link = &dev->data->dev_link;
+ 
+ 	link->link_status = 1;
+-	link->link_speed = ETH_SPEED_NUM_10G;
++	link->link_speed = ETH_SPEED_NUM_NONE;
+ 	link->link_duplex = ETH_LINK_FULL_DUPLEX;
+ 
+ 	return 0;
+-- 
+2.14.1
+

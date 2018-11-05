@@ -1,0 +1,35 @@
+From 0622e8498dc4009972013fcf5475dfd61029e5d2 Mon Sep 17 00:00:00 2001
+From: Daria Kolistratova <daria.kolistratova@intel.com>
+Date: Tue, 26 Jun 2018 18:38:56 +0100
+Subject: [PATCH 12/13] net/ena: fix SIGFPE with 0 Rx queue
+
+[ upstream commit 361913ad6f8c05fc541fe4bfdae3b0dc095ae3af ]
+
+When the number of rx queues is 0 (what can be when application does
+not receive) failed with SIGFPE.
+It happens when the application is also requesting ETH_MQ_RX_RSS_FLAG
+in the rte_dev->data->dev_conf.rxmode.mq_mode.
+Fixed adding zero rx queues check.
+
+Signed-off-by: Daria Kolistratova <daria.kolistratova@intel.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 13eeb6b7b..72473e06a 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -905,7 +905,7 @@ static int ena_start(struct rte_eth_dev *dev)
+ 		return rc;
+ 
+ 	if (adapter->rte_dev->data->dev_conf.rxmode.mq_mode &
+-	    ETH_MQ_RX_RSS_FLAG) {
++	    ETH_MQ_RX_RSS_FLAG && adapter->rte_dev->data->nb_rx_queues > 0) {
+ 		rc = ena_rss_init_default(adapter);
+ 		if (rc)
+ 			return rc;
+-- 
+2.14.1
+

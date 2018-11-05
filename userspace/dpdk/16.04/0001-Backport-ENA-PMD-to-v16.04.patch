@@ -1,7 +1,7 @@
 From 65a31061fe33969bfc2dc73862d5446f0327041c Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 4 Sep 2017 14:46:32 +0200
-Subject: [PATCH] Backport ENA PMD to v16.04
+Subject: [PATCH 1/8] Backport ENA PMD to v16.04
 
 The ENA PMD was backported from the commit:
 222555480a7f9979d10faa9bb8b9773b0e1aa058
@@ -1023,10 +1023,11 @@ index fe4124697..7a031d903 100644
  /* feature_rss_flow_hash_input */
  #define ENA_ADMIN_FEATURE_RSS_FLOW_HASH_INPUT_L3_SORT_SHIFT 1
  #define ENA_ADMIN_FEATURE_RSS_FLOW_HASH_INPUT_L3_SORT_MASK BIT(1)
-@@ -1816,34 +1752,21 @@ set_ena_admin_feature_rss_flow_hash_function_selected_func(
+@@ -1815,35 +1751,22 @@ set_ena_admin_feature_rss_flow_hash_function_selected_func(
+ 		ENA_ADMIN_FEATURE_RSS_FLOW_HASH_FUNCTION_SELECTED_FUNC_MASK;
  }
  
- static inline uint16_t
+-static inline uint16_t
 -get_ena_admin_proto_input_inner(const struct ena_admin_proto_input *p)
 -{
 -	return p->flags & ENA_ADMIN_PROTO_INPUT_INNER_MASK;
@@ -1038,7 +1039,7 @@ index fe4124697..7a031d903 100644
 -	p->flags |= val & ENA_ADMIN_PROTO_INPUT_INNER_MASK;
 -}
 -
--static inline uint16_t
+ static inline uint16_t
  get_ena_admin_feature_rss_flow_hash_input_L3_sort(
  		const struct ena_admin_feature_rss_flow_hash_input *p)
  {
@@ -3010,5 +3011,5 @@ index ba6f01e66..dc3080ffd 100644
  	int id_number;
  	char name[ENA_NAME_MAX_LEN];
 -- 
-2.11.0
+2.14.1
 

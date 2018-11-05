@@ -1,0 +1,45 @@
+From c2c5a26b6665c452d5a3673fe6e2165ec6fe715b Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:19 +0200
+Subject: [PATCH 5/9] net/ena: change memory type
+
+[ upstream commit 9f32c7e7e6ce58ab772913f54f8328c1c0186a17 ]
+
+ENA_MEM_ALLOC_NODE not need to use contiguous physical memory.
+Also using memset without checking if allocation succeed can cause
+segmentation fault.
+
+To avoid both issue use rte_zmalloc_socket.
+
+Fixes: 3d3edc265fc8 ("net/ena: make coherent memory allocation NUMA-aware")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 955d6302d..977bee49f 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -224,14 +224,8 @@ typedef uint64_t dma_addr_t;
+ 
+ #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) \
+ 	do {								\
+-		const struct rte_memzone *mz;				\
+-		char z_name[RTE_MEMZONE_NAMESIZE];			\
+ 		ENA_TOUCH(dmadev); ENA_TOUCH(dev_node);			\
+-		snprintf(z_name, sizeof(z_name),			\
+-				"ena_alloc_%d", ena_alloc_cnt++);	\
+-		mz = rte_memzone_reserve(z_name, size, node, 0); \
+-		memset(mz->addr, 0, size);				\
+-		virt = mz->addr;					\
++		virt = rte_zmalloc_socket(NULL, size, 0, node);		\
+ 	} while (0)
+ 
+ #define ENA_MEM_ALLOC(dmadev, size) rte_zmalloc(NULL, size, 1)
+-- 
+2.14.1
+
