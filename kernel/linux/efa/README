@@ -1,0 +1,149 @@
+Linux kernel driver for Elastic Fabric Adapter (EFA)
+====================================================
+
+Overview
+========
+Elastic Fabric Adapter (EFA), a new network device that provides reliable
+userspace communication and kernel bypass capabilities, targeting more
+consistent latency and higher throughput than traditional TCP-based
+communication. EFA is first implemented in AWS EC2 instances, and is optimized
+to cloud-scale network infrastructure.
+
+EFA brings the scalability, flexibility, and elasticity of cloud to
+tightly-coupled applications like HPC and Machine Learning Training, that
+would benefit from the lower and more consistent latency and higher throughput.
+Applications would use Libfabric (https://github.com/ofiwg/libfabric) as the
+userspace library to use EFA.
+
+Currently, EFA supports datagram send/receive operations and does not support
+connection-oriented or read/write operations. EFA supports unreliable
+datagrams (UD) as well as a new Scalable (unordered) Reliable Datagram protocol
+(SRD). SRD provides support for reliable datagrams and more complete error
+handling than typically seen with other Reliable Datagram (RD) implementations,
+but, unlike RD, it does not support ordering or segmentation.
+
+EFA depends on having ib_core and ib user verbs compiled with the kernel.
+User verbs are supported via a dedicated userspace libfabric provider,
+all kernel verbs and in-kernel services are currently not supported.
+
+Driver compilation
+==================
+For list of supported kernels and distributions, please refer to the release
+notes documentation in the same directory.
+Prerequisites:
+Kernel must be compiled with CONFIG_INFINIBAND_USER_ACCESS in Kconfig.
+
+sudo yum update
+sudo yum install gcc
+sudo yum install kernel-devel-$(uname -r)
+
+Compilation:
+Run "make", efa.ko is created inside the folder.
+
+Driver installation
+===================
+Loading driver
+--------------
+modprobe ib_core
+modprobe ib_uverbs
+insmod efa.ko
+
+For automatic driver start upon the OS boot
+sudo vi /etc/modules-load.d/efa.conf
+insert "efa" to the file
+copy the efa.ko to /lib/modules/$(uname -r)/
+sudo depmod
+If previous driver was loaded from initramfs - it will have to be
+updated as well (i.e. dracut)
+
+Restart the OS (sudo reboot and reconnect)
+
+Supported PCI vendor ID/device IDs
+==================================
+1d0f:efa0 - EFA used in EC2 virtualized and bare-metal instances.
+
+EFA Source Code Directory Structure
+===================================
+efa_main.c, efa.h - Main Linux kernel driver.
+efa_com.[ch], efa_com_cmd.[ch]      - Management communication layer.
+                                      This layer is responsible for the
+                                      handling all the management (admin)
+                                      communication between the device and the
+                                      driver.
+efa_common_defs.h - Common definitions for efa_com layer.
+efa_admin_defs.h, efa_admin_cmd_defs.h - Definition of EFA management interface.
+efa_regs_defs.h   - Definition of EFA PCI memory-mapped (MMIO) registers.
+efa_sysfs.[ch]    - Sysfs files.
+efa_pci_id_tbl.h  - Supported device IDs.
+efa_bitmap.c      - Bitmap allocation services for the driver. Currently used
+                    for Protection Domains numbers.
+efa-abi.h         - Kernel driver <-> Userspace provider ABI.
+
+Management Interface
+====================
+EFA management interface is exposed by means of:
+- PCIe Configuration Space
+- Device Registers
+- Admin Queue (AQ) and Admin Completion Queue (ACQ)
+- Asynchronous Event Notification Queue (AENQ)
+
+AQ is used for submitting management commands, and the
+results/responses are reported asynchronously through ACQ.
+
+EFA introduces a small set of management commands.
+Most of the management operations are framed in a generic get/set feature
+command.
+
+The following admin queue commands are supported:
+- Create/Destroy Queue Pair
+- Create/Destroy Completion Queue
+- Create/Destroy Memory Region
+- Create/Destroy Address Handle
+- Allocate/Deallocate Protection Domain
+- Get feature
+- Set feature
+- Query device
+
+Refer to efa_admin_cmds_defs.h for the list of supported get/set feature
+properties.
+
+The Asynchronous Event Notification Queue (AENQ) is a unidirectional
+queue used by the EFA device to send to the driver events that cannot
+be reported using ACQ. AENQ events are subdivided into groups. Each
+group may have multiple syndromes, as shown below:
+
+The events are:
+	Group                   Syndrome
+	Keep-Alive              - X -
+
+ACQ and AENQ share the same MSI-X vector.
+
+Interrupt Modes
+===============
+Management interrupt registration is performed when the Linux kernel
+probes the adapter, and it is un-registered when the adapter is
+removed.
+
+The management interrupt is named:
+   efa-mgmnt@pci:<PCI domain:bus:slot.function>
+
+Data Path Interface
+===================
+I/O operations are based on Queue Pairs (QPs) - Send Queues (SQs) and Receive
+Queues (RQs).  Each queue has a Completion Queue (CQ) associated with it.
+
+The QPs and CQs are implemented as Work/Completion Queue Elements (WQEs/CQEs)
+rings in contiguous physical memory.
+
+The EFA supports Low Latency Queue (LLQ) mode for SQs:
+In this mode the userspace provider writes the WQEs directly to the EFA device
+memory space, while the packet data resides in the host's memory. The device
+uses a dedicated PCI device memory BAR, which is mapped with write-combine
+capability.
+
+The RQs reside in the host's memory. The EFA device fetches the EFA RX WQEs and
+packet data from host memory.
+
+The user notifies the EFA device of new WQEs by writing to a dedicated PCI
+device memory BAR referred as Doorbells BAR which is mapped to the userspace
+provider.
