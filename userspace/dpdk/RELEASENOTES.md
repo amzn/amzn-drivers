@@ -4,6 +4,18 @@ ___
 
 ### Normal releases
 
+#### v18.11
+_Release of the new version of the driver - r1.1.1._
+
+Bug fixes:
+* Add information about VFIO support and instructions (Note - it should also
+  apply to older DPDK releases, but it cannot be upstreamed for no longer
+  supported versions).
+* Recreate HW IO rings on start and stop to prevent descriptors memory leak
+* Pass hash of the packet to the mbuf instead of queue id
+* Fix Rx out of order completion - the refill was not assigning mbufs to Rx
+  buffers properly
+
 #### v18.08
 _Release of the new version of the driver - r1.1.0._
 
@@ -120,12 +132,6 @@ Bug Fixes:
 * Indicate jumbo frames support in the rx features structure which is supported
   by the device.
 
-### dpdk-next-net - upcoming release
-Bug fixes:
-* Add information about VFIO support and instructions (Note - it should also
-  apply to older DPDK releases, but it cannot be upstreamed for no longer
-  supported versions).
-
 ### Stable releases
 
 There comes only backported patches.
@@ -178,6 +184,8 @@ Bug fixes:
 * Add information about VFIO support and instructions (Note - it should also
   apply to older DPDK releases, but it cannot be upstreamed for no longer
   supported version).
+* Fix Rx out of order completion - the refill was not assigning mbufs to Rx
+  buffers properly
 
 #### v16.11.8
 Bug fixes:
