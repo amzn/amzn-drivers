@@ -371,14 +371,9 @@ static struct efa_comp_ctx *efa_com_submit_admin_cmd(struct efa_com_admin_queue 
 						     size_t comp_size_in_bytes)
 {
 	struct efa_comp_ctx *comp_ctx;
-	int err;
 
 	/* In case of queue FULL */
-	err = down_interruptible(&admin_queue->avail_cmds);
-	if (err) {
-		pr_warn("Waiting for admin queue interrupted\n");
-		return ERR_PTR(err);
-	}
+	down(&admin_queue->avail_cmds);
 
 	spin_lock(&admin_queue->sq.lock);
 	if (unlikely(!test_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state))) {
@@ -677,11 +672,8 @@ static void efa_com_wait_for_abort_completion(struct efa_com_dev *edev)
 	int i;
 
 	/* all mine */
-	for (i = 0; i < admin_queue->depth; i++) {
-		if (down_interruptible(&admin_queue->avail_cmds))
-			pr_warn("Interrupted while waiting for admin abort[%d]\n",
-				i);
-	}
+	for (i = 0; i < admin_queue->depth; i++)
+		down(&admin_queue->avail_cmds);
 
 	/* let it go */
 	for (i = 0; i < admin_queue->depth; i++)
