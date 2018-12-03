@@ -6,6 +6,7 @@ $(DRIVER_NAME)-objs := efa_bitmap.o \
 	efa_com_cmd.o \
 	efa_com.o \
 	efa_main.o \
+	efa_verbs.o \
 	efa_sysfs.o
 
 ccflags-y := -I$(src)

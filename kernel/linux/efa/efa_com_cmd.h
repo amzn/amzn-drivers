@@ -6,6 +6,10 @@
 #ifndef _EFA_COM_CMD_H_
 #define _EFA_COM_CMD_H_
 
+#include "efa_com.h"
+
+#define EFA_GID_SIZE 16
+
 struct efa_com_create_qp_params {
 	u32 pd;
 	u8  qp_type;

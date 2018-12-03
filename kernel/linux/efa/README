@@ -65,6 +65,7 @@ Supported PCI vendor ID/device IDs
 EFA Source Code Directory Structure
 ===================================
 efa_main.c, efa.h - Main Linux kernel driver.
+efa_verbs.c       - Verbs implementations.
 efa_com.[ch], efa_com_cmd.[ch]      - Management communication layer.
                                       This layer is responsible for the
                                       handling all the management (admin)
