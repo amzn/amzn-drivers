@@ -9,12 +9,23 @@
 #include <rdma/ib_user_verbs.h>
 
 #include "efa.h"
-#include "efa_pci_id_tbl.h"
 #include "efa_sysfs.h"
 
 #ifdef HAVE_CUSTOM_COMMANDS
 #include "efa-abi.h"
 #endif
+
+#ifndef PCI_VENDOR_ID_AMAZON
+#define PCI_VENDOR_ID_AMAZON 0x1d0f
+#endif
+#ifndef PCI_DEV_ID_EFA_VF
+#define PCI_DEV_ID_EFA_VF 0xefa0
+#endif
+
+static const struct pci_device_id efa_pci_tbl[] = {
+	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA_VF) },
+	{ }
+};
 
 #define DRV_MODULE_VER_MAJOR           0
 #define DRV_MODULE_VER_MINOR           9
