@@ -6,6 +6,8 @@
 #ifndef _EFA_ABI_H_
 #define _EFA_ABI_H_
 
+#include <linux/types.h>
+
 enum efa_ibv_user_cmds_supp_udata {
 	EFA_USER_CMDS_SUPP_UDATA_QUERY_DEVICE = 1 << 0,
 	EFA_USER_CMDS_SUPP_UDATA_CREATE_AH    = 1 << 1,
