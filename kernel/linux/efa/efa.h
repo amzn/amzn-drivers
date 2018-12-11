@@ -23,11 +23,6 @@
 #define DRV_MODULE_NAME         "efa"
 #define DEVICE_NAME             "Elastic Fabric Adapter (EFA)"
 
-#ifdef pr_fmt
-#undef pr_fmt
-#endif
-#define pr_fmt(fmt) DRV_MODULE_NAME ": %s: " fmt, __func__
-
 #define EFA_IRQNAME_SIZE        40
 
 /* 1 for AENQ + ADMIN */
@@ -141,9 +136,6 @@ void efa_bitmap_free(struct efa_bitmap *bitmap, u32 obj);
 int efa_bitmap_init(struct efa_bitmap *bitmap, u32 num);
 void efa_bitmap_cleanup(struct efa_bitmap *bitmap);
 u32 efa_bitmap_avail(struct efa_bitmap *bitmap);
-
-int efa_get_device_attributes(struct efa_dev *dev,
-			      struct efa_com_get_device_attr_result *result);
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 int efa_query_device(struct ib_device *ibdev,
