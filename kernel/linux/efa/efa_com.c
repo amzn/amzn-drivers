@@ -989,7 +989,7 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 	if (ver < MIN_EFA_VER) {
 		dev_err(edev->dmadev,
 			"EFA version is lower than the minimal version the driver supports\n");
-		return -1;
+		return -EOPNOTSUPP;
 	}
 
 	dev_info(edev->dmadev,
@@ -1011,7 +1011,7 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 	if (ctrl_ver_masked < MIN_EFA_CTRL_VER) {
 		dev_err(edev->dmadev,
 			"EFA ctrl version is lower than the minimal ctrl version the driver supports\n");
-		return -1;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
