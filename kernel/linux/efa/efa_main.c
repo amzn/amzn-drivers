@@ -78,21 +78,21 @@ static void efa_update_network_attr(struct efa_dev *dev,
 static void efa_update_dev_cap(struct efa_dev *dev,
 			       struct efa_com_get_device_attr_result *device_attr)
 {
-	dev->caps.max_sq          = device_attr->max_sq;
-	dev->caps.max_sq_depth    = device_attr->max_sq_depth;
-	dev->caps.max_rq          = device_attr->max_sq;
-	dev->caps.max_rq_depth    = device_attr->max_rq_depth;
-	dev->caps.max_cq          = device_attr->max_cq;
-	dev->caps.max_cq_depth    = device_attr->max_cq_depth;
+	dev->caps.max_sq = device_attr->max_sq;
+	dev->caps.max_sq_depth = device_attr->max_sq_depth;
+	dev->caps.max_rq = device_attr->max_sq;
+	dev->caps.max_rq_depth = device_attr->max_rq_depth;
+	dev->caps.max_cq = device_attr->max_cq;
+	dev->caps.max_cq_depth = device_attr->max_cq_depth;
 	dev->caps.inline_buf_size = device_attr->inline_buf_size;
-	dev->caps.max_sq_sge      = device_attr->max_sq_sge;
-	dev->caps.max_rq_sge      = device_attr->max_rq_sge;
-	dev->caps.max_mr          = device_attr->max_mr;
-	dev->caps.max_mr_pages    = device_attr->max_mr_pages;
-	dev->caps.page_size_cap   = device_attr->page_size_cap;
-	dev->caps.max_pd          = device_attr->max_pd;
-	dev->caps.max_ah          = device_attr->max_ah;
-	dev->caps.sub_cqs_per_cq  = device_attr->sub_cqs_per_cq;
+	dev->caps.max_sq_sge = device_attr->max_sq_sge;
+	dev->caps.max_rq_sge = device_attr->max_rq_sge;
+	dev->caps.max_mr = device_attr->max_mr;
+	dev->caps.max_mr_pages = device_attr->max_mr_pages;
+	dev->caps.page_size_cap = device_attr->page_size_cap;
+	dev->caps.max_pd = device_attr->max_pd;
+	dev->caps.max_ah = device_attr->max_ah;
+	dev->caps.sub_cqs_per_cq = device_attr->sub_cqs_per_cq;
 	dev->caps.max_inline_data = device_attr->inline_buf_size;
 }
 
@@ -224,7 +224,7 @@ static int efa_set_doorbell_bar(struct efa_dev *dev, int db_bar_idx)
 	}
 
 	dev->db_bar_addr = pci_resource_start(dev->pdev, db_bar_idx);
-	dev->db_bar_len  = pci_resource_len(dev->pdev, db_bar_idx);
+	dev->db_bar_len = pci_resource_len(dev->pdev, db_bar_idx);
 
 	return 0;
 }

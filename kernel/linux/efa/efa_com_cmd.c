@@ -9,7 +9,7 @@
 
 void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low)
 {
-	*addr_low  = addr & GENMASK(31, 0);
+	*addr_low = addr & GENMASK(31, 0);
 	*addr_high = (addr >> 32) & GENMASK(31, 0);
 }
 
@@ -392,15 +392,15 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 		return err;
 	}
 
-	result->fw_version              = resp.u.device_attr.fw_version;
-	result->admin_api_version       = resp.u.device_attr.admin_api_version;
-	result->vendor_id               = pdev->vendor;
-	result->vendor_part_id          = pdev->device;
-	result->device_version          = resp.u.device_attr.device_version;
-	result->supported_features      = resp.u.device_attr.supported_features;
-	result->phys_addr_width         = resp.u.device_attr.phys_addr_width;
-	result->virt_addr_width         = resp.u.device_attr.virt_addr_width;
-	result->db_bar                  = resp.u.device_attr.db_bar;
+	result->fw_version = resp.u.device_attr.fw_version;
+	result->admin_api_version = resp.u.device_attr.admin_api_version;
+	result->vendor_id = pdev->vendor;
+	result->vendor_part_id = pdev->device;
+	result->device_version = resp.u.device_attr.device_version;
+	result->supported_features = resp.u.device_attr.supported_features;
+	result->phys_addr_width = resp.u.device_attr.phys_addr_width;
+	result->virt_addr_width = resp.u.device_attr.virt_addr_width;
+	result->db_bar = resp.u.device_attr.db_bar;
 
 	if (unlikely(result->admin_api_version < 1)) {
 		dev_err(edev->dmadev,
@@ -418,23 +418,23 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 		return err;
 	}
 
-	result->max_sq          = resp.u.queue_attr.max_sq;
-	result->max_sq_depth    = min_t(u32, resp.u.queue_attr.max_sq_depth,
-					U16_MAX);
-	result->max_rq          = resp.u.queue_attr.max_sq;
-	result->max_rq_depth    = min_t(u32, resp.u.queue_attr.max_rq_depth,
-					U16_MAX);
-	result->max_cq          = resp.u.queue_attr.max_cq;
-	result->max_cq_depth    = resp.u.queue_attr.max_cq_depth;
+	result->max_sq = resp.u.queue_attr.max_sq;
+	result->max_sq_depth = min_t(u32, resp.u.queue_attr.max_sq_depth,
+				     U16_MAX);
+	result->max_rq = resp.u.queue_attr.max_sq;
+	result->max_rq_depth = min_t(u32, resp.u.queue_attr.max_rq_depth,
+				     U16_MAX);
+	result->max_cq = resp.u.queue_attr.max_cq;
+	result->max_cq_depth = resp.u.queue_attr.max_cq_depth;
 	result->inline_buf_size = resp.u.queue_attr.inline_buf_size;
-	result->max_sq_sge      = resp.u.queue_attr.max_wr_send_sges;
-	result->max_rq_sge      = resp.u.queue_attr.max_wr_recv_sges;
-	result->max_mr          = resp.u.queue_attr.max_mr;
-	result->max_mr_pages    = resp.u.queue_attr.max_mr_pages;
-	result->page_size_cap   = PAGE_SIZE;
-	result->max_pd          = resp.u.queue_attr.max_pd;
-	result->max_ah          = resp.u.queue_attr.max_ah;
-	result->sub_cqs_per_cq  = resp.u.queue_attr.sub_cqs_per_cq;
+	result->max_sq_sge = resp.u.queue_attr.max_wr_send_sges;
+	result->max_rq_sge = resp.u.queue_attr.max_wr_recv_sges;
+	result->max_mr = resp.u.queue_attr.max_mr;
+	result->max_mr_pages = resp.u.queue_attr.max_mr_pages;
+	result->page_size_cap = PAGE_SIZE;
+	result->max_pd = resp.u.queue_attr.max_pd;
+	result->max_ah = resp.u.queue_attr.max_ah;
+	result->sub_cqs_per_cq = resp.u.queue_attr.sub_cqs_per_cq;
 
 	return 0;
 }
@@ -452,9 +452,9 @@ int efa_com_get_hw_hints(struct efa_com_dev *edev,
 	}
 
 	result->admin_completion_timeout = resp.u.hw_hints.admin_completion_timeout;
-	result->driver_watchdog_timeout  = resp.u.hw_hints.driver_watchdog_timeout;
-	result->mmio_read_timeout        = resp.u.hw_hints.mmio_read_timeout;
-	result->poll_interval            = resp.u.hw_hints.poll_interval;
+	result->driver_watchdog_timeout = resp.u.hw_hints.driver_watchdog_timeout;
+	result->mmio_read_timeout = resp.u.hw_hints.mmio_read_timeout;
+	result->poll_interval = resp.u.hw_hints.poll_interval;
 
 	return 0;
 }

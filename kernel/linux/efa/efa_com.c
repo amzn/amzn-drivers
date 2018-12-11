@@ -70,8 +70,8 @@ static u32 efa_com_reg_read32(struct efa_com_dev *edev, u16 offset)
 
 	/* trash DMA req_id to identify when hardware is done */
 	read_resp->req_id = mmio_read->seq_num + 0x9aL;
-	mmio_read_reg  = (offset << EFA_REGS_MMIO_REG_READ_REG_OFF_SHIFT) &
-			 EFA_REGS_MMIO_REG_READ_REG_OFF_MASK;
+	mmio_read_reg = (offset << EFA_REGS_MMIO_REG_READ_REG_OFF_SHIFT) &
+			EFA_REGS_MMIO_REG_READ_REG_OFF_MASK;
 	mmio_read_reg |= mmio_read->seq_num &
 			 EFA_REGS_MMIO_REG_READ_REQ_ID_MASK;
 
@@ -129,7 +129,7 @@ static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 	sq->db_addr = (u32 __iomem *)(edev->reg_bar + EFA_REGS_AQ_PROD_DB_OFF);
 
 	addr_high = EFA_DMA_ADDR_TO_UINT32_HIGH(sq->dma_addr);
-	addr_low  = EFA_DMA_ADDR_TO_UINT32_LOW(sq->dma_addr);
+	addr_low = EFA_DMA_ADDR_TO_UINT32_LOW(sq->dma_addr);
 
 	writel(addr_low, edev->reg_bar + EFA_REGS_AQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_AQ_BASE_HI_OFF);
@@ -165,7 +165,7 @@ static int efa_com_admin_init_cq(struct efa_com_dev *edev)
 	cq->phase = 1;
 
 	addr_high = EFA_DMA_ADDR_TO_UINT32_HIGH(cq->dma_addr);
-	addr_low  = EFA_DMA_ADDR_TO_UINT32_LOW(cq->dma_addr);
+	addr_low = EFA_DMA_ADDR_TO_UINT32_LOW(cq->dma_addr);
 
 	writel(addr_low, edev->reg_bar + EFA_REGS_ACQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_ACQ_BASE_HI_OFF);
@@ -862,7 +862,7 @@ static efa_aenq_handler efa_com_get_specific_aenq_cb(struct efa_com_dev *edev,
 void efa_com_aenq_intr_handler(struct efa_com_dev *edev, void *data)
 {
 	struct efa_admin_aenq_common_desc *aenq_common;
-	struct efa_com_aenq *aenq  = &edev->aenq;
+	struct efa_com_aenq *aenq = &edev->aenq;
 	struct efa_admin_aenq_entry *aenq_e;
 	efa_aenq_handler handler_cb;
 	u32 processed = 0;
@@ -919,7 +919,7 @@ static void efa_com_mmio_reg_read_resp_addr_init(struct efa_com_dev *edev)
 
 	/* dma_addr_bits is unknown at this point */
 	addr_high = (mmio_read->read_resp_dma_addr >> 32) & GENMASK(31, 0);
-	addr_low  = mmio_read->read_resp_dma_addr & GENMASK(31, 0);
+	addr_low = mmio_read->read_resp_dma_addr & GENMASK(31, 0);
 
 	writel(addr_high, edev->reg_bar + EFA_REGS_MMIO_RESP_HI_OFF);
 	writel(addr_low, edev->reg_bar + EFA_REGS_MMIO_RESP_LO_OFF);

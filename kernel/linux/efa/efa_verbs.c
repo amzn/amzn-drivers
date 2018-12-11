@@ -209,30 +209,30 @@ int efa_query_device(struct ib_device *ibdev,
 	if (err)
 		return err;
 
-	props->max_mr_size              = result.max_mr_pages * PAGE_SIZE;
-	props->page_size_cap            = result.page_size_cap;
-	props->vendor_id                = result.vendor_id;
-	props->vendor_part_id           = result.vendor_part_id;
-	props->hw_ver                   = dev->pdev->subsystem_device;
-	props->max_qp                   = result.max_sq;
-	props->device_cap_flags         = IB_DEVICE_PORT_ACTIVE_EVENT |
+	props->max_mr_size = result.max_mr_pages * PAGE_SIZE;
+	props->page_size_cap = result.page_size_cap;
+	props->vendor_id = result.vendor_id;
+	props->vendor_part_id = result.vendor_part_id;
+	props->hw_ver = dev->pdev->subsystem_device;
+	props->max_qp = result.max_sq;
+	props->device_cap_flags = IB_DEVICE_PORT_ACTIVE_EVENT |
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-					  IB_DEVICE_VIRTUAL_FUNCTION |
+				  IB_DEVICE_VIRTUAL_FUNCTION |
 #endif
-					  IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
-	props->max_cq                   = result.max_cq;
-	props->max_pd                   = result.max_pd;
-	props->max_mr                   = result.max_mr;
-	props->max_ah                   = result.max_ah;
-	props->max_cqe                  = result.max_cq_depth;
-	props->max_qp_wr                = min_t(u16, result.max_sq_depth,
-						result.max_rq_depth);
+				  IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
+	props->max_cq = result.max_cq;
+	props->max_pd = result.max_pd;
+	props->max_mr = result.max_mr;
+	props->max_ah = result.max_ah;
+	props->max_cqe = result.max_cq_depth;
+	props->max_qp_wr = min_t(u16, result.max_sq_depth,
+				 result.max_rq_depth);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-	props->max_sge                  = min_t(u16, result.max_sq_sge,
-						result.max_rq_sge);
+	props->max_sge = min_t(u16, result.max_sq_sge,
+			       result.max_rq_sge);
 #else
-	props->max_send_sge             = result.max_sq_sge;
-	props->max_recv_sge             = result.max_rq_sge;
+	props->max_send_sge = result.max_sq_sge;
+	props->max_recv_sge = result.max_rq_sge;
 #endif
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
@@ -240,8 +240,8 @@ int efa_query_device(struct ib_device *ibdev,
 		resp.sub_cqs_per_cq = result.sub_cqs_per_cq;
 		resp.max_sq_sge = result.max_sq_sge;
 		resp.max_rq_sge = result.max_rq_sge;
-		resp.max_sq_wr  = result.max_sq_depth;
-		resp.max_rq_wr  = result.max_rq_depth;
+		resp.max_sq_wr = result.max_sq_depth;
+		resp.max_rq_wr = result.max_rq_depth;
 		resp.max_inline_data = result.inline_buf_size;
 
 		err = ib_copy_to_udata(udata, &resp,
@@ -478,7 +478,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 		}
 
 		rq_db_entry->obj = qp;
-		rq_entry->obj    = qp;
+		rq_entry->obj = qp;
 
 		rq_entry->address = virt_to_phys(qp->rq_cpu_addr);
 		rq_entry->length = qp->rq_size;
@@ -496,7 +496,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	}
 
 	sq_db_entry->obj = qp;
-	sq_entry->obj    = qp;
+	sq_entry->obj = qp;
 
 	sq_db_entry->address = dev->db_bar_addr + resp->sq_db_offset;
 	resp->sq_db_offset &= ~PAGE_MASK;
@@ -876,7 +876,7 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		goto err_free_dma;
 
 	resp.cq_idx = result.cq_idx;
-	cq->cq_idx  = result.cq_idx;
+	cq->cq_idx = result.cq_idx;
 	cq->ibcq.cqe = result.actual_depth;
 	WARN_ON_ONCE(entries != result.actual_depth);
 
@@ -1077,7 +1077,7 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 
 	/* fill the dma addresses of sg list pages to chunks: */
 	chunk_idx = 0;
-	page_idx  = 0;
+	page_idx = 0;
 	cur_chunk_buf = chunk_list->chunks[0].buf;
 	for_each_sg(pages_sgl, sg, sg_dma_cnt, entry) {
 		npg_in_sg = sg_dma_len(sg) >> EFA_PAGE_SHIFT;
@@ -1544,7 +1544,7 @@ int efa_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 			   struct ib_port_immutable *immutable)
 {
 	immutable->core_cap_flags = RDMA_CORE_CAP_PROT_IB;
-	immutable->gid_tbl_len    = 1;
+	immutable->gid_tbl_len = 1;
 
 	return 0;
 }
@@ -2068,16 +2068,16 @@ ssize_t efa_everbs_cmd_get_ah(struct efa_dev *dev,
 		return -EINVAL;
 	}
 
-	attr.dlid               = cmd.attr.dlid;
-	attr.src_path_bits      = cmd.attr.src_path_bits;
-	attr.sl                 = cmd.attr.sl;
-	attr.static_rate        = cmd.attr.static_rate;
-	attr.ah_flags           = cmd.attr.is_global ? IB_AH_GRH : 0;
-	attr.port_num           = cmd.attr.port_num;
-	attr.grh.flow_label     = cmd.attr.grh.flow_label;
-	attr.grh.sgid_index     = cmd.attr.grh.sgid_index;
-	attr.grh.hop_limit      = cmd.attr.grh.hop_limit;
-	attr.grh.traffic_class  = cmd.attr.grh.traffic_class;
+	attr.dlid = cmd.attr.dlid;
+	attr.src_path_bits = cmd.attr.src_path_bits;
+	attr.sl = cmd.attr.sl;
+	attr.static_rate = cmd.attr.static_rate;
+	attr.ah_flags = cmd.attr.is_global ? IB_AH_GRH : 0;
+	attr.port_num = cmd.attr.port_num;
+	attr.grh.flow_label = cmd.attr.grh.flow_label;
+	attr.grh.sgid_index = cmd.attr.grh.sgid_index;
+	attr.grh.hop_limit = cmd.attr.grh.hop_limit;
+	attr.grh.traffic_class = cmd.attr.grh.traffic_class;
 	memcpy(attr.grh.dgid.raw, cmd.attr.grh.dgid, EFA_GID_SIZE);
 
 	err = efa_get_ah(dev, &attr, &resp.efa_address_handle);
@@ -2114,11 +2114,11 @@ ssize_t efa_everbs_cmd_get_ex_dev_attrs(struct efa_dev *dev,
 		return -EINVAL;
 	}
 
-	resp.sub_cqs_per_cq  = caps->sub_cqs_per_cq;
-	resp.max_sq_sge      = caps->max_sq_sge;
-	resp.max_rq_sge      = caps->max_rq_sge;
-	resp.max_sq_wr       = caps->max_sq_depth;
-	resp.max_rq_wr       = caps->max_rq_depth;
+	resp.sub_cqs_per_cq = caps->sub_cqs_per_cq;
+	resp.max_sq_sge = caps->max_sq_sge;
+	resp.max_rq_sge = caps->max_rq_sge;
+	resp.max_sq_wr = caps->max_sq_depth;
+	resp.max_rq_wr = caps->max_rq_depth;
 	resp.max_inline_data = caps->max_inline_data;
 
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
