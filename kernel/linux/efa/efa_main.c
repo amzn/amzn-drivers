@@ -529,7 +529,7 @@ static int efa_probe_device(struct pci_dev *pdev)
 
 	pci_set_master(pdev);
 
-	dev = (struct efa_dev *)ib_alloc_device(sizeof(struct efa_dev));
+	dev = (struct efa_dev *)ib_alloc_device(sizeof(*dev));
 	if (IS_ERR_OR_NULL(dev)) {
 		dev_err(&pdev->dev, "Device alloc failed\n");
 		err = dev ? PTR_ERR(dev) : -ENOMEM;
