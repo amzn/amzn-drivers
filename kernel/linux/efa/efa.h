@@ -12,6 +12,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #endif
+#include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/version.h>
@@ -28,8 +29,6 @@
 /* 1 for AENQ + ADMIN */
 #define EFA_NUM_MSIX_VEC                  1
 #define EFA_MGMNT_MSIX_VEC_IDX            0
-
-#define EFA_BITMAP_INVAL U32_MAX
 
 enum {
 	EFA_DEVICE_RUNNING_BIT,
@@ -55,16 +54,6 @@ struct efa_caps {
 	u16 max_inline_data; /* bytes */
 };
 
-struct efa_bitmap {
-	u32                     last;
-	u32                     max;
-	u32                     mask;
-	u32                     avail;
-	/* Protects bitmap */
-	spinlock_t              lock;
-	unsigned long          *table;
-};
-
 struct efa_irq {
 	irq_handler_t handler;
 	void *data;
@@ -76,7 +65,7 @@ struct efa_irq {
 
 struct efa_sw_stats {
 	u64 alloc_pd_alloc_err;
-	u64 alloc_pd_bitmap_full_err;
+	u64 alloc_pd_ida_full_err;
 	u64 mmap_entry_alloc_err;
 	u64 create_qp_alloc_err;
 	u64 create_cq_alloc_err;
@@ -122,7 +111,7 @@ struct efa_dev {
 	struct list_head        efa_ah_list;
 	/* Protects efa_ah_list */
 	struct mutex            ah_list_lock;
-	struct efa_bitmap       pd_bitmap;
+	struct ida              pd_ida;
 #ifdef HAVE_CUSTOM_COMMANDS
 	struct device          *everbs_dev;
 	struct cdev             cdev;
@@ -130,12 +119,6 @@ struct efa_dev {
 
 	struct efa_stats        stats;
 };
-
-u32 efa_bitmap_alloc(struct efa_bitmap *bitmap);
-void efa_bitmap_free(struct efa_bitmap *bitmap, u32 obj);
-int efa_bitmap_init(struct efa_bitmap *bitmap, u32 num);
-void efa_bitmap_cleanup(struct efa_bitmap *bitmap);
-u32 efa_bitmap_avail(struct efa_bitmap *bitmap);
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 int efa_query_device(struct ib_device *ibdev,

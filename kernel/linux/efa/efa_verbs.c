@@ -344,6 +344,7 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 	struct efa_ibv_alloc_pd_resp resp = {};
 	struct efa_dev *dev = to_edev(ibdev);
 	struct efa_pd *pd;
+	int pdn;
 	int err;
 
 	if (!ibucontext) {
@@ -369,16 +370,17 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	pd->pdn = efa_bitmap_alloc(&dev->pd_bitmap);
-	if (pd->pdn == EFA_BITMAP_INVAL) {
+	pdn = ida_simple_get(&dev->pd_ida, 0, dev->caps.max_pd, GFP_KERNEL);
+	if (pdn < 0) {
 		dev_err(&ibdev->dev,
 			"Failed to alloc PD (max_pd %u)\n", dev->caps.max_pd);
-		dev->stats.sw_stats.alloc_pd_bitmap_full_err++;
+		dev->stats.sw_stats.alloc_pd_ida_full_err++;
 		kfree(pd);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	resp.pdn = pd->pdn;
+	pd->pdn = pdn;
+	resp.pdn = pdn;
 
 	if (udata && udata->outlen) {
 		err = ib_copy_to_udata(udata, &resp,
@@ -386,7 +388,7 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 		if (err) {
 			dev_err_ratelimited(&ibdev->dev,
 					    "Failed to copy udata for alloc_pd\n");
-			efa_bitmap_free(&dev->pd_bitmap, pd->pdn);
+			ida_simple_remove(&dev->pd_ida, pd->pdn);
 			kfree(pd);
 			return ERR_PTR(err);
 		}
@@ -403,7 +405,7 @@ int efa_dealloc_pd(struct ib_pd *ibpd)
 	struct efa_pd *pd = to_epd(ibpd);
 
 	dev_dbg(&dev->ibdev.dev, "Dealloc pd[%d]\n", pd->pdn);
-	efa_bitmap_free(&dev->pd_bitmap, pd->pdn);
+	ida_simple_remove(&dev->pd_ida, pd->pdn);
 	kfree(pd);
 
 	return 0;

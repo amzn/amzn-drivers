@@ -56,6 +56,10 @@
 #define HAVE_CREATE_CQ_ATTR
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+#define HAVE_IDA_IS_EMPTY
+#endif
+
 #if !defined(HAVE_CREATE_AH_UDATA) || !defined(HAVE_IB_QUERY_DEVICE_UDATA)
 #define HAVE_CUSTOM_COMMANDS
 #endif

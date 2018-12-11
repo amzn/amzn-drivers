@@ -2,8 +2,7 @@
 DRIVER_NAME=efa
 
 obj-m += $(DRIVER_NAME).o
-$(DRIVER_NAME)-objs := efa_bitmap.o \
-	efa_com_cmd.o \
+$(DRIVER_NAME)-objs := efa_com_cmd.o \
 	efa_com.o \
 	efa_main.o \
 	efa_verbs.o \

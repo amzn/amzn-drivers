@@ -282,28 +282,24 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		return err;
 
-	err = efa_bitmap_init(&dev->pd_bitmap, dev->caps.max_pd);
-	if (err) {
-		dev_err(&dev->pdev->dev, "efa_bitmap_init failed (%d)\n", err);
-		goto err_free_doorbell_bar;
-	}
+	ida_init(&dev->pd_ida);
 
 	err = efa_com_get_network_attr(dev->edev, &network_attr);
 	if (err)
-		goto err_free_pd_bitmap;
+		goto err_free_pd_ida;
 
 	efa_update_network_attr(dev, &network_attr);
 
 	err = efa_com_get_hw_hints(dev->edev, &hw_hints);
 	if (err)
-		goto err_free_pd_bitmap;
+		goto err_free_pd_ida;
 
 	efa_update_hw_hints(dev, &hw_hints);
 
 	/* Try to enable all the available aenq groups */
 	err = efa_com_set_aenq_config(dev->edev, EFA_AENQ_ENABLED_GROUPS);
 	if (err)
-		goto err_free_pd_bitmap;
+		goto err_free_pd_ida;
 
 	dev->ibdev.owner = THIS_MODULE;
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;
@@ -380,7 +376,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	err = ib_register_device(&dev->ibdev, "efa_%d", NULL);
 #endif
 	if (err)
-		goto err_free_pd_bitmap;
+		goto err_free_pd_ida;
 
 	dev_info(&dev->ibdev.dev, "IB device registered\n");
 
@@ -401,9 +397,8 @@ static int efa_ib_device_add(struct efa_dev *dev)
 err_unregister_ibdev:
 	ib_unregister_device(&dev->ibdev);
 #endif
-err_free_pd_bitmap:
-	efa_bitmap_cleanup(&dev->pd_bitmap);
-err_free_doorbell_bar:
+err_free_pd_ida:
+	ida_destroy(&dev->pd_ida);
 	efa_release_doorbell_bar(dev);
 	return err;
 }
@@ -412,7 +407,9 @@ static void efa_ib_device_remove(struct efa_dev *dev)
 {
 	WARN_ON(!list_empty(&dev->efa_ah_list));
 	WARN_ON(!list_empty(&dev->ctx_list));
-	WARN_ON(efa_bitmap_avail(&dev->pd_bitmap) != dev->caps.max_pd);
+#ifdef HAVE_IDA_IS_EMPTY
+	WARN_ON(!ida_is_empty(&dev->pd_ida));
+#endif
 
 	/* Reset the device only if the device is running. */
 	if (test_bit(EFA_DEVICE_RUNNING_BIT, &dev->state))
@@ -423,7 +420,7 @@ static void efa_ib_device_remove(struct efa_dev *dev)
 #endif
 	dev_info(&dev->ibdev.dev, "Unregister ib device\n");
 	ib_unregister_device(&dev->ibdev);
-	efa_bitmap_cleanup(&dev->pd_bitmap);
+	ida_destroy(&dev->pd_ida);
 	efa_release_doorbell_bar(dev);
 }
 
