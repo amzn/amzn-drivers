@@ -215,11 +215,6 @@ int efa_query_device(struct ib_device *ibdev,
 	props->vendor_part_id = result.vendor_part_id;
 	props->hw_ver = dev->pdev->subsystem_device;
 	props->max_qp = result.max_sq;
-	props->device_cap_flags = IB_DEVICE_PORT_ACTIVE_EVENT |
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-				  IB_DEVICE_VIRTUAL_FUNCTION |
-#endif
-				  IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
 	props->max_cq = result.max_cq;
 	props->max_pd = result.max_pd;
 	props->max_mr = result.max_mr;
