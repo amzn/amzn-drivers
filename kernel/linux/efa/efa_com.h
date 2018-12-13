@@ -71,6 +71,7 @@ struct efa_com_admin_queue {
 	struct semaphore avail_cmds;
 
 	struct efa_com_stats_admin stats;
+	spinlock_t stats_lock; /* Protects admin stats */
 
 	spinlock_t comp_ctx_lock; /* Protects completion context pool */
 	u32 *comp_ctx_pool;

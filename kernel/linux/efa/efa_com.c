@@ -37,6 +37,18 @@
 
 #define EFA_REGS_ADMIN_INTR_MASK 1
 
+#define efa_admin_stat_add(queue, stat, val)                                   \
+	do {                                                                   \
+		typeof(queue) _queue = queue;                                  \
+		unsigned long flags;                                           \
+                                                                               \
+		spin_lock_irqsave(&_queue->stats_lock, flags);                 \
+		(stat) += val;                                                 \
+		spin_unlock_irqrestore(&_queue->stats_lock, flags);            \
+	} while (0)
+
+#define efa_admin_stat_inc(queue, stat) efa_admin_stat_add(queue, stat, 1)
+
 enum efa_cmd_status {
 	EFA_CMD_SUBMITTED,
 	EFA_CMD_COMPLETED,
@@ -320,7 +332,7 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 	memcpy(&admin_queue->sq.entries[pi], cmd, cmd_size_in_bytes);
 
 	admin_queue->sq.pc++;
-	admin_queue->stats.submitted_cmd++;
+	efa_admin_stat_inc(admin_queue, admin_queue->stats.submitted_cmd);
 
 	if (unlikely((admin_queue->sq.pc & queue_size_mask) == 0))
 		admin_queue->sq.phase = !admin_queue->sq.phase;
@@ -454,7 +466,8 @@ static void efa_com_handle_admin_completion(struct efa_com_admin_queue *admin_qu
 	admin_queue->cq.cc += comp_num;
 	admin_queue->cq.phase = phase;
 	admin_queue->sq.cc += comp_num;
-	admin_queue->stats.completed_cmd += comp_num;
+	efa_admin_stat_add(admin_queue, admin_queue->stats.completed_cmd,
+			   comp_num);
 }
 
 static int efa_com_comp_status_to_errno(struct efa_com_admin_queue *queue,
@@ -501,7 +514,8 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 			dev_err(admin_queue->dmadev,
 				"Wait for completion (polling) timeout\n");
 			/* EFA didn't have any completion */
-			admin_queue->stats.no_completion++;
+			efa_admin_stat_inc(admin_queue,
+					   admin_queue->stats.no_completion);
 
 			clear_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state);
 			err = -ETIME;
@@ -513,7 +527,7 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 
 	if (unlikely(comp_ctx->status == EFA_CMD_ABORTED)) {
 		dev_err(admin_queue->dmadev, "Command was aborted\n");
-		admin_queue->stats.aborted_cmd++;
+		efa_admin_stat_inc(admin_queue, admin_queue->stats.aborted_cmd);
 		err = -ENODEV;
 		goto out;
 	}
@@ -548,7 +562,7 @@ static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *com
 		efa_com_handle_admin_completion(admin_queue);
 		spin_unlock_irqrestore(&admin_queue->cq.lock, flags);
 
-		admin_queue->stats.no_completion++;
+		efa_admin_stat_inc(admin_queue, admin_queue->stats.no_completion);
 
 		if (comp_ctx->status == EFA_CMD_COMPLETED)
 			dev_err(admin_queue->dmadev,
@@ -774,6 +788,7 @@ int efa_com_admin_init(struct efa_com_dev *edev,
 	admin_queue->polling = true;
 
 	sema_init(&admin_queue->avail_cmds, admin_queue->depth);
+	spin_lock_init(&admin_queue->stats_lock);
 
 	err = efa_com_init_comp_ctxt(admin_queue);
 	if (err)
