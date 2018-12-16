@@ -625,6 +625,8 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *admin_queue,
 	struct efa_comp_ctx *comp_ctx;
 	int err;
 
+	might_sleep();
+
 	/* In case of queue FULL */
 	down(&admin_queue->avail_cmds);
 
