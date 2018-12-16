@@ -30,6 +30,16 @@
 #define EFA_NUM_MSIX_VEC                  1
 #define EFA_MGMNT_MSIX_VEC_IDX            0
 
+#define efa_stat_inc(dev, stat)                                         \
+	do {                                                            \
+		typeof(dev) _dev = dev;                                 \
+		unsigned long flags;                                    \
+									\
+		spin_lock_irqsave(&_dev->stats_lock, flags);            \
+		(stat)++;                                               \
+		spin_unlock_irqrestore(&_dev->stats_lock, flags);       \
+	} while (0)
+
 enum {
 	EFA_DEVICE_RUNNING_BIT,
 	EFA_MSIX_ENABLED_BIT
@@ -118,6 +128,7 @@ struct efa_dev {
 #endif
 
 	struct efa_stats        stats;
+	spinlock_t              stats_lock; /* Protects stats */
 };
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA

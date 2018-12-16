@@ -110,7 +110,7 @@ static void efa_keep_alive(void *data, struct efa_admin_aenq_entry *aenq_e)
 {
 	struct efa_dev *dev = (struct efa_dev *)data;
 
-	dev->stats.keep_alive_rcvd++;
+	efa_stat_inc(dev, dev->stats.keep_alive_rcvd);
 }
 
 static struct efa_aenq_handlers aenq_handlers = {
@@ -267,6 +267,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 
 	mutex_init(&dev->efa_dev_lock);
 	mutex_init(&dev->ah_list_lock);
+	spin_lock_init(&dev->stats_lock);
 	INIT_LIST_HEAD(&dev->ctx_list);
 	INIT_LIST_HEAD(&dev->efa_ah_list);
 

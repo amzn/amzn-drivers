@@ -361,7 +361,7 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd) {
-		dev->stats.sw_stats.alloc_pd_alloc_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.alloc_pd_alloc_err);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -369,7 +369,7 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 	if (pdn < 0) {
 		dev_err(&ibdev->dev,
 			"Failed to alloc PD (max_pd %u)\n", dev->caps.max_pd);
-		dev->stats.sw_stats.alloc_pd_ida_full_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.alloc_pd_ida_full_err);
 		kfree(pd);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -460,7 +460,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	sq_db_entry = kzalloc(sizeof(*sq_db_entry), GFP_KERNEL);
 	sq_entry = kzalloc(sizeof(*sq_entry), GFP_KERNEL);
 	if (!sq_db_entry || !sq_entry) {
-		dev->stats.sw_stats.mmap_entry_alloc_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.mmap_entry_alloc_err);
 		goto err_alloc;
 	}
 
@@ -468,7 +468,8 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 		rq_entry = kzalloc(sizeof(*rq_entry), GFP_KERNEL);
 		rq_db_entry = kzalloc(sizeof(*rq_db_entry), GFP_KERNEL);
 		if (!rq_entry || !rq_db_entry) {
-			dev->stats.sw_stats.mmap_entry_alloc_err++;
+			efa_stat_inc(dev,
+				     dev->stats.sw_stats.mmap_entry_alloc_err);
 			goto err_alloc_rq;
 		}
 
@@ -626,7 +627,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp) {
-		dev->stats.sw_stats.create_qp_alloc_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.create_qp_alloc_err);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -652,7 +653,8 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 						      &qp->rq_dma_addr,
 						      GFP_KERNEL);
 		if (!qp->rq_cpu_addr) {
-			dev->stats.sw_stats.create_qp_alloc_err++;
+			efa_stat_inc(dev,
+				     dev->stats.sw_stats.create_qp_alloc_err);
 			err = -ENOMEM;
 			goto err_free_qp;
 		}
@@ -846,7 +848,7 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {
-		dev->stats.sw_stats.create_cq_alloc_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.create_cq_alloc_err);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -857,7 +859,7 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 					   cq->size, &cq->dma_addr,
 					   GFP_KERNEL);
 	if (!cq->cpu_addr) {
-		dev->stats.sw_stats.create_cq_alloc_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.create_cq_alloc_err);
 		err = -ENOMEM;
 		goto err_free_cq;
 	}
@@ -1452,7 +1454,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
-		dev->stats.sw_stats.reg_mr_alloc_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.reg_mr_alloc_err);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1560,7 +1562,7 @@ struct ib_ucontext *efa_alloc_ucontext(struct ib_device *ibdev,
 
 	ucontext = kzalloc(sizeof(*ucontext), GFP_KERNEL);
 	if (!ucontext) {
-		dev->stats.sw_stats.alloc_ucontext_alloc_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.alloc_ucontext_alloc_err);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1907,7 +1909,7 @@ struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
 
 	ah = kzalloc(sizeof(*ah), GFP_KERNEL);
 	if (!ah) {
-		dev->stats.sw_stats.create_ah_alloc_err++;
+		efa_stat_inc(dev, dev->stats.sw_stats.create_ah_alloc_err);
 		return ERR_PTR(-ENOMEM);
 	}
 
