@@ -269,7 +269,6 @@ static inline void efa_com_put_comp_ctx(struct efa_com_admin_queue *queue,
 	queue->comp_ctx_pool_next--;
 	queue->comp_ctx_pool[queue->comp_ctx_pool_next] = comp_id;
 	spin_unlock(&queue->comp_ctx_lock);
-	up(&queue->avail_cmds);
 }
 
 static struct efa_comp_ctx *efa_com_get_comp_ctx(struct efa_com_admin_queue *queue,
@@ -381,9 +380,6 @@ static struct efa_comp_ctx *efa_com_submit_admin_cmd(struct efa_com_admin_queue 
 						     size_t comp_size_in_bytes)
 {
 	struct efa_comp_ctx *comp_ctx;
-
-	/* In case of queue FULL */
-	down(&admin_queue->avail_cmds);
 
 	spin_lock(&admin_queue->sq.lock);
 	if (unlikely(!test_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state))) {
@@ -629,6 +625,9 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *admin_queue,
 	struct efa_comp_ctx *comp_ctx;
 	int err;
 
+	/* In case of queue FULL */
+	down(&admin_queue->avail_cmds);
+
 	dev_dbg(admin_queue->dmadev, "opcode %d\n",
 		cmd->aq_common_descriptor.opcode);
 	comp_ctx = efa_com_submit_admin_cmd(admin_queue, cmd, cmd_size,
@@ -638,6 +637,7 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *admin_queue,
 			"Failed to submit command opcode %u err %ld\n",
 			cmd->aq_common_descriptor.opcode, PTR_ERR(comp_ctx));
 
+		up(&admin_queue->avail_cmds);
 		return PTR_ERR(comp_ctx);
 	}
 
@@ -646,6 +646,8 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *admin_queue,
 		dev_err(admin_queue->dmadev,
 			"Failed to process command opcode %u err %d\n",
 			cmd->aq_common_descriptor.opcode, err);
+
+	up(&admin_queue->avail_cmds);
 
 	return err;
 }
