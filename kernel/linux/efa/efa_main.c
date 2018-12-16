@@ -156,8 +156,8 @@ static int efa_request_mgmnt_irq(struct efa_dev *dev)
 		return err;
 	}
 
-	dev_dbg(&dev->pdev->dev, "Set affinity hint of mgmnt irq to 0x%lx (irq vector: %d)\n",
-		irq->affinity_hint_mask.bits[0], irq->vector);
+	dev_dbg(&dev->pdev->dev, "Set affinity hint of mgmnt irq to %*pbl (irq vector: %d)\n",
+		nr_cpumask_bits, &irq->affinity_hint_mask, irq->vector);
 	irq_set_affinity_hint(irq->vector, &irq->affinity_hint_mask);
 
 	return err;
