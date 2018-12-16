@@ -145,8 +145,6 @@ struct efa_com_reg_mr_params {
 	 * access flags, etc
 	 */
 	u8 permissions;
-	bool inline_pbl;
-	bool indirect;
 	/* number of pages in PBL (redundant, could be calculated) */
 	u32 page_num;
 	/* IO Virtual Address associated with this MR. */
@@ -166,6 +164,9 @@ struct efa_com_reg_mr_params {
 		 */
 		struct efa_com_ctrl_buff_info pbl;
 	} pbl;
+
+	u8 inline_pbl;
+	u8 indirect;
 };
 
 struct efa_com_reg_mr_result {

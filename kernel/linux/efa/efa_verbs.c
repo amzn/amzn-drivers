@@ -123,7 +123,6 @@ struct pbl_chunk_list {
 struct pbl_context {
 	u64 *pbl_buf;
 	u32  pbl_buf_size_in_bytes;
-	bool physically_continuous;
 	union {
 		struct {
 			dma_addr_t dma_addr;
@@ -135,6 +134,7 @@ struct pbl_context {
 			struct pbl_chunk_list chunk_list;
 		} indirect;
 	} phys;
+	u8 physically_continuous;
 };
 
 static inline struct efa_dev *to_edev(struct ib_device *ibdev)
@@ -1252,7 +1252,7 @@ static int pbl_create(struct efa_dev *dev,
 	pbl->pbl_buf = kzalloc(pbl->pbl_buf_size_in_bytes,
 			       GFP_KERNEL | __GFP_NOWARN);
 	if (pbl->pbl_buf) {
-		pbl->physically_continuous = true;
+		pbl->physically_continuous = 1;
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
 		if (err)
@@ -1261,7 +1261,7 @@ static int pbl_create(struct efa_dev *dev,
 		if (err)
 			goto err_continuous;
 	} else {
-		pbl->physically_continuous = false;
+		pbl->physically_continuous = 0;
 		pbl->pbl_buf = vzalloc(pbl->pbl_buf_size_in_bytes);
 		if (!pbl->pbl_buf)
 			return -ENOMEM;
@@ -1306,7 +1306,7 @@ static int efa_create_inline_pbl(struct efa_dev *dev, struct efa_mr *mr,
 {
 	int err;
 
-	params->inline_pbl = true;
+	params->inline_pbl = 1;
 	err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
 				params->page_num, params->page_shift);
 	if (err)
@@ -1332,7 +1332,7 @@ static int efa_create_pbl(struct efa_dev *dev,
 		return err;
 	}
 
-	params->inline_pbl = false;
+	params->inline_pbl = 0;
 	params->indirect = !pbl->physically_continuous;
 	if (pbl->physically_continuous) {
 		params->pbl.pbl.length = pbl->pbl_buf_size_in_bytes;

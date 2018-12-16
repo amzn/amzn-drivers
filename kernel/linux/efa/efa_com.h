@@ -50,7 +50,10 @@ struct efa_com_stats_admin {
 	u64 no_completion;
 };
 
-#define EFA_AQ_STATE_RUNNING_BIT 0
+enum {
+	EFA_AQ_STATE_RUNNING_BIT = 0,
+	EFA_AQ_STATE_POLLING_BIT = 1,
+};
 
 struct efa_com_admin_queue {
 	void *dmadev;
@@ -62,8 +65,6 @@ struct efa_com_admin_queue {
 	struct efa_com_admin_cq cq;
 	struct efa_com_admin_sq sq;
 	u16 msix_vector_idx;
-	/* Indicate if the admin queue should poll for completion */
-	bool polling;
 
 	unsigned long state;
 

@@ -64,7 +64,7 @@ struct efa_comp_ctx {
 	/* status from the device */
 	u8 comp_status;
 	u8 cmd_opcode;
-	bool occupied;
+	u8 occupied;
 };
 
 static u32 efa_com_reg_read32(struct efa_com_dev *edev, u16 offset)
@@ -264,7 +264,7 @@ static inline void efa_com_put_comp_ctx(struct efa_com_admin_queue *queue,
 		      EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID_MASK;
 
 	dev_dbg(queue->dmadev, "Putting completion command_id %d\n", comp_id);
-	comp_ctx->occupied = false;
+	comp_ctx->occupied = 0;
 	spin_lock(&queue->comp_ctx_lock);
 	queue->comp_ctx_pool_next--;
 	queue->comp_ctx_pool[queue->comp_ctx_pool_next] = comp_id;
@@ -287,7 +287,7 @@ static struct efa_comp_ctx *efa_com_get_comp_ctx(struct efa_com_admin_queue *que
 	}
 
 	if (capture) {
-		queue->comp_ctx[command_id].occupied = true;
+		queue->comp_ctx[command_id].occupied = 1;
 		dev_dbg(queue->dmadev, "Taking completion ctxt command_id %d\n",
 			command_id);
 	}
@@ -420,7 +420,7 @@ static void efa_com_handle_single_admin_completion(struct efa_com_admin_queue *a
 	if (comp_ctx->user_cqe)
 		memcpy(comp_ctx->user_cqe, cqe, comp_ctx->comp_size);
 
-	if (!admin_queue->polling)
+	if (!test_bit(EFA_AQ_STATE_POLLING_BIT, &admin_queue->state))
 		complete(&comp_ctx->wait_event);
 }
 
@@ -595,7 +595,7 @@ out:
 static int efa_com_wait_and_process_admin_cq(struct efa_comp_ctx *comp_ctx,
 					     struct efa_com_admin_queue *admin_queue)
 {
-	if (admin_queue->polling)
+	if (test_bit(EFA_AQ_STATE_POLLING_BIT, &admin_queue->state))
 		return efa_com_wait_and_process_admin_cq_polling(comp_ctx,
 								 admin_queue);
 
@@ -756,7 +756,10 @@ void efa_com_set_admin_polling_mode(struct efa_com_dev *edev, bool polling)
 		mask_value = EFA_REGS_ADMIN_INTR_MASK;
 
 	writel(mask_value, edev->reg_bar + EFA_REGS_INTR_MASK_OFF);
-	edev->admin_queue.polling = polling;
+	if (polling)
+		set_bit(EFA_AQ_STATE_POLLING_BIT, &edev->admin_queue.state);
+	else
+		clear_bit(EFA_AQ_STATE_POLLING_BIT, &edev->admin_queue.state);
 }
 
 /*
@@ -789,7 +792,7 @@ int efa_com_admin_init(struct efa_com_dev *edev,
 
 	admin_queue->bus = edev->bus;
 	admin_queue->dmadev = edev->dmadev;
-	admin_queue->polling = true;
+	set_bit(EFA_AQ_STATE_POLLING_BIT, &admin_queue->state);
 
 	sema_init(&admin_queue->avail_cmds, admin_queue->depth);
 	spin_lock_init(&admin_queue->stats_lock);
