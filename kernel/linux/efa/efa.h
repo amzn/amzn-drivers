@@ -74,14 +74,12 @@ struct efa_irq {
 };
 
 struct efa_sw_stats {
-	u64 alloc_pd_alloc_err;
-	u64 alloc_pd_ida_full_err;
-	u64 mmap_entry_alloc_err;
-	u64 create_qp_alloc_err;
-	u64 create_cq_alloc_err;
-	u64 reg_mr_alloc_err;
-	u64 alloc_ucontext_alloc_err;
-	u64 create_ah_alloc_err;
+	u64 alloc_pd_err;
+	u64 create_qp_err;
+	u64 create_cq_err;
+	u64 reg_mr_err;
+	u64 alloc_ucontext_err;
+	u64 create_ah_err;
 };
 
 struct efa_stats {

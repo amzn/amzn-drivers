@@ -344,7 +344,8 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 
 	if (!ibucontext) {
 		dev_err(&ibdev->dev, "ibucontext is not valid\n");
-		return ERR_PTR(-EOPNOTSUPP);
+		err = -EOPNOTSUPP;
+		goto err_out;
 	}
 
 	if (udata && udata->inlen &&
@@ -356,22 +357,22 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 #endif
 		dev_err_ratelimited(&ibdev->dev,
 				    "Incompatible ABI params, udata not cleared\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd) {
-		efa_stat_inc(dev, dev->stats.sw_stats.alloc_pd_alloc_err);
-		return ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
+		goto err_out;
 	}
 
 	pdn = ida_simple_get(&dev->pd_ida, 0, dev->caps.max_pd, GFP_KERNEL);
 	if (pdn < 0) {
 		dev_err(&ibdev->dev,
 			"Failed to alloc PD (max_pd %u)\n", dev->caps.max_pd);
-		efa_stat_inc(dev, dev->stats.sw_stats.alloc_pd_ida_full_err);
-		kfree(pd);
-		return ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
+		goto err_free_pd;
 	}
 
 	pd->pdn = pdn;
@@ -383,15 +384,21 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 		if (err) {
 			dev_err_ratelimited(&ibdev->dev,
 					    "Failed to copy udata for alloc_pd\n");
-			ida_simple_remove(&dev->pd_ida, pd->pdn);
-			kfree(pd);
-			return ERR_PTR(err);
+			goto err_ida_remove;
 		}
 	}
 
 	dev_dbg(&ibdev->dev, "Allocated pd[%d]\n", pd->pdn);
 
 	return &pd->ibpd;
+
+err_ida_remove:
+	ida_simple_remove(&dev->pd_ida, pd->pdn);
+err_free_pd:
+	kfree(pd);
+err_out:
+	efa_stat_inc(dev, dev->stats.sw_stats.alloc_pd_err);
+	return ERR_PTR(err);
 }
 
 int efa_dealloc_pd(struct ib_pd *ibpd)
@@ -459,19 +466,14 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 
 	sq_db_entry = kzalloc(sizeof(*sq_db_entry), GFP_KERNEL);
 	sq_entry = kzalloc(sizeof(*sq_entry), GFP_KERNEL);
-	if (!sq_db_entry || !sq_entry) {
-		efa_stat_inc(dev, dev->stats.sw_stats.mmap_entry_alloc_err);
+	if (!sq_db_entry || !sq_entry)
 		goto err_alloc;
-	}
 
 	if (qp->rq_size) {
 		rq_entry = kzalloc(sizeof(*rq_entry), GFP_KERNEL);
 		rq_db_entry = kzalloc(sizeof(*rq_db_entry), GFP_KERNEL);
-		if (!rq_entry || !rq_db_entry) {
-			efa_stat_inc(dev,
-				     dev->stats.sw_stats.mmap_entry_alloc_err);
+		if (!rq_entry || !rq_db_entry)
 			goto err_alloc_rq;
-		}
 
 		rq_db_entry->obj = qp;
 		rq_entry->obj = qp;
@@ -578,23 +580,26 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 
 	err = efa_qp_validate_cap(dev, init_attr);
 	if (err)
-		return ERR_PTR(err);
+		goto err_out;
 
 	if (!ucontext) {
 		dev_err(&dev->ibdev.dev, "ucontext is not valid");
-		return ERR_PTR(-EOPNOTSUPP);
+		err = -EOPNOTSUPP;
+		goto err_out;
 	}
 
 	if (init_attr->qp_type != IB_QPT_UD) {
 		dev_err(&dev->ibdev.dev,
 			"Unsupported qp type %d\n", init_attr->qp_type);
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	if (!udata || !field_avail(cmd, srd_qp, udata->inlen)) {
 		dev_err_ratelimited(&dev->ibdev.dev,
 				    "Incompatible ABI params, no input udata\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	if (udata->inlen > sizeof(cmd) &&
@@ -608,7 +613,8 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 #endif
 		dev_err_ratelimited(&dev->ibdev.dev,
 				    "Incompatible ABI params, unknown fields in udata\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	err = ib_copy_from_udata(&cmd, udata,
@@ -616,19 +622,20 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	if (err) {
 		dev_err_ratelimited(&dev->ibdev.dev,
 				    "Cannot copy udata for create_qp\n");
-		return ERR_PTR(err);
+		goto err_out;
 	}
 
 	if (cmd.comp_mask) {
 		dev_err_ratelimited(&dev->ibdev.dev,
 				    "Incompatible ABI params, unknown fields in udata\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp) {
-		efa_stat_inc(dev, dev->stats.sw_stats.create_qp_alloc_err);
-		return ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
+		goto err_out;
 	}
 
 	create_qp_params.pd = to_epd(ibpd)->pdn;
@@ -653,8 +660,6 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 						      &qp->rq_dma_addr,
 						      GFP_KERNEL);
 		if (!qp->rq_cpu_addr) {
-			efa_stat_inc(dev,
-				     dev->stats.sw_stats.create_qp_alloc_err);
 			err = -ENOMEM;
 			goto err_free_qp;
 		}
@@ -719,6 +724,8 @@ err_free_dma:
 	}
 err_free_qp:
 	kfree(qp);
+err_out:
+	efa_stat_inc(dev, dev->stats.sw_stats.create_qp_err);
 	return ERR_PTR(err);
 }
 
@@ -791,18 +798,21 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		dev_err(&ibdev->dev,
 			"cq: requested entries[%u] non-positive or greater than max[%u]\n",
 			entries, dev->caps.max_cq_depth);
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	if (!ibucontext) {
 		dev_err(&ibdev->dev, "ibucontext is not valid\n");
-		return ERR_PTR(-EOPNOTSUPP);
+		err = -EOPNOTSUPP;
+		goto err_out;
 	}
 
 	if (!udata || !field_avail(cmd, num_sub_cqs, udata->inlen)) {
 		dev_err_ratelimited(&ibdev->dev,
 				    "Incompatible ABI params, no input udata\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	if (udata->inlen > sizeof(cmd) &&
@@ -816,7 +826,8 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 #endif
 		dev_err_ratelimited(&ibdev->dev,
 				    "Incompatible ABI params, unknown fields in udata\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	err = ib_copy_from_udata(&cmd, udata,
@@ -824,32 +835,35 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 	if (err) {
 		dev_err_ratelimited(&ibdev->dev,
 				    "Cannot copy udata for create_cq\n");
-		return ERR_PTR(err);
+		goto err_out;
 	}
 
 	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_50)) {
 		dev_err_ratelimited(&ibdev->dev,
 				    "Incompatible ABI params, unknown fields in udata\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	if (!cmd.cq_entry_size) {
 		dev_err(&ibdev->dev,
 			"Invalid entry size [%u]\n", cmd.cq_entry_size);
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	if (cmd.num_sub_cqs != dev->caps.sub_cqs_per_cq) {
 		dev_err(&ibdev->dev,
 			"Invalid number of sub cqs[%u] expected[%u]\n",
 			cmd.num_sub_cqs, dev->caps.sub_cqs_per_cq);
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {
-		efa_stat_inc(dev, dev->stats.sw_stats.create_cq_alloc_err);
-		return ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
+		goto err_out;
 	}
 
 	memset(&resp, 0, sizeof(resp));
@@ -859,7 +873,6 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 					   cq->size, &cq->dma_addr,
 					   GFP_KERNEL);
 	if (!cq->cpu_addr) {
-		efa_stat_inc(dev, dev->stats.sw_stats.create_cq_alloc_err);
 		err = -ENOMEM;
 		goto err_free_cq;
 	}
@@ -909,6 +922,8 @@ err_free_dma:
 			  cq->dma_addr);
 err_free_cq:
 	kfree(cq);
+err_out:
+	efa_stat_inc(dev, dev->stats.sw_stats.create_cq_err);
 	return ERR_PTR(err);
 }
 
@@ -1442,20 +1457,22 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #endif
 		dev_err_ratelimited(&dev->ibdev.dev,
 				    "Incompatible ABI params, udata not cleared\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	if (access_flags & ~EFA_SUPPORTED_ACCESS_FLAGS) {
 		dev_err(&dev->ibdev.dev,
 			"Unsupported access flags[%#x], supported[%#x]\n",
 			access_flags, EFA_SUPPORTED_ACCESS_FLAGS);
-		return ERR_PTR(-EOPNOTSUPP);
+		err = -EOPNOTSUPP;
+		goto err_out;
 	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
-		efa_stat_inc(dev, dev->stats.sw_stats.reg_mr_alloc_err);
-		return ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
+		goto err_out;
 	}
 
 	mr->umem = ib_umem_get(ibpd->uobject->context, start, length,
@@ -1464,7 +1481,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		err = PTR_ERR(mr->umem);
 		dev_err(&dev->ibdev.dev,
 			"Failed to pin and map user space memory[%d]\n", err);
-		goto err;
+		goto err_free;
 	}
 
 	params.pd = to_epd(ibpd)->pdn;
@@ -1512,8 +1529,10 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 err_unmap:
 	ib_umem_release(mr->umem);
-err:
+err_free:
 	kfree(mr);
+err_out:
+	efa_stat_inc(dev, dev->stats.sw_stats.reg_mr_err);
 	return ERR_PTR(err);
 }
 
@@ -1562,8 +1581,8 @@ struct ib_ucontext *efa_alloc_ucontext(struct ib_device *ibdev,
 
 	ucontext = kzalloc(sizeof(*ucontext), GFP_KERNEL);
 	if (!ucontext) {
-		efa_stat_inc(dev, dev->stats.sw_stats.alloc_ucontext_alloc_err);
-		return ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
+		goto err_out;
 	}
 
 	mutex_init(&ucontext->lock);
@@ -1592,6 +1611,8 @@ struct ib_ucontext *efa_alloc_ucontext(struct ib_device *ibdev,
 err_resp:
 	mutex_unlock(&dev->efa_dev_lock);
 	kfree(ucontext);
+err_out:
+	efa_stat_inc(dev, dev->stats.sw_stats.alloc_ucontext_err);
 	return ERR_PTR(err);
 }
 
@@ -1903,14 +1924,15 @@ struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
 #endif
 		dev_err_ratelimited(&dev->ibdev.dev,
 				    "Incompatiable ABI params\n");
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_out;
 	}
 #endif
 
 	ah = kzalloc(sizeof(*ah), GFP_KERNEL);
 	if (!ah) {
-		efa_stat_inc(dev, dev->stats.sw_stats.create_ah_alloc_err);
-		return ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
+		goto err_out;
 	}
 
 	err = efa_create_ah_id(dev, ah_attr->grh.dgid.raw, &efa_address_handle);
@@ -1940,6 +1962,8 @@ err_destroy_ah:
 #endif
 err_free:
 	kfree(ah);
+err_out:
+	efa_stat_inc(dev, dev->stats.sw_stats.create_ah_err);
 	return ERR_PTR(err);
 }
 
