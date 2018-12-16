@@ -175,7 +175,7 @@ static inline struct efa_ah *to_eah(struct ib_ah *ibah)
 #define field_avail(x, fld, sz) (offsetof(typeof(x), fld) + \
 				 sizeof(((typeof(x) *)0)->fld) <= (sz))
 
-#define EFA_IS_RESERVED_CLEARED(reserved) \
+#define is_reserved_cleared(reserved) \
 	!memchr_inv(reserved, 0, sizeof(reserved))
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
@@ -827,7 +827,7 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		return ERR_PTR(err);
 	}
 
-	if (cmd.comp_mask || !EFA_IS_RESERVED_CLEARED(cmd.reserved_50)) {
+	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_50)) {
 		dev_err_ratelimited(&ibdev->dev,
 				    "Incompatible ABI params, unknown fields in udata\n");
 		return ERR_PTR(-EINVAL);
@@ -2105,7 +2105,7 @@ ssize_t efa_everbs_cmd_get_ex_dev_attrs(struct efa_dev *dev,
 	if (copy_from_user(&cmd, buf, sizeof(cmd)))
 		return -EFAULT;
 
-	if (cmd.comp_mask || !EFA_IS_RESERVED_CLEARED(cmd.reserved_20)) {
+	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_20)) {
 		dev_err_ratelimited(&dev->ibdev.dev,
 				    "Incompatible ABI params, unknown fields in udata\n");
 		return -EINVAL;
