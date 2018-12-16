@@ -774,7 +774,8 @@ static int efa_everbs_dev_init(struct efa_dev *dev, int devnum)
 
 	err = cdev_add(&dev->cdev, devno, 1);
 	if (err)
-		goto err;
+		return err;
+
 	dev->everbs_dev = device_create(efa_everbs_class,
 					&dev->pdev->dev,
 					devno,
@@ -786,7 +787,9 @@ static int efa_everbs_dev_init(struct efa_dev *dev, int devnum)
 			EFA_EVERBS_DEVICE_NAME, devnum);
 		goto err;
 	}
+
 	return 0;
+
 err:
 	cdev_del(&dev->cdev);
 	return err;
@@ -794,11 +797,12 @@ err:
 
 static void efa_everbs_dev_destroy(struct efa_dev *dev)
 {
-	if (dev->everbs_dev) {
-		device_destroy(efa_everbs_class, dev->cdev.dev);
-		cdev_del(&dev->cdev);
-		dev->everbs_dev = NULL;
-	}
+	if (!dev->everbs_dev)
+		return;
+
+	device_destroy(efa_everbs_class, dev->cdev.dev);
+	cdev_del(&dev->cdev);
+	dev->everbs_dev = NULL;
 }
 #endif /* HAVE_CUSTOM_COMMANDS */
 
