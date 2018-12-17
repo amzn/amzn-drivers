@@ -178,13 +178,12 @@ static int efa_set_mgmnt_irq(struct efa_dev *dev)
 	return efa_request_mgmnt_irq(dev);
 }
 
-static int efa_set_doorbell_bar(struct efa_dev *dev, int db_bar_idx)
+static int efa_request_doorbell_bar(struct efa_dev *dev)
 {
+	u8 db_bar_idx = dev->dev_attr.db_bar;
 	struct pci_dev *pdev = dev->pdev;
 	int bars;
 	int err;
-
-	dev->db_bar_idx = db_bar_idx;
 
 	if (!(BIT(db_bar_idx) & EFA_BASE_BAR_MASK)) {
 		bars = pci_select_bars(pdev, IORESOURCE_MEM) & BIT(db_bar_idx);
@@ -206,10 +205,8 @@ static int efa_set_doorbell_bar(struct efa_dev *dev, int db_bar_idx)
 
 static void efa_release_doorbell_bar(struct efa_dev *dev)
 {
-	int db_bar_idx = dev->db_bar_idx;
-
-	if (!(BIT(db_bar_idx) & EFA_BASE_BAR_MASK))
-		efa_release_bars(dev, BIT(db_bar_idx));
+	if (!(BIT(dev->dev_attr.db_bar) & EFA_BASE_BAR_MASK))
+		efa_release_bars(dev, BIT(dev->dev_attr.db_bar));
 }
 
 static void efa_update_hw_hints(struct efa_dev *dev,
@@ -251,7 +248,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 		return err;
 
 	dev_dbg(&dev->pdev->dev, "Doorbells bar (%d)\n", dev->dev_attr.db_bar);
-	err = efa_set_doorbell_bar(dev, dev->dev_attr.db_bar);
+	err = efa_request_doorbell_bar(dev);
 	if (err)
 		return err;
 
