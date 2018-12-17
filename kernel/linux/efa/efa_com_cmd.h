@@ -89,17 +89,17 @@ struct efa_com_get_device_attr_result {
 	u32 phys_addr_width;
 	u32 virt_addr_width;
 	u32 max_sq;
-	u32 max_sq_depth;
+	u32 max_sq_depth; /* wqes */
 	u32 max_rq;
-	u32 max_rq_depth;
+	u32 max_rq_depth; /* wqes */
 	u32 max_cq;
-	u32 max_cq_depth;
+	u32 max_cq_depth; /* cqes */
 	u32 inline_buf_size;
 	u16 max_sq_sge;
 	u16 max_rq_sge;
 	u32 max_mr;
 	u64 max_mr_pages;
-	u64 page_size_cap;
+	u64 page_size_cap; /* bytes */
 	u32 max_pd;
 	u32 max_ah;
 	u16 sub_cqs_per_cq;

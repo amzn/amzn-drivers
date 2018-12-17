@@ -365,10 +365,10 @@ struct ib_pd *efa_alloc_pd(struct ib_device *ibdev,
 		goto err_out;
 	}
 
-	pdn = ida_simple_get(&dev->pd_ida, 0, dev->caps.max_pd, GFP_KERNEL);
+	pdn = ida_simple_get(&dev->pd_ida, 0, dev->dev_attr.max_pd, GFP_KERNEL);
 	if (pdn < 0) {
-		dev_err(&ibdev->dev,
-			"Failed to alloc PD (max_pd %u)\n", dev->caps.max_pd);
+		dev_err(&ibdev->dev, "Failed to alloc PD (max_pd %u)\n",
+			dev->dev_attr.max_pd);
 		err = -ENOMEM;
 		goto err_free_pd;
 	}
@@ -523,37 +523,37 @@ err_alloc:
 static int efa_qp_validate_cap(struct efa_dev *dev,
 			       struct ib_qp_init_attr *init_attr)
 {
-	if (init_attr->cap.max_send_wr > dev->caps.max_sq_depth) {
+	if (init_attr->cap.max_send_wr > dev->dev_attr.max_sq_depth) {
 		dev_err(&dev->ibdev.dev,
 			"qp: requested send wr[%u] exceeds the max[%u]\n",
 			init_attr->cap.max_send_wr,
-			dev->caps.max_sq_depth);
+			dev->dev_attr.max_sq_depth);
 		return -EINVAL;
 	}
-	if (init_attr->cap.max_recv_wr > dev->caps.max_rq_depth) {
+	if (init_attr->cap.max_recv_wr > dev->dev_attr.max_rq_depth) {
 		dev_err(&dev->ibdev.dev,
 			"qp: requested receive wr[%u] exceeds the max[%u]\n",
 			init_attr->cap.max_recv_wr,
-			dev->caps.max_rq_depth);
+			dev->dev_attr.max_rq_depth);
 		return -EINVAL;
 	}
-	if (init_attr->cap.max_send_sge > dev->caps.max_sq_sge) {
+	if (init_attr->cap.max_send_sge > dev->dev_attr.max_sq_sge) {
 		dev_err(&dev->ibdev.dev,
 			"qp: requested sge send[%u] exceeds the max[%u]\n",
-			init_attr->cap.max_send_sge, dev->caps.max_sq_sge);
+			init_attr->cap.max_send_sge, dev->dev_attr.max_sq_sge);
 		return -EINVAL;
 	}
-	if (init_attr->cap.max_recv_sge > dev->caps.max_rq_sge) {
+	if (init_attr->cap.max_recv_sge > dev->dev_attr.max_rq_sge) {
 		dev_err(&dev->ibdev.dev,
 			"qp: requested sge recv[%u] exceeds the max[%u]\n",
-			init_attr->cap.max_recv_sge, dev->caps.max_rq_sge);
+			init_attr->cap.max_recv_sge, dev->dev_attr.max_rq_sge);
 		return -EINVAL;
 	}
-	if (init_attr->cap.max_inline_data > dev->caps.inline_buf_size) {
+	if (init_attr->cap.max_inline_data > dev->dev_attr.inline_buf_size) {
 		dev_err(&dev->ibdev.dev,
 			"requested inline data[%u] exceeds the max[%u]\n",
 			init_attr->cap.max_inline_data,
-			dev->caps.inline_buf_size);
+			dev->dev_attr.inline_buf_size);
 		return -EINVAL;
 	}
 
@@ -799,10 +799,10 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 
 	dev_dbg(&ibdev->dev, "create_cq entries %d udata %p\n", entries, udata);
 
-	if (entries < 1 || entries > dev->caps.max_cq_depth) {
+	if (entries < 1 || entries > dev->dev_attr.max_cq_depth) {
 		dev_err(&ibdev->dev,
 			"cq: requested entries[%u] non-positive or greater than max[%u]\n",
-			entries, dev->caps.max_cq_depth);
+			entries, dev->dev_attr.max_cq_depth);
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -857,10 +857,10 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		goto err_out;
 	}
 
-	if (cmd.num_sub_cqs != dev->caps.sub_cqs_per_cq) {
+	if (cmd.num_sub_cqs != dev->dev_attr.sub_cqs_per_cq) {
 		dev_err(&ibdev->dev,
 			"Invalid number of sub cqs[%u] expected[%u]\n",
-			cmd.num_sub_cqs, dev->caps.sub_cqs_per_cq);
+			cmd.num_sub_cqs, dev->dev_attr.sub_cqs_per_cq);
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -2124,9 +2124,9 @@ ssize_t efa_everbs_cmd_get_ex_dev_attrs(struct efa_dev *dev,
 					int in_len,
 					int out_len)
 {
+	struct efa_com_get_device_attr_result *dev_attr = &dev->dev_attr;
 	struct efa_everbs_get_ex_dev_attrs_resp resp = {};
 	struct efa_everbs_get_ex_dev_attrs cmd = {};
-	struct efa_caps *caps = &dev->caps;
 
 	if (out_len < sizeof(resp))
 		return -ENOSPC;
@@ -2140,12 +2140,12 @@ ssize_t efa_everbs_cmd_get_ex_dev_attrs(struct efa_dev *dev,
 		return -EINVAL;
 	}
 
-	resp.sub_cqs_per_cq = caps->sub_cqs_per_cq;
-	resp.max_sq_sge = caps->max_sq_sge;
-	resp.max_rq_sge = caps->max_rq_sge;
-	resp.max_sq_wr = caps->max_sq_depth;
-	resp.max_rq_wr = caps->max_rq_depth;
-	resp.max_inline_data = caps->max_inline_data;
+	resp.sub_cqs_per_cq = dev_attr->sub_cqs_per_cq;
+	resp.max_sq_sge = dev_attr->max_sq_sge;
+	resp.max_rq_sge = dev_attr->max_rq_sge;
+	resp.max_sq_wr = dev_attr->max_sq_depth;
+	resp.max_rq_wr = dev_attr->max_rq_depth;
+	resp.max_inline_data = dev_attr->max_inline_data;
 
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
 			 &resp, sizeof(resp)))

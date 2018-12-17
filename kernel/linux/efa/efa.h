@@ -46,25 +46,6 @@ enum {
 	EFA_MSIX_ENABLED_BIT
 };
 
-struct efa_caps {
-	u32 max_sq;
-	u32 max_sq_depth; /* wqes */
-	u32 max_rq;
-	u32 max_rq_depth; /* wqes */
-	u32 max_cq;
-	u32 max_cq_depth; /* cqes */
-	u32 inline_buf_size;
-	u32 max_sq_sge;
-	u32 max_rq_sge;
-	u32 max_mr;
-	u64 max_mr_pages;
-	u64 page_size_cap; /* bytes */
-	u32 max_pd;
-	u32 max_ah;
-	u16 sub_cqs_per_cq;
-	u16 max_inline_data; /* bytes */
-};
-
 struct efa_irq {
 	irq_handler_t handler;
 	void *data;
@@ -92,7 +73,7 @@ struct efa_dev {
 	struct ib_device        ibdev;
 	struct pci_dev         *pdev;
 	struct efa_com_dev     *edev;
-	struct efa_caps         caps;
+	struct efa_com_get_device_attr_result dev_attr;
 
 	u64                     reg_bar_addr;
 	u64                     reg_bar_len;

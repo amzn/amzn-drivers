@@ -71,27 +71,6 @@ static void efa_update_network_attr(struct efa_dev *dev,
 	dev_dbg(&dev->pdev->dev, "Full address %pI6\n", dev->addr);
 }
 
-static void efa_update_dev_cap(struct efa_dev *dev,
-			       struct efa_com_get_device_attr_result *device_attr)
-{
-	dev->caps.max_sq = device_attr->max_sq;
-	dev->caps.max_sq_depth = device_attr->max_sq_depth;
-	dev->caps.max_rq = device_attr->max_sq;
-	dev->caps.max_rq_depth = device_attr->max_rq_depth;
-	dev->caps.max_cq = device_attr->max_cq;
-	dev->caps.max_cq_depth = device_attr->max_cq_depth;
-	dev->caps.inline_buf_size = device_attr->inline_buf_size;
-	dev->caps.max_sq_sge = device_attr->max_sq_sge;
-	dev->caps.max_rq_sge = device_attr->max_rq_sge;
-	dev->caps.max_mr = device_attr->max_mr;
-	dev->caps.max_mr_pages = device_attr->max_mr_pages;
-	dev->caps.page_size_cap = device_attr->page_size_cap;
-	dev->caps.max_pd = device_attr->max_pd;
-	dev->caps.max_ah = device_attr->max_ah;
-	dev->caps.sub_cqs_per_cq = device_attr->sub_cqs_per_cq;
-	dev->caps.max_inline_data = device_attr->inline_buf_size;
-}
-
 /* This handler will called for unknown event group or unimplemented handlers */
 static void unimplemented_aenq_handler(void *data,
 				       struct efa_admin_aenq_entry *aenq_e)
@@ -253,7 +232,6 @@ static void efa_update_hw_hints(struct efa_dev *dev,
 static int efa_ib_device_add(struct efa_dev *dev)
 {
 	struct efa_com_get_network_attr_result network_attr;
-	struct efa_com_get_device_attr_result device_attr;
 	struct efa_com_get_hw_hints_result hw_hints;
 	struct pci_dev *pdev = dev->pdev;
 #ifdef HAVE_CUSTOM_COMMANDS
@@ -268,14 +246,12 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	INIT_LIST_HEAD(&dev->efa_ah_list);
 
 	/* init IB device */
-	err = efa_com_get_device_attr(dev->edev, &device_attr);
+	err = efa_com_get_device_attr(dev->edev, &dev->dev_attr);
 	if (err)
 		return err;
 
-	efa_update_dev_cap(dev, &device_attr);
-
-	dev_dbg(&dev->pdev->dev, "Doorbells bar (%d)\n", device_attr.db_bar);
-	err = efa_set_doorbell_bar(dev, device_attr.db_bar);
+	dev_dbg(&dev->pdev->dev, "Doorbells bar (%d)\n", dev->dev_attr.db_bar);
+	err = efa_set_doorbell_bar(dev, dev->dev_attr.db_bar);
 	if (err)
 		return err;
 
