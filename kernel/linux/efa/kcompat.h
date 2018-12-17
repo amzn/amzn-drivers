@@ -96,4 +96,8 @@ free:
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,16,0)
+#define IB_QPT_DRIVER 0xFF
+#endif
+
 #endif /* _KCOMPAT_H_ */

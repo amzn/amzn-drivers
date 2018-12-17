@@ -586,14 +586,14 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 		goto err_out;
 	}
 
-	if (init_attr->qp_type != IB_QPT_UD) {
+	if (init_attr->qp_type != IB_QPT_DRIVER) {
 		dev_err(&dev->ibdev.dev,
 			"Unsupported qp type %d\n", init_attr->qp_type);
 		err = -EINVAL;
 		goto err_out;
 	}
 
-	if (!udata || !field_avail(cmd, srd_qp, udata->inlen)) {
+	if (!udata || !field_avail(cmd, driver_qp_type, udata->inlen)) {
 		dev_err_ratelimited(&dev->ibdev.dev,
 				    "Incompatible ABI params, no input udata\n");
 		err = -EINVAL;
@@ -637,13 +637,20 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	}
 
 	create_qp_params.pd = to_epd(ibpd)->pdn;
-	if (cmd.srd_qp)
-		create_qp_params.qp_type = EFA_ADMIN_QP_TYPE_SRD;
-	else
-		create_qp_params.qp_type = EFA_ADMIN_QP_TYPE_UD;
 
-	dev_dbg(&dev->ibdev.dev, "Create QP, qp type %d srd qp %d\n",
-		init_attr->qp_type, cmd.srd_qp);
+	if (cmd.driver_qp_type & EFA_QP_DRIVER_TYPE_SRD) {
+		create_qp_params.qp_type = EFA_ADMIN_QP_TYPE_SRD;
+	} else if (cmd.driver_qp_type & EFA_QP_DRIVER_TYPE_UD) {
+		create_qp_params.qp_type = EFA_ADMIN_QP_TYPE_UD;
+	} else {
+		dev_err(&dev->ibdev.dev,
+			"Unsupported driver qp type %#x\n", cmd.driver_qp_type);
+		err = -EOPNOTSUPP;
+		goto err_free_qp;
+	}
+
+	dev_dbg(&dev->ibdev.dev, "Create QP: qp type %d driver qp type %#x\n",
+		init_attr->qp_type, cmd.driver_qp_type);
 	create_qp_params.send_cq_idx = to_ecq(init_attr->send_cq)->cq_idx;
 	create_qp_params.recv_cq_idx = to_ecq(init_attr->recv_cq)->cq_idx;
 	create_qp_params.sq_depth = cmd.sq_depth;

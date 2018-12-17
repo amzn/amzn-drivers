@@ -19,15 +19,9 @@ enum efa_ibv_user_cmds_supp_udata {
 	EFA_USER_CMDS_SUPP_UDATA_CREATE_AH    = 1 << 1,
 };
 
-enum efa_ibv_kernel_supp_mask {
-	EFA_KERNEL_SUPP_QPT_SRD               = 1 << 0,
-};
-
 struct efa_ibv_alloc_ucontext_resp {
 	__u32 comp_mask;
 	__u32 cmds_supp_udata_mask;
-	__u32 kernel_supp_mask;
-	__u8 reserved_60[0x4];
 };
 
 struct efa_ibv_alloc_pd_resp {
@@ -51,13 +45,18 @@ struct efa_ibv_create_cq_resp {
 	__u8 reserved_d0[0x6];
 };
 
+enum {
+	EFA_QP_DRIVER_TYPE_SRD = 1 << 0,
+	EFA_QP_DRIVER_TYPE_UD = 1 << 1,
+};
+
 struct efa_ibv_create_qp {
 	__u32 comp_mask;
 	__u32 rq_entries;
 	__u32 rq_entry_size;
 	__u32 sq_depth;
 	__u32 sq_ring_size;
-	__u32 srd_qp;
+	__u32 driver_qp_type;
 };
 
 struct efa_ibv_create_qp_resp {
