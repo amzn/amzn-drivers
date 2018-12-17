@@ -218,7 +218,7 @@ int efa_query_device(struct ib_device *ibdev,
 	props->max_mr = result.max_mr;
 	props->max_ah = result.max_ah;
 	props->max_cqe = result.max_cq_depth;
-	props->max_qp_wr = min_t(u16, result.max_sq_depth,
+	props->max_qp_wr = min_t(u32, result.max_sq_depth,
 				 result.max_rq_depth);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
 	props->max_sge = min_t(u16, result.max_sq_sge,

@@ -89,9 +89,9 @@ struct efa_com_get_device_attr_result {
 	u32 phys_addr_width;
 	u32 virt_addr_width;
 	u32 max_sq;
-	u16 max_sq_depth;
+	u32 max_sq_depth;
 	u32 max_rq;
-	u16 max_rq_depth;
+	u32 max_rq_depth;
 	u32 max_cq;
 	u32 max_cq_depth;
 	u32 inline_buf_size;

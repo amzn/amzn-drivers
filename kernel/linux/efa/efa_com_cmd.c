@@ -419,11 +419,9 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	}
 
 	result->max_sq = resp.u.queue_attr.max_sq;
-	result->max_sq_depth = min_t(u32, resp.u.queue_attr.max_sq_depth,
-				     U16_MAX);
+	result->max_sq_depth = resp.u.queue_attr.max_sq_depth;
 	result->max_rq = resp.u.queue_attr.max_sq;
-	result->max_rq_depth = min_t(u32, resp.u.queue_attr.max_rq_depth,
-				     U16_MAX);
+	result->max_rq_depth = resp.u.queue_attr.max_rq_depth;
 	result->max_cq = resp.u.queue_attr.max_cq;
 	result->max_cq_depth = resp.u.queue_attr.max_cq_depth;
 	result->inline_buf_size = resp.u.queue_attr.inline_buf_size;
