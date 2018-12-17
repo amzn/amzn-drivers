@@ -8,6 +8,12 @@
 
 #include <linux/types.h>
 
+/*
+ * Increment this value if any changes that break userspace ABI
+ * compatibility are made.
+ */
+#define EFA_UVERBS_ABI_VERSION 1
+
 enum efa_ibv_user_cmds_supp_udata {
 	EFA_USER_CMDS_SUPP_UDATA_QUERY_DEVICE = 1 << 0,
 	EFA_USER_CMDS_SUPP_UDATA_CREATE_AH    = 1 << 1,
@@ -92,6 +98,7 @@ struct efa_ibv_ex_query_device_resp {
 /******************************************************************************/
 /*                            EFA CUSTOM COMMANDS                             */
 /******************************************************************************/
+#include <rdma/ib_user_verbs.h>
 
 enum efa_everbs_commands {
 	EFA_EVERBS_CMD_GET_AH = 1,

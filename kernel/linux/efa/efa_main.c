@@ -11,10 +11,6 @@
 #include "efa.h"
 #include "efa_sysfs.h"
 
-#ifdef HAVE_CUSTOM_COMMANDS
-#include "efa-abi.h"
-#endif
-
 #ifndef PCI_VENDOR_ID_AMAZON
 #define PCI_VENDOR_ID_AMAZON 0x1d0f
 #endif
@@ -311,7 +307,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 #else
 	dev->ibdev.dma_device = &pdev->dev;
 #endif
-	dev->ibdev.uverbs_abi_ver = 3;
+	dev->ibdev.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION;
 
 	dev->ibdev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |

@@ -19,6 +19,7 @@
 
 #include <rdma/ib_verbs.h>
 
+#include "efa-abi.h"
 #include "efa_com_cmd.h"
 
 #define DRV_MODULE_NAME         "efa"

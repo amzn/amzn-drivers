@@ -12,8 +12,6 @@
 
 #include "efa.h"
 
-#include "efa-abi.h"
-
 #define EFA_MMAP_DB_BAR_MEMORY_FLAG     BIT(61)
 #define EFA_MMAP_REG_BAR_MEMORY_FLAG    BIT(62)
 #define EFA_MMAP_MEM_BAR_MEMORY_FLAG    BIT(63)
