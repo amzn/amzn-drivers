@@ -227,12 +227,10 @@ int efa_query_device(struct ib_device *ibdev,
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 	if (udata && udata->outlen) {
-		resp.sub_cqs_per_cq = dev_attr->sub_cqs_per_cq;
 		resp.max_sq_sge = dev_attr->max_sq_sge;
 		resp.max_rq_sge = dev_attr->max_rq_sge;
 		resp.max_sq_wr = dev_attr->max_sq_depth;
 		resp.max_rq_wr = dev_attr->max_rq_depth;
-		resp.max_inline_data = dev_attr->inline_buf_size;
 
 		err = ib_copy_to_udata(udata, &resp,
 				       min(sizeof(resp), udata->outlen));
@@ -1598,6 +1596,8 @@ struct ib_ucontext *efa_alloc_ucontext(struct ib_device *ibdev,
 #ifdef HAVE_CREATE_AH_UDATA
 	resp.cmds_supp_udata_mask |= EFA_USER_CMDS_SUPP_UDATA_CREATE_AH;
 #endif
+	resp.sub_cqs_per_cq = dev->dev_attr.sub_cqs_per_cq;
+	resp.inline_buf_size = dev->dev_attr.inline_buf_size;
 
 	if (udata && udata->outlen) {
 		err = ib_copy_to_udata(udata, &resp,
@@ -2137,12 +2137,10 @@ ssize_t efa_everbs_cmd_get_ex_dev_attrs(struct efa_dev *dev,
 		return -EINVAL;
 	}
 
-	resp.sub_cqs_per_cq = dev_attr->sub_cqs_per_cq;
 	resp.max_sq_sge = dev_attr->max_sq_sge;
 	resp.max_rq_sge = dev_attr->max_rq_sge;
 	resp.max_sq_wr = dev_attr->max_sq_depth;
 	resp.max_rq_wr = dev_attr->max_rq_depth;
-	resp.max_inline_data = dev_attr->max_inline_data;
 
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
 			 &resp, sizeof(resp)))

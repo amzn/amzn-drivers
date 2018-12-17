@@ -22,6 +22,9 @@ enum efa_ibv_user_cmds_supp_udata {
 struct efa_ibv_alloc_ucontext_resp {
 	__u32 comp_mask;
 	__u32 cmds_supp_udata_mask;
+	__u16 sub_cqs_per_cq;
+	__u16 inline_buf_size;
+	__u8 reserved_60[0x4];
 };
 
 struct efa_ibv_alloc_pd_resp {
@@ -89,9 +92,6 @@ struct efa_ibv_ex_query_device_resp {
 	__u32 max_rq_wr;
 	__u16 max_sq_sge;
 	__u16 max_rq_sge;
-	__u16 sub_cqs_per_cq;
-	__u16 max_inline_data;
-	__u8 reserved_a0[0x4];
 };
 
 #ifdef HAVE_CUSTOM_COMMANDS
@@ -132,9 +132,6 @@ struct efa_everbs_get_ex_dev_attrs_resp {
 	__u32 max_rq_wr;
 	__u16 max_sq_sge;
 	__u16 max_rq_sge;
-	__u16 sub_cqs_per_cq;
-	__u16 max_inline_data;
-	__u8 reserved_a0[0x4];
 };
 #endif /* HAVE_CUSTOM_COMMANDS */
 
