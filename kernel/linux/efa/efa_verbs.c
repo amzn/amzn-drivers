@@ -185,16 +185,14 @@ int efa_query_device(struct ib_device *ibdev,
 		     struct ib_device_attr *props)
 #endif
 {
+	struct efa_com_get_device_attr_result *dev_attr;
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 	struct efa_ibv_ex_query_device_resp resp = {};
 #endif
-	struct efa_com_get_device_attr_result result;
 	struct efa_dev *dev = to_edev(ibdev);
+#ifdef HAVE_IB_QUERY_DEVICE_UDATA
 	int err;
 
-	memset(props, 0, sizeof(*props));
-
-#ifdef HAVE_IB_QUERY_DEVICE_UDATA
 	if (udata && udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		dev_err_ratelimited(&ibdev->dev,
@@ -203,39 +201,38 @@ int efa_query_device(struct ib_device *ibdev,
 	}
 #endif
 
-	err = efa_com_get_device_attr(dev->edev, &result);
-	if (err)
-		return err;
+	dev_attr = &dev->dev_attr;
 
-	props->max_mr_size = result.max_mr_pages * PAGE_SIZE;
-	props->page_size_cap = result.page_size_cap;
-	props->vendor_id = result.vendor_id;
-	props->vendor_part_id = result.vendor_part_id;
+	memset(props, 0, sizeof(*props));
+	props->max_mr_size = dev_attr->max_mr_pages * PAGE_SIZE;
+	props->page_size_cap = dev_attr->page_size_cap;
+	props->vendor_id = dev_attr->vendor_id;
+	props->vendor_part_id = dev_attr->vendor_part_id;
 	props->hw_ver = dev->pdev->subsystem_device;
-	props->max_qp = result.max_sq;
-	props->max_cq = result.max_cq;
-	props->max_pd = result.max_pd;
-	props->max_mr = result.max_mr;
-	props->max_ah = result.max_ah;
-	props->max_cqe = result.max_cq_depth;
-	props->max_qp_wr = min_t(u32, result.max_sq_depth,
-				 result.max_rq_depth);
+	props->max_qp = dev_attr->max_sq;
+	props->max_cq = dev_attr->max_cq;
+	props->max_pd = dev_attr->max_pd;
+	props->max_mr = dev_attr->max_mr;
+	props->max_ah = dev_attr->max_ah;
+	props->max_cqe = dev_attr->max_cq_depth;
+	props->max_qp_wr = min_t(u32, dev_attr->max_sq_depth,
+				 dev_attr->max_rq_depth);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-	props->max_sge = min_t(u16, result.max_sq_sge,
-			       result.max_rq_sge);
+	props->max_sge = min_t(u16, dev_attr->max_sq_sge,
+			       dev_attr->max_rq_sge);
 #else
-	props->max_send_sge = result.max_sq_sge;
-	props->max_recv_sge = result.max_rq_sge;
+	props->max_send_sge = dev_attr->max_sq_sge;
+	props->max_recv_sge = dev_attr->max_rq_sge;
 #endif
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 	if (udata && udata->outlen) {
-		resp.sub_cqs_per_cq = result.sub_cqs_per_cq;
-		resp.max_sq_sge = result.max_sq_sge;
-		resp.max_rq_sge = result.max_rq_sge;
-		resp.max_sq_wr = result.max_sq_depth;
-		resp.max_rq_wr = result.max_rq_depth;
-		resp.max_inline_data = result.inline_buf_size;
+		resp.sub_cqs_per_cq = dev_attr->sub_cqs_per_cq;
+		resp.max_sq_sge = dev_attr->max_sq_sge;
+		resp.max_rq_sge = dev_attr->max_rq_sge;
+		resp.max_sq_wr = dev_attr->max_sq_depth;
+		resp.max_rq_wr = dev_attr->max_rq_depth;
+		resp.max_inline_data = dev_attr->inline_buf_size;
 
 		err = ib_copy_to_udata(udata, &resp,
 				       min(sizeof(resp), udata->outlen));
@@ -247,7 +244,7 @@ int efa_query_device(struct ib_device *ibdev,
 	}
 #endif
 
-	return err;
+	return 0;
 }
 
 int efa_query_port(struct ib_device *ibdev, u8 port,
