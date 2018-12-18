@@ -381,7 +381,6 @@ int efa_com_get_network_attr(struct efa_com_dev *edev,
 int efa_com_get_device_attr(struct efa_com_dev *edev,
 			    struct efa_com_get_device_attr_result *result)
 {
-	struct pci_dev *pdev = container_of(edev->dmadev, struct pci_dev, dev);
 	struct efa_admin_get_feature_resp resp;
 	int err;
 
@@ -394,8 +393,6 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 
 	result->fw_version = resp.u.device_attr.fw_version;
 	result->admin_api_version = resp.u.device_attr.admin_api_version;
-	result->vendor_id = pdev->vendor;
-	result->vendor_part_id = pdev->device;
 	result->device_version = resp.u.device_attr.device_version;
 	result->supported_features = resp.u.device_attr.supported_features;
 	result->phys_addr_width = resp.u.device_attr.phys_addr_width;

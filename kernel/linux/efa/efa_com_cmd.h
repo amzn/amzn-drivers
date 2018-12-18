@@ -82,8 +82,6 @@ struct efa_com_get_network_attr_result {
 struct efa_com_get_device_attr_result {
 	u32 fw_version;
 	u32 admin_api_version;
-	u32 vendor_id;
-	u32 vendor_part_id;
 	u32 device_version;
 	u32 supported_features;
 	u32 phys_addr_width;

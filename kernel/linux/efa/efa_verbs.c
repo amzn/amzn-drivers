@@ -206,8 +206,8 @@ int efa_query_device(struct ib_device *ibdev,
 	memset(props, 0, sizeof(*props));
 	props->max_mr_size = dev_attr->max_mr_pages * PAGE_SIZE;
 	props->page_size_cap = dev_attr->page_size_cap;
-	props->vendor_id = dev_attr->vendor_id;
-	props->vendor_part_id = dev_attr->vendor_part_id;
+	props->vendor_id = dev->pdev->vendor;
+	props->vendor_part_id = dev->pdev->device;
 	props->hw_ver = dev->pdev->subsystem_device;
 	props->max_qp = dev_attr->max_sq;
 	props->max_cq = dev_attr->max_cq;
