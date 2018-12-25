@@ -18,54 +18,29 @@ enum efa_regs_reset_reason_types {
 	EFA_REGS_RESET_GENERIC                      = 8,
 };
 
-/* common_registers offsets */
-
-/* 0x54 base */
-#define EFA_REGS_DEV_CTL_OFF                                0x54
-#define EFA_REGS_DEV_STS_OFF                                0x58
-
 /* efa_registers offsets */
 
-/* 0x800 base */
-#define EFA_REGS_VERSION_OFF                                0x800
-#define EFA_REGS_CONTROLLER_VERSION_OFF                     0x804
-#define EFA_REGS_CAPS_OFF                                   0x808
-#define EFA_REGS_CAPS_EXT_OFF                               0x80c
-#define EFA_REGS_AQ_BASE_LO_OFF                             0x810
-#define EFA_REGS_AQ_BASE_HI_OFF                             0x814
-#define EFA_REGS_AQ_CAPS_OFF                                0x818
-#define EFA_REGS_ACQ_BASE_LO_OFF                            0x820
-#define EFA_REGS_ACQ_BASE_HI_OFF                            0x824
-#define EFA_REGS_ACQ_CAPS_OFF                               0x828
-#define EFA_REGS_AQ_PROD_DB_OFF                             0x82c
-#define EFA_REGS_AENQ_CAPS_OFF                              0x830
-#define EFA_REGS_AENQ_BASE_LO_OFF                           0x834
-#define EFA_REGS_AENQ_BASE_HI_OFF                           0x838
-#define EFA_REGS_AENQ_CONS_DB_OFF                           0x83c
-#define EFA_REGS_INTR_MASK_OFF                              0x844
-#define EFA_REGS_MMIO_REG_READ_OFF                          0x84c
-#define EFA_REGS_MMIO_RESP_LO_OFF                           0x850
-#define EFA_REGS_MMIO_RESP_HI_OFF                           0x854
-
-/* dev_ctl register */
-#define EFA_REGS_DEV_CTL_DEV_RESET_MASK                     0x1
-#define EFA_REGS_DEV_CTL_AQ_RESTART_SHIFT                   1
-#define EFA_REGS_DEV_CTL_AQ_RESTART_MASK                    0x2
-#define EFA_REGS_DEV_CTL_RESET_REASON_SHIFT                 28
-#define EFA_REGS_DEV_CTL_RESET_REASON_MASK                  0xf0000000
-
-/* dev_sts register */
-#define EFA_REGS_DEV_STS_READY_MASK                         0x1
-#define EFA_REGS_DEV_STS_AQ_RESTART_IN_PROGRESS_SHIFT       1
-#define EFA_REGS_DEV_STS_AQ_RESTART_IN_PROGRESS_MASK        0x2
-#define EFA_REGS_DEV_STS_AQ_RESTART_FINISHED_SHIFT          2
-#define EFA_REGS_DEV_STS_AQ_RESTART_FINISHED_MASK           0x4
-#define EFA_REGS_DEV_STS_RESET_IN_PROGRESS_SHIFT            3
-#define EFA_REGS_DEV_STS_RESET_IN_PROGRESS_MASK             0x8
-#define EFA_REGS_DEV_STS_RESET_FINISHED_SHIFT               4
-#define EFA_REGS_DEV_STS_RESET_FINISHED_MASK                0x10
-#define EFA_REGS_DEV_STS_FATAL_ERROR_SHIFT                  5
-#define EFA_REGS_DEV_STS_FATAL_ERROR_MASK                   0x20
+/* 0 base */
+#define EFA_REGS_VERSION_OFF                                0x0
+#define EFA_REGS_CONTROLLER_VERSION_OFF                     0x4
+#define EFA_REGS_CAPS_OFF                                   0x8
+#define EFA_REGS_AQ_BASE_LO_OFF                             0x10
+#define EFA_REGS_AQ_BASE_HI_OFF                             0x14
+#define EFA_REGS_AQ_CAPS_OFF                                0x18
+#define EFA_REGS_ACQ_BASE_LO_OFF                            0x20
+#define EFA_REGS_ACQ_BASE_HI_OFF                            0x24
+#define EFA_REGS_ACQ_CAPS_OFF                               0x28
+#define EFA_REGS_AQ_PROD_DB_OFF                             0x2c
+#define EFA_REGS_AENQ_CAPS_OFF                              0x34
+#define EFA_REGS_AENQ_BASE_LO_OFF                           0x38
+#define EFA_REGS_AENQ_BASE_HI_OFF                           0x3c
+#define EFA_REGS_AENQ_CONS_DB_OFF                           0x40
+#define EFA_REGS_INTR_MASK_OFF                              0x4c
+#define EFA_REGS_DEV_CTL_OFF                                0x54
+#define EFA_REGS_DEV_STS_OFF                                0x58
+#define EFA_REGS_MMIO_REG_READ_OFF                          0x5c
+#define EFA_REGS_MMIO_RESP_LO_OFF                           0x60
+#define EFA_REGS_MMIO_RESP_HI_OFF                           0x64
 
 /* version register */
 #define EFA_REGS_VERSION_MINOR_VERSION_MASK                 0xff
@@ -108,6 +83,26 @@ enum efa_regs_reset_reason_types {
 #define EFA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_MASK             0xff0000
 #define EFA_REGS_AENQ_CAPS_AENQ_MSIX_VECTOR_SHIFT           24
 #define EFA_REGS_AENQ_CAPS_AENQ_MSIX_VECTOR_MASK            0xff000000
+
+/* dev_ctl register */
+#define EFA_REGS_DEV_CTL_DEV_RESET_MASK                     0x1
+#define EFA_REGS_DEV_CTL_AQ_RESTART_SHIFT                   1
+#define EFA_REGS_DEV_CTL_AQ_RESTART_MASK                    0x2
+#define EFA_REGS_DEV_CTL_RESET_REASON_SHIFT                 28
+#define EFA_REGS_DEV_CTL_RESET_REASON_MASK                  0xf0000000
+
+/* dev_sts register */
+#define EFA_REGS_DEV_STS_READY_MASK                         0x1
+#define EFA_REGS_DEV_STS_AQ_RESTART_IN_PROGRESS_SHIFT       1
+#define EFA_REGS_DEV_STS_AQ_RESTART_IN_PROGRESS_MASK        0x2
+#define EFA_REGS_DEV_STS_AQ_RESTART_FINISHED_SHIFT          2
+#define EFA_REGS_DEV_STS_AQ_RESTART_FINISHED_MASK           0x4
+#define EFA_REGS_DEV_STS_RESET_IN_PROGRESS_SHIFT            3
+#define EFA_REGS_DEV_STS_RESET_IN_PROGRESS_MASK             0x8
+#define EFA_REGS_DEV_STS_RESET_FINISHED_SHIFT               4
+#define EFA_REGS_DEV_STS_RESET_FINISHED_MASK                0x10
+#define EFA_REGS_DEV_STS_FATAL_ERROR_SHIFT                  5
+#define EFA_REGS_DEV_STS_FATAL_ERROR_MASK                   0x20
 
 /* mmio_reg_read register */
 #define EFA_REGS_MMIO_REG_READ_REQ_ID_MASK                  0xffff

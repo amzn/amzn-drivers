@@ -86,9 +86,8 @@ struct efa_com_get_device_attr_result {
 	u32 supported_features;
 	u32 phys_addr_width;
 	u32 virt_addr_width;
-	u32 max_sq;
+	u32 max_qp;
 	u32 max_sq_depth; /* wqes */
-	u32 max_rq;
 	u32 max_rq_depth; /* wqes */
 	u32 max_cq;
 	u32 max_cq_depth; /* cqes */

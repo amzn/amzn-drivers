@@ -415,9 +415,8 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 		return err;
 	}
 
-	result->max_sq = resp.u.queue_attr.max_sq;
+	result->max_qp = resp.u.queue_attr.max_qp;
 	result->max_sq_depth = resp.u.queue_attr.max_sq_depth;
-	result->max_rq = resp.u.queue_attr.max_sq;
 	result->max_rq_depth = resp.u.queue_attr.max_rq_depth;
 	result->max_cq = resp.u.queue_attr.max_cq;
 	result->max_cq_depth = resp.u.queue_attr.max_cq_depth;

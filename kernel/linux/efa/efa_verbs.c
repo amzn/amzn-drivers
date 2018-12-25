@@ -209,7 +209,7 @@ int efa_query_device(struct ib_device *ibdev,
 	props->vendor_id = dev->pdev->vendor;
 	props->vendor_part_id = dev->pdev->device;
 	props->hw_ver = dev->pdev->subsystem_device;
-	props->max_qp = dev_attr->max_sq;
+	props->max_qp = dev_attr->max_qp;
 	props->max_cq = dev_attr->max_cq;
 	props->max_pd = dev_attr->max_pd;
 	props->max_mr = dev_attr->max_mr;

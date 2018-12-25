@@ -11,35 +11,31 @@
 /* EFA admin queue opcodes */
 enum efa_admin_aq_opcode {
 	/* starting opcode of efa admin commands */
-	EFA_ADMIN_START_CMD_RANGE                   = 100,
-	/* Query device capabilities */
-	EFA_ADMIN_QUERY_DEV                         = EFA_ADMIN_START_CMD_RANGE,
-	/* Modify device attributes */
-	EFA_ADMIN_MODIFY_DEV                        = 101,
+	EFA_ADMIN_START_CMD_RANGE                   = 1,
 	/* Create QP */
-	EFA_ADMIN_CREATE_QP                         = 102,
+	EFA_ADMIN_CREATE_QP                         = EFA_ADMIN_START_CMD_RANGE,
 	/* Modify QP */
-	EFA_ADMIN_MODIFY_QP                         = 103,
+	EFA_ADMIN_MODIFY_QP                         = 2,
 	/* Query QP */
-	EFA_ADMIN_QUERY_QP                          = 104,
+	EFA_ADMIN_QUERY_QP                          = 3,
 	/* Destroy QP */
-	EFA_ADMIN_DESTROY_QP                        = 105,
+	EFA_ADMIN_DESTROY_QP                        = 4,
 	/* Create Address Handle */
-	EFA_ADMIN_CREATE_AH                         = 106,
+	EFA_ADMIN_CREATE_AH                         = 5,
 	/* Destroy Address Handle */
-	EFA_ADMIN_DESTROY_AH                        = 107,
+	EFA_ADMIN_DESTROY_AH                        = 6,
 	/* Register Memory Region */
-	EFA_ADMIN_REG_MR                            = 108,
+	EFA_ADMIN_REG_MR                            = 7,
 	/* Deregister Memory Region */
-	EFA_ADMIN_DEREG_MR                          = 109,
+	EFA_ADMIN_DEREG_MR                          = 8,
 	/* Create Completion Q */
-	EFA_ADMIN_CREATE_CQ                         = 110,
+	EFA_ADMIN_CREATE_CQ                         = 9,
 	/* Destroy Completion Q */
-	EFA_ADMIN_DESTROY_CQ                        = 111,
-	EFA_ADMIN_GET_FEATURE                       = 112,
-	EFA_ADMIN_SET_FEATURE                       = 113,
-	EFA_ADMIN_GET_STATS                         = 114,
-	EFA_ADMIN_MAX_OPCODE                        = 114,
+	EFA_ADMIN_DESTROY_CQ                        = 10,
+	EFA_ADMIN_GET_FEATURE                       = 11,
+	EFA_ADMIN_SET_FEATURE                       = 12,
+	EFA_ADMIN_GET_STATS                         = 13,
+	EFA_ADMIN_MAX_OPCODE                        = 13,
 };
 
 enum efa_admin_aq_feature_id {
@@ -75,57 +71,6 @@ enum efa_admin_qp_state {
 	EFA_ADMIN_QP_STATE_SQE                      = 5,
 	/* Queue in error state */
 	EFA_ADMIN_QP_STATE_ERR                      = 6,
-};
-
-/* Device attributes */
-struct efa_admin_dev_attr {
-	/* FW version */
-	u32 fw_ver;
-
-	u32 max_mr_size;
-
-	u32 max_qp;
-
-	u32 max_cq;
-
-	u32 max_mr;
-
-	u32 max_pd;
-
-	u32 max_ah;
-
-	/* Enable low-latency queues */
-	u32 llq_en;
-};
-
-/* Query device command */
-struct efa_admin_query_dev {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-};
-
-/* Query device response. */
-struct efa_admin_query_dev_resp {
-	/* Common Admin Queue completion descriptor */
-	struct efa_admin_acq_common_desc acq_common_desc;
-
-	/* Device attributes */
-	struct efa_admin_dev_attr dev_attr;
-};
-
-/* Modify device command */
-struct efa_admin_modify_dev {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
-	/* Device attributes */
-	struct efa_admin_dev_attr dev_attr;
-};
-
-/* Modify device response. */
-struct efa_admin_modify_dev_resp {
-	/* Common Admin Queue completion descriptor */
-	struct efa_admin_acq_common_desc acq_common_desc;
 };
 
 /*
@@ -574,48 +519,36 @@ struct efa_admin_get_set_feature_common_desc {
 };
 
 struct efa_admin_feature_device_attr_desc {
+	/* Bitmap of efa_admin_aq_feature_id */
+	u64 supported_features;
+
+	/* Bitmap of supported page sizes in MR registrations */
+	u64 page_size_cap;
+
 	u32 fw_version;
 
 	u32 admin_api_version;
 
 	u32 device_version;
 
-	/* MBZ */
-	u32 reserved1;
-
-	/* bitmap of efa_admin_aq_feature_id */
-	u64 supported_features;
-
-	/* Indicates how many bits are used physical address access. */
-	u8 phys_addr_width;
-
-	/* MBZ */
-	u8 reserved2;
-
-	/* Indicates how many bits are used virtual address access. */
-	u8 virt_addr_width;
-
-	/* MBZ */
-	u8 reserved3;
-
-	/* Bar used for SQ and RQ doorbells. */
+	/* Bar used for SQ and RQ doorbells */
 	u16 db_bar;
 
-	/* MBZ */
-	u16 reserved;
+	/* Indicates how many bits are used physical address access */
+	u8 phys_addr_width;
+
+	/* Indicates how many bits are used virtual address access */
+	u8 virt_addr_width;
 };
 
 struct efa_admin_feature_queue_attr_desc {
-	/* The maximum number of send queues supported */
-	u32 max_sq;
+	/* The maximum number of queue pairs supported */
+	u32 max_qp;
 
 	u32 max_sq_depth;
 
 	/* max send wr used in inline-buf */
 	u32 inline_buf_size;
-
-	/* The maximum number of receive queues supported */
-	u32 max_rq;
 
 	u32 max_rq_depth;
 
