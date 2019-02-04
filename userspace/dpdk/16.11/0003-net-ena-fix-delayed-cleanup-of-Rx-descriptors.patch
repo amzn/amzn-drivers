@@ -1,7 +1,7 @@
-From 726e5998ebf5f475675d8cded24e6180e965171e Mon Sep 17 00:00:00 2001
+From 9566e5c1adc033c0a43601def1132a4775522cb0 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Thu, 18 May 2017 17:41:51 +0200
-Subject: [PATCH 03/12] net/ena: fix delayed cleanup of Rx descriptors
+Subject: [PATCH 03/15] net/ena: fix delayed cleanup of Rx descriptors
 
 [ backported from upstream commit ec78af6bc0556cf2a1133185ca33fb835b38afe0 ]
 

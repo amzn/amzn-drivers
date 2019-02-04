@@ -1,7 +1,7 @@
-From b92f7986912e9d6fc483bdf3ce4a1bc7dcda7488 Mon Sep 17 00:00:00 2001
+From 0bdbbc2dd91c97c89fa5ca57e37013a4f204693c Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:20 +0200
-Subject: [PATCH 5/8] net/ena: fix GENMASK_ULL macro
+Subject: [PATCH 05/10] net/ena: fix GENMASK_ULL macro
 
 [ upstream commit 7544aee8d0b4ae0262b1ba7e1539cf8171664df7 ]
 

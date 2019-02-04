@@ -1,7 +1,7 @@
-From 99b5c2ca40e0b0af44fcced13658abe743c64bae Mon Sep 17 00:00:00 2001
+From 36c229d1eeb16670c7b3cc219cbe7287554e7738 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:22 +0200
-Subject: [PATCH 6/8] net/ena: set link speed as none
+Subject: [PATCH 06/10] net/ena: set link speed as none
 
 [ upstream commit 41e59028dd8ab2038a7655c6fc3098222661aa53 ]
 

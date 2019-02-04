@@ -1,7 +1,7 @@
-From 1f59f90463634e43e5fbcde044207c855dfe9f1d Mon Sep 17 00:00:00 2001
+From 9fb11622486a3ce3012f63f30edfd005cfa20735 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:19 +0200
-Subject: [PATCH 3/7] net/ena: change memory type
+Subject: [PATCH 03/11] net/ena: change memory type
 
 [ upstream commit 9f32c7e7e6ce58ab772913f54f8328c1c0186a17 ]
 

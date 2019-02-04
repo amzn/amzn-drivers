@@ -1,0 +1,37 @@
+From 69a5de44b392f04c27822cc5086bb89926eae1bf Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 14 Dec 2018 14:18:38 +0100
+Subject: [PATCH 14/17] net/ena: add supported RSS offloads types
+
+[ upstream commit b01ead202beb45346d7daeb2f2b1a608006af644 ]
+
+The PMD was not passing RSS offloads values although it was supporting
+the RSS. To allow application to probe the PMD for RSS support, the
+missing information was added.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 837ab468c..7c9ec59f8 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1491,6 +1491,9 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 	dev_info->rx_offload_capa = rx_feat;
+ 	dev_info->tx_offload_capa = tx_feat;
+ 
++	dev_info->flow_type_rss_offloads = ETH_RSS_IP | ETH_RSS_TCP |
++					   ETH_RSS_UDP;
++
+ 	dev_info->min_rx_bufsize = ENA_MIN_FRAME_LEN;
+ 	dev_info->max_rx_pktlen  = adapter->max_mtu;
+ 	dev_info->max_mac_addrs = 1;
+-- 
+2.14.1
+

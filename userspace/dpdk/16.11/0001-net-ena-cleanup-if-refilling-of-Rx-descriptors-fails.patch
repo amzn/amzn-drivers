@@ -1,7 +1,7 @@
 From 395ef06d77c3d2d7d1eb9400a3988ec8857fd5d7 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 10 Apr 2017 16:28:10 +0200
-Subject: [PATCH 01/12] net/ena: cleanup if refilling of Rx descriptors fails
+Subject: [PATCH 01/15] net/ena: cleanup if refilling of Rx descriptors fails
 
 [ upstream commit 2732e07ad1e54c648c8ca5bc6965af5bf607ba10 ]
 

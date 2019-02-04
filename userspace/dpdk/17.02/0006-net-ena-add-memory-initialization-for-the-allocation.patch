@@ -1,11 +1,19 @@
-From c62d9188ae77242249f22d7e8a63b3ecaa17c2fe Mon Sep 17 00:00:00 2001
+From 3384e8610b2227a436057d385fce01660b9f9afc Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 16 Jun 2017 09:10:48 +0000
-Subject: [PATCH 06/13] net/ena: add memory initialization for the allocation
+Subject: [PATCH 06/17] net/ena: add memory initialization for the allocation
  macros
+
+[ upstream commit 2861ea8df0173f047efe2636ef3b9643d4d989bc ]
 
 Uninitilized memory could cause memory corruption, by indicating
 completion of the invalid mbuf.
+
+Fixes: 3d3edc265fc8 ("net/ena: make coherent memory allocation NUMA-aware")
+Cc: stable@dpdk.org
+
+Signed-off-by: Alexander Matushevsky <matua@amazon.com>
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
 ---
  drivers/net/ena/base/ena_plat_dpdk.h | 2 ++
  1 file changed, 2 insertions(+)

@@ -1,7 +1,7 @@
-From 226bbeef8ff71b0fb8d303cac6fcf2946d2bce0a Mon Sep 17 00:00:00 2001
+From 268c0b4c464a91261fdd006d2865e514bf0471b3 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:18 +0200
-Subject: [PATCH 08/13] net/ena: check pointer before memset
+Subject: [PATCH 08/17] net/ena: check pointer before memset
 
 [ upstream commit 46916aa17d4b2007df8c0454f99ba0ca8b8cb93b ]
 

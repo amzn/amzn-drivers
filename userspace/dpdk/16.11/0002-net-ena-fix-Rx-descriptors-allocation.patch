@@ -1,7 +1,7 @@
 From a8c9bdcc04fddbd930f1856ce7f56dc7b20e4d0b Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Thu, 18 May 2017 17:41:50 +0200
-Subject: [PATCH 02/12] net/ena: fix Rx descriptors allocation
+Subject: [PATCH 02/15] net/ena: fix Rx descriptors allocation
 
 [ backported from upstream commit a467e8f37a3eec98210c0c3ec04bf6e9506ddd81 ]
 
