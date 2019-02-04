@@ -1,0 +1,49 @@
+From cc79443574e2d2047bdf8d5b15049c02927c9512 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 14 Dec 2018 14:18:44 +0100
+Subject: [PATCH 08/10] net/ena: update completion queue after cleanup
+
+[ upstream commit a45462c507e98b49cb5c2302e0be3c72d2e20a1a ]
+
+After Rx or Tx cleanup update completion queue head by calling
+ena_com_update_dev_comp_head().
+
+Fixes: 1daff5260ff8 ("net/ena: use unmasked head and tail")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 21b9fa4c8..bd9ec3f67 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1668,8 +1668,10 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 
+ 	desc_in_use = desc_in_use - completed + 1;
+ 	/* Burst refill to save doorbells, memory barriers, const interval */
+-	if (ring_size - desc_in_use > ENA_RING_DESCS_RATIO(ring_size))
++	if (ring_size - desc_in_use > ENA_RING_DESCS_RATIO(ring_size)) {
++		ena_com_update_dev_comp_head(rx_ring->ena_com_io_cq);
+ 		ena_populate_rx_queue(rx_ring, ring_size - desc_in_use);
++	}
+ 
+ 	return recv_idx;
+ }
+@@ -1871,8 +1873,9 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 
+ 	if (total_tx_descs > 0) {
+ 		/* acknowledge completion of sent packets */
+-		ena_com_comp_ack(tx_ring->ena_com_io_sq, total_tx_descs);
+ 		tx_ring->next_to_clean = next_to_clean;
++		ena_com_comp_ack(tx_ring->ena_com_io_sq, total_tx_descs);
++		ena_com_update_dev_comp_head(tx_ring->ena_com_io_cq);
+ 	}
+ 
+ 	return sent_idx;
+-- 
+2.14.1
+

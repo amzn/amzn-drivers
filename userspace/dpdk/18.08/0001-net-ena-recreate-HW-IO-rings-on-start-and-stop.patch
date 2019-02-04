@@ -1,7 +1,7 @@
 From 126e0497aa41ff7b6fb6f2569626e6fed44bfe78 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Thu, 25 Oct 2018 19:59:21 +0200
-Subject: [PATCH 1/4] net/ena: recreate HW IO rings on start and stop
+Subject: [PATCH 01/14] net/ena: recreate HW IO rings on start and stop
 
 [ upstream commit df238f84c0a21d642bb9517d0c75ba831eeceb46 ]
 

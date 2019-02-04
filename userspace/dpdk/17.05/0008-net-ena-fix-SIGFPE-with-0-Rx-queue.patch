@@ -1,7 +1,7 @@
-From 0bf212a542cec7978d7599eb55285d5478f94071 Mon Sep 17 00:00:00 2001
+From 57d442274cdb3150da5449c92a1100a29a8ffdec Mon Sep 17 00:00:00 2001
 From: Daria Kolistratova <daria.kolistratova@intel.com>
 Date: Tue, 26 Jun 2018 18:38:56 +0100
-Subject: [PATCH 8/9] net/ena: fix SIGFPE with 0 Rx queue
+Subject: [PATCH 08/13] net/ena: fix SIGFPE with 0 Rx queue
 
 [ upstream commit 361913ad6f8c05fc541fe4bfdae3b0dc095ae3af ]
 

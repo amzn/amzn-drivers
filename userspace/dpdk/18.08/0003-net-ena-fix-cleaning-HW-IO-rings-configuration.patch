@@ -1,7 +1,7 @@
 From 79f7b061bfc354f660d4db0173bec4d47e6c43dd Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Wed, 14 Nov 2018 10:59:45 +0100
-Subject: [PATCH 3/4] net/ena: fix cleaning HW IO rings configuration
+Subject: [PATCH 03/14] net/ena: fix cleaning HW IO rings configuration
 
 [ upstream commit 778677dcb20cf29d966f239972b043f0640f55ef ]
 

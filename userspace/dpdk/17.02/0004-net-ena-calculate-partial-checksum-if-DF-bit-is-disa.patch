@@ -1,8 +1,10 @@
-From 5ca7ebc1ea8550f502bfb2b176a1348a6adaff7e Mon Sep 17 00:00:00 2001
+From 931953ad093d51d077a787d5901a33863f33e040 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 10 Apr 2017 16:28:11 +0200
-Subject: [PATCH 04/13] net/ena: calculate partial checksum if DF bit is
+Subject: [PATCH 04/17] net/ena: calculate partial checksum if DF bit is
  disabled
+
+[ upstream commit bc5ef57d43c5f4ea423734b2aeae070ae19dd91f ]
 
 When TSO is disabled we still have to calculate partial checksum if DF bit
 if turned off. This is caused by firmware bug.

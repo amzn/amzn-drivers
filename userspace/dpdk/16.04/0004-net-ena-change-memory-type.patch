@@ -1,7 +1,7 @@
-From 06ebe3a8c6dd4c95eb8f2cb0dd9fb15cf448bc4a Mon Sep 17 00:00:00 2001
+From db52b57f5e85c103a254cf1f055dbd641a316881 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:19 +0200
-Subject: [PATCH 4/8] net/ena: change memory type
+Subject: [PATCH 04/10] net/ena: change memory type
 
 [ upstream commit 9f32c7e7e6ce58ab772913f54f8328c1c0186a17 ]
 
@@ -25,7 +25,7 @@ index cc69b3372..ff873e807 100644
 --- a/drivers/net/ena/base/ena_plat_dpdk.h
 +++ b/drivers/net/ena/base/ena_plat_dpdk.h
 @@ -223,14 +223,8 @@ typedef uint64_t dma_addr_t;
-
+ 
  #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) \
  	do {								\
 -		const struct rte_memzone *mz;				\
@@ -38,8 +38,8 @@ index cc69b3372..ff873e807 100644
 -		virt = mz->addr;					\
 +		virt = rte_zmalloc_socket(NULL, size, 0, node);		\
  	} while (0)
-
+ 
  #define ENA_MEM_ALLOC(dmadev, size) rte_zmalloc(NULL, size, 1)
---
+-- 
 2.14.1
 

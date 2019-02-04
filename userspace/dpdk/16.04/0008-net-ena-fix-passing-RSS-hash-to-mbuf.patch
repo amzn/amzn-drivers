@@ -1,7 +1,7 @@
-From 2cf25ae25e4adc6b77d194d921699b1ca1952830 Mon Sep 17 00:00:00 2001
+From f32b3ec7c7dec3683b1cf2cd2e8de038d2ef3585 Mon Sep 17 00:00:00 2001
 From: Stewart Allen <allenste@amazon.com>
 Date: Thu, 25 Oct 2018 19:59:22 +0200
-Subject: [PATCH 8/8] net/ena: fix passing RSS hash to mbuf
+Subject: [PATCH 08/10] net/ena: fix passing RSS hash to mbuf
 
 [ upstream commit e5df9f33db00eb9d322abaefff30da74fd0e625d ]
 

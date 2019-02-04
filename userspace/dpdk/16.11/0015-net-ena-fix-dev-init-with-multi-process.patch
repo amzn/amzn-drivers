@@ -1,0 +1,53 @@
+From 5a56e222261788b4ff1f0a778bad136a8017494c Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 25 Jan 2019 09:10:25 +0100
+Subject: [PATCH 15/15] net/ena: fix dev init with multi-process
+
+[ upstream commit fd9768905870856a2340266d25f8c0100dfccfff ]
+
+The check for proc type in eth_ena_dev_init() should appear before
+modyfing adapter structure.
+
+Calling memset on ena_adapter from secondary process context, was
+erasing all structure information, and it was causing the crash of the
+main process.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 9642bdb18..5a0d39cb2 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1270,18 +1270,18 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 
+ 	static int adapters_found;
+ 
+-	memset(adapter, 0, sizeof(struct ena_adapter));
+-	ena_dev = &adapter->ena_dev;
+-
+ 	eth_dev->dev_ops = &ena_dev_ops;
+ 	eth_dev->rx_pkt_burst = &eth_ena_recv_pkts;
+ 	eth_dev->tx_pkt_burst = &eth_ena_xmit_pkts;
+-	adapter->rte_eth_dev_data = eth_dev->data;
+-	adapter->rte_dev = eth_dev;
+ 
+ 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+ 		return 0;
+ 
++	memset(adapter, 0, sizeof(struct ena_adapter));
++
++	adapter->rte_eth_dev_data = eth_dev->data;
++	adapter->rte_dev = eth_dev;
++
+ 	pci_dev = eth_dev->pci_dev;
+ 	adapter->pdev = pci_dev;
+ 
+-- 
+2.14.1
+

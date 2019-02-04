@@ -1,7 +1,7 @@
 From 53253faf9e1064d1571eed8d95d3be1cc47cbff9 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Wed, 21 Nov 2018 09:21:14 +0100
-Subject: [PATCH 4/4] net/ena: fix out of order completion
+Subject: [PATCH 04/14] net/ena: fix out of order completion
 
 [ upstream commit 79405ee175857cfdbb508f9d55e2a51d95483be6 ]
 
