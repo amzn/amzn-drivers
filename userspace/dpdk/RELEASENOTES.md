@@ -4,6 +4,41 @@ ___
 
 ### Normal releases
 
+#### v19.02
+_Release of the new version of the driver - r2.0.0._
+New Features:
+* Add Low Latency Queue v2 (LLQv2). This feature reduces the latency
+  of the packets by pushing the header directly through the PCI to the
+  device. This allows the NIC to start handle packet right after the doorbell
+  without waiting for DMA.
+* Add independent configuration of HW Tx and Rx ring depths.
+* Add support for up to 8k Rx descriptors per ring.
+* Add additional doorbell check on Tx, to handle Tx more efficiently for big
+  bursts of packets.
+* Add per queue statistics.
+* Add extended statistics using xstats DPDK API.
+
+Bug Fixes:
+* The reset routine was aligned with the DPDK API, so now it can be
+  handled as in other PMDs.
+* Fix out of order (OOO) completion.
+* Fix memory leaks due to port stops and starts in the middle of
+  traffic.
+* Assign to rte_errno only posivite values.
+* Fix device init with multi-process.
+* Update completion queue after Tx and Rx cleanups.
+* Fix invalid reference to variable in union.
+* Add supported RSS offloads types.
+* Destroy queues in case of fail in ena_start() function.
+* Skip Rx packets with invalid requested id.
+* Set reset reason if Rx fails due to too many Rx descriptors.
+
+Minor Changes:
+* Update ena_com to version from 26.09.2018.
+* Updated documentation and features list of the PMD.
+* Rx drops are now being read in keep alive handler.
+* Adjust new line characters in log messages.
+
 #### v18.11
 _Release of the new version of the driver - r1.1.1._
 
