@@ -13,6 +13,7 @@ ccflags-y += -I$(src)/$(ENA_COM_PATH)/
 
 
 BUILD_KERNEL ?= $(shell uname -r)
+KSRC         ?= /lib/modules/$(BUILD_KERNEL)/build
 
 ccflags-y += -Wfatal-errors
 
@@ -35,7 +36,7 @@ ifdef UBUNTU_ABI
 endif
 
 all:
-	make -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) modules
+	make -C $(KSRC) M=$(CURDIR) modules
 
 clean:
-	make -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) clean
+	make -C $(KSRC) M=$(CURDIR) clean
