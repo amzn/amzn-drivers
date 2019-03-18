@@ -601,8 +601,15 @@ static inline void __iomem *devm_ioremap_wc(struct device *dev,
 #endif
 
 #if RHEL_RELEASE_CODE && \
-    RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,5)
+    RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 5) && \
+    RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(8, 0)
 #define ndo_change_mtu ndo_change_mtu_rh74
+#endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
+#ifndef dma_zalloc_coherent
+#define dma_zalloc_coherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
+#endif
 #endif
 
 #endif /* _KCOMPAT_H_ */

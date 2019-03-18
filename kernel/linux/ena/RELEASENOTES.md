@@ -37,6 +37,12 @@ The driver was verified on the following distributions:
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
 
+## r2.0.3 release notes
+**Bug Fixes**
+* Fix compilation on Linux 5.0 due to the removal of dma_zalloc_coherent()
+* gcc 8: fix compilation warning due to the introduction of Wstringop-truncation
+* Fix compilation on RHEL 8
+
 ## r2.0.2 release notes
 **New Features**
 * Low Latency Queues (LLQs) - a new placement policy that enables storing
