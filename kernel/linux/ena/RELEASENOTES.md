@@ -15,6 +15,7 @@ The driver was verified on the following distributions:
 * RedHat Enterprise Linux 7.3
 * RedHat Enterprise Linux 7.4
 * RedHat Enterprise Linux 7.5
+* RedHat Enterprise Linux 7.6
 
 **Ubuntu:**
 * ubuntu Trusty 14.04 amd64 server
@@ -36,6 +37,33 @@ The driver was verified on the following distributions:
 
 **SUSE:**
 SUSE Linux Enterprise Server 12 SP2
+SUSE Linux Enterprise Server 12 SP3
+
+## r2.1.0 release notes
+**New Features**
+* Add force_large_llq_header module parameter to enable support
+  for packets with headers larger than 96 bytes in LLQ mode
+* Add support for Tx/Rx rings size modification through ethtool
+* Allow rings allocation backoff when low on memory
+
+**Bug Fixes**
+* Fix race between link up and device initalization
+* Free napi resources when ena_up() fails
+* Make ethtool show correct current and max ring sizes
+* Set freed objects to NULL to avoid failing future allocations
+* kcompat: fix compilation warning in SLES 12 regarding ena_get_stats64()
+* Fix error during MTU update in SLES 12 SP3
+* Fix swapped parameters when calling ena_com_indirect_table_fill_entry
+* Fix return value of ena_com_config_llq_info()
+
+**Minor Changes**
+* Add good checksum counter for to ethtool statistics
+* Add rx_queue_size parameter documentation to README
+* Arrange ena_probe() function variables in reverse christmas tree
+* Replace free_tx/rx_ids union with single free_ids field in ena_ring
+* Remove unnecessary calculations in ena_com_update_dev_comp_head()
+  when CQ doorbell doesn't exist (the common path)
+* Add new line to end of prints
 
 ## r2.0.3 release notes
 **Bug Fixes**

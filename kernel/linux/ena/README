@@ -91,6 +91,21 @@ updated as well (i.e. dracut)
 
 restart the OS (sudo reboot and reconnect)
 
+Module Parameters:
+==================
+rx_queue_size - Controls the number of requested entries in the Rx
+Queue. Increasing the Rx queue size can be useful in situations
+where rx drops are observed in loaded systems with NAPI not scheduled
+fast enough. Must be power of 2. Default value 1024. Max value
+is 8K (8192) and the Min value is 256. The actual number of entries
+in the queues will be negotiated with the device.
+
+force_large_llq_header - Controls the maximum supported packet header
+size when LLQ is enabled. When this parameter is set to 0 (default
+value), the maximum packet header size is set to 96 bytes. When this
+parameter is set to a non 0 value, the maximum packet header size is
+set to 224 bytes, and the TX queue size is reduced by half.
+
 Disable Predictable Network Names:
 ==================================
 When predicatable network naming is enabled, Linux might change the

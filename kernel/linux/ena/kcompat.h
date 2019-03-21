@@ -208,9 +208,17 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #define HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
 #endif /* RHEL >= 6.4 && RHEL < 7.0 */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0) || \
+	(SLE_VERSION_CODE && \
+	 LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,48)))
+#define HAVE_MTU_MIN_MAX_IN_NET_DEVICE
+#endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0) || \
-	 (RHEL_RELEASE_CODE && \
-      RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,5)))
+     (RHEL_RELEASE_CODE && \
+      RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,5)) || \
+     (SLE_VERSION_CODE && \
+      LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,50)))
 #define NDO_GET_STATS_64_V2
 #endif
 
@@ -602,13 +610,33 @@ static inline void __iomem *devm_ioremap_wc(struct device *dev,
 
 #if RHEL_RELEASE_CODE && \
     RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 5) && \
-    RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(8, 0)
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 #define ndo_change_mtu ndo_change_mtu_rh74
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
 #ifndef dma_zalloc_coherent
 #define dma_zalloc_coherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
+#endif
+#endif
+
+#ifndef dev_info_once
+#ifdef CONFIG_PRINTK
+#define dev_info_once(dev, fmt, ...)			\
+do {									\
+	static bool __print_once __read_mostly;				\
+									\
+	if (!__print_once) {						\
+		__print_once = true;					\
+		dev_info(dev, fmt, ##__VA_ARGS__);			\
+	}								\
+} while (0)
+#else
+#define dev_info_once(dev, fmt, ...)			\
+do {									\
+	if (0)								\
+		dev_info(dev, fmt, ##__VA_ARGS__);			\
+} while (0)
 #endif
 #endif
 
