@@ -40,6 +40,11 @@ sudo yum install kernel-devel-$(uname -r)
 Compilation:
 Run "make", efa.ko is created inside the folder.
 
+To build EFA RPMs run `make` in the rpm/ folder. Your environment will need to
+be setup to build RPMs. The EFA RPM will install the EFA kernel driver source,
+setup DKMS in order to build the driver when the kernel is updated, and update
+the configuration files to load EFA and its dependencies at boot time.
+
 Driver installation
 ===================
 Loading driver
