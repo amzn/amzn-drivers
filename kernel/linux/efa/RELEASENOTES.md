@@ -11,6 +11,7 @@ The driver was tested on the following distributions:
 
 **CentOS:**
 * CentOS 7.4
+* CentOS 7.6
 
 ## r0.9.0 release notes
 

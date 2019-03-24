@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates.
+ * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
+
 #ifndef _EFA_REGS_H_
 #define _EFA_REGS_H_
 
@@ -109,4 +110,4 @@ enum efa_regs_reset_reason_types {
 #define EFA_REGS_MMIO_REG_READ_REG_OFF_SHIFT                16
 #define EFA_REGS_MMIO_REG_READ_REG_OFF_MASK                 0xffff0000
 
-#endif /*_EFA_REGS_H_ */
+#endif /* _EFA_REGS_H_ */

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates.
+ * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_COM_H_
@@ -43,11 +43,12 @@ struct efa_com_admin_sq {
 
 };
 
+/* Don't use anything other than atomic64 */
 struct efa_com_stats_admin {
-	u64 aborted_cmd;
-	u64 submitted_cmd;
-	u64 completed_cmd;
-	u64 no_completion;
+	atomic64_t aborted_cmd;
+	atomic64_t submitted_cmd;
+	atomic64_t completed_cmd;
+	atomic64_t no_completion;
 };
 
 enum {
@@ -72,7 +73,6 @@ struct efa_com_admin_queue {
 	struct semaphore avail_cmds;
 
 	struct efa_com_stats_admin stats;
-	spinlock_t stats_lock; /* Protects admin stats */
 
 	spinlock_t comp_ctx_lock; /* Protects completion context pool */
 	u32 *comp_ctx_pool;
@@ -92,24 +92,24 @@ struct efa_com_aenq {
 };
 
 struct efa_com_mmio_read {
-	struct efa_admin_mmio_req_read_less_resp    *read_resp;
-	dma_addr_t                                   read_resp_dma_addr;
-	u16                                          seq_num;
-	u16                                          mmio_read_timeout; /* usecs */
+	struct efa_admin_mmio_req_read_less_resp *read_resp;
+	dma_addr_t read_resp_dma_addr;
+	u16 seq_num;
+	u16 mmio_read_timeout; /* usecs */
 	/* serializes mmio reads */
 	spinlock_t lock;
 };
 
 struct efa_com_dev {
-	struct efa_com_admin_queue      admin_queue;
-	struct efa_com_aenq             aenq;
-	u8 __iomem                     *reg_bar;
-	void                           *dmadev;
-	void                           *bus;
-	u32                             supported_features;
-	u32                             dma_addr_bits;
+	struct efa_com_admin_queue aq;
+	struct efa_com_aenq aenq;
+	u8 __iomem *reg_bar;
+	void *dmadev;
+	void *bus;
+	u32 supported_features;
+	u32 dma_addr_bits;
 
-	struct efa_com_mmio_read        mmio_read;
+	struct efa_com_mmio_read mmio_read;
 };
 
 typedef void (*efa_aenq_handler)(void *data,
@@ -134,7 +134,7 @@ void efa_com_mmio_reg_read_destroy(struct efa_com_dev *edev);
 int efa_com_validate_version(struct efa_com_dev *edev);
 int efa_com_get_dma_width(struct efa_com_dev *edev);
 
-int efa_com_cmd_exec(struct efa_com_admin_queue *admin_queue,
+int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 		     struct efa_admin_aq_entry *cmd,
 		     size_t cmd_size,
 		     struct efa_admin_acq_entry *comp,

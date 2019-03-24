@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates.
+ * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_COM_CMD_H_
@@ -11,8 +11,6 @@
 #define EFA_GID_SIZE 16
 
 struct efa_com_create_qp_params {
-	u32 pd;
-	u8  qp_type;
 	u64 rq_base_addr;
 	u32 send_cq_idx;
 	u32 recv_cq_idx;
@@ -23,8 +21,12 @@ struct efa_com_create_qp_params {
 	u32 sq_ring_size_in_bytes;
 	/* Max number of WQEs that will be posted on send queue */
 	u32 sq_depth;
-	/* Recv descriptor ring size in bytes, sufficient */
+	/* Recv descriptor ring size in bytes */
 	u32 rq_ring_size_in_bytes;
+	u32 rq_depth;
+	u16 pd;
+	u16 uarn;
+	u8 qp_type;
 };
 
 struct efa_com_create_qp_result {
@@ -37,17 +39,39 @@ struct efa_com_create_qp_result {
 	u16 recv_sub_cq_idx;
 };
 
+struct efa_com_modify_qp_params {
+	u32 modify_mask;
+	u32 qp_handle;
+	u32 qp_state;
+	u32 cur_qp_state;
+	u32 qkey;
+	u32 sq_psn;
+	u8 sq_drained_async_notify;
+};
+
+struct efa_com_query_qp_params {
+	u32 qp_handle;
+};
+
+struct efa_com_query_qp_result {
+	u32 qp_state;
+	u32 qkey;
+	u32 sq_draining;
+	u32 sq_psn;
+};
+
 struct efa_com_destroy_qp_params {
 	u32 qp_handle;
 };
 
 struct efa_com_create_cq_params {
-	/* completion queue depth in # of entries */
-	u16 cq_depth;
-	u8  entry_size_in_bytes;
 	/* cq physical base address in OS memory */
 	dma_addr_t dma_addr;
+	/* completion queue depth in # of entries */
+	u16 cq_depth;
 	u16 num_sub_cqs;
+	u16 uarn;
+	u8 entry_size_in_bytes;
 };
 
 struct efa_com_create_cq_result {
@@ -62,6 +86,7 @@ struct efa_com_destroy_cq_params {
 };
 
 struct efa_com_create_ah_params {
+	u16 pdn;
 	/* Destination address in network byte order */
 	u8 dest_addr[EFA_GID_SIZE];
 };
@@ -72,6 +97,7 @@ struct efa_com_create_ah_result {
 
 struct efa_com_destroy_ah_params {
 	u16 ah;
+	u16 pdn;
 };
 
 struct efa_com_get_network_attr_result {
@@ -80,6 +106,8 @@ struct efa_com_get_network_attr_result {
 };
 
 struct efa_com_get_device_attr_result {
+	u64 page_size_cap;
+	u64 max_mr_pages;
 	u32 fw_version;
 	u32 admin_api_version;
 	u32 device_version;
@@ -92,15 +120,14 @@ struct efa_com_get_device_attr_result {
 	u32 max_cq;
 	u32 max_cq_depth; /* cqes */
 	u32 inline_buf_size;
-	u16 max_sq_sge;
-	u16 max_rq_sge;
 	u32 max_mr;
-	u64 max_mr_pages;
-	u64 page_size_cap; /* bytes */
 	u32 max_pd;
 	u32 max_ah;
+	u32 max_llq_size;
 	u16 sub_cqs_per_cq;
-	u8  db_bar;
+	u16 max_sq_sge;
+	u16 max_rq_sge;
+	u8 db_bar;
 };
 
 struct efa_com_get_hw_hints_result {
@@ -125,25 +152,8 @@ struct efa_com_ctrl_buff_info {
 };
 
 struct efa_com_reg_mr_params {
-	/* Protection Domain */
-	u16 pd;
 	/* Memory region length, in bytes. */
 	u64 mr_length_in_bytes;
-	/*
-	 * phys_page_size_shift - page size is (1 << phys_page_size_shift)
-	 * Page size is used for building the Virtual to Physical
-	 * address mapping
-	 */
-	u8 page_shift;
-	/*
-	 * permissions
-	 * 0: local_write_enable - Write permissions: value of 1 needed
-	 * for RQ buffers and for RDMA write:1: reserved1 - remote
-	 * access flags, etc
-	 */
-	u8 permissions;
-	/* number of pages in PBL (redundant, could be calculated) */
-	u32 page_num;
 	/* IO Virtual Address associated with this MR. */
 	u64 iova;
 	/* words 8:15: Physical Buffer List, each element is page-aligned. */
@@ -161,7 +171,23 @@ struct efa_com_reg_mr_params {
 		 */
 		struct efa_com_ctrl_buff_info pbl;
 	} pbl;
-
+	/* number of pages in PBL (redundant, could be calculated) */
+	u32 page_num;
+	/* Protection Domain */
+	u16 pd;
+	/*
+	 * phys_page_size_shift - page size is (1 << phys_page_size_shift)
+	 * Page size is used for building the Virtual to Physical
+	 * address mapping
+	 */
+	u8 page_shift;
+	/*
+	 * permissions
+	 * 0: local_write_enable - Write permissions: value of 1 needed
+	 * for RQ buffers and for RDMA write:1: reserved1 - remote
+	 * access flags, etc
+	 */
+	u8 permissions;
 	u8 inline_pbl;
 	u8 indirect;
 };
@@ -183,10 +209,31 @@ struct efa_com_dereg_mr_params {
 	u32 l_key;
 };
 
+struct efa_com_alloc_pd_result {
+	u16 pdn;
+};
+
+struct efa_com_dealloc_pd_params {
+	u16 pdn;
+};
+
+struct efa_com_alloc_uar_result {
+	u16 uarn;
+};
+
+struct efa_com_dealloc_uar_params {
+	u16 uarn;
+};
+
 void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low);
 int efa_com_create_qp(struct efa_com_dev *edev,
 		      struct efa_com_create_qp_params *params,
 		      struct efa_com_create_qp_result *res);
+int efa_com_modify_qp(struct efa_com_dev *edev,
+		      struct efa_com_modify_qp_params *params);
+int efa_com_query_qp(struct efa_com_dev *edev,
+		     struct efa_com_query_qp_params *params,
+		     struct efa_com_query_qp_result *result);
 int efa_com_destroy_qp(struct efa_com_dev *edev,
 		       struct efa_com_destroy_qp_params *params);
 int efa_com_create_cq(struct efa_com_dev *edev,
@@ -211,5 +258,13 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 int efa_com_get_hw_hints(struct efa_com_dev *edev,
 			 struct efa_com_get_hw_hints_result *result);
 int efa_com_set_aenq_config(struct efa_com_dev *edev, u32 groups);
+int efa_com_alloc_pd(struct efa_com_dev *edev,
+		     struct efa_com_alloc_pd_result *result);
+int efa_com_dealloc_pd(struct efa_com_dev *edev,
+		       struct efa_com_dealloc_pd_params *params);
+int efa_com_alloc_uar(struct efa_com_dev *edev,
+		      struct efa_com_alloc_uar_result *result);
+int efa_com_dealloc_uar(struct efa_com_dev *edev,
+			struct efa_com_dealloc_uar_params *params);
 
 #endif /* _EFA_COM_CMD_H_ */

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates.
+ * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
+
 #ifndef _EFA_ADMIN_CMDS_H_
 #define _EFA_ADMIN_CMDS_H_
 
@@ -12,30 +13,24 @@
 enum efa_admin_aq_opcode {
 	/* starting opcode of efa admin commands */
 	EFA_ADMIN_START_CMD_RANGE                   = 1,
-	/* Create QP */
 	EFA_ADMIN_CREATE_QP                         = EFA_ADMIN_START_CMD_RANGE,
-	/* Modify QP */
 	EFA_ADMIN_MODIFY_QP                         = 2,
-	/* Query QP */
 	EFA_ADMIN_QUERY_QP                          = 3,
-	/* Destroy QP */
 	EFA_ADMIN_DESTROY_QP                        = 4,
-	/* Create Address Handle */
 	EFA_ADMIN_CREATE_AH                         = 5,
-	/* Destroy Address Handle */
 	EFA_ADMIN_DESTROY_AH                        = 6,
-	/* Register Memory Region */
 	EFA_ADMIN_REG_MR                            = 7,
-	/* Deregister Memory Region */
 	EFA_ADMIN_DEREG_MR                          = 8,
-	/* Create Completion Q */
 	EFA_ADMIN_CREATE_CQ                         = 9,
-	/* Destroy Completion Q */
 	EFA_ADMIN_DESTROY_CQ                        = 10,
 	EFA_ADMIN_GET_FEATURE                       = 11,
 	EFA_ADMIN_SET_FEATURE                       = 12,
 	EFA_ADMIN_GET_STATS                         = 13,
-	EFA_ADMIN_MAX_OPCODE                        = 13,
+	EFA_ADMIN_ALLOC_PD                          = 14,
+	EFA_ADMIN_DEALLOC_PD                        = 15,
+	EFA_ADMIN_ALLOC_UAR                         = 16,
+	EFA_ADMIN_DEALLOC_UAR                       = 17,
+	EFA_ADMIN_MAX_OPCODE                        = 17,
 };
 
 enum efa_admin_aq_feature_id {
@@ -57,20 +52,30 @@ enum efa_admin_qp_type {
 
 /* QP state */
 enum efa_admin_qp_state {
-	/* Reset queue */
 	EFA_ADMIN_QP_STATE_RESET                    = 0,
-	/* Init queue */
 	EFA_ADMIN_QP_STATE_INIT                     = 1,
-	/* Ready to receive */
 	EFA_ADMIN_QP_STATE_RTR                      = 2,
-	/* Ready to send */
 	EFA_ADMIN_QP_STATE_RTS                      = 3,
-	/* Send queue drain */
 	EFA_ADMIN_QP_STATE_SQD                      = 4,
-	/* Send queue error */
 	EFA_ADMIN_QP_STATE_SQE                      = 5,
-	/* Queue in error state */
 	EFA_ADMIN_QP_STATE_ERR                      = 6,
+};
+
+enum efa_admin_get_stats_type {
+	EFA_ADMIN_GET_STATS_TYPE_BASIC              = 0,
+};
+
+enum efa_admin_get_stats_scope {
+	EFA_ADMIN_GET_STATS_SCOPE_ALL               = 0,
+	EFA_ADMIN_GET_STATS_SCOPE_QUEUE             = 1,
+};
+
+enum efa_admin_modify_qp_mask_bits {
+	EFA_ADMIN_QP_STATE_BIT                      = 0,
+	EFA_ADMIN_CUR_QP_STATE_BIT                  = 1,
+	EFA_ADMIN_QKEY_BIT                          = 2,
+	EFA_ADMIN_SQ_PSN_BIT                        = 3,
+	EFA_ADMIN_SQ_DRAINED_ASYNC_NOTIFY_BIT       = 4,
 };
 
 /*
@@ -90,11 +95,10 @@ struct efa_admin_qp_alloc_size {
 	 */
 	u32 recv_queue_ring_size;
 
-	/* MBZ */
-	u32 reserved;
+	/* Max number of WQEs that can be outstanding on recv queue */
+	u32 recv_queue_depth;
 };
 
-/* Create QP command. */
 struct efa_admin_create_qp_cmd {
 	/* Common Admin Queue descriptor */
 	struct efa_admin_aq_common_desc aq_common_desc;
@@ -143,9 +147,17 @@ struct efa_admin_create_qp_cmd {
 
 	/* Requested QP allocation sizes */
 	struct efa_admin_qp_alloc_size qp_alloc_size;
+
+	/* UAR number */
+	u16 uar;
+
+	/* MBZ */
+	u16 reserved;
+
+	/* MBZ */
+	u32 reserved2;
 };
 
-/* Create QP response. */
 struct efa_admin_create_qp_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -178,10 +190,15 @@ struct efa_admin_create_qp_resp {
 	u32 llq_descriptors_offset;
 };
 
-/* Modify QP command */
 struct efa_admin_modify_qp_cmd {
 	/* Common Admin Queue descriptor */
 	struct efa_admin_aq_common_desc aq_common_desc;
+
+	/*
+	 * Mask indicating which fields should be updated see enum
+	 * efa_admin_modify_qp_mask_bits
+	 */
+	u32 modify_mask;
 
 	/* QP handle returned by create_qp command */
 	u32 qp_handle;
@@ -195,17 +212,24 @@ struct efa_admin_modify_qp_cmd {
 	/* QKey */
 	u32 qkey;
 
+	/* SQ PSN */
+	u32 sq_psn;
+
 	/* Enable async notification when SQ is drained */
-	u32 sq_drained_async_notify;
+	u8 sq_drained_async_notify;
+
+	/* MBZ */
+	u8 reserved1;
+
+	/* MBZ */
+	u16 reserved2;
 };
 
-/* Modify QP response */
 struct efa_admin_modify_qp_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
 };
 
-/* Query QP command */
 struct efa_admin_query_qp_cmd {
 	/* Common Admin Queue descriptor */
 	struct efa_admin_aq_common_desc aq_common_desc;
@@ -214,7 +238,6 @@ struct efa_admin_query_qp_cmd {
 	u32 qp_handle;
 };
 
-/* Query QP response */
 struct efa_admin_query_qp_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -225,11 +248,19 @@ struct efa_admin_query_qp_resp {
 	/* QKey */
 	u32 qkey;
 
+	/* SQ PSN */
+	u32 sq_psn;
+
 	/* Indicates that draining is in progress */
-	u32 sq_draining;
+	u8 sq_draining;
+
+	/* MBZ */
+	u8 reserved1;
+
+	/* MBZ */
+	u16 reserved2;
 };
 
-/* Destroy QP command */
 struct efa_admin_destroy_qp_cmd {
 	/* Common Admin Queue descriptor */
 	struct efa_admin_aq_common_desc aq_common_desc;
@@ -238,7 +269,6 @@ struct efa_admin_destroy_qp_cmd {
 	u32 qp_handle;
 };
 
-/* Destroy QP response */
 struct efa_admin_destroy_qp_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -254,9 +284,13 @@ struct efa_admin_create_ah_cmd {
 
 	/* Destination address in network byte order */
 	u8 dest_addr[16];
+
+	/* PD number */
+	u16 pd;
+
+	u16 reserved;
 };
 
-/* Create Address Handle response */
 struct efa_admin_create_ah_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -267,7 +301,6 @@ struct efa_admin_create_ah_resp {
 	u16 reserved;
 };
 
-/* Destroy Address Handle command parameters. */
 struct efa_admin_destroy_ah_cmd {
 	/* Common Admin Queue descriptor */
 	struct efa_admin_aq_common_desc aq_common_desc;
@@ -275,10 +308,10 @@ struct efa_admin_destroy_ah_cmd {
 	/* Target interface address handle (opaque) */
 	u16 ah;
 
-	u16 reserved;
+	/* PD number */
+	u16 pd;
 };
 
-/* Destroy Address Handle response */
 struct efa_admin_destroy_ah_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -367,7 +400,6 @@ struct efa_admin_reg_mr_resp {
 	u32 r_key;
 };
 
-/* Deregister a MemoryRegion */
 struct efa_admin_dereg_mr_cmd {
 	/* Common Admin Queue descriptor */
 	struct efa_admin_aq_common_desc aq_common_desc;
@@ -381,7 +413,6 @@ struct efa_admin_dereg_mr_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 };
 
-/* Create CQ command */
 struct efa_admin_create_cq_cmd {
 	struct efa_admin_aq_common_desc aq_common_desc;
 
@@ -427,7 +458,8 @@ struct efa_admin_create_cq_cmd {
 	 */
 	u16 num_sub_cqs;
 
-	u16 reserved8;
+	/* UAR number */
+	u16 uar;
 };
 
 struct efa_admin_create_cq_resp {
@@ -439,7 +471,6 @@ struct efa_admin_create_cq_resp {
 	u16 cq_actual_depth;
 };
 
-/* Destroy CQ command */
 struct efa_admin_destroy_cq_cmd {
 	struct efa_admin_aq_common_desc aq_common_desc;
 
@@ -472,19 +503,9 @@ struct efa_admin_aq_get_stats_cmd {
 	/* stats scope defined in enum efa_admin_get_stats_scope */
 	u8 scope;
 
-	u16 reserved3;
-
-	/* queue id. used when scope is specific_queue */
-	u16 queue_idx;
-
-	/*
-	 * device id, value 0xFFFF means mine. only privileged device can get
-	 *    stats of other device
-	 */
-	u16 device_id;
+	u16 scope_modifier;
 };
 
-/* Basic Statistics Command. */
 struct efa_admin_basic_stats {
 	u64 tx_bytes;
 
@@ -582,6 +603,9 @@ struct efa_admin_feature_queue_attr_desc {
 
 	/* The maximum number of address handles supported */
 	u32 max_ah;
+
+	/* The maximum size of LLQ in bytes */
+	u32 max_llq_size;
 };
 
 struct efa_admin_feature_aenq_desc {
@@ -668,6 +692,62 @@ struct efa_admin_set_feature_resp {
 	} u;
 };
 
+struct efa_admin_alloc_pd_cmd {
+	struct efa_admin_aq_common_desc aq_common_descriptor;
+};
+
+struct efa_admin_alloc_pd_resp {
+	struct efa_admin_acq_common_desc acq_common_desc;
+
+	/* PD number */
+	u16 pd;
+
+	/* MBZ */
+	u16 reserved;
+};
+
+struct efa_admin_dealloc_pd_cmd {
+	struct efa_admin_aq_common_desc aq_common_descriptor;
+
+	/* PD number */
+	u16 pd;
+
+	/* MBZ */
+	u16 reserved;
+};
+
+struct efa_admin_dealloc_pd_resp {
+	struct efa_admin_acq_common_desc acq_common_desc;
+};
+
+struct efa_admin_alloc_uar_cmd {
+	struct efa_admin_aq_common_desc aq_common_descriptor;
+};
+
+struct efa_admin_alloc_uar_resp {
+	struct efa_admin_acq_common_desc acq_common_desc;
+
+	/* UAR number */
+	u16 uar;
+
+	/* MBZ */
+	u16 reserved;
+};
+
+struct efa_admin_dealloc_uar_cmd {
+	struct efa_admin_aq_common_desc aq_common_descriptor;
+
+	/* UAR number */
+	u16 uar;
+
+	/* MBZ */
+	u16 reserved;
+};
+
+struct efa_admin_dealloc_uar_resp {
+	struct efa_admin_acq_common_desc acq_common_desc;
+};
+
 /* asynchronous event notification groups */
 enum efa_admin_aenq_group {
 	EFA_ADMIN_FATAL_ERROR                       = 1,
@@ -713,4 +793,4 @@ struct efa_admin_mmio_req_read_less_resp {
 /* get_set_feature_common_desc */
 #define EFA_ADMIN_GET_SET_FEATURE_COMMON_DESC_SELECT_MASK   GENMASK(1, 0)
 
-#endif /*_EFA_ADMIN_CMDS_H_ */
+#endif /* _EFA_ADMIN_CMDS_H_ */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018 Amazon.com, Inc. or its affiliates.
+ * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa.h"
@@ -37,18 +37,6 @@
 
 #define EFA_REGS_ADMIN_INTR_MASK 1
 
-#define efa_admin_stat_add(queue, stat, val)                                   \
-	do {                                                                   \
-		typeof(queue) _queue = queue;                                  \
-		unsigned long flags;                                           \
-                                                                               \
-		spin_lock_irqsave(&_queue->stats_lock, flags);                 \
-		(stat) += val;                                                 \
-		spin_unlock_irqrestore(&_queue->stats_lock, flags);            \
-	} while (0)
-
-#define efa_admin_stat_inc(queue, stat) efa_admin_stat_add(queue, stat, 1)
-
 enum efa_cmd_status {
 	EFA_CMD_SUBMITTED,
 	EFA_CMD_COMPLETED,
@@ -66,6 +54,33 @@ struct efa_comp_ctx {
 	u8 cmd_opcode;
 	u8 occupied;
 };
+
+static const char *efa_com_cmd_str(u8 cmd)
+{
+#define EFA_CMD_STR_CASE(_cmd) case EFA_ADMIN_##_cmd: return #_cmd
+
+	switch (cmd) {
+	EFA_CMD_STR_CASE(CREATE_QP);
+	EFA_CMD_STR_CASE(MODIFY_QP);
+	EFA_CMD_STR_CASE(QUERY_QP);
+	EFA_CMD_STR_CASE(DESTROY_QP);
+	EFA_CMD_STR_CASE(CREATE_AH);
+	EFA_CMD_STR_CASE(DESTROY_AH);
+	EFA_CMD_STR_CASE(REG_MR);
+	EFA_CMD_STR_CASE(DEREG_MR);
+	EFA_CMD_STR_CASE(CREATE_CQ);
+	EFA_CMD_STR_CASE(DESTROY_CQ);
+	EFA_CMD_STR_CASE(GET_FEATURE);
+	EFA_CMD_STR_CASE(SET_FEATURE);
+	EFA_CMD_STR_CASE(GET_STATS);
+	EFA_CMD_STR_CASE(ALLOC_PD);
+	EFA_CMD_STR_CASE(DEALLOC_PD);
+	EFA_CMD_STR_CASE(ALLOC_UAR);
+	EFA_CMD_STR_CASE(DEALLOC_UAR);
+	default: return "unknown command opcode";
+	}
+#undef EFA_CMD_STR_CASE
+}
 
 static u32 efa_com_reg_read32(struct efa_com_dev *edev, u16 offset)
 {
@@ -96,18 +111,18 @@ static u32 efa_com_reg_read32(struct efa_com_dev *edev, u16 offset)
 		udelay(1);
 	} while (time_is_after_jiffies(exp_time));
 
-	if (unlikely(read_resp->req_id != mmio_read->seq_num)) {
-		dev_err(edev->dmadev,
-			"Reading register timed out. expected: req id[%u] offset[%#x] actual: req id[%u] offset[%#x]\n",
-			mmio_read->seq_num, offset, read_resp->req_id,
-			read_resp->reg_off);
+	if (read_resp->req_id != mmio_read->seq_num) {
+		efa_err_rl(edev->dmadev,
+			   "Reading register timed out. expected: req id[%u] offset[%#x] actual: req id[%u] offset[%#x]\n",
+			   mmio_read->seq_num, offset, read_resp->req_id,
+			   read_resp->reg_off);
 		err = EFA_MMIO_READ_INVALID;
 		goto out;
 	}
 
 	if (read_resp->reg_off != offset) {
-		dev_err(edev->dmadev,
-			"Reading register failed: wrong offset provided\n");
+		efa_err_rl(edev->dmadev,
+			   "Reading register failed: wrong offset provided\n");
 		err = EFA_MMIO_READ_INVALID;
 		goto out;
 	}
@@ -120,15 +135,15 @@ out:
 
 static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 {
-	struct efa_com_admin_queue *queue = &edev->admin_queue;
-	struct efa_com_admin_sq *sq = &queue->sq;
-	u16 size = ADMIN_SQ_SIZE(queue->depth);
+	struct efa_com_admin_queue *aq = &edev->aq;
+	struct efa_com_admin_sq *sq = &aq->sq;
+	u16 size = ADMIN_SQ_SIZE(aq->depth);
 	u32 addr_high;
 	u32 addr_low;
 	u32 aq_caps;
 
-	sq->entries = dma_zalloc_coherent(queue->dmadev, size, &sq->dma_addr,
-					  GFP_KERNEL);
+	sq->entries =
+		dma_alloc_coherent(aq->dmadev, size, &sq->dma_addr, GFP_KERNEL);
 	if (!sq->entries)
 		return -ENOMEM;
 
@@ -146,8 +161,7 @@ static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 	writel(addr_low, edev->reg_bar + EFA_REGS_AQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_AQ_BASE_HI_OFF);
 
-	aq_caps = 0;
-	aq_caps |= queue->depth & EFA_REGS_AQ_CAPS_AQ_DEPTH_MASK;
+	aq_caps = aq->depth & EFA_REGS_AQ_CAPS_AQ_DEPTH_MASK;
 	aq_caps |= (sizeof(struct efa_admin_aq_entry) <<
 			EFA_REGS_AQ_CAPS_AQ_ENTRY_SIZE_SHIFT) &
 			EFA_REGS_AQ_CAPS_AQ_ENTRY_SIZE_MASK;
@@ -159,15 +173,15 @@ static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 
 static int efa_com_admin_init_cq(struct efa_com_dev *edev)
 {
-	struct efa_com_admin_queue *queue = &edev->admin_queue;
-	struct efa_com_admin_cq *cq = &queue->cq;
-	u16 size = ADMIN_CQ_SIZE(queue->depth);
+	struct efa_com_admin_queue *aq = &edev->aq;
+	struct efa_com_admin_cq *cq = &aq->cq;
+	u16 size = ADMIN_CQ_SIZE(aq->depth);
 	u32 addr_high;
 	u32 addr_low;
 	u32 acq_caps;
 
-	cq->entries = dma_zalloc_coherent(queue->dmadev, size, &cq->dma_addr,
-					  GFP_KERNEL);
+	cq->entries =
+		dma_alloc_coherent(aq->dmadev, size, &cq->dma_addr, GFP_KERNEL);
 	if (!cq->entries)
 		return -ENOMEM;
 
@@ -182,12 +196,11 @@ static int efa_com_admin_init_cq(struct efa_com_dev *edev)
 	writel(addr_low, edev->reg_bar + EFA_REGS_ACQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_ACQ_BASE_HI_OFF);
 
-	acq_caps = 0;
-	acq_caps |= queue->depth & EFA_REGS_ACQ_CAPS_ACQ_DEPTH_MASK;
+	acq_caps = aq->depth & EFA_REGS_ACQ_CAPS_ACQ_DEPTH_MASK;
 	acq_caps |= (sizeof(struct efa_admin_acq_entry) <<
 			EFA_REGS_ACQ_CAPS_ACQ_ENTRY_SIZE_SHIFT) &
 			EFA_REGS_ACQ_CAPS_ACQ_ENTRY_SIZE_MASK;
-	acq_caps |= (queue->msix_vector_idx <<
+	acq_caps |= (aq->msix_vector_idx <<
 			EFA_REGS_ACQ_CAPS_ACQ_MSIX_VECTOR_SHIFT) &
 			EFA_REGS_ACQ_CAPS_ACQ_MSIX_VECTOR_MASK;
 
@@ -203,14 +216,14 @@ static int efa_com_admin_init_aenq(struct efa_com_dev *edev,
 	u32 addr_low, addr_high, aenq_caps;
 	u16 size;
 
-	if (unlikely(!aenq_handlers)) {
-		dev_err(edev->dmadev, "aenq handlers pointer is NULL\n");
+	if (!aenq_handlers) {
+		efa_err(edev->dmadev, "aenq handlers pointer is NULL\n");
 		return -EINVAL;
 	}
 
 	size = ADMIN_AENQ_SIZE(EFA_ASYNC_QUEUE_DEPTH);
-	aenq->entries = dma_zalloc_coherent(edev->dmadev, size, &aenq->dma_addr,
-					    GFP_KERNEL);
+	aenq->entries = dma_alloc_coherent(edev->dmadev, size, &aenq->dma_addr,
+					   GFP_KERNEL);
 	if (!aenq->entries)
 		return -ENOMEM;
 
@@ -225,8 +238,7 @@ static int efa_com_admin_init_aenq(struct efa_com_dev *edev,
 	writel(addr_low, edev->reg_bar + EFA_REGS_AENQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_AENQ_BASE_HI_OFF);
 
-	aenq_caps = 0;
-	aenq_caps |= aenq->depth & EFA_REGS_AENQ_CAPS_AENQ_DEPTH_MASK;
+	aenq_caps = aenq->depth & EFA_REGS_AENQ_CAPS_AENQ_DEPTH_MASK;
 	aenq_caps |= (sizeof(struct efa_admin_aenq_entry) <<
 		EFA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_SHIFT) &
 		EFA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_MASK;
@@ -245,57 +257,64 @@ static int efa_com_admin_init_aenq(struct efa_com_dev *edev,
 }
 
 /* ID to be used with efa_com_get_comp_ctx */
-static u16 efa_com_alloc_ctx_id(struct efa_com_admin_queue *admin_queue)
+static u16 efa_com_alloc_ctx_id(struct efa_com_admin_queue *aq)
 {
 	u16 ctx_id;
 
-	spin_lock(&admin_queue->comp_ctx_lock);
-	ctx_id = admin_queue->comp_ctx_pool[admin_queue->comp_ctx_pool_next];
-	admin_queue->comp_ctx_pool_next++;
-	spin_unlock(&admin_queue->comp_ctx_lock);
+	spin_lock(&aq->comp_ctx_lock);
+	ctx_id = aq->comp_ctx_pool[aq->comp_ctx_pool_next];
+	aq->comp_ctx_pool_next++;
+	spin_unlock(&aq->comp_ctx_lock);
 
 	return ctx_id;
 }
 
-static inline void efa_com_put_comp_ctx(struct efa_com_admin_queue *queue,
+static void efa_com_dealloc_ctx_id(struct efa_com_admin_queue *aq,
+				   u16 ctx_id)
+{
+	spin_lock(&aq->comp_ctx_lock);
+	aq->comp_ctx_pool_next--;
+	aq->comp_ctx_pool[aq->comp_ctx_pool_next] = ctx_id;
+	spin_unlock(&aq->comp_ctx_lock);
+}
+
+static inline void efa_com_put_comp_ctx(struct efa_com_admin_queue *aq,
 					struct efa_comp_ctx *comp_ctx)
 {
 	u16 comp_id = comp_ctx->user_cqe->acq_common_descriptor.command &
 		      EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID_MASK;
 
-	dev_dbg(queue->dmadev, "Putting completion command_id %d\n", comp_id);
+	efa_dbg(aq->dmadev, "Putting completion command_id %d\n", comp_id);
 	comp_ctx->occupied = 0;
-	spin_lock(&queue->comp_ctx_lock);
-	queue->comp_ctx_pool_next--;
-	queue->comp_ctx_pool[queue->comp_ctx_pool_next] = comp_id;
-	spin_unlock(&queue->comp_ctx_lock);
+	efa_com_dealloc_ctx_id(aq, comp_id);
 }
 
-static struct efa_comp_ctx *efa_com_get_comp_ctx(struct efa_com_admin_queue *queue,
+static struct efa_comp_ctx *efa_com_get_comp_ctx(struct efa_com_admin_queue *aq,
 						 u16 command_id, bool capture)
 {
-	if (unlikely(command_id >= queue->depth)) {
-		dev_err(queue->dmadev,
-			"command id is larger than the queue size. cmd_id: %u queue size %d\n",
-			command_id, queue->depth);
+	if (command_id >= aq->depth) {
+		efa_err_rl(aq->dmadev,
+			   "command id is larger than the queue size. cmd_id: %u queue size %d\n",
+			   command_id, aq->depth);
 		return NULL;
 	}
 
-	if (unlikely(queue->comp_ctx[command_id].occupied && capture)) {
-		dev_err(queue->dmadev, "Completion context is occupied\n");
+	if (aq->comp_ctx[command_id].occupied && capture) {
+		efa_err_rl(aq->dmadev, "Completion context is occupied\n");
 		return NULL;
 	}
 
 	if (capture) {
-		queue->comp_ctx[command_id].occupied = 1;
-		dev_dbg(queue->dmadev, "Taking completion ctxt command_id %d\n",
+		aq->comp_ctx[command_id].occupied = 1;
+		efa_dbg(aq->dmadev,
+			"Taking completion ctxt command_id %d\n",
 			command_id);
 	}
 
-	return &queue->comp_ctx[command_id];
+	return &aq->comp_ctx[command_id];
 }
 
-static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queue *admin_queue,
+static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 						       struct efa_admin_aq_entry *cmd,
 						       size_t cmd_size_in_bytes,
 						       struct efa_admin_acq_entry *comp,
@@ -306,20 +325,22 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 	u16 ctx_id;
 	u16 pi;
 
-	queue_size_mask = admin_queue->depth - 1;
-	pi = admin_queue->sq.pc & queue_size_mask;
+	queue_size_mask = aq->depth - 1;
+	pi = aq->sq.pc & queue_size_mask;
 
-	ctx_id = efa_com_alloc_ctx_id(admin_queue);
+	ctx_id = efa_com_alloc_ctx_id(aq);
 
-	cmd->aq_common_descriptor.flags |= admin_queue->sq.phase &
+	cmd->aq_common_descriptor.flags |= aq->sq.phase &
 		EFA_ADMIN_AQ_COMMON_DESC_PHASE_MASK;
 
 	cmd->aq_common_descriptor.command_id |= ctx_id &
 		EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
 
-	comp_ctx = efa_com_get_comp_ctx(admin_queue, ctx_id, true);
-	if (unlikely(!comp_ctx))
+	comp_ctx = efa_com_get_comp_ctx(aq, ctx_id, true);
+	if (!comp_ctx) {
+		efa_com_dealloc_ctx_id(aq, ctx_id);
 		return ERR_PTR(-EINVAL);
+	}
 
 	comp_ctx->status = EFA_CMD_SUBMITTED;
 	comp_ctx->comp_size = comp_size_in_bytes;
@@ -328,52 +349,51 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 
 	reinit_completion(&comp_ctx->wait_event);
 
-	memcpy(&admin_queue->sq.entries[pi], cmd, cmd_size_in_bytes);
+	memcpy(&aq->sq.entries[pi], cmd, cmd_size_in_bytes);
 
-	admin_queue->sq.pc++;
-	efa_admin_stat_inc(admin_queue, admin_queue->stats.submitted_cmd);
+	aq->sq.pc++;
+	atomic64_inc(&aq->stats.submitted_cmd);
 
-	if (unlikely((admin_queue->sq.pc & queue_size_mask) == 0))
-		admin_queue->sq.phase = !admin_queue->sq.phase;
+	if ((aq->sq.pc & queue_size_mask) == 0)
+		aq->sq.phase = !aq->sq.phase;
 
 	/* barrier not needed in case of writel */
-	writel(admin_queue->sq.pc, admin_queue->sq.db_addr);
+	writel(aq->sq.pc, aq->sq.db_addr);
 
 	return comp_ctx;
 }
 
-static inline int efa_com_init_comp_ctxt(struct efa_com_admin_queue *queue)
+static inline int efa_com_init_comp_ctxt(struct efa_com_admin_queue *aq)
 {
-	size_t pool_size = queue->depth * sizeof(*queue->comp_ctx_pool);
-	size_t size = queue->depth * sizeof(struct efa_comp_ctx);
+	size_t pool_size = aq->depth * sizeof(*aq->comp_ctx_pool);
+	size_t size = aq->depth * sizeof(struct efa_comp_ctx);
 	struct efa_comp_ctx *comp_ctx;
 	u16 i;
 
-	queue->comp_ctx = devm_kzalloc(queue->dmadev, size, GFP_KERNEL);
-	queue->comp_ctx_pool =
-		devm_kzalloc(queue->dmadev, pool_size, GFP_KERNEL);
-	if (unlikely(!queue->comp_ctx || !queue->comp_ctx_pool)) {
-		devm_kfree(queue->dmadev, queue->comp_ctx_pool);
-		devm_kfree(queue->dmadev, queue->comp_ctx);
+	aq->comp_ctx = devm_kzalloc(aq->dmadev, size, GFP_KERNEL);
+	aq->comp_ctx_pool = devm_kzalloc(aq->dmadev, pool_size, GFP_KERNEL);
+	if (!aq->comp_ctx || !aq->comp_ctx_pool) {
+		devm_kfree(aq->dmadev, aq->comp_ctx_pool);
+		devm_kfree(aq->dmadev, aq->comp_ctx);
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < queue->depth; i++) {
-		comp_ctx = efa_com_get_comp_ctx(queue, i, false);
+	for (i = 0; i < aq->depth; i++) {
+		comp_ctx = efa_com_get_comp_ctx(aq, i, false);
 		if (comp_ctx)
 			init_completion(&comp_ctx->wait_event);
 
-		queue->comp_ctx_pool[i] = i;
+		aq->comp_ctx_pool[i] = i;
 	}
 
-	spin_lock_init(&queue->comp_ctx_lock);
+	spin_lock_init(&aq->comp_ctx_lock);
 
-	queue->comp_ctx_pool_next = 0;
+	aq->comp_ctx_pool_next = 0;
 
 	return 0;
 }
 
-static struct efa_comp_ctx *efa_com_submit_admin_cmd(struct efa_com_admin_queue *admin_queue,
+static struct efa_comp_ctx *efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 						     struct efa_admin_aq_entry *cmd,
 						     size_t cmd_size_in_bytes,
 						     struct efa_admin_acq_entry *comp,
@@ -381,24 +401,23 @@ static struct efa_comp_ctx *efa_com_submit_admin_cmd(struct efa_com_admin_queue 
 {
 	struct efa_comp_ctx *comp_ctx;
 
-	spin_lock(&admin_queue->sq.lock);
-	if (unlikely(!test_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state))) {
-		dev_err(admin_queue->dmadev, "Admin queue is closed\n");
-		spin_unlock(&admin_queue->sq.lock);
+	spin_lock(&aq->sq.lock);
+	if (!test_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state)) {
+		efa_err_rl(aq->dmadev, "Admin queue is closed\n");
+		spin_unlock(&aq->sq.lock);
 		return ERR_PTR(-ENODEV);
 	}
 
-	comp_ctx =
-		__efa_com_submit_admin_cmd(admin_queue, cmd, cmd_size_in_bytes,
-					   comp, comp_size_in_bytes);
-	spin_unlock(&admin_queue->sq.lock);
-	if (unlikely(IS_ERR(comp_ctx)))
-		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state);
+	comp_ctx = __efa_com_submit_admin_cmd(aq, cmd, cmd_size_in_bytes, comp,
+					      comp_size_in_bytes);
+	spin_unlock(&aq->sq.lock);
+	if (IS_ERR(comp_ctx))
+		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 
 	return comp_ctx;
 }
 
-static void efa_com_handle_single_admin_completion(struct efa_com_admin_queue *admin_queue,
+static void efa_com_handle_single_admin_completion(struct efa_com_admin_queue *aq,
 						   struct efa_admin_acq_entry *cqe)
 {
 	struct efa_comp_ctx *comp_ctx;
@@ -407,11 +426,11 @@ static void efa_com_handle_single_admin_completion(struct efa_com_admin_queue *a
 	cmd_id = cqe->acq_common_descriptor.command &
 		 EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID_MASK;
 
-	comp_ctx = efa_com_get_comp_ctx(admin_queue, cmd_id, false);
-	if (unlikely(!comp_ctx)) {
-		dev_err(admin_queue->dmadev,
+	comp_ctx = efa_com_get_comp_ctx(aq, cmd_id, false);
+	if (!comp_ctx) {
+		efa_err(aq->dmadev,
 			"comp_ctx is NULL. Changing the admin queue running state\n");
-		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state);
+		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 		return;
 	}
 
@@ -420,11 +439,11 @@ static void efa_com_handle_single_admin_completion(struct efa_com_admin_queue *a
 	if (comp_ctx->user_cqe)
 		memcpy(comp_ctx->user_cqe, cqe, comp_ctx->comp_size);
 
-	if (!test_bit(EFA_AQ_STATE_POLLING_BIT, &admin_queue->state))
+	if (!test_bit(EFA_AQ_STATE_POLLING_BIT, &aq->state))
 		complete(&comp_ctx->wait_event);
 }
 
-static void efa_com_handle_admin_completion(struct efa_com_admin_queue *admin_queue)
+static void efa_com_handle_admin_completion(struct efa_com_admin_queue *aq)
 {
 	struct efa_admin_acq_entry *cqe;
 	u16 queue_size_mask;
@@ -432,12 +451,12 @@ static void efa_com_handle_admin_completion(struct efa_com_admin_queue *admin_qu
 	u8 phase;
 	u16 ci;
 
-	queue_size_mask = admin_queue->depth - 1;
+	queue_size_mask = aq->depth - 1;
 
-	ci = admin_queue->cq.cc & queue_size_mask;
-	phase = admin_queue->cq.phase;
+	ci = aq->cq.cc & queue_size_mask;
+	phase = aq->cq.phase;
 
-	cqe = &admin_queue->cq.entries[ci];
+	cqe = &aq->cq.entries[ci];
 
 	/* Go over all the completions */
 	while ((READ_ONCE(cqe->acq_common_descriptor.flags) &
@@ -447,31 +466,27 @@ static void efa_com_handle_admin_completion(struct efa_com_admin_queue *admin_qu
 		 * phase bit was validated
 		 */
 		dma_rmb();
-		efa_com_handle_single_admin_completion(admin_queue, cqe);
+		efa_com_handle_single_admin_completion(aq, cqe);
 
 		ci++;
 		comp_num++;
-		if (unlikely(ci == admin_queue->depth)) {
+		if (ci == aq->depth) {
 			ci = 0;
 			phase = !phase;
 		}
 
-		cqe = &admin_queue->cq.entries[ci];
+		cqe = &aq->cq.entries[ci];
 	}
 
-	admin_queue->cq.cc += comp_num;
-	admin_queue->cq.phase = phase;
-	admin_queue->sq.cc += comp_num;
-	efa_admin_stat_add(admin_queue, admin_queue->stats.completed_cmd,
-			   comp_num);
+	aq->cq.cc += comp_num;
+	aq->cq.phase = phase;
+	aq->sq.cc += comp_num;
+	atomic64_add(comp_num, &aq->stats.completed_cmd);
 }
 
-static int efa_com_comp_status_to_errno(struct efa_com_admin_queue *queue,
+static int efa_com_comp_status_to_errno(struct efa_com_admin_queue *aq,
 					u8 comp_status)
 {
-	if (unlikely(comp_status))
-		dev_err(queue->dmadev, "Admin command failed[%u]\n", comp_status);
-
 	switch (comp_status) {
 	case EFA_ADMIN_SUCCESS:
 		return 0;
@@ -490,62 +505,60 @@ static int efa_com_comp_status_to_errno(struct efa_com_admin_queue *queue,
 }
 
 static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_ctx,
-						     struct efa_com_admin_queue *admin_queue)
+						     struct efa_com_admin_queue *aq)
 {
 	unsigned long timeout;
 	unsigned long flags;
 	int err;
 
-	timeout = jiffies + usecs_to_jiffies(admin_queue->completion_timeout);
+	timeout = jiffies + usecs_to_jiffies(aq->completion_timeout);
 
 	while (1) {
-		spin_lock_irqsave(&admin_queue->cq.lock, flags);
-		efa_com_handle_admin_completion(admin_queue);
-		spin_unlock_irqrestore(&admin_queue->cq.lock, flags);
+		spin_lock_irqsave(&aq->cq.lock, flags);
+		efa_com_handle_admin_completion(aq);
+		spin_unlock_irqrestore(&aq->cq.lock, flags);
 
 		if (comp_ctx->status != EFA_CMD_SUBMITTED)
 			break;
 
 		if (time_is_before_jiffies(timeout)) {
-			dev_err(admin_queue->dmadev,
-				"Wait for completion (polling) timeout\n");
+			efa_err_rl(aq->dmadev,
+				   "Wait for completion (polling) timeout\n");
 			/* EFA didn't have any completion */
-			efa_admin_stat_inc(admin_queue,
-					   admin_queue->stats.no_completion);
+			atomic64_inc(&aq->stats.no_completion);
 
-			clear_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state);
+			clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 			err = -ETIME;
 			goto out;
 		}
 
-		msleep(admin_queue->poll_interval);
+		msleep(aq->poll_interval);
 	}
 
-	if (unlikely(comp_ctx->status == EFA_CMD_ABORTED)) {
-		dev_err(admin_queue->dmadev, "Command was aborted\n");
-		efa_admin_stat_inc(admin_queue, admin_queue->stats.aborted_cmd);
+	if (comp_ctx->status == EFA_CMD_ABORTED) {
+		efa_err_rl(aq->dmadev, "Command was aborted\n");
+		atomic64_inc(&aq->stats.aborted_cmd);
 		err = -ENODEV;
 		goto out;
 	}
 
-	WARN(comp_ctx->status != EFA_CMD_COMPLETED, "Invalid comp status %d\n",
-	     comp_ctx->status);
+	WARN_ONCE(comp_ctx->status != EFA_CMD_COMPLETED,
+		  "Invalid completion status %d\n", comp_ctx->status);
 
-	err = efa_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
+	err = efa_com_comp_status_to_errno(aq, comp_ctx->comp_status);
 out:
-	efa_com_put_comp_ctx(admin_queue, comp_ctx);
+	efa_com_put_comp_ctx(aq, comp_ctx);
 	return err;
 }
 
 static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *comp_ctx,
-							struct efa_com_admin_queue *admin_queue)
+							struct efa_com_admin_queue *aq)
 {
 	unsigned long flags;
 	int err;
 
 	wait_for_completion_timeout(&comp_ctx->wait_event,
-				    usecs_to_jiffies(
-					    admin_queue->completion_timeout));
+				    usecs_to_jiffies(aq->completion_timeout));
 
 	/*
 	 * In case the command wasn't completed find out the root cause.
@@ -553,34 +566,36 @@ static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *com
 	 * 1) No completion (timeout reached)
 	 * 2) There is completion but the device didn't get any msi-x interrupt.
 	 */
-	if (unlikely(comp_ctx->status == EFA_CMD_SUBMITTED)) {
-		spin_lock_irqsave(&admin_queue->cq.lock, flags);
-		efa_com_handle_admin_completion(admin_queue);
-		spin_unlock_irqrestore(&admin_queue->cq.lock, flags);
+	if (comp_ctx->status == EFA_CMD_SUBMITTED) {
+		spin_lock_irqsave(&aq->cq.lock, flags);
+		efa_com_handle_admin_completion(aq);
+		spin_unlock_irqrestore(&aq->cq.lock, flags);
 
-		efa_admin_stat_inc(admin_queue, admin_queue->stats.no_completion);
+		atomic64_inc(&aq->stats.no_completion);
 
 		if (comp_ctx->status == EFA_CMD_COMPLETED)
-			dev_err(admin_queue->dmadev,
-				"The device sent a completion but the driver didn't receive any MSI-X interrupt for admin cmd %d status %d (ctx: 0x%p, sq producer: %d, sq consumer: %d, cq consumer: %d)\n",
-				comp_ctx->cmd_opcode, comp_ctx->status,
-				comp_ctx, admin_queue->sq.pc,
-				admin_queue->sq.cc, admin_queue->cq.cc);
+			efa_err_rl(aq->dmadev,
+				   "The device sent a completion but the driver didn't receive any MSI-X interrupt for admin cmd %s(%d) status %d (ctx: 0x%p, sq producer: %d, sq consumer: %d, cq consumer: %d)\n",
+				   efa_com_cmd_str(comp_ctx->cmd_opcode),
+				   comp_ctx->cmd_opcode, comp_ctx->status,
+				   comp_ctx, aq->sq.pc,
+				   aq->sq.cc, aq->cq.cc);
 		else
-			dev_err(admin_queue->dmadev,
-				"The device didn't send any completion for admin cmd %d status %d (ctx 0x%p, sq producer: %d, sq consumer: %d, cq consumer: %d)\n",
-				comp_ctx->cmd_opcode, comp_ctx->status,
-				comp_ctx, admin_queue->sq.pc,
-				admin_queue->sq.cc, admin_queue->cq.cc);
+			efa_err_rl(aq->dmadev,
+				   "The device didn't send any completion for admin cmd %s(%d) status %d (ctx 0x%p, sq producer: %d, sq consumer: %d, cq consumer: %d)\n",
+				   efa_com_cmd_str(comp_ctx->cmd_opcode),
+				   comp_ctx->cmd_opcode, comp_ctx->status,
+				   comp_ctx, aq->sq.pc,
+				   aq->sq.cc, aq->cq.cc);
 
-		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state);
+		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 		err = -ETIME;
 		goto out;
 	}
 
-	err = efa_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
+	err = efa_com_comp_status_to_errno(aq, comp_ctx->comp_status);
 out:
-	efa_com_put_comp_ctx(admin_queue, comp_ctx);
+	efa_com_put_comp_ctx(aq, comp_ctx);
 	return err;
 }
 
@@ -593,19 +608,17 @@ out:
  * to mark the completions.
  */
 static int efa_com_wait_and_process_admin_cq(struct efa_comp_ctx *comp_ctx,
-					     struct efa_com_admin_queue *admin_queue)
+					     struct efa_com_admin_queue *aq)
 {
-	if (test_bit(EFA_AQ_STATE_POLLING_BIT, &admin_queue->state))
-		return efa_com_wait_and_process_admin_cq_polling(comp_ctx,
-								 admin_queue);
+	if (test_bit(EFA_AQ_STATE_POLLING_BIT, &aq->state))
+		return efa_com_wait_and_process_admin_cq_polling(comp_ctx, aq);
 
-	return efa_com_wait_and_process_admin_cq_interrupts(comp_ctx,
-							    admin_queue);
+	return efa_com_wait_and_process_admin_cq_interrupts(comp_ctx, aq);
 }
 
-/*
+/**
  * efa_com_cmd_exec - Execute admin command
- * @admin_queue: admin queue.
+ * @aq: admin queue.
  * @cmd: the admin command to execute.
  * @cmd_size: the command size.
  * @comp: command completion return entry.
@@ -616,7 +629,7 @@ static int efa_com_wait_and_process_admin_cq(struct efa_comp_ctx *comp_ctx,
  *
  * @return - 0 on success, negative value on failure.
  */
-int efa_com_cmd_exec(struct efa_com_admin_queue *admin_queue,
+int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 		     struct efa_admin_aq_entry *cmd,
 		     size_t cmd_size,
 		     struct efa_admin_acq_entry *comp,
@@ -628,33 +641,36 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *admin_queue,
 	might_sleep();
 
 	/* In case of queue FULL */
-	down(&admin_queue->avail_cmds);
+	down(&aq->avail_cmds);
 
-	dev_dbg(admin_queue->dmadev, "opcode %d\n",
+	efa_dbg(aq->dmadev, "%s (opcode %d)\n",
+		efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
 		cmd->aq_common_descriptor.opcode);
-	comp_ctx = efa_com_submit_admin_cmd(admin_queue, cmd, cmd_size,
-					    comp, comp_size);
-	if (unlikely(IS_ERR(comp_ctx))) {
-		dev_err(admin_queue->dmadev,
-			"Failed to submit command opcode %u err %ld\n",
-			cmd->aq_common_descriptor.opcode, PTR_ERR(comp_ctx));
+	comp_ctx = efa_com_submit_admin_cmd(aq, cmd, cmd_size, comp, comp_size);
+	if (IS_ERR(comp_ctx)) {
+		efa_err_rl(aq->dmadev,
+			   "Failed to submit command %s (opcode %u) err %ld\n",
+			   efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
+			   cmd->aq_common_descriptor.opcode, PTR_ERR(comp_ctx));
 
-		up(&admin_queue->avail_cmds);
+		up(&aq->avail_cmds);
 		return PTR_ERR(comp_ctx);
 	}
 
-	err = efa_com_wait_and_process_admin_cq(comp_ctx, admin_queue);
-	if (unlikely(err))
-		dev_err(admin_queue->dmadev,
-			"Failed to process command opcode %u err %d\n",
-			cmd->aq_common_descriptor.opcode, err);
+	err = efa_com_wait_and_process_admin_cq(comp_ctx, aq);
+	if (err)
+		efa_err_rl(aq->dmadev,
+			   "Failed to process command %s (opcode %u) comp_status %d err %d\n",
+			   efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
+			   cmd->aq_common_descriptor.opcode,
+			   comp_ctx->comp_status, err);
 
-	up(&admin_queue->avail_cmds);
+	up(&aq->avail_cmds);
 
 	return err;
 }
 
-/*
+/**
  * efa_com_abort_admin_commands - Abort all the outstanding admin commands.
  * @edev: EFA communication layer struct
  *
@@ -664,27 +680,27 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *admin_queue,
  */
 static void efa_com_abort_admin_commands(struct efa_com_dev *edev)
 {
-	struct efa_com_admin_queue *admin_queue = &edev->admin_queue;
+	struct efa_com_admin_queue *aq = &edev->aq;
 	struct efa_comp_ctx *comp_ctx;
 	unsigned long flags;
 	u16 i;
 
-	spin_lock(&admin_queue->sq.lock);
-	spin_lock_irqsave(&admin_queue->cq.lock, flags);
-	for (i = 0; i < admin_queue->depth; i++) {
-		comp_ctx = efa_com_get_comp_ctx(admin_queue, i, false);
-		if (unlikely(!comp_ctx))
+	spin_lock(&aq->sq.lock);
+	spin_lock_irqsave(&aq->cq.lock, flags);
+	for (i = 0; i < aq->depth; i++) {
+		comp_ctx = efa_com_get_comp_ctx(aq, i, false);
+		if (!comp_ctx)
 			break;
 
 		comp_ctx->status = EFA_CMD_ABORTED;
 
 		complete(&comp_ctx->wait_event);
 	}
-	spin_unlock_irqrestore(&admin_queue->cq.lock, flags);
-	spin_unlock(&admin_queue->sq.lock);
+	spin_unlock_irqrestore(&aq->cq.lock, flags);
+	spin_unlock(&aq->sq.lock);
 }
 
-/*
+/**
  * efa_com_wait_for_abort_completion - Wait for admin commands abort.
  * @edev: EFA communication layer struct
  *
@@ -692,56 +708,56 @@ static void efa_com_abort_admin_commands(struct efa_com_dev *edev)
  */
 static void efa_com_wait_for_abort_completion(struct efa_com_dev *edev)
 {
-	struct efa_com_admin_queue *admin_queue = &edev->admin_queue;
+	struct efa_com_admin_queue *aq = &edev->aq;
 	int i;
 
 	/* all mine */
-	for (i = 0; i < admin_queue->depth; i++)
-		down(&admin_queue->avail_cmds);
+	for (i = 0; i < aq->depth; i++)
+		down(&aq->avail_cmds);
 
 	/* let it go */
-	for (i = 0; i < admin_queue->depth; i++)
-		up(&admin_queue->avail_cmds);
+	for (i = 0; i < aq->depth; i++)
+		up(&aq->avail_cmds);
 }
 
 static void efa_com_admin_flush(struct efa_com_dev *edev)
 {
-	struct efa_com_admin_queue *admin_queue = &edev->admin_queue;
+	struct efa_com_admin_queue *aq = &edev->aq;
 
-	clear_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state);
+	clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 
 	efa_com_abort_admin_commands(edev);
 	efa_com_wait_for_abort_completion(edev);
 }
 
-/*
+/**
  * efa_com_admin_destroy - Destroy the admin and the async events queues.
  * @edev: EFA communication layer struct
  */
 void efa_com_admin_destroy(struct efa_com_dev *edev)
 {
-	struct efa_com_admin_queue *admin_queue = &edev->admin_queue;
-	struct efa_com_admin_cq *cq = &admin_queue->cq;
-	struct efa_com_admin_sq *sq = &admin_queue->sq;
+	struct efa_com_admin_queue *aq = &edev->aq;
 	struct efa_com_aenq *aenq = &edev->aenq;
+	struct efa_com_admin_cq *cq = &aq->cq;
+	struct efa_com_admin_sq *sq = &aq->sq;
 	u16 size;
 
 	efa_com_admin_flush(edev);
 
-	devm_kfree(edev->dmadev, admin_queue->comp_ctx_pool);
-	devm_kfree(edev->dmadev, admin_queue->comp_ctx);
+	devm_kfree(edev->dmadev, aq->comp_ctx_pool);
+	devm_kfree(edev->dmadev, aq->comp_ctx);
 
-	size = ADMIN_SQ_SIZE(admin_queue->depth);
+	size = ADMIN_SQ_SIZE(aq->depth);
 	dma_free_coherent(edev->dmadev, size, sq->entries, sq->dma_addr);
 
-	size = ADMIN_CQ_SIZE(admin_queue->depth);
+	size = ADMIN_CQ_SIZE(aq->depth);
 	dma_free_coherent(edev->dmadev, size, cq->entries, cq->dma_addr);
 
 	size = ADMIN_AENQ_SIZE(aenq->depth);
 	dma_free_coherent(edev->dmadev, size, aenq->entries, aenq->dma_addr);
 }
 
-/*
+/**
  * efa_com_set_admin_polling_mode - Set the admin completion queue polling mode
  * @edev: EFA communication layer struct
  * @polling: Enable/Disable polling mode
@@ -757,12 +773,21 @@ void efa_com_set_admin_polling_mode(struct efa_com_dev *edev, bool polling)
 
 	writel(mask_value, edev->reg_bar + EFA_REGS_INTR_MASK_OFF);
 	if (polling)
-		set_bit(EFA_AQ_STATE_POLLING_BIT, &edev->admin_queue.state);
+		set_bit(EFA_AQ_STATE_POLLING_BIT, &edev->aq.state);
 	else
-		clear_bit(EFA_AQ_STATE_POLLING_BIT, &edev->admin_queue.state);
+		clear_bit(EFA_AQ_STATE_POLLING_BIT, &edev->aq.state);
 }
 
-/*
+static void efa_com_stats_init(struct efa_com_dev *edev)
+{
+	atomic64_t *s = (atomic64_t *)&edev->aq.stats;
+	int i;
+
+	for (i = 0; i < sizeof(edev->aq.stats) / sizeof(*s); i++, s++)
+		atomic64_set(s, 0);
+}
+
+/**
  * efa_com_admin_init - Init the admin and the async queues
  * @edev: EFA communication layer struct
  * @aenq_handlers: Those handlers to be called upon event.
@@ -775,7 +800,7 @@ void efa_com_set_admin_polling_mode(struct efa_com_dev *edev, bool polling)
 int efa_com_admin_init(struct efa_com_dev *edev,
 		       struct efa_aenq_handlers *aenq_handlers)
 {
-	struct efa_com_admin_queue *admin_queue = &edev->admin_queue;
+	struct efa_com_admin_queue *aq = &edev->aq;
 	u32 timeout;
 	u32 dev_sts;
 	u32 cap;
@@ -783,21 +808,23 @@ int efa_com_admin_init(struct efa_com_dev *edev,
 
 	dev_sts = efa_com_reg_read32(edev, EFA_REGS_DEV_STS_OFF);
 	if (!(dev_sts & EFA_REGS_DEV_STS_READY_MASK)) {
-		dev_err(edev->dmadev,
-			"Device isn't ready, abort com init 0x%08x\n", dev_sts);
+		efa_err(edev->dmadev,
+			"Device isn't ready, abort com init 0x%08x\n",
+			dev_sts);
 		return -ENODEV;
 	}
 
-	admin_queue->depth = EFA_ADMIN_QUEUE_DEPTH;
+	aq->depth = EFA_ADMIN_QUEUE_DEPTH;
 
-	admin_queue->bus = edev->bus;
-	admin_queue->dmadev = edev->dmadev;
-	set_bit(EFA_AQ_STATE_POLLING_BIT, &admin_queue->state);
+	aq->bus = edev->bus;
+	aq->dmadev = edev->dmadev;
+	set_bit(EFA_AQ_STATE_POLLING_BIT, &aq->state);
 
-	sema_init(&admin_queue->avail_cmds, admin_queue->depth);
-	spin_lock_init(&admin_queue->stats_lock);
+	sema_init(&aq->avail_cmds, aq->depth);
 
-	err = efa_com_init_comp_ctxt(admin_queue);
+	efa_com_stats_init(edev);
+
+	err = efa_com_init_comp_ctxt(aq);
 	if (err)
 		return err;
 
@@ -820,34 +847,34 @@ int efa_com_admin_init(struct efa_com_dev *edev,
 		  EFA_REGS_CAPS_ADMIN_CMD_TO_SHIFT;
 	if (timeout)
 		/* the resolution of timeout reg is 100ms */
-		admin_queue->completion_timeout = timeout * 100000;
+		aq->completion_timeout = timeout * 100000;
 	else
-		admin_queue->completion_timeout = ADMIN_CMD_TIMEOUT_US;
+		aq->completion_timeout = ADMIN_CMD_TIMEOUT_US;
 
-	admin_queue->poll_interval = EFA_POLL_INTERVAL_MS;
+	aq->poll_interval = EFA_POLL_INTERVAL_MS;
 
-	set_bit(EFA_AQ_STATE_RUNNING_BIT, &admin_queue->state);
+	set_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 
 	return 0;
 
 err_destroy_cq:
-	dma_free_coherent(edev->dmadev, ADMIN_CQ_SIZE(admin_queue->depth),
-			  admin_queue->cq.entries, admin_queue->cq.dma_addr);
+	dma_free_coherent(edev->dmadev, ADMIN_CQ_SIZE(aq->depth),
+			  aq->cq.entries, aq->cq.dma_addr);
 err_destroy_sq:
-	dma_free_coherent(edev->dmadev, ADMIN_SQ_SIZE(admin_queue->depth),
-			  admin_queue->sq.entries, admin_queue->sq.dma_addr);
+	dma_free_coherent(edev->dmadev, ADMIN_SQ_SIZE(aq->depth),
+			  aq->sq.entries, aq->sq.dma_addr);
 err_destroy_comp_ctxt:
-	devm_kfree(edev->dmadev, admin_queue->comp_ctx);
+	devm_kfree(edev->dmadev, aq->comp_ctx);
 
 	return err;
 }
 
-/*
+/**
  * efa_com_admin_q_comp_intr_handler - admin queue interrupt handler
  * @edev: EFA communication layer struct
  *
- * This method go over the admin completion queue and wake up all the pending
- * threads that wait on the commands wait event.
+ * This method goes over the admin completion queue and wakes up
+ * all the pending threads that wait on the commands wait event.
  *
  * @note: Should be called after MSI-X interrupt.
  */
@@ -855,9 +882,9 @@ void efa_com_admin_q_comp_intr_handler(struct efa_com_dev *edev)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&edev->admin_queue.cq.lock, flags);
-	efa_com_handle_admin_completion(&edev->admin_queue);
-	spin_unlock_irqrestore(&edev->admin_queue.cq.lock, flags);
+	spin_lock_irqsave(&edev->aq.cq.lock, flags);
+	efa_com_handle_admin_completion(&edev->aq);
+	spin_unlock_irqrestore(&edev->aq.cq.lock, flags);
 }
 
 /*
@@ -875,9 +902,10 @@ static efa_aenq_handler efa_com_get_specific_aenq_cb(struct efa_com_dev *edev,
 	return aenq_handlers->unimplemented_handler;
 }
 
-/*
+/**
  * efa_com_aenq_intr_handler - AENQ interrupt handler
  * @edev: EFA communication layer struct
+ * @data: Data of interrupt handler.
  *
  * Go over the async event notification queue and call the proper aenq handler.
  */
@@ -914,7 +942,7 @@ void efa_com_aenq_intr_handler(struct efa_com_dev *edev, void *data)
 		ci++;
 		processed++;
 
-		if (unlikely(ci == aenq->depth)) {
+		if (ci == aenq->depth) {
 			ci = 0;
 			phase = !phase;
 		}
@@ -953,9 +981,9 @@ int efa_com_mmio_reg_read_init(struct efa_com_dev *edev)
 
 	spin_lock_init(&mmio_read->lock);
 	mmio_read->read_resp =
-		dma_zalloc_coherent(edev->dmadev, sizeof(*mmio_read->read_resp),
-				    &mmio_read->read_resp_dma_addr, GFP_KERNEL);
-	if (unlikely(!mmio_read->read_resp))
+		dma_alloc_coherent(edev->dmadev, sizeof(*mmio_read->read_resp),
+				   &mmio_read->read_resp_dma_addr, GFP_KERNEL);
+	if (!mmio_read->read_resp)
 		return -ENOMEM;
 
 	efa_com_mmio_reg_read_resp_addr_init(edev);
@@ -971,14 +999,11 @@ void efa_com_mmio_reg_read_destroy(struct efa_com_dev *edev)
 {
 	struct efa_com_mmio_read *mmio_read = &edev->mmio_read;
 
-	/* just in case someone is still spinning on a read */
-	spin_lock(&mmio_read->lock);
 	dma_free_coherent(edev->dmadev, sizeof(*mmio_read->read_resp),
 			  mmio_read->read_resp, mmio_read->read_resp_dma_addr);
-	spin_unlock(&mmio_read->lock);
 }
 
-/*
+/**
  * efa_com_validate_version - Validate the device parameters
  * @edev: EFA communication layer struct
  *
@@ -1003,26 +1028,27 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 	ctrl_ver = efa_com_reg_read32(edev,
 				      EFA_REGS_CONTROLLER_VERSION_OFF);
 
-	dev_info(edev->dmadev, "efa device version: %d.%d\n",
+	efa_info(edev->dmadev,
+		 "efa device version: %d.%d\n",
 		 (ver & EFA_REGS_VERSION_MAJOR_VERSION_MASK) >>
-			 EFA_REGS_VERSION_MAJOR_VERSION_SHIFT,
+		 EFA_REGS_VERSION_MAJOR_VERSION_SHIFT,
 		 ver & EFA_REGS_VERSION_MINOR_VERSION_MASK);
 
 	if (ver < MIN_EFA_VER) {
-		dev_err(edev->dmadev,
+		efa_err(edev->dmadev,
 			"EFA version is lower than the minimal version the driver supports\n");
 		return -EOPNOTSUPP;
 	}
 
-	dev_info(edev->dmadev,
+	efa_info(edev->dmadev,
 		 "efa controller version: %d.%d.%d implementation version %d\n",
-		 (ctrl_ver & EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK) >>
-			 EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_SHIFT,
-		 (ctrl_ver & EFA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK) >>
-			 EFA_REGS_CONTROLLER_VERSION_MINOR_VERSION_SHIFT,
+		 (ctrl_ver & EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK)
+		 >> EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_SHIFT,
+		 (ctrl_ver & EFA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK)
+		 >> EFA_REGS_CONTROLLER_VERSION_MINOR_VERSION_SHIFT,
 		 (ctrl_ver & EFA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION_MASK),
 		 (ctrl_ver & EFA_REGS_CONTROLLER_VERSION_IMPL_ID_MASK) >>
-			 EFA_REGS_CONTROLLER_VERSION_IMPL_ID_SHIFT);
+		 EFA_REGS_CONTROLLER_VERSION_IMPL_ID_SHIFT);
 
 	ctrl_ver_masked =
 		(ctrl_ver & EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK) |
@@ -1031,7 +1057,7 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 
 	/* Validate the ctrl version without the implementation ID */
 	if (ctrl_ver_masked < MIN_EFA_CTRL_VER) {
-		dev_err(edev->dmadev,
+		efa_err(edev->dmadev,
 			"EFA ctrl version is lower than the minimal ctrl version the driver supports\n");
 		return -EOPNOTSUPP;
 	}
@@ -1039,7 +1065,7 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 	return 0;
 }
 
-/*
+/**
  * efa_com_get_dma_width - Retrieve physical dma address width the device
  * supports.
  * @edev: EFA communication layer struct
@@ -1056,10 +1082,10 @@ int efa_com_get_dma_width(struct efa_com_dev *edev)
 	width = (caps & EFA_REGS_CAPS_DMA_ADDR_WIDTH_MASK) >>
 		EFA_REGS_CAPS_DMA_ADDR_WIDTH_SHIFT;
 
-	dev_dbg(edev->dmadev, "DMA width: %d\n", width);
+	efa_dbg(edev->dmadev, "DMA width: %d\n", width);
 
 	if (width < 32 || width > 64) {
-		dev_err(edev->dmadev, "DMA width illegal value: %d\n", width);
+		efa_err(edev->dmadev, "DMA width illegal value: %d\n", width);
 		return -EINVAL;
 	}
 
@@ -1080,14 +1106,14 @@ static int wait_for_reset_state(struct efa_com_dev *edev, u32 timeout,
 		    exp_state)
 			return 0;
 
-		dev_dbg(edev->dmadev, "Reset indication val %d\n", val);
+		efa_dbg(edev->dmadev, "Reset indication val %d\n", val);
 		msleep(EFA_POLL_INTERVAL_MS);
 	}
 
 	return -ETIME;
 }
 
-/*
+/**
  * efa_com_dev_reset - Perform device FLR to the device.
  * @edev: EFA communication layer struct
  * @reset_reason: Specify what is the trigger for the reset in case of an error.
@@ -1104,14 +1130,14 @@ int efa_com_dev_reset(struct efa_com_dev *edev,
 	cap = efa_com_reg_read32(edev, EFA_REGS_CAPS_OFF);
 
 	if (!(stat & EFA_REGS_DEV_STS_READY_MASK)) {
-		dev_err(edev->dmadev, "Device isn't ready, can't reset device\n");
+		efa_err(edev->dmadev, "Device isn't ready, can't reset device\n");
 		return -EINVAL;
 	}
 
 	timeout = (cap & EFA_REGS_CAPS_RESET_TIMEOUT_MASK) >>
 		  EFA_REGS_CAPS_RESET_TIMEOUT_SHIFT;
 	if (!timeout) {
-		dev_err(edev->dmadev, "Invalid timeout value\n");
+		efa_err(edev->dmadev, "Invalid timeout value\n");
 		return -EINVAL;
 	}
 
@@ -1127,7 +1153,7 @@ int efa_com_dev_reset(struct efa_com_dev *edev,
 	err = wait_for_reset_state(edev, timeout,
 				   EFA_REGS_DEV_STS_RESET_IN_PROGRESS_MASK);
 	if (err) {
-		dev_err(edev->dmadev, "Reset indication didn't turn on\n");
+		efa_err(edev->dmadev, "Reset indication didn't turn on\n");
 		return err;
 	}
 
@@ -1135,7 +1161,7 @@ int efa_com_dev_reset(struct efa_com_dev *edev,
 	writel(0, edev->reg_bar + EFA_REGS_DEV_CTL_OFF);
 	err = wait_for_reset_state(edev, timeout, 0);
 	if (err) {
-		dev_err(edev->dmadev, "Reset indication didn't turn off\n");
+		efa_err(edev->dmadev, "Reset indication didn't turn off\n");
 		return err;
 	}
 
@@ -1143,10 +1169,9 @@ int efa_com_dev_reset(struct efa_com_dev *edev,
 		  EFA_REGS_CAPS_ADMIN_CMD_TO_SHIFT;
 	if (timeout)
 		/* the resolution of timeout reg is 100ms */
-		edev->admin_queue.completion_timeout = timeout * 100000;
+		edev->aq.completion_timeout = timeout * 100000;
 	else
-		edev->admin_queue.completion_timeout = ADMIN_CMD_TIMEOUT_US;
+		edev->aq.completion_timeout = ADMIN_CMD_TIMEOUT_US;
 
 	return 0;
 }
-
