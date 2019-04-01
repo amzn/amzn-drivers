@@ -23,8 +23,10 @@ Requires:	dkms %kernel_module_package_buildreqs
 
 %post
 dkms add -m %{name} -v %{driver_version}
-dkms build -m %{name} -v %{driver_version}
-dkms install -m %{name} -v %{driver_version}
+for kernel in $(/bin/ls /lib/modules); do
+	dkms build -m %{name} -v %{driver_version} -k $kernel
+	dkms install -m %{name} -v %{driver_version} -k $kernel
+done
 
 %preun
 dkms remove -m %{name} -v %{driver_version} --all
