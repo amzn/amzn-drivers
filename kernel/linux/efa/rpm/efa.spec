@@ -23,8 +23,10 @@ Requires:	dkms %kernel_module_package_buildreqs
 
 %post
 dkms add -m %{name} -v %{driver_version}
-dkms build -m %{name} -v %{driver_version}
-dkms install -m %{name} -v %{driver_version}
+for kernel in $(/bin/ls /lib/modules); do
+	dkms build -m %{name} -v %{driver_version} -k $kernel
+	dkms install -m %{name} -v %{driver_version} -k $kernel
+done
 
 %preun
 dkms remove -m %{name} -v %{driver_version} --all
@@ -60,5 +62,8 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 /etc/modules-load.d/efa.conf
 
 %changelog
+* Tue Apr 2 2019 Robert Wespetal <wesper@amazon.com> - 0.9.1
+- Update EFA post install script to install module for all kernels
+
 * Fri Mar 8 2019 Robert Wespetal <wesper@amazon.com> - 0.9.0
 - initial build for RHEL

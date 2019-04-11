@@ -1,7 +1,7 @@
 # Makefile for creating rpm of the Amazon EFA driver
 
 NAME	= efa
-VERSION	= 0.9.0
+VERSION	= 0.9.1
 
 TOPDIR  := $(shell git rev-parse --show-toplevel)
 TAG	= master

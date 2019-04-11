@@ -11,9 +11,7 @@
 
 /* EFA admin queue opcodes */
 enum efa_admin_aq_opcode {
-	/* starting opcode of efa admin commands */
-	EFA_ADMIN_START_CMD_RANGE                   = 1,
-	EFA_ADMIN_CREATE_QP                         = EFA_ADMIN_START_CMD_RANGE,
+	EFA_ADMIN_CREATE_QP                         = 1,
 	EFA_ADMIN_MODIFY_QP                         = 2,
 	EFA_ADMIN_QUERY_QP                          = 3,
 	EFA_ADMIN_DESTROY_QP                        = 4,

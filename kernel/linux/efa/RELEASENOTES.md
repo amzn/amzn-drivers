@@ -13,6 +13,11 @@ The driver was tested on the following distributions:
 * CentOS 7.4
 * CentOS 7.6
 
+## r0.9.1 release notes
+
+* Bug fix in EFA spec file
+* Upstream review cleanups
+
 ## r0.9.0 release notes
 
 Initial commit

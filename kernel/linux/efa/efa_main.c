@@ -23,7 +23,7 @@ static const struct pci_device_id efa_pci_tbl[] = {
 
 #define DRV_MODULE_VER_MAJOR           0
 #define DRV_MODULE_VER_MINOR           9
-#define DRV_MODULE_VER_SUBMINOR        0
+#define DRV_MODULE_VER_SUBMINOR        1
 
 #ifndef DRV_MODULE_VERSION
 #define DRV_MODULE_VERSION \
@@ -66,7 +66,7 @@ static void efa_update_network_attr(struct efa_dev *dev,
 	memcpy(dev->addr, network_attr->addr, sizeof(network_attr->addr));
 	dev->mtu = network_attr->mtu;
 
-	efa_dbg(&dev->pdev->dev, "Full address %pI6\n", dev->addr);
+	dev_dbg(&dev->pdev->dev, "Full address %pI6\n", dev->addr);
 }
 
 /* This handler will called for unknown event group or unimplemented handlers */
@@ -75,8 +75,8 @@ static void unimplemented_aenq_handler(void *data,
 {
 	struct efa_dev *dev = (struct efa_dev *)data;
 
-	efa_err_rl(&dev->ibdev.dev,
-		   "Unknown event was received or event with unimplemented handler\n");
+	ibdev_err(&dev->ibdev,
+		  "Unknown event was received or event with unimplemented handler\n");
 }
 
 static void efa_keep_alive(void *data, struct efa_admin_aenq_entry *aenq_e)
@@ -104,13 +104,10 @@ static void efa_release_bars(struct efa_dev *dev, int bars_mask)
 
 static irqreturn_t efa_intr_msix_mgmnt(int irq, void *data)
 {
-	struct efa_dev *dev = (struct efa_dev *)data;
+	struct efa_dev *dev = data;
 
-	efa_com_admin_q_comp_intr_handler(dev->edev);
-
-	/* Don't call the aenq handler before probe is done */
-	if (test_bit(EFA_DEVICE_RUNNING_BIT, &dev->state))
-		efa_com_aenq_intr_handler(dev->edev, data);
+	efa_com_admin_q_comp_intr_handler(&dev->edev);
+	efa_com_aenq_intr_handler(&dev->edev, data);
 
 	return IRQ_HANDLED;
 }
@@ -124,12 +121,12 @@ static int efa_request_mgmnt_irq(struct efa_dev *dev)
 	err = request_irq(irq->vector, irq->handler, 0, irq->name,
 			  irq->data);
 	if (err) {
-		efa_err(&dev->pdev->dev, "Failed to request admin irq (%d)\n",
+		dev_err(&dev->pdev->dev, "Failed to request admin irq (%d)\n",
 			err);
 		return err;
 	}
 
-	efa_dbg(&dev->pdev->dev, "Set affinity hint of mgmnt irq to %*pbl (irq vector: %d)\n",
+	dev_dbg(&dev->pdev->dev, "Set affinity hint of mgmnt irq to %*pbl (irq vector: %d)\n",
 		nr_cpumask_bits, &irq->affinity_hint_mask, irq->vector);
 	irq_set_affinity_hint(irq->vector, &irq->affinity_hint_mask);
 
@@ -154,7 +151,7 @@ static void efa_setup_mgmnt_irq(struct efa_dev *dev)
 	dev->admin_irq.cpu = cpu;
 	cpumask_set_cpu(cpu,
 			&dev->admin_irq.affinity_hint_mask);
-	efa_info(&dev->pdev->dev, "Setup irq:%p vector:%d name:%s\n",
+	dev_info(&dev->pdev->dev, "Setup irq:%p vector:%d name:%s\n",
 		 &dev->admin_irq,
 		 dev->admin_irq.vector,
 		 dev->admin_irq.name);
@@ -188,7 +185,7 @@ static int efa_request_doorbell_bar(struct efa_dev *dev)
 
 		err = pci_request_selected_regions(pdev, bars, DRV_MODULE_NAME);
 		if (err) {
-			efa_err(&dev->pdev->dev,
+			dev_err(&dev->pdev->dev,
 				"pci_request_selected_regions for bar %d failed %d\n",
 				db_bar_idx, err);
 			return err;
@@ -210,7 +207,7 @@ static void efa_release_doorbell_bar(struct efa_dev *dev)
 static void efa_update_hw_hints(struct efa_dev *dev,
 				struct efa_com_get_hw_hints_result *hw_hints)
 {
-	struct efa_com_dev *edev = dev->edev;
+	struct efa_com_dev *edev = &dev->edev;
 
 	if (hw_hints->mmio_read_timeout)
 		edev->mmio_read.mmio_read_timeout =
@@ -233,7 +230,7 @@ static void efa_stats_init(struct efa_dev *dev)
 		atomic64_set(s, 0);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+#ifdef HAVE_IB_DEV_OPS
 static const struct ib_device_ops efa_dev_ops = {
 	.alloc_pd = efa_kzalloc_pd,
 	.alloc_ucontext = efa_kzalloc_ucontext,
@@ -281,29 +278,29 @@ static int efa_ib_device_add(struct efa_dev *dev)
 
 	efa_stats_init(dev);
 
-	err = efa_com_get_device_attr(dev->edev, &dev->dev_attr);
+	err = efa_com_get_device_attr(&dev->edev, &dev->dev_attr);
 	if (err)
 		return err;
 
-	efa_dbg(&dev->pdev->dev, "Doorbells bar (%d)\n", dev->dev_attr.db_bar);
+	dev_dbg(&dev->pdev->dev, "Doorbells bar (%d)\n", dev->dev_attr.db_bar);
 	err = efa_request_doorbell_bar(dev);
 	if (err)
 		return err;
 
-	err = efa_com_get_network_attr(dev->edev, &network_attr);
+	err = efa_com_get_network_attr(&dev->edev, &network_attr);
 	if (err)
 		goto err_release_doorbell_bar;
 
 	efa_update_network_attr(dev, &network_attr);
 
-	err = efa_com_get_hw_hints(dev->edev, &hw_hints);
+	err = efa_com_get_hw_hints(&dev->edev, &hw_hints);
 	if (err)
 		goto err_release_doorbell_bar;
 
 	efa_update_hw_hints(dev, &hw_hints);
 
 	/* Try to enable all the available aenq groups */
-	err = efa_com_set_aenq_config(dev->edev, EFA_AENQ_ENABLED_GROUPS);
+	err = efa_com_set_aenq_config(&dev->edev, EFA_AENQ_ENABLED_GROUPS);
 	if (err)
 		goto err_release_doorbell_bar;
 
@@ -341,7 +338,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+#ifdef HAVE_IB_DEV_OPS
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
 #else
 	dev->ibdev.alloc_pd = efa_kzalloc_pd;
@@ -385,18 +382,16 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		goto err_release_doorbell_bar;
 
-	efa_info(&dev->ibdev.dev, "IB device registered\n");
+	ibdev_info(&dev->ibdev, "IB device registered\n");
 
 #ifdef HAVE_CUSTOM_COMMANDS
 	sscanf(dev_name(&dev->ibdev.dev), "efa_%d\n", &devnum);
 	err = efa_everbs_dev_init(dev, devnum);
 	if (err)
 		goto err_unregister_ibdev;
-	efa_info(&dev->ibdev.dev, "Created everbs device %s%d\n",
-		 EFA_EVERBS_DEVICE_NAME, devnum);
+	ibdev_info(&dev->ibdev, "Created everbs device %s%d\n",
+		   EFA_EVERBS_DEVICE_NAME, devnum);
 #endif
-
-	set_bit(EFA_DEVICE_RUNNING_BIT, &dev->state);
 
 	return 0;
 
@@ -414,15 +409,11 @@ static void efa_ib_device_remove(struct efa_dev *dev)
 #ifndef HAVE_CREATE_AH_UDATA
 	WARN_ON(!list_empty(&dev->efa_ah_list));
 #endif
-
-	/* Reset the device only if the device is running. */
-	if (test_bit(EFA_DEVICE_RUNNING_BIT, &dev->state))
-		efa_com_dev_reset(dev->edev, EFA_REGS_RESET_NORMAL);
-
+	efa_com_dev_reset(&dev->edev, EFA_REGS_RESET_NORMAL);
 #ifdef HAVE_CUSTOM_COMMANDS
 	efa_everbs_dev_destroy(dev);
 #endif
-	efa_info(&dev->ibdev.dev, "Unregister ib device\n");
+	ibdev_info(&dev->ibdev, "Unregister ib device\n");
 	ib_unregister_device(&dev->ibdev);
 	efa_release_doorbell_bar(dev);
 }
@@ -430,11 +421,9 @@ static void efa_ib_device_remove(struct efa_dev *dev)
 static void efa_disable_msix(struct efa_dev *dev)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
-	if (test_and_clear_bit(EFA_MSIX_ENABLED_BIT, &dev->state))
-		pci_disable_msix(dev->pdev);
+	pci_disable_msix(dev->pdev);
 #else
-	if (test_and_clear_bit(EFA_MSIX_ENABLED_BIT, &dev->state))
-		pci_free_irq_vectors(dev->pdev);
+	pci_free_irq_vectors(dev->pdev);
 #endif
 }
 
@@ -442,14 +431,9 @@ static int efa_enable_msix(struct efa_dev *dev)
 {
 	int msix_vecs, irq_num;
 
-	if (test_bit(EFA_MSIX_ENABLED_BIT, &dev->state)) {
-		efa_err(&dev->pdev->dev, "Error, MSI-X is already enabled\n");
-		return -EPERM;
-	}
-
 	/* Reserve the max msix vectors we might need */
 	msix_vecs = EFA_NUM_MSIX_VEC;
-	efa_dbg(&dev->pdev->dev, "Trying to enable MSI-X, vectors %d\n",
+	dev_dbg(&dev->pdev->dev, "Trying to enable MSI-X, vectors %d\n",
 		msix_vecs);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
@@ -464,19 +448,17 @@ static int efa_enable_msix(struct efa_dev *dev)
 #endif
 
 	if (irq_num < 0) {
-		efa_err(&dev->pdev->dev, "Failed to enable MSI-X. irq_num %d\n",
+		dev_err(&dev->pdev->dev, "Failed to enable MSI-X. irq_num %d\n",
 			irq_num);
 		return -ENOSPC;
 	}
 
 	if (irq_num != msix_vecs) {
-		efa_err(&dev->pdev->dev,
+		dev_err(&dev->pdev->dev,
 			"Allocated %d MSI-X (out of %d requested)\n",
 			irq_num, msix_vecs);
 		return -ENOSPC;
 	}
-
-	set_bit(EFA_MSIX_ENABLED_BIT, &dev->state);
 
 	return 0;
 }
@@ -502,13 +484,13 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_width));
 	if (err) {
-		efa_err(&pdev->dev, "pci_set_dma_mask failed 0x%x\n", err);
+		dev_err(&pdev->dev, "pci_set_dma_mask failed 0x%x\n", err);
 		return err;
 	}
 
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(dma_width));
 	if (err) {
-		efa_err(&pdev->dev,
+		dev_err(&pdev->dev,
 			"err_pci_set_consistent_dma_mask failed 0x%x\n",
 			err);
 		return err;
@@ -517,7 +499,7 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 	return 0;
 }
 
-static int efa_probe_device(struct pci_dev *pdev)
+static struct efa_dev *efa_probe_device(struct pci_dev *pdev)
 {
 	struct efa_com_dev *edev;
 	struct efa_dev *dev;
@@ -526,36 +508,31 @@ static int efa_probe_device(struct pci_dev *pdev)
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		efa_err(&pdev->dev, "pci_enable_device_mem() failed!\n");
-		return err;
+		dev_err(&pdev->dev, "pci_enable_device_mem() failed!\n");
+		return ERR_PTR(err);
 	}
 
 	pci_set_master(pdev);
 
 	dev = (struct efa_dev *)ib_alloc_device(sizeof(*dev));
 	if (!dev) {
-		efa_err(&pdev->dev, "Device alloc failed\n");
+		dev_err(&pdev->dev, "Device alloc failed\n");
 		err = -ENOMEM;
 		goto err_disable_device;
 	}
 
-	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
-	if (!edev) {
-		err = -ENOMEM;
-		goto err_ibdev_destroy;
-	}
-
 	pci_set_drvdata(pdev, dev);
+	edev = &dev->edev;
+	edev->efa_dev = dev;
 	edev->dmadev = &pdev->dev;
-	dev->edev = edev;
 	dev->pdev = pdev;
 
 	bars = pci_select_bars(pdev, IORESOURCE_MEM) & EFA_BASE_BAR_MASK;
 	err = pci_request_selected_regions(pdev, bars, DRV_MODULE_NAME);
 	if (err) {
-		efa_err(&pdev->dev, "pci_request_selected_regions failed %d\n",
+		dev_err(&pdev->dev, "pci_request_selected_regions failed %d\n",
 			err);
-		goto err_free_efa_dev;
+		goto err_ibdev_destroy;
 	}
 
 	dev->reg_bar_addr = pci_resource_start(pdev, EFA_REG_BAR);
@@ -567,20 +544,20 @@ static int efa_probe_device(struct pci_dev *pdev)
 				     dev->reg_bar_addr,
 				     dev->reg_bar_len);
 	if (!edev->reg_bar) {
-		efa_err(&pdev->dev, "Failed to remap register bar\n");
+		dev_err(&pdev->dev, "Failed to remap register bar\n");
 		err = -EFAULT;
 		goto err_release_bars;
 	}
 
 	err = efa_com_mmio_reg_read_init(edev);
 	if (err) {
-		efa_err(&pdev->dev, "Failed to init readless MMIO\n");
+		dev_err(&pdev->dev, "Failed to init readless MMIO\n");
 		goto err_iounmap;
 	}
 
 	err = efa_device_init(edev, pdev);
 	if (err) {
-		efa_err(&pdev->dev, "EFA device init failed\n");
+		dev_err(&pdev->dev, "EFA device init failed\n");
 		if (err == -ETIME)
 			err = -EPROBE_DEFER;
 		goto err_reg_read_destroy;
@@ -610,7 +587,7 @@ static int efa_probe_device(struct pci_dev *pdev)
 	if (err)
 		goto err_admin_destroy;
 
-	return 0;
+	return dev;
 
 err_admin_destroy:
 	efa_com_admin_destroy(edev);
@@ -624,13 +601,11 @@ err_iounmap:
 	devm_iounmap(&pdev->dev, edev->reg_bar);
 err_release_bars:
 	efa_release_bars(dev, EFA_BASE_BAR_MASK);
-err_free_efa_dev:
-	kfree(edev);
 err_ibdev_destroy:
 	ib_dealloc_device(&dev->ibdev);
 err_disable_device:
 	pci_disable_device(pdev);
-	return err;
+	return ERR_PTR(err);
 }
 
 static void efa_remove_device(struct pci_dev *pdev)
@@ -638,7 +613,7 @@ static void efa_remove_device(struct pci_dev *pdev)
 	struct efa_dev *dev = pci_get_drvdata(pdev);
 	struct efa_com_dev *edev;
 
-	edev = dev->edev;
+	edev = &dev->edev;
 	efa_sysfs_destroy(dev);
 	efa_com_admin_destroy(edev);
 	efa_free_mgmnt_irq(dev);
@@ -646,7 +621,6 @@ static void efa_remove_device(struct pci_dev *pdev)
 	efa_com_mmio_reg_read_destroy(edev);
 	devm_iounmap(&pdev->dev, edev->reg_bar);
 	efa_release_bars(dev, EFA_BASE_BAR_MASK);
-	kfree(edev);
 	ib_dealloc_device(&dev->ibdev);
 	pci_disable_device(pdev);
 }
@@ -656,11 +630,10 @@ static int efa_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct efa_dev *dev;
 	int err;
 
-	err = efa_probe_device(pdev);
-	if (err)
-		return err;
+	dev = efa_probe_device(pdev);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
-	dev = pci_get_drvdata(pdev);
 	err = efa_ib_device_add(dev);
 	if (err)
 		goto err_remove_device;
@@ -674,7 +647,7 @@ err_remove_device:
 
 static void efa_remove(struct pci_dev *pdev)
 {
-	struct efa_dev *dev = (struct efa_dev *)pci_get_drvdata(pdev);
+	struct efa_dev *dev = pci_get_drvdata(pdev);
 
 	efa_ib_device_remove(dev);
 	efa_remove_device(pdev);
@@ -777,8 +750,8 @@ static int efa_everbs_dev_init(struct efa_dev *dev, int devnum)
 					EFA_EVERBS_DEVICE_NAME "%d",
 					devnum);
 	if (IS_ERR(dev->everbs_dev)) {
-		efa_err(&dev->ibdev.dev, "Failed to create device: %s%d\n",
-			EFA_EVERBS_DEVICE_NAME, devnum);
+		ibdev_err(&dev->ibdev, "Failed to create device: %s%d\n",
+			  EFA_EVERBS_DEVICE_NAME, devnum);
 		goto err;
 	}
 

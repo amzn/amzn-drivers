@@ -7,7 +7,12 @@
 #define _EFA_COM_H_
 
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/semaphore.h>
+#include <linux/sched.h>
+
+#include <rdma/ib_verbs.h>
 #include "kcompat.h"
 
 #include "efa_common_defs.h"
@@ -16,10 +21,6 @@
 #include "efa_regs_defs.h"
 
 #define EFA_MAX_HANDLERS 256
-
-#define ADMIN_SQ_SIZE(depth)    ((depth) * sizeof(struct efa_admin_aq_entry))
-#define ADMIN_CQ_SIZE(depth)    ((depth) * sizeof(struct efa_admin_acq_entry))
-#define ADMIN_AENQ_SIZE(depth)  ((depth) * sizeof(struct efa_admin_aenq_entry))
 
 struct efa_com_admin_cq {
 	struct efa_admin_acq_entry *entries;
@@ -58,6 +59,7 @@ enum {
 
 struct efa_com_admin_queue {
 	void *dmadev;
+	void *efa_dev;
 	void *bus;
 	struct efa_comp_ctx *comp_ctx;
 	u32 completion_timeout; /* usecs */
@@ -105,6 +107,7 @@ struct efa_com_dev {
 	struct efa_com_aenq aenq;
 	u8 __iomem *reg_bar;
 	void *dmadev;
+	void *efa_dev;
 	void *bus;
 	u32 supported_features;
 	u32 dma_addr_bits;

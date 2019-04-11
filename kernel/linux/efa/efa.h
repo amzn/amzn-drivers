@@ -32,27 +32,6 @@
 #define EFA_NUM_MSIX_VEC                  1
 #define EFA_MGMNT_MSIX_VEC_IDX            0
 
-#define efa_dbg(_dev, format, ...)                                      \
-	dev_dbg(_dev, "(pid %d) %s: " format, current->pid,             \
-		__func__, ##__VA_ARGS__)
-#define efa_info(_dev, format, ...)                                     \
-	dev_info(_dev, "(pid %d) %s: " format, current->pid,            \
-		 __func__, ##__VA_ARGS__)
-#define efa_warn(_dev, format, ...)                                     \
-	dev_warn(_dev, "(pid %d) %s: " format, current->pid,            \
-		 __func__, ##__VA_ARGS__)
-#define efa_err(_dev, format, ...)                                      \
-	dev_err(_dev, "(pid %d) %s: " format, current->pid,             \
-		__func__, ##__VA_ARGS__)
-#define efa_err_rl(_dev, format, ...)                                   \
-	dev_err_ratelimited(_dev, "(pid %d) %s: " format, current->pid, \
-			    __func__, ##__VA_ARGS__)
-
-enum {
-	EFA_DEVICE_RUNNING_BIT,
-	EFA_MSIX_ENABLED_BIT
-};
-
 struct efa_irq {
 	irq_handler_t handler;
 	void *data;
@@ -79,8 +58,8 @@ struct efa_stats {
 
 struct efa_dev {
 	struct ib_device ibdev;
+	struct efa_com_dev edev;
 	struct pci_dev *pdev;
-	struct efa_com_dev *edev;
 	struct efa_com_get_device_attr_result dev_attr;
 
 	u64 reg_bar_addr;
@@ -97,7 +76,6 @@ struct efa_dev {
 #else
 	int admin_msix_vector_idx;
 #endif
-	unsigned long state;
 	struct efa_irq admin_irq;
 
 #ifndef HAVE_CREATE_AH_UDATA
@@ -115,10 +93,14 @@ struct efa_dev {
 
 struct efa_ucontext {
 	struct ib_ucontext ibucontext;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+	struct xarray mmap_xa;
+#else
 	/* Protects ucontext state */
 	struct mutex lock;
 	struct list_head pending_mmaps;
-	u64 mmap_key;
+	u32 mmap_page;
+#endif
 	u16 uarn;
 };
 
@@ -219,9 +201,16 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 	     struct vm_area_struct *vma);
 #ifdef HAVE_CREATE_AH_UDATA
 #ifdef HAVE_CREATE_AH_RDMA_ATTR
+#ifdef HAVE_CREATE_DESTROY_AH_FLAGS
+struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
+			    struct rdma_ah_attr *ah_attr,
+			    u32 flags,
+			    struct ib_udata *udata);
+#else
 struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
 			    struct rdma_ah_attr *ah_attr,
 			    struct ib_udata *udata);
+#endif
 #else
 struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
 			    struct ib_ah_attr *ah_attr,
@@ -231,7 +220,11 @@ struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
 struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
 			    struct ib_ah_attr *ah_attr);
 #endif
+#ifdef HAVE_CREATE_DESTROY_AH_FLAGS
+int efa_destroy_ah(struct ib_ah *ibah, u32 flags);
+#else
 int efa_destroy_ah(struct ib_ah *ibah);
+#endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
 int efa_post_send(struct ib_qp *ibqp,
 		  struct ib_send_wr *wr,

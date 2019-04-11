@@ -72,6 +72,18 @@
 #define HAVE_DEV_PARENT
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+#define HAVE_IB_DEV_OPS
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+#define HAVE_CREATE_DESTROY_AH_FLAGS
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+#define HAVE_SG_DMA_PAGE_ITER
+#endif
+
 /* End of upstream defines */
 
 #if !defined(HAVE_CREATE_AH_UDATA) || !defined(HAVE_IB_QUERY_DEVICE_UDATA)
@@ -113,6 +125,17 @@ free:
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,16,0) && \
 	RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,6)
 #define IB_QPT_DRIVER 0xFF
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0)
+#define ibdev_err(_ibdev, format, arg...) \
+	dev_err(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
+#define ibdev_dbg(_ibdev, format, arg...) \
+	dev_dbg(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
+#define ibdev_warn(_ibdev, format, arg...) \
+	dev_warn(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
+#define ibdev_info(_ibdev, format, arg...) \
+	dev_info(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
 #endif
 
 #endif /* _KCOMPAT_H_ */
