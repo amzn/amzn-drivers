@@ -9,8 +9,8 @@
 
 void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low)
 {
-	*addr_low = addr & GENMASK(31, 0);
-	*addr_high = (addr >> 32) & GENMASK(31, 0);
+	*addr_low = lower_32_bits(addr);
+	*addr_high = upper_32_bits(addr);
 }
 
 int efa_com_create_qp(struct efa_com_dev *edev,
