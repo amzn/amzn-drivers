@@ -161,20 +161,42 @@ int efa_query_gid(struct ib_device *ibdev, u8 port, int index,
 		  union ib_gid *gid);
 int efa_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 		   u16 *pkey);
+#ifdef HAVE_ALLOC_PD_NO_UCONTEXT
+int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
+#else
 int efa_alloc_pd(struct ib_pd *ibpd,
 		 struct ib_ucontext *ibucontext,
 		 struct ib_udata *udata);
+#endif
+#ifdef HAVE_DEALLOC_PD_UDATA
+void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
+#elif defined(HAVE_PD_CORE_ALLOCATION)
+void efa_dealloc_pd(struct ib_pd *ibpd);
+#else
+int efa_dealloc_pd(struct ib_pd *ibpd);
 struct ib_pd *efa_kzalloc_pd(struct ib_device *ibdev,
 			     struct ib_ucontext *ibucontext,
 			     struct ib_udata *udata);
-int efa_dealloc_pd(struct ib_pd *ibpd);
+#endif
 int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle);
+#ifdef HAVE_DESTROY_QP_UDATA
+int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
+#else
 int efa_destroy_qp(struct ib_qp *ibqp);
+#endif
 struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata);
+#ifdef HAVE_DESTROY_CQ_UDATA
+int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
+#else
 int efa_destroy_cq(struct ib_cq *ibcq);
-#ifdef HAVE_CREATE_CQ_ATTR
+#endif
+#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+struct ib_cq *efa_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_udata *udata);
+#elif defined(HAVE_CREATE_CQ_ATTR)
 struct ib_cq *efa_create_cq(struct ib_device *ibdev,
 			    const struct ib_cq_init_attr *attr,
 			    struct ib_ucontext *ibucontext,
@@ -188,43 +210,60 @@ struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
 			 struct ib_udata *udata);
+#ifdef HAVE_DEREG_MR_UDATA
+int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
+#else
 int efa_dereg_mr(struct ib_mr *ibmr);
+#endif
 #ifdef HAVE_GET_PORT_IMMUTABLE
 int efa_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 			   struct ib_port_immutable *immutable);
 #endif
 int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata);
+#ifdef HAVE_UCONTEXT_CORE_ALLOCATION
+void efa_dealloc_ucontext(struct ib_ucontext *ibucontext);
+#else
+int efa_dealloc_ucontext(struct ib_ucontext *ibucontext);
 struct ib_ucontext *efa_kzalloc_ucontext(struct ib_device *ibdev,
 					 struct ib_udata *udata);
-int efa_dealloc_ucontext(struct ib_ucontext *ibucontext);
+#endif
 int efa_mmap(struct ib_ucontext *ibucontext,
 	     struct vm_area_struct *vma);
-#ifdef HAVE_CREATE_AH_UDATA
+int efa_create_ah(struct ib_ah *ibah,
 #ifdef HAVE_CREATE_AH_RDMA_ATTR
+		  struct rdma_ah_attr *ah_attr,
+#else
+		  struct ib_ah_attr *ah_attr,
+#endif
+		  u32 flags,
+		  struct ib_udata *udata);
+#ifndef HAVE_AH_CORE_ALLOCATION
 #ifdef HAVE_CREATE_DESTROY_AH_FLAGS
-struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
-			    struct rdma_ah_attr *ah_attr,
-			    u32 flags,
-			    struct ib_udata *udata);
+struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
+			     struct rdma_ah_attr *ah_attr,
+			     u32 flags,
+			     struct ib_udata *udata);
+#elif defined(HAVE_CREATE_AH_RDMA_ATTR)
+struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
+			     struct rdma_ah_attr *ah_attr,
+			     struct ib_udata *udata);
+#elif defined(HAVE_CREATE_AH_UDATA)
+struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
+			     struct ib_ah_attr *ah_attr,
+			     struct ib_udata *udata);
 #else
-struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
-			    struct rdma_ah_attr *ah_attr,
-			    struct ib_udata *udata);
+struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
+			     struct ib_ah_attr *ah_attr);
 #endif
-#else
-struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
-			    struct ib_ah_attr *ah_attr,
-			    struct ib_udata *udata);
 #endif
-#else
-struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
-			    struct ib_ah_attr *ah_attr);
-#endif
-#ifdef HAVE_CREATE_DESTROY_AH_FLAGS
+#ifdef HAVE_AH_CORE_ALLOCATION
+void efa_destroy_ah(struct ib_ah *ibah, u32 flags);
+#elif defined(HAVE_CREATE_DESTROY_AH_FLAGS)
 int efa_destroy_ah(struct ib_ah *ibah, u32 flags);
 #else
 int efa_destroy_ah(struct ib_ah *ibah);
 #endif
+#ifndef HAVE_NO_KVERBS_DRIVERS
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
 int efa_post_send(struct ib_qp *ibqp,
 		  struct ib_send_wr *wr,
@@ -248,6 +287,7 @@ int efa_poll_cq(struct ib_cq *ibcq, int num_entries,
 int efa_req_notify_cq(struct ib_cq *ibcq,
 		      enum ib_cq_notify_flags flags);
 struct ib_mr *efa_get_dma_mr(struct ib_pd *ibpd, int acc);
+#endif
 int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_udata *udata);
 enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,

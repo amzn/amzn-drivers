@@ -232,9 +232,21 @@ static void efa_stats_init(struct efa_dev *dev)
 
 #ifdef HAVE_IB_DEV_OPS
 static const struct ib_device_ops efa_dev_ops = {
+#ifdef HAVE_PD_CORE_ALLOCATION
+	.alloc_pd = efa_alloc_pd,
+#else
 	.alloc_pd = efa_kzalloc_pd,
+#endif
+#ifdef HAVE_UCONTEXT_CORE_ALLOCATION
+	.alloc_ucontext = efa_alloc_ucontext,
+#else
 	.alloc_ucontext = efa_kzalloc_ucontext,
+#endif
+#ifdef HAVE_AH_CORE_ALLOCATION
 	.create_ah = efa_create_ah,
+#else
+	.create_ah = efa_kzalloc_ah,
+#endif
 	.create_cq = efa_create_cq,
 	.create_qp = efa_create_qp,
 	.dealloc_pd = efa_dealloc_pd,
@@ -243,21 +255,37 @@ static const struct ib_device_ops efa_dev_ops = {
 	.destroy_ah = efa_destroy_ah,
 	.destroy_cq = efa_destroy_cq,
 	.destroy_qp = efa_destroy_qp,
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	.get_dma_mr = efa_get_dma_mr,
+#endif
 	.get_link_layer = efa_port_link_layer,
 	.get_port_immutable = efa_get_port_immutable,
 	.mmap = efa_mmap,
 	.modify_qp = efa_modify_qp,
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	.poll_cq = efa_poll_cq,
 	.post_recv = efa_post_recv,
 	.post_send = efa_post_send,
+#endif
 	.query_device = efa_query_device,
 	.query_gid = efa_query_gid,
 	.query_pkey = efa_query_pkey,
 	.query_port = efa_query_port,
 	.query_qp = efa_query_qp,
 	.reg_user_mr = efa_reg_mr,
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	.req_notify_cq = efa_req_notify_cq,
+#endif
+
+#ifdef HAVE_UCONTEXT_CORE_ALLOCATION
+	INIT_RDMA_OBJ_SIZE(ib_ah, efa_ah, ibah),
+#endif
+#ifdef HAVE_PD_CORE_ALLOCATION
+	INIT_RDMA_OBJ_SIZE(ib_pd, efa_pd, ibpd),
+#endif
+#ifdef HAVE_UCONTEXT_CORE_ALLOCATION
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, efa_ucontext, ibucontext),
+#endif
 };
 #endif
 
@@ -343,7 +371,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 #else
 	dev->ibdev.alloc_pd = efa_kzalloc_pd;
 	dev->ibdev.alloc_ucontext = efa_kzalloc_ucontext;
-	dev->ibdev.create_ah = efa_create_ah;
+	dev->ibdev.create_ah = efa_kzalloc_ah;
 	dev->ibdev.create_cq = efa_create_cq;
 	dev->ibdev.create_qp = efa_create_qp;
 	dev->ibdev.dealloc_pd = efa_dealloc_pd;
@@ -376,6 +404,8 @@ static int efa_ib_device_add(struct efa_dev *dev)
 		sizeof(dev->ibdev.name));
 
 	err = ib_register_device(&dev->ibdev, NULL);
+#elif defined(HAVE_IB_REGISTER_DEVICE_TWO_PARAMS)
+	err = ib_register_device(&dev->ibdev, "efa_%d");
 #else
 	err = ib_register_device(&dev->ibdev, "efa_%d", NULL);
 #endif
@@ -514,7 +544,11 @@ static struct efa_dev *efa_probe_device(struct pci_dev *pdev)
 
 	pci_set_master(pdev);
 
+#ifdef HAVE_SAFE_IB_ALLOC_DEVICE
+	dev = ib_alloc_device(efa_dev, ibdev);
+#else
 	dev = (struct efa_dev *)ib_alloc_device(sizeof(*dev));
+#endif
 	if (!dev) {
 		dev_err(&pdev->dev, "Device alloc failed\n");
 		err = -ENOMEM;

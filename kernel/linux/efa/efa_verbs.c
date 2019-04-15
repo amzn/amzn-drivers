@@ -9,6 +9,9 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_verbs.h>
+#ifdef HAVE_UDATA_TO_DRV_CONTEXT
+#include <rdma/uverbs_ioctl.h>
+#endif
 
 #include "efa.h"
 
@@ -512,9 +515,13 @@ static int efa_pd_dealloc(struct efa_dev *dev, u16 pdn)
 	return efa_com_dealloc_pd(&dev->edev, &params);
 }
 
+#ifdef HAVE_ALLOC_PD_NO_UCONTEXT
+int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
+#else
 int efa_alloc_pd(struct ib_pd *ibpd,
 		 struct ib_ucontext *ibucontext,
 		 struct ib_udata *udata)
+#endif
 {
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_ibv_alloc_pd_resp resp = {};
@@ -569,6 +576,7 @@ err_out:
 	return err;
 }
 
+#ifndef HAVE_PD_CORE_ALLOCATION
 struct ib_pd *efa_kzalloc_pd(struct ib_device *ibdev,
 			     struct ib_ucontext *ibucontext,
 			     struct ib_udata *udata)
@@ -584,7 +592,12 @@ struct ib_pd *efa_kzalloc_pd(struct ib_device *ibdev,
 	}
 
 	pd->ibpd.device = ibdev;
+
+#ifdef HAVE_ALLOC_PD_NO_UCONTEXT
+	err = efa_alloc_pd(&pd->ibpd, udata);
+#else
 	err = efa_alloc_pd(&pd->ibpd, ibucontext, udata);
+#endif
 	if (err)
 		goto err_free;
 
@@ -594,17 +607,39 @@ err_free:
 	kfree(pd);
 	return ERR_PTR(err);
 }
+#endif
 
+#ifdef HAVE_DEALLOC_PD_UDATA
+void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
+#elif defined(HAVE_PD_CORE_ALLOCATION)
+void efa_dealloc_pd(struct ib_pd *ibpd)
+#else
 int efa_dealloc_pd(struct ib_pd *ibpd)
+#endif
 {
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_pd *pd = to_epd(ibpd);
 
+#ifdef HAVE_DEALLOC_PD_UDATA
+	if (!udata) {
+		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
+		return;
+	}
+
+	if (udata->inlen &&
+	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
+		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
+		return;
+	}
+#endif
+
 	ibdev_dbg(&dev->ibdev, "Dealloc pd[%d]\n", pd->pdn);
 	efa_pd_dealloc(dev, pd->pdn);
+#ifndef HAVE_PD_CORE_ALLOCATION
 	kfree(pd);
 
 	return 0;
+#endif
 }
 
 int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle)
@@ -614,11 +649,28 @@ int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle)
 	return efa_com_destroy_qp(&dev->edev, &params);
 }
 
+#ifdef HAVE_DESTROY_QP_UDATA
+int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
+#else
 int efa_destroy_qp(struct ib_qp *ibqp)
+#endif
 {
 	struct efa_dev *dev = to_edev(ibqp->pd->device);
 	struct efa_qp *qp = to_eqp(ibqp);
 	int err;
+
+#ifdef HAVE_DESTROY_QP_UDATA
+	if (!udata) {
+		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (udata->inlen &&
+	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
+		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
+		return -EINVAL;
+	}
+#endif
 
 	ibdev_dbg(&dev->ibdev, "Destroy qp[%u]\n", ibqp->qp_num);
 	err = efa_destroy_qp_handle(dev, qp->qp_handle);
@@ -800,8 +852,13 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 		goto err_out;
 	}
 
+#ifdef HAVE_UDATA_TO_DRV_CONTEXT
+	ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext,
+					     ibucontext);
+#else
 	ucontext = ibpd->uobject ? to_eucontext(ibpd->uobject->context) :
 				   NULL;
+#endif
 
 	err = efa_qp_validate_cap(dev, init_attr);
 	if (err)
@@ -1062,11 +1119,28 @@ static int efa_destroy_cq_idx(struct efa_dev *dev, int cq_idx)
 	return efa_com_destroy_cq(&dev->edev, &params);
 }
 
+#ifdef HAVE_DESTROY_CQ_UDATA
+int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+#else
 int efa_destroy_cq(struct ib_cq *ibcq)
+#endif
 {
 	struct efa_dev *dev = to_edev(ibcq->device);
 	struct efa_cq *cq = to_ecq(ibcq);
 	int err;
+
+#ifdef HAVE_DESTROY_CQ_UDATA
+	if (!udata) {
+		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (udata->inlen &&
+	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
+		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
+		return -EINVAL;
+	}
+#endif
 
 	ibdev_dbg(&dev->ibdev,
 		  "Destroy cq[%d] virt[%p] freed: size[%lu], dma[%pad]\n",
@@ -1255,7 +1329,19 @@ err_out:
 	return ERR_PTR(err);
 }
 
-#ifdef HAVE_CREATE_CQ_ATTR
+#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+struct ib_cq *efa_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_udata *udata)
+{
+	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(udata,
+								  struct efa_ucontext,
+								  ibucontext);
+
+	return do_create_cq(ibdev, attr->cqe, attr->comp_vector,
+			    &ucontext->ibucontext, udata);
+}
+#elif defined(HAVE_CREATE_CQ_ATTR)
 struct ib_cq *efa_create_cq(struct ib_device *ibdev,
 			    const struct ib_cq_init_attr *attr,
 			    struct ib_ucontext *ibucontext,
@@ -1819,8 +1905,12 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_out;
 	}
 
+#ifdef HAVE_IB_UMEM_GET_UDATA
+	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
+#else
 	mr->umem = ib_umem_get(ibpd->uobject->context, start, length,
 			       access_flags, 0);
+#endif
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		ibdev_dbg(&dev->ibdev,
@@ -1879,12 +1969,29 @@ err_out:
 	return ERR_PTR(err);
 }
 
+#ifdef HAVE_DEREG_MR_UDATA
+int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
+#else
 int efa_dereg_mr(struct ib_mr *ibmr)
+#endif
 {
 	struct efa_dev *dev = to_edev(ibmr->device);
 	struct efa_com_dereg_mr_params params;
 	struct efa_mr *mr = to_emr(ibmr);
 	int err;
+
+#ifdef HAVE_DEREG_MR_UDATA
+	if (!udata) {
+		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (udata->inlen &&
+	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
+		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
+		return -EINVAL;
+	}
+#endif
 
 	ibdev_dbg(&dev->ibdev, "Deregister mr[%d]\n", ibmr->lkey);
 
@@ -1981,6 +2088,7 @@ err_out:
 	return err;
 }
 
+#ifndef HAVE_UCONTEXT_CORE_ALLOCATION
 struct ib_ucontext *efa_kzalloc_ucontext(struct ib_device *ibdev,
 					 struct ib_udata *udata)
 {
@@ -2010,17 +2118,24 @@ err_free_ucontext:
 	kfree(ucontext);
 	return ERR_PTR(err);
 }
+#endif
 
+#ifdef HAVE_UCONTEXT_CORE_ALLOCATION
+void efa_dealloc_ucontext(struct ib_ucontext *ibucontext)
+#else
 int efa_dealloc_ucontext(struct ib_ucontext *ibucontext)
+#endif
 {
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_dev *dev = to_edev(ibucontext->device);
 
 	mmap_entries_remove_free(dev, ucontext);
 	efa_dealloc_uar(dev, ucontext->uarn);
+#ifndef HAVE_UCONTEXT_CORE_ALLOCATION
 	kfree(ucontext);
 
 	return 0;
+#endif
 }
 
 static int __efa_mmap(struct efa_dev *dev,
@@ -2215,35 +2330,22 @@ static int efa_ah_destroy(struct efa_dev *dev, struct efa_ah *ah)
 	return efa_com_destroy_ah(&dev->edev, &params);
 }
 
-#ifdef HAVE_CREATE_AH_UDATA
+int efa_create_ah(struct ib_ah *ibah,
 #ifdef HAVE_CREATE_AH_RDMA_ATTR
-#ifdef HAVE_CREATE_DESTROY_AH_FLAGS
-struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
-			    struct rdma_ah_attr *ah_attr,
-			    u32 flags,
-			    struct ib_udata *udata)
+		  struct rdma_ah_attr *ah_attr,
 #else
-struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
-			    struct rdma_ah_attr *ah_attr,
-			    struct ib_udata *udata)
+		  struct ib_ah_attr *ah_attr,
 #endif
-#else
-struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
-			    struct ib_ah_attr *ah_attr,
-			    struct ib_udata *udata)
-#endif
-#else
-struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
-			    struct ib_ah_attr *ah_attr)
-#endif
+		  u32 flags,
+		  struct ib_udata *udata)
 {
-	struct efa_dev *dev = to_edev(ibpd->device);
+	struct efa_dev *dev = to_edev(ibah->device);
 	struct efa_com_create_ah_params params = {};
 #ifdef HAVE_CREATE_AH_UDATA
 	struct efa_ibv_create_ah_resp resp = {};
 #endif
 	struct efa_com_create_ah_result result;
-	struct efa_ah *ah;
+	struct efa_ah *ah = to_eah(ibah);
 	int err;
 
 #ifdef HAVE_CREATE_DESTROY_AH_FLAGS
@@ -2269,24 +2371,18 @@ struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
 	    /* WA for e093111ddb6c ("IB/core: Fix input len in multiple user verbs") */
 	    !ib_is_udata_cleared(udata, 0, udata->inlen - sizeof(struct ib_uverbs_cmd_hdr))) {
 #endif
-		ibdev_dbg(&dev->ibdev, "Incompatiable ABI params\n");
+		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
 		err = -EINVAL;
 		goto err_out;
 	}
 #endif
 
-	ah = kzalloc(sizeof(*ah), GFP_KERNEL);
-	if (!ah) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
 	memcpy(params.dest_addr, ah_attr->grh.dgid.raw,
 	       sizeof(params.dest_addr));
-	params.pdn = to_epd(ibpd)->pdn;
+	params.pdn = to_epd(ibah->pd)->pdn;
 	err = efa_com_create_ah(&dev->edev, &params, &result);
 	if (err)
-		goto err_free;
+		goto err_out;
 
 	memcpy(ah->id, ah_attr->grh.dgid.raw, sizeof(ah->id));
 	ah->ah = result.ah;
@@ -2312,18 +2408,64 @@ struct ib_ah *efa_create_ah(struct ib_pd *ibpd,
 #endif
 	ibdev_dbg(&dev->ibdev, "Created ah[%d]\n", ah->ah);
 
-	return &ah->ibah;
+	return 0;
 
 err_destroy_ah:
 	efa_ah_destroy(dev, ah);
-err_free:
-	kfree(ah);
 err_out:
 	atomic64_inc(&dev->stats.sw_stats.create_ah_err);
-	return ERR_PTR(err);
+	return err;
 }
 
+#ifndef HAVE_AH_CORE_ALLOCATION
 #ifdef HAVE_CREATE_DESTROY_AH_FLAGS
+struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
+			     struct rdma_ah_attr *ah_attr,
+			     u32 flags,
+			     struct ib_udata *udata)
+#elif defined(HAVE_CREATE_AH_RDMA_ATTR)
+struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
+			     struct rdma_ah_attr *ah_attr,
+			     struct ib_udata *udata)
+#elif defined(HAVE_CREATE_AH_UDATA)
+struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
+			     struct ib_ah_attr *ah_attr,
+			     struct ib_udata *udata)
+#else
+struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
+			     struct ib_ah_attr *ah_attr)
+#endif
+{
+	struct efa_ah *ah;
+	int err;
+#ifndef HAVE_CREATE_DESTROY_AH_FLAGS
+	u32 flags = 0;
+#endif
+#ifndef HAVE_CREATE_AH_UDATA
+	void *udata = NULL;
+#endif
+
+	ah = kzalloc(sizeof(*ah), GFP_KERNEL);
+	if (!ah)
+		return ERR_PTR(-ENOMEM);
+
+	ah->ibah.device = ibpd->device;
+	ah->ibah.pd = ibpd;
+	err = efa_create_ah(&ah->ibah, ah_attr, flags, udata);
+	if (err)
+		goto err_free;
+
+	return &ah->ibah;
+
+err_free:
+	kfree(ah);
+	return ERR_PTR(err);
+}
+#endif
+
+#ifdef HAVE_AH_CORE_ALLOCATION
+void efa_destroy_ah(struct ib_ah *ibah, u32 flags)
+#elif defined(HAVE_CREATE_DESTROY_AH_FLAGS)
 int efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 #else
 int efa_destroy_ah(struct ib_ah *ibah)
@@ -2331,7 +2473,9 @@ int efa_destroy_ah(struct ib_ah *ibah)
 {
 	struct efa_dev *dev = to_edev(ibah->pd->device);
 	struct efa_ah *ah = to_eah(ibah);
+#ifndef HAVE_AH_CORE_ALLOCATION
 	int err;
+#endif
 
 	ibdev_dbg(&dev->ibdev, "Destroy ah[%d]\n", ah->ah);
 
@@ -2339,21 +2483,31 @@ int efa_destroy_ah(struct ib_ah *ibah)
 	if (!(flags & RDMA_DESTROY_AH_SLEEPABLE)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Destroy address handle is not supported in atomic context\n");
+#ifdef HAVE_AH_CORE_ALLOCATION
+		return;
+#else
 		return -EOPNOTSUPP;
+#endif
 	}
 #endif
 
+#ifdef HAVE_AH_CORE_ALLOCATION
+	efa_ah_destroy(dev, ah);
+#else
 	err = efa_ah_destroy(dev, ah);
 	if (err)
 		return err;
 #ifndef HAVE_CREATE_AH_UDATA
 	efa_put_ah_id(dev, ah->id);
 #endif
-
+#ifndef HAVE_AH_CORE_ALLOCATION
 	kfree(ah);
 	return 0;
+#endif
+#endif
 }
 
+#ifndef HAVE_NO_KVERBS_DRIVERS
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
 int efa_post_send(struct ib_qp *ibqp,
 		  struct ib_send_wr *wr,
@@ -2411,6 +2565,7 @@ struct ib_mr *efa_get_dma_mr(struct ib_pd *ibpd, int acc)
 	ibdev_warn(&dev->ibdev.dev, "Function not supported\n");
 	return ERR_PTR(-EOPNOTSUPP);
 }
+#endif
 
 enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
 					 u8 port_num)
