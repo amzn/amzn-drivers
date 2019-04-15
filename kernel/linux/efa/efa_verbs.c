@@ -642,7 +642,7 @@ int efa_dealloc_pd(struct ib_pd *ibpd)
 #endif
 }
 
-int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle)
+static int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle)
 {
 	struct efa_com_destroy_qp_params params = { .qp_handle = qp_handle };
 

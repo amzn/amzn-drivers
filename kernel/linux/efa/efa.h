@@ -178,7 +178,6 @@ struct ib_pd *efa_kzalloc_pd(struct ib_device *ibdev,
 			     struct ib_ucontext *ibucontext,
 			     struct ib_udata *udata);
 #endif
-int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle);
 #ifdef HAVE_DESTROY_QP_UDATA
 int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 #else
