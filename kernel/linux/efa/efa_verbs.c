@@ -1805,7 +1805,8 @@ static void efa_cont_pages(struct ib_umem *umem, u64 addr,
 #ifndef HAVE_UMEM_SCATTERLIST_IF
 	list_for_each_entry(chunk, &umem->chunk_list, list) {
 		for (entry = 0; entry < chunk->nents; entry++) {
-			len = sg_dma_len(&chunk->page_list[entry]) >> page_shift;
+			len = DIV_ROUND_UP(sg_dma_len(&chunk->page_list[entry]),
+					   BIT(page_shift));
 			pfn = sg_dma_address(&chunk->page_list[entry]) >> page_shift;
 			if (base + p != pfn) {
 				/*
@@ -1826,7 +1827,7 @@ static void efa_cont_pages(struct ib_umem *umem, u64 addr,
 	}
 #else
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> page_shift;
+		len = DIV_ROUND_UP(sg_dma_len(sg), BIT(page_shift));
 		pfn = sg_dma_address(sg) >> page_shift;
 		if (base + p != pfn) {
 			/*
