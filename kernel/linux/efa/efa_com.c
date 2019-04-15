@@ -805,8 +805,7 @@ int efa_com_admin_init(struct efa_com_dev *edev,
 	dev_sts = efa_com_reg_read32(edev, EFA_REGS_DEV_STS_OFF);
 	if (!(dev_sts & EFA_REGS_DEV_STS_READY_MASK)) {
 		ibdev_err(edev->efa_dev,
-			  "Device isn't ready, abort com init 0x%08x\n",
-			  dev_sts);
+			  "Device isn't ready, abort com init %#x\n", dev_sts);
 		return -ENODEV;
 	}
 

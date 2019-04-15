@@ -164,7 +164,7 @@ static void mmap_obj_entries_remove(struct efa_dev *dev,
 
 		xa_erase(&ucontext->mmap_xa, mmap_page);
 		ibdev_dbg(&dev->ibdev,
-			  "mmap: obj[%p] key[0x%llx] addr[0x%llX] len[0x%llX] removed\n",
+			  "mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
 			  entry->obj, entry->key, entry->address,
 			  entry->length);
 		if (free)
@@ -186,7 +186,7 @@ static void mmap_obj_entries_remove(struct efa_dev *dev,
 
 		list_del(&entry->list);
 		ibdev_dbg(&dev->ibdev,
-			  "mmap: obj[%p] key[0x%llx] addr[0x%llX] len[0x%llX] removed\n",
+			  "mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
 			  entry->obj, entry->key, entry->address,
 			  entry->length);
 		if (free)
@@ -258,7 +258,7 @@ static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 		return NULL;
 
 	ibdev_dbg(&dev->ibdev,
-		  "mmap: obj[%p] key[0x%llx] addr[0x%llX] len[0x%llX] removed\n",
+		  "mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
 		  entry->obj, key, entry->address,
 		  entry->length);
 
@@ -276,7 +276,7 @@ static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 	list_for_each_entry_safe(entry, tmp, &ucontext->pending_mmaps, list) {
 		if (entry->key == key && entry->length == len) {
 			ibdev_dbg(&dev->ibdev,
-				  "mmap: obj[%p] key[0x%llx] addr[0x%llX] len[0x%llX] removed\n",
+				  "mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
 				  entry->obj, key, entry->address,
 				  entry->length);
 			mutex_unlock(&ucontext->lock);
@@ -309,7 +309,7 @@ static int mmap_entry_insert(struct efa_dev *dev,
 	set_mmap_flag(&entry->key, mmap_flag);
 
 	ibdev_dbg(&dev->ibdev,
-		  "mmap: obj[%p] addr[0x%llx], len[0x%llx], key[0x%llx] inserted\n",
+		  "mmap: obj[0x%p] addr[%#llx], len[%#llx], key[%#llx] inserted\n",
 		  entry->obj, entry->address, entry->length, entry->key);
 
 	return 0;
@@ -334,7 +334,7 @@ static int mmap_entry_insert(struct efa_dev *dev,
 	mutex_unlock(&ucontext->lock);
 
 	ibdev_dbg(&dev->ibdev,
-		  "mmap: obj[%p] addr[0x%llx], len[0x%llx], key[0x%llx] inserted\n",
+		  "mmap: obj[0x%p] addr[%#llx], len[%#llx], key[%#llx] inserted\n",
 		  entry->obj, entry->address, entry->length, entry->key);
 
 	return 0;
@@ -679,7 +679,7 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 
 	if (qp->rq_cpu_addr) {
 		ibdev_dbg(&dev->ibdev,
-			  "qp->cpu_addr[%p] freed: size[%lu], dma[%pad]\n",
+			  "qp->cpu_addr[0x%p] freed: size[%lu], dma[%pad]\n",
 			  qp->rq_cpu_addr, qp->rq_size,
 			  &qp->rq_dma_addr);
 		dma_unmap_single(&dev->pdev->dev, qp->rq_dma_addr, qp->rq_size,
@@ -945,7 +945,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 		}
 
 		ibdev_dbg(&dev->ibdev,
-			  "qp->cpu_addr[%p] allocated: size[%lu], dma[%pad]\n",
+			  "qp->cpu_addr[0x%p] allocated: size[%lu], dma[%pad]\n",
 			  qp->rq_cpu_addr, qp->rq_size, &qp->rq_dma_addr);
 		create_qp_params.rq_base_addr = qp->rq_dma_addr;
 	}
@@ -1143,7 +1143,7 @@ int efa_destroy_cq(struct ib_cq *ibcq)
 #endif
 
 	ibdev_dbg(&dev->ibdev,
-		  "Destroy cq[%d] virt[%p] freed: size[%lu], dma[%pad]\n",
+		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
 		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
 
 	err = efa_destroy_cq_idx(dev, cq->cq_idx);
@@ -1195,7 +1195,7 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 	struct efa_cq *cq;
 	int err;
 
-	ibdev_dbg(ibdev, "create_cq entries %d udata %p\n", entries, udata);
+	ibdev_dbg(ibdev, "create_cq entries %d\n", entries);
 
 	if (entries < 1 || entries > dev->dev_attr.max_cq_depth) {
 		ibdev_dbg(ibdev,
@@ -1309,7 +1309,7 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 	}
 
 	ibdev_dbg(ibdev,
-		  "Created cq[%d], cq depth[%u]. dma[%pad] virt[%p]\n",
+		  "Created cq[%d], cq depth[%u]. dma[%pad] virt[0x%p]\n",
 		  cq->cq_idx, result.actual_depth, &cq->dma_addr, cq->cpu_addr);
 
 	return &cq->ibcq;
@@ -2208,12 +2208,12 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 	struct efa_mmap_entry *entry;
 
 	ibdev_dbg(&dev->ibdev,
-		  "start 0x%lx, end 0x%lx, length = 0x%llx, key = 0x%llx\n",
+		  "start %#lx, end %#lx, length = %#llx, key = %#llx\n",
 		  vma->vm_start, vma->vm_end, length, key);
 
 	if (length % PAGE_SIZE != 0) {
 		ibdev_dbg(&dev->ibdev,
-			  "length[0x%llX] is not page size aligned[0x%lX]\n",
+			  "length[%#llx] is not page size aligned[%#lx]\n",
 			  length, PAGE_SIZE);
 		return -EINVAL;
 	}
@@ -2221,7 +2221,7 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 	entry = mmap_entry_get(dev, ucontext, key, length);
 	if (!entry) {
 		ibdev_dbg(&dev->ibdev,
-			  "key[0x%llX] does not have valid entry\n", key);
+			  "key[%#llx] does not have valid entry\n", key);
 		return -EINVAL;
 	}
 

@@ -151,7 +151,7 @@ static void efa_setup_mgmnt_irq(struct efa_dev *dev)
 	dev->admin_irq.cpu = cpu;
 	cpumask_set_cpu(cpu,
 			&dev->admin_irq.affinity_hint_mask);
-	dev_info(&dev->pdev->dev, "Setup irq:%p vector:%d name:%s\n",
+	dev_info(&dev->pdev->dev, "Setup irq:0x%p vector:%d name:%s\n",
 		 &dev->admin_irq,
 		 dev->admin_irq.vector,
 		 dev->admin_irq.name);
@@ -514,14 +514,14 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_width));
 	if (err) {
-		dev_err(&pdev->dev, "pci_set_dma_mask failed 0x%x\n", err);
+		dev_err(&pdev->dev, "pci_set_dma_mask failed %d\n", err);
 		return err;
 	}
 
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(dma_width));
 	if (err) {
 		dev_err(&pdev->dev,
-			"err_pci_set_consistent_dma_mask failed 0x%x\n",
+			"err_pci_set_consistent_dma_mask failed %d\n",
 			err);
 		return err;
 	}

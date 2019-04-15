@@ -558,7 +558,7 @@ int efa_com_set_aenq_config(struct efa_com_dev *edev, u32 groups)
 	struct efa_admin_set_feature_cmd cmd = {};
 	int err;
 
-	ibdev_dbg(edev->efa_dev, "Configuring aenq with groups[0x%x]\n", groups);
+	ibdev_dbg(edev->efa_dev, "Configuring aenq with groups[%#x]\n", groups);
 
 	err = efa_com_get_feature(edev, &get_resp, EFA_ADMIN_AENQ_CONFIG);
 	if (err) {
@@ -568,13 +568,13 @@ int efa_com_set_aenq_config(struct efa_com_dev *edev, u32 groups)
 	}
 
 	ibdev_dbg(edev->efa_dev,
-		  "Get aenq groups: supported[0x%x] enabled[0x%x]\n",
+		  "Get aenq groups: supported[%#x] enabled[%#x]\n",
 		  get_resp.u.aenq.supported_groups,
 		  get_resp.u.aenq.enabled_groups);
 
 	if ((get_resp.u.aenq.supported_groups & groups) != groups) {
 		ibdev_err(edev->efa_dev,
-			  "Trying to set unsupported aenq groups[0x%x] supported[0x%x]\n",
+			  "Trying to set unsupported aenq groups[%#x] supported[%#x]\n",
 			  groups, get_resp.u.aenq.supported_groups);
 		return -EOPNOTSUPP;
 	}
