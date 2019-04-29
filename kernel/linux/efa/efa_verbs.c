@@ -529,11 +529,13 @@ int efa_alloc_pd(struct ib_pd *ibpd,
 	struct efa_pd *pd = to_epd(ibpd);
 	int err;
 
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	if (!udata) {
 		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
+#endif
 
 	if (udata->inlen &&
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
@@ -621,11 +623,6 @@ int efa_dealloc_pd(struct ib_pd *ibpd)
 	struct efa_pd *pd = to_epd(ibpd);
 
 #ifdef HAVE_DEALLOC_PD_UDATA
-	if (!udata) {
-		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
-		return;
-	}
-
 	if (udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
@@ -660,11 +657,6 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 	int err;
 
 #ifdef HAVE_DESTROY_QP_UDATA
-	if (!udata) {
-		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
@@ -846,11 +838,13 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	struct efa_qp *qp;
 	int err;
 
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	if (!udata) {
 		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
+#endif
 
 #ifdef HAVE_UDATA_TO_DRV_CONTEXT
 	ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext,
@@ -1057,10 +1051,12 @@ int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	enum ib_qp_state new_state;
 	int err;
 
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	if (!udata) {
 		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
 		return -EOPNOTSUPP;
 	}
+#endif
 
 	if (udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
@@ -1130,11 +1126,6 @@ int efa_destroy_cq(struct ib_cq *ibcq)
 	int err;
 
 #ifdef HAVE_DESTROY_CQ_UDATA
-	if (!udata) {
-		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
@@ -1205,11 +1196,13 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		goto err_out;
 	}
 
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	if (!udata) {
 		ibdev_dbg(ibdev, "udata is NULL\n");
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
+#endif
 
 	if (!field_avail(cmd, num_sub_cqs, udata->inlen)) {
 		ibdev_dbg(ibdev,
@@ -1873,11 +1866,13 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	int npages;
 	int err;
 
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	if (!udata) {
 		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
+#endif
 
 	if (udata->inlen &&
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
@@ -1982,11 +1977,6 @@ int efa_dereg_mr(struct ib_mr *ibmr)
 	int err;
 
 #ifdef HAVE_DEREG_MR_UDATA
-	if (!udata) {
-		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
@@ -2359,11 +2349,13 @@ int efa_create_ah(struct ib_ah *ibah,
 #endif
 
 #ifdef HAVE_CREATE_AH_UDATA
+#ifndef HAVE_NO_KVERBS_DRIVERS
 	if (!udata) {
 		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
+#endif
 
 	if (udata->inlen &&
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
