@@ -2138,6 +2138,7 @@ static int __efa_mmap(struct efa_dev *dev,
 	u64 pfn = entry->address >> PAGE_SHIFT;
 	u64 address = entry->address;
 	u64 length = entry->length;
+	unsigned long va;
 	int err;
 
 	ibdev_dbg(&dev->ibdev,
@@ -2166,13 +2167,12 @@ static int __efa_mmap(struct efa_dev *dev,
 #endif
 		break;
 	case EFA_MMAP_DMA_PAGE:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,20,0)
-		err = rdma_user_mmap_page(&ucontext->ibucontext, vma,
-					  pfn_to_page(pfn), length);
-#else
-		err = remap_pfn_range(vma, vma->vm_start, pfn, length,
-				      vma->vm_page_prot);
-#endif
+		for (va = vma->vm_start; va < vma->vm_end;
+		     va += PAGE_SIZE, pfn++) {
+			err = vm_insert_page(vma, va, pfn_to_page(pfn));
+			if (err)
+				break;
+		}
 		break;
 	default:
 		err = -EINVAL;
@@ -2201,12 +2201,18 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 		  "start %#lx, end %#lx, length = %#llx, key = %#llx\n",
 		  vma->vm_start, vma->vm_end, length, key);
 
-	if (length % PAGE_SIZE != 0) {
+	if (length % PAGE_SIZE != 0 || !(vma->vm_flags & VM_SHARED)) {
 		ibdev_dbg(&dev->ibdev,
-			  "length[%#llx] is not page size aligned[%#lx]\n",
-			  length, PAGE_SIZE);
+			  "length[%#llx] is not page size aligned[%#lx] or VM_SHARED is not set [%#lx]\n",
+			  length, PAGE_SIZE, vma->vm_flags);
 		return -EINVAL;
 	}
+
+	if (vma->vm_flags & VM_EXEC) {
+		ibdev_dbg(&dev->ibdev, "Mapping executable pages is not permitted\n");
+		return -EPERM;
+	}
+	vma->vm_flags &= ~VM_MAYEXEC;
 
 	entry = mmap_entry_get(dev, ucontext, key, length);
 	if (!entry) {
