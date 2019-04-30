@@ -482,8 +482,7 @@ static void efa_com_handle_admin_completion(struct efa_com_admin_queue *aq)
 	atomic64_add(comp_num, &aq->stats.completed_cmd);
 }
 
-static int efa_com_comp_status_to_errno(struct efa_com_admin_queue *aq,
-					u8 comp_status)
+static int efa_com_comp_status_to_errno(u8 comp_status)
 {
 	switch (comp_status) {
 	case EFA_ADMIN_SUCCESS:
@@ -543,7 +542,7 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 	WARN_ONCE(comp_ctx->status != EFA_CMD_COMPLETED,
 		  "Invalid completion status %d\n", comp_ctx->status);
 
-	err = efa_com_comp_status_to_errno(aq, comp_ctx->comp_status);
+	err = efa_com_comp_status_to_errno(comp_ctx->comp_status);
 out:
 	efa_com_put_comp_ctx(aq, comp_ctx);
 	return err;
@@ -589,7 +588,7 @@ static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *com
 		goto out;
 	}
 
-	err = efa_com_comp_status_to_errno(aq, comp_ctx->comp_status);
+	err = efa_com_comp_status_to_errno(comp_ctx->comp_status);
 out:
 	efa_com_put_comp_ctx(aq, comp_ctx);
 	return err;
