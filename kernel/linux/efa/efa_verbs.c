@@ -1372,18 +1372,6 @@ static int umem_to_page_list(struct efa_dev *dev,
 	unsigned int page_idx = 0;
 	unsigned int hp_idx = 0;
 
-#ifdef HAVE_UMEM_PAGE_SHIFT
-	if (umem->page_shift != PAGE_SHIFT) {
-		ibdev_dbg(&dev->ibdev,
-			  "umem invalid page shift %d\n", umem->page_shift);
-#else
-	if (umem->page_size != PAGE_SIZE) {
-		ibdev_dbg(&dev->ibdev,
-			  "umem invalid page size %d\n", umem->page_size);
-#endif
-		return -EINVAL;
-	}
-
 	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
 		  hp_cnt, pages_in_hp);
 
@@ -1772,11 +1760,6 @@ static void efa_cont_pages(struct ib_umem *umem, u64 addr,
 			   unsigned long max_page_shift,
 			   int *count, u8 *shift, u32 *ncont)
 {
-#ifdef HAVE_UMEM_PAGE_SHIFT
-	unsigned long page_shift = umem->page_shift;
-#else
-	unsigned long page_shift = ilog2(umem->page_size);
-#endif
 #ifndef HAVE_UMEM_SCATTERLIST_IF
 	struct ib_umem_chunk *chunk;
 #else
@@ -1789,18 +1772,18 @@ static void efa_cont_pages(struct ib_umem *umem, u64 addr,
 	int i = 0;
 	int entry;
 
-	addr = addr >> page_shift;
+	addr = addr >> PAGE_SHIFT;
 	tmp = (unsigned long)addr;
 	m = find_first_bit(&tmp, BITS_PER_LONG);
 	if (max_page_shift)
-		m = min_t(unsigned long, max_page_shift - page_shift, m);
+		m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
 
 #ifndef HAVE_UMEM_SCATTERLIST_IF
 	list_for_each_entry(chunk, &umem->chunk_list, list) {
 		for (entry = 0; entry < chunk->nents; entry++) {
 			len = DIV_ROUND_UP(sg_dma_len(&chunk->page_list[entry]),
-					   BIT(page_shift));
-			pfn = sg_dma_address(&chunk->page_list[entry]) >> page_shift;
+					   PAGE_SIZE);
+			pfn = sg_dma_address(&chunk->page_list[entry]) >> PAGE_SHIFT;
 			if (base + p != pfn) {
 				/*
 				 * If either the offset or the new
@@ -1820,8 +1803,8 @@ static void efa_cont_pages(struct ib_umem *umem, u64 addr,
 	}
 #else
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = DIV_ROUND_UP(sg_dma_len(sg), BIT(page_shift));
-		pfn = sg_dma_address(sg) >> page_shift;
+		len = DIV_ROUND_UP(sg_dma_len(sg), PAGE_SIZE);
+		pfn = sg_dma_address(sg) >> PAGE_SHIFT;
 		if (base + p != pfn) {
 			/*
 			 * If either the offset or the new
@@ -1848,7 +1831,7 @@ static void efa_cont_pages(struct ib_umem *umem, u64 addr,
 		*ncont = 0;
 	}
 
-	*shift = page_shift + m;
+	*shift = PAGE_SHIFT + m;
 	*count = i;
 }
 
