@@ -38,7 +38,9 @@ static u8 get_mmap_flag(u64 mmap_key)
 	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
 
 struct efa_mmap_entry {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 	struct list_head list;
+#endif
 	void  *obj;
 	u64 address;
 	u64 length;
