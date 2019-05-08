@@ -1,3 +1,5 @@
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All rights reserved
+
 %define name			efa
 %define debug_package		%{nil}
 
@@ -37,6 +39,7 @@ dkms remove -m %{name} -v %{driver_version} --all
 cd kernel/linux/efa
 mkdir -p %{buildroot}%{install_path}
 install -D -m 644 conf/efa.conf		%{buildroot}/etc/modules-load.d/efa.conf
+install -D -m 644 conf/efa-modprobe.conf	%{buildroot}/etc/modprobe.d/efa.conf
 install -m 644 conf/dkms.conf		%{buildroot}%{install_path}
 install -m 644 efa_com.c		%{buildroot}%{install_path}
 install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}
@@ -60,8 +63,13 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 %files
 %{install_path}
 /etc/modules-load.d/efa.conf
+/etc/modprobe.d/efa.conf
 
 %changelog
+* Tue May 7 2019 Jie Zhang <zhngaj@amazon.com> - 0.9.2
+- Add a separate configuration file to load ib_uverbs as a soft dependency module
+  on non-systemd based systems
+
 * Tue Apr 2 2019 Robert Wespetal <wesper@amazon.com> - 0.9.1
 - Update EFA post install script to install module for all kernels
 
