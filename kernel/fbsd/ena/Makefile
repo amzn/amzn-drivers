@@ -1,7 +1,7 @@
 #
 # BSD LICENSE
 #
-# Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+# Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,6 @@ CFLAGS  += -DSMP -O2
 
 # Enable debug messages and sysctls
 # CFLAGS  += -DENA_DEBUG
-
-# NOTE: you can only define RSS if the OS version has support (11.0)
-#CFLAGS  += -DRSS
 
 clean:
 	rm -f opt_bdg.h device_if.h bus_if.h pci_if.h setdef* *_StripErr

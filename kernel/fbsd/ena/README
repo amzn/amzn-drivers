@@ -3,14 +3,18 @@ FreeBSD kernel driver for Elastic Network Adapter (ENA) family:
 
 Version:
 ========
-0.8.1
+v2.0.0
 
 Supported FreeBSD Versions:
 ===========================
-- FreeBSD release/11.0
-- FreeBSD release/11.1
-- FreeBSD 12, starting from rS3091111,
-  commit cbc182c1724fcd3ee240ed9933fcc53eb6db5b9b (Nov 24, 2016).
+amd64:
+- FreeBSD release/11.0 and so on
+- FreeBSD 12, starting from rS3091111
+
+aarch64 (A1 instances):
+- FreeBSD stable/11, starting from r345871
+- FreeBSD stable/12, starting from r345872
+- FreeBSD 13, starting from r345371
 
 Overview:
 =========
@@ -44,8 +48,7 @@ to recover in a manner transparent to the application, as well as
 debug logs.
 
 Some of the ENA devices support a working mode called Low-latency
-Queue (LLQ), which saves several more microseconds. This feature will
-be implemented for driver in future releases.
+Queue (LLQ), which saves several more microseconds.
 
 Driver compilation:
 ===================
@@ -201,13 +204,24 @@ with it.
 The SQs and CQs are implemented as descriptor rings in contiguous
 physical memory.
 
-The ENA driver in 0.8.1 currently supports one Queue Operation mode for Tx SQs:
+The ENA driver supports two Queue Operation modes for Tx SQs:
 - Regular mode
   * In this mode the Tx SQs reside in the host's memory. The ENA
     device fetches the ENA Tx descriptors and packet data from host
     memory.
+- Low Latency Queue (LLQ) mode or "push-mode".
+  * In this mode the driver pushes the transmit descriptors and the
+    first few bytes of the packet (negotiable parameter)
+    directly to the ENA device memory space.
+    The rest of the packet payload is fetched by the
+    device. For this operation mode, the driver uses a dedicated PCI
+    device memory BAR, which is mapped with write-combine capability.
 
 The Rx SQs support only the regular mode.
+
+Note: Not all ENA devices support LLQ, and this feature is negotiated
+      with the device upon initialization. If the ENA device does not
+      support LLQ mode, the driver falls back to the regular mode.
 
 The driver supports multi-queue for both Tx and Rx. This has various
 benefits:
@@ -271,7 +285,7 @@ RSS:
 - The driver configures RSS settings using the AQ SetFeature command
   (ENA_ADMIN_RSS_HASH_FUNCTION, ENA_ADMIN_RSS_HASH_INPUT and
   ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG properties).
-- The driver sets default CRC32 function and in 0.8.1 it cannot be
+- The driver sets default CRC32 function and in 2.0.0 it cannot be
   configured manually.
 
 DATA PATH:
@@ -289,24 +303,26 @@ ena_mq_start() is called by the stack. This function does the following:
   which will run ena_start_xmit() in different thread and it will
   clean all of the packets in the drbr.
 - ena_start_xmit() is doing following steps:
-  * Check if there is still enough space in the hw queues, if not, call
-    ena_tx_cleanup() function directly
+  * Checking if the Tx queue is still running - if not, then it puts mbuf
+    back to drbr and exits.
   * Call ena_xmit_mbuf() function for all mbufs in the drbr or until
     transmission error occurs.
   * ena_xmit_mbuf() is sending mbufs to the ENA device with given steps:
-    + Mbufs are mapped and defragmented if necessary for the DMA transactions
+    + Mbufs are mapped and defragmented if necessary for the DMA transactions.
     + Allocates a new request ID from the empty req_id ring. The request
       ID is the index of the packet in the Tx info. This is used for
       out-of-order TX completions.
     + The packet is added to the proper place in the TX ring.
+    + The driver is checking if the doorbell needs to be issued.
     + ena_com_prepare_tx() is called, an ENA communication layer that converts
       the ena_bufs to ENA descriptors (and adds meta ENA descriptors as
-      needed.)
+      needed).
       # This function also copies the ENA descriptors and the push buffer
-        to the Device memory space (if in push mode.)
-  * Write doorbells to the ENA device.
-  * After emptying drbr, if hw tx queue is low on space, call ena_tx_cleanup()
-    routine
+        to the Device memory space (if in push mode).
+    + Stop Tx ring if it couldn't handle any more packets.
+  * Write doorbells to the ENA device if needed.
+  * After emptying drbr, if Tx queue was stopped due to running out of space,
+    cleanup task is being enqueued.
 
 When the ENA device finishes sending the packet, a completion
 interrupt is raised:
@@ -319,7 +335,8 @@ interrupt is raised:
     the packet is retrieved via the req_id. The data buffers are
     unmapped and req_id is returned to the empty req_id ring.
   * The function stops when the completion descriptors are completed or given
-    budget is depleted
+    budget is depleted.
+  * Tx ring is being resumed if it was stopped before.
 - All interrupts are being unmasked
 
 Rx:
@@ -342,7 +359,6 @@ When a packet is received from the ENA device:
 
 Unsupported features:
 =====================
-- LLQ support
 - RSS configuration by user
 
 Known issues:
