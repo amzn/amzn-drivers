@@ -150,4 +150,20 @@ free:
 	dev_info(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
+
+static inline void *kvzalloc(size_t size, gfp_t flags)
+{
+	void *addr;
+
+	addr = kzalloc(size, flags | __GFP_NOWARN);
+	if (addr)
+		return addr;
+
+	return vzalloc(size);
+}
+#endif
+
 #endif /* _KCOMPAT_H_ */
