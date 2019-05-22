@@ -99,8 +99,8 @@ struct efa_ucontext {
 	/* Protects ucontext state */
 	struct mutex lock;
 	struct list_head pending_mmaps;
-	u32 mmap_page;
 #endif
+	u32 mmap_xa_page;
 	u16 uarn;
 };
 
