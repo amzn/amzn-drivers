@@ -12,10 +12,8 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #endif
-#include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/sched.h>
 #include <linux/version.h>
 
 #include <rdma/ib_verbs.h>
