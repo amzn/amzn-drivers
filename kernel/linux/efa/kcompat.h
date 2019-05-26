@@ -150,7 +150,8 @@ free:
 	dev_info(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0) && \
+	RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7, 6)
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
