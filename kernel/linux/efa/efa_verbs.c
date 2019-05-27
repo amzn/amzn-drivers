@@ -1297,6 +1297,7 @@ struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
 }
 #endif
 
+#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 static int umem_to_page_list(struct efa_dev *dev,
 			     struct ib_umem *umem,
 			     u64 *page_list,
@@ -1304,22 +1305,33 @@ static int umem_to_page_list(struct efa_dev *dev,
 			     u8 hp_shift)
 {
 	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
-#ifdef HAVE_SG_DMA_PAGE_ITER
+	struct ib_block_iter biter;
+	unsigned int hp_idx = 0;
+
+	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
+		  hp_cnt, pages_in_hp);
+
+	rdma_for_each_block(umem->sg_head.sgl, &biter, umem->nmap,
+			    BIT(hp_shift))
+		page_list[hp_idx++] = rdma_block_iter_dma_address(&biter);
+
+	return 0;
+}
+#elif defined(HAVE_SG_DMA_PAGE_ITER)
+static int umem_to_page_list(struct efa_dev *dev,
+			     struct ib_umem *umem,
+			     u64 *page_list,
+			     u32 hp_cnt,
+			     u8 hp_shift)
+{
+	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
 	struct sg_dma_page_iter sg_iter;
-#elif defined(HAVE_UMEM_SCATTERLIST_IF)
-	struct scatterlist *sg;
-	unsigned int entry;
-#else
-	struct ib_umem_chunk *chunk;
-	unsigned int entry;
-#endif
 	unsigned int page_idx = 0;
 	unsigned int hp_idx = 0;
 
 	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
 		  hp_cnt, pages_in_hp);
 
-#ifdef HAVE_SG_DMA_PAGE_ITER
 	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
 		if (page_idx % pages_in_hp == 0) {
 			page_list[hp_idx] = sg_page_iter_dma_address(&sg_iter);
@@ -1328,7 +1340,25 @@ static int umem_to_page_list(struct efa_dev *dev,
 
 		page_idx++;
 	}
+
+	return 0;
+}
 #elif defined(HAVE_UMEM_SCATTERLIST_IF)
+static int umem_to_page_list(struct efa_dev *dev,
+			     struct ib_umem *umem,
+			     u64 *page_list,
+			     u32 hp_cnt,
+			     u8 hp_shift)
+{
+	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
+	unsigned int page_idx = 0;
+	unsigned int hp_idx = 0;
+	struct scatterlist *sg;
+	unsigned int entry;
+
+	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
+		  hp_cnt, pages_in_hp);
+
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
 		if (sg_dma_len(sg) != PAGE_SIZE) {
 			ibdev_dbg(&dev->ibdev,
@@ -1343,7 +1373,25 @@ static int umem_to_page_list(struct efa_dev *dev,
 		}
 		page_idx++;
 	}
+
+	return 0;
+}
 #else
+static int umem_to_page_list(struct efa_dev *dev,
+			     struct ib_umem *umem,
+			     u64 *page_list,
+			     u32 hp_cnt,
+			     u8 hp_shift)
+{
+	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
+	struct ib_umem_chunk *chunk;
+	unsigned int page_idx = 0;
+	unsigned int hp_idx = 0;
+	unsigned int entry;
+
+	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
+		  hp_cnt, pages_in_hp);
+
 	list_for_each_entry(chunk, &umem->chunk_list, list) {
 		for (entry = 0; entry < chunk->nents; entry++) {
 			if (sg_dma_len(&chunk->page_list[entry]) != PAGE_SIZE) {
@@ -1362,10 +1410,10 @@ static int umem_to_page_list(struct efa_dev *dev,
 			page_idx++;
 		}
 	}
-#endif
 
 	return 0;
 }
+#endif
 
 static struct scatterlist *efa_vmalloc_buf_to_sg(u64 *buf, int page_cnt)
 {
@@ -1696,10 +1744,12 @@ static int efa_create_pbl(struct efa_dev *dev,
 	return 0;
 }
 
-static void efa_cont_pages(struct ib_umem *umem, u64 addr,
-			   unsigned long max_page_shift,
-			   int *count, u8 *shift, u32 *ncont)
+#ifndef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
+static unsigned long efa_cont_pages(struct ib_umem *umem,
+				    unsigned long page_size_cap,
+				    u64 addr)
 {
+	unsigned long max_page_shift = fls64(page_size_cap);
 #ifndef HAVE_UMEM_SCATTERLIST_IF
 	struct ib_umem_chunk *chunk;
 #else
@@ -1715,8 +1765,7 @@ static void efa_cont_pages(struct ib_umem *umem, u64 addr,
 	addr = addr >> PAGE_SHIFT;
 	tmp = (unsigned long)addr;
 	m = find_first_bit(&tmp, BITS_PER_LONG);
-	if (max_page_shift)
-		m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
+	m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
 
 #ifndef HAVE_UMEM_SCATTERLIST_IF
 	list_for_each_entry(chunk, &umem->chunk_list, list) {
@@ -1763,17 +1812,14 @@ static void efa_cont_pages(struct ib_umem *umem, u64 addr,
 	}
 #endif
 
-	if (i) {
+	if (i)
 		m = min_t(unsigned long, ilog2(roundup_pow_of_two(i)), m);
-		*ncont = DIV_ROUND_UP(i, (1 << m));
-	} else {
+	else
 		m = 0;
-		*ncont = 0;
-	}
 
-	*shift = PAGE_SHIFT + m;
-	*count = i;
+	return BIT(PAGE_SHIFT + m);
 }
+#endif
 
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
@@ -1782,11 +1828,10 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_com_reg_mr_params params = {};
 	struct efa_com_reg_mr_result result = {};
-	unsigned long max_page_shift;
 	struct pbl_context pbl;
+	unsigned int pg_sz;
 	struct efa_mr *mr;
 	int inline_size;
-	int npages;
 	int err;
 
 #ifndef HAVE_NO_KVERBS_DRIVERS
@@ -1841,13 +1886,29 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	params.iova = virt_addr;
 	params.mr_length_in_bytes = length;
 	params.permissions = access_flags & 0x1;
-	max_page_shift = fls64(dev->dev_attr.page_size_cap);
 
-	efa_cont_pages(mr->umem, start, max_page_shift, &npages,
-		       &params.page_shift, &params.page_num);
+#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
+	pg_sz = ib_umem_find_best_pgsz(mr->umem,
+				       dev->dev_attr.page_size_cap,
+				       virt_addr);
+	if (!pg_sz) {
+		err = -EOPNOTSUPP;
+		ibdev_dbg(&dev->ibdev, "Failed to find a suitable page size in page_size_cap %#llx\n",
+			  dev->dev_attr.page_size_cap);
+		goto err_unmap;
+	}
+#else
+	pg_sz = efa_cont_pages(mr->umem, dev->dev_attr.page_size_cap,
+			       virt_addr);
+#endif
+
+	params.page_shift = __ffs(pg_sz);
+	params.page_num = DIV_ROUND_UP(length + (start & (pg_sz - 1)),
+				       pg_sz);
+
 	ibdev_dbg(&dev->ibdev,
-		  "start %#llx length %#llx npages %d params.page_shift %u params.page_num %u\n",
-		  start, length, npages, params.page_shift, params.page_num);
+		  "start %#llx length %#llx params.page_shift %u params.page_num %u\n",
+		  start, length, params.page_shift, params.page_num);
 
 	inline_size = ARRAY_SIZE(params.pbl.inline_pbl_array);
 	if (params.page_num <= inline_size) {

@@ -94,6 +94,7 @@
 #define HAVE_DEREG_MR_UDATA
 #define HAVE_DESTROY_CQ_UDATA
 #define HAVE_DESTROY_QP_UDATA
+#define HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 #endif
 
 /* End of upstream defines */
