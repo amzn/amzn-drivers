@@ -35,7 +35,7 @@ ifdef UBUNTU_ABI
 endif
 
 all:
-	make -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) modules
+	$(MAKE) -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) modules
 
 clean:
-	make -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) clean
+	$(MAKE) -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) clean
