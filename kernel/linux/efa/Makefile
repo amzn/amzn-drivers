@@ -16,10 +16,10 @@ KERNEL_VERSION ?= $(shell uname -r)
 
 ccflags-y += -Wfatal-errors
 modules:
-	make -C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) modules
+	$(MAKE) -C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) modules
 
 install: modules
-	make -C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) modules_install
+	$(MAKE) -C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) modules_install
 
 clean:
-	make -C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) clean
+	$(MAKE)-C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) clean
