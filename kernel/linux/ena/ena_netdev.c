@@ -351,7 +351,7 @@ static void ena_free_all_io_tx_resources(struct ena_adapter *adapter)
 		ena_free_tx_resources(adapter, i);
 }
 
-static inline int validate_rx_req_id(struct ena_ring *rx_ring, u16 req_id)
+static int validate_rx_req_id(struct ena_ring *rx_ring, u16 req_id)
 {
 	if (likely(req_id < rx_ring->ring_size))
 		return 0;
@@ -488,7 +488,7 @@ static void ena_free_all_io_rx_resources(struct ena_adapter *adapter)
 		ena_free_rx_resources(adapter, i);
 }
 
-static inline int ena_alloc_rx_page(struct ena_ring *rx_ring,
+static int ena_alloc_rx_page(struct ena_ring *rx_ring,
 				    struct ena_rx_buffer *rx_info, gfp_t gfp)
 {
 	struct ena_com_buf *ena_buf;
@@ -652,7 +652,7 @@ static void ena_free_all_rx_bufs(struct ena_adapter *adapter)
 		ena_free_rx_bufs(adapter, i);
 }
 
-static inline void ena_unmap_tx_skb(struct ena_ring *tx_ring,
+static void ena_unmap_tx_skb(struct ena_ring *tx_ring,
 				    struct ena_tx_buffer *tx_info)
 {
 	struct ena_com_buf *ena_buf;
@@ -1014,7 +1014,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
  * @ena_rx_ctx: received packet context/metadata
  * @skb: skb currently being received and modified
  */
-static inline void ena_rx_checksum(struct ena_ring *rx_ring,
+static void ena_rx_checksum(struct ena_ring *rx_ring,
 				   struct ena_com_rx_ctx *ena_rx_ctx,
 				   struct sk_buff *skb)
 {
@@ -1203,7 +1203,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 	rx_ring->next_to_clean = next_to_clean;
 
-	refill_required = ena_com_free_desc(rx_ring->ena_com_io_sq);
+	refill_required = ena_com_free_q_entries(rx_ring->ena_com_io_sq);
 	refill_threshold =
 		min_t(int, rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER,
 		      ENA_RX_REFILL_THRESH_PACKET);
@@ -1230,7 +1230,7 @@ error:
 	return 0;
 }
 
-inline void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
+void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
 				       struct ena_ring *tx_ring)
 {
 	/* We apply adaptive moderation on Rx path only.
@@ -1249,7 +1249,7 @@ inline void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
 	rx_ring->per_napi_bytes = 0;
 }
 
-static inline void ena_unmask_interrupt(struct ena_ring *tx_ring,
+static void ena_unmask_interrupt(struct ena_ring *tx_ring,
 					struct ena_ring *rx_ring)
 {
 	struct ena_eth_io_intr_reg intr_reg;
@@ -1269,7 +1269,7 @@ static inline void ena_unmask_interrupt(struct ena_ring *tx_ring,
 	ena_com_unmask_intr(rx_ring->ena_com_io_cq, &intr_reg);
 }
 
-static inline void ena_update_ring_numa_node(struct ena_ring *tx_ring,
+static void ena_update_ring_numa_node(struct ena_ring *tx_ring,
 					     struct ena_ring *rx_ring)
 {
 	int cpu = get_cpu();
@@ -1908,7 +1908,7 @@ create_err:
 	return rc;
 }
 
-static inline void set_io_rings_size(struct ena_adapter *adapter,
+static void set_io_rings_size(struct ena_adapter *adapter,
 				     int new_tx_size, int new_rx_size)
 {
 	int i;
@@ -2117,18 +2117,6 @@ static void ena_down(struct ena_adapter *adapter)
 	ena_free_all_io_rx_resources(adapter);
 }
 
-int ena_update_queue_sizes(struct ena_adapter *adapter,
-			   int new_tx_size,
-			   int new_rx_size)
-{
-	ena_down(adapter);
-	adapter->requested_tx_ring_size = new_tx_size;
-	adapter->requested_rx_ring_size = new_rx_size;
-	ena_init_io_rings(adapter);
-	return ena_up(adapter);
-}
-
-
 /* ena_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -2199,6 +2187,20 @@ static int ena_close(struct net_device *netdev)
 	}
 
 	return 0;
+}
+
+int ena_update_queue_sizes(struct ena_adapter *adapter,
+			   u32 new_tx_size,
+			   u32 new_rx_size)
+{
+	bool dev_up;
+
+	dev_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
+	ena_close(adapter->netdev);
+	adapter->requested_tx_ring_size = new_tx_size;
+	adapter->requested_rx_ring_size = new_rx_size;
+	ena_init_io_rings(adapter);
+	return dev_up ? ena_up(adapter) : 0;
 }
 
 static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct sk_buff *skb)
@@ -2507,7 +2509,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
-	if (netif_xmit_stopped(txq) || !skb->xmit_more) {
+	if (netif_xmit_stopped(txq) || !netdev_xmit_more()) {
 #endif
 		/* trigger the dma engine. ena_com_write_sq_doorbell()
 		 * has a mb
@@ -2531,7 +2533,10 @@ error_drop_packet:
 	return NETDEV_TX_OK;
 }
 
-#ifdef HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2
+#ifdef HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V3
+static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
+			    struct net_device *sb_dev)
+#elif defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2
 static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 			    struct net_device *sb_dev,
 			    select_queue_fallback_t fallback)
@@ -2555,7 +2560,9 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb)
 	if (skb_rx_queue_recorded(skb))
 		qid = skb_get_rx_queue(skb);
 	else
-#if (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2)
+#if (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V3)
+		qid = netdev_pick_tx(dev, skb, NULL);
+#elif (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2)
 		qid = fallback(dev, skb, NULL);
 #elif (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V1)
 		qid = fallback(dev, skb);
@@ -3312,7 +3319,7 @@ static void check_for_empty_rx_ring(struct ena_adapter *adapter)
 	for (i = 0; i < adapter->num_queues; i++) {
 		rx_ring = &adapter->rx_ring[i];
 
-		refill_required = ena_com_free_desc(rx_ring->ena_com_io_sq);
+		refill_required = ena_com_free_q_entries(rx_ring->ena_com_io_sq);
 		if (unlikely(refill_required == (rx_ring->ring_size - 1))) {
 			rx_ring->empty_rx_queue++;
 
@@ -3673,7 +3680,7 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 	pci_release_selected_regions(pdev, release_bars);
 }
 
-static inline void set_default_llq_configurations(struct ena_llq_configurations *llq_config,
+static void set_default_llq_configurations(struct ena_llq_configurations *llq_config,
 						  struct ena_admin_feature_llq_desc *llq)
 {
 	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;

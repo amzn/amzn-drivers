@@ -355,7 +355,10 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 #endif
 #endif /* >= 3.8.0 */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0))
+#define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V3
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)) || \
+      (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8,0)))
 #define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2
 #else
 
@@ -638,6 +641,14 @@ do {									\
 		dev_info(dev, fmt, ##__VA_ARGS__);			\
 } while (0)
 #endif
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0))
+#define netdev_xmit_more() ((skb->xmit_more))
+#endif
+
+#ifndef mmiowb
+#define MMIOWB_NOT_DEFINED
 #endif
 
 #endif /* _KCOMPAT_H_ */

@@ -88,13 +88,14 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(cnt),
 	ENA_STAT_RX_ENTRY(bytes),
+	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+	ENA_STAT_RX_ENTRY(csum_good),
 	ENA_STAT_RX_ENTRY(refil_partial),
 	ENA_STAT_RX_ENTRY(bad_csum),
 	ENA_STAT_RX_ENTRY(page_alloc_fail),
 	ENA_STAT_RX_ENTRY(skb_alloc_fail),
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
-	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
 #if ENA_BUSY_POLL_SUPPORT
 	ENA_STAT_RX_ENTRY(bp_yield),
 	ENA_STAT_RX_ENTRY(bp_missed),
@@ -103,7 +104,6 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(bad_req_id),
 	ENA_STAT_RX_ENTRY(empty_rx_ring),
 	ENA_STAT_RX_ENTRY(csum_unchecked),
-	ENA_STAT_RX_ENTRY(csum_good),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
@@ -284,14 +284,12 @@ static void get_private_flags_strings(struct ena_adapter *adapter, u8 *data)
 
 	if (unlikely(!strings)) {
 		adapter->ena_extra_properties_count = 0;
-		netif_err(adapter, drv, adapter->netdev,
-			  "Failed to allocate extra properties strings\n");
 		return;
 	}
 
 	for (i = 0; i < adapter->ena_extra_properties_count; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 strings + ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN * i);
+		strlcpy(data, strings + ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN * i,
+			ETH_GSTRING_LEN);
 		data += ETH_GSTRING_LEN;
 	}
 }

@@ -39,6 +39,37 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.1.1 release notes
+**Bug Fixes**
+* kcompat: fix ndo_select_queue() signature for newer kernels
+* kcompat: use netdev_xmit_more() instead of skb->xmit_more()
+* Drop mmiowb() from newer kernels as done in upstream in the following comit:
+  https://github.com/torvalds/linux/commit/fb24ea52f78e0d595852e09e3a55697c8f442189
+* Fix compilation on RHEL 8
+* ena_netdev.c: ena_update_queue_sizes: fix race condition with reset
+
+**Minor Changes**
+* Fix the kernel version indication comment in README
+* Make sure all the counters that will be updated in normal case are grouped
+  together so we don't end up wasting cache lines.
+  cnt+bytes+csum_good+rx_copybreak_pkt should be grouped together as they will
+  be used most of the time.
+* Drop superflous error message from get_private_flags_strings(), the
+  motive behind this is here: https://marc.info/?l=linux-netdev&m=155957215813380&w=2
+* Use strlcpy instead of snprintf in get_private_flags_strings()
+* Changed ena_update_queue_sizes() signature to use u32 instead of int type
+  for the size arguments
+* Drop inline keyword all *.c files, let the compiler decide
+* Add auto_polling status print to command completion print in
+  ena_com_wait_and_process_admin_cq_interrupts()
+* Add unlikely() hints to conditionals where it is needed
+* ena_com is generic while ethtool is Linux specific therefore
+  we remove the reference to ethtool from ena_com
+* Add sanity check test back to ena_com_config_dev_mode(). In
+  the sanity check use == instead of <= since tx_max_header_size
+  is uint32 and cannot be negative
+* Fix reverse christmas tree in ena_com_write_sq_doorbell()
+
 ## r2.1.0 release notes
 **New Features**
 * Add force_large_llq_header module parameter to enable support

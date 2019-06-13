@@ -91,7 +91,7 @@ struct ena_com_stats_ctx {
 	struct ena_admin_acq_get_stats_resp get_resp;
 };
 
-static inline int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
+static int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
 				       struct ena_common_mem_addr *ena_addr,
 				       dma_addr_t addr)
 {
@@ -190,7 +190,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *dev,
 	return 0;
 }
 
-static inline void comp_ctxt_release(struct ena_com_admin_queue *queue,
+static void comp_ctxt_release(struct ena_com_admin_queue *queue,
 				     struct ena_comp_ctx *comp_ctx)
 {
 	comp_ctx->occupied = false;
@@ -277,7 +277,7 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 	return comp_ctx;
 }
 
-static inline int ena_com_init_comp_ctxt(struct ena_com_admin_queue *queue)
+static int ena_com_init_comp_ctxt(struct ena_com_admin_queue *queue)
 {
 	size_t size = queue->q_depth * sizeof(struct ena_comp_ctx);
 	struct ena_comp_ctx *comp_ctx;
@@ -520,9 +520,6 @@ static int ena_com_comp_status_to_errno(u8 comp_status)
 	if (unlikely(comp_status != 0))
 		pr_err("admin command failed[%u]\n", comp_status);
 
-	if (unlikely(comp_status > ENA_ADMIN_UNKNOWN_ERROR))
-		return -EINVAL;
-
 	switch (comp_status) {
 	case ENA_ADMIN_SUCCESS:
 		return 0;
@@ -537,7 +534,7 @@ static int ena_com_comp_status_to_errno(u8 comp_status)
 		return -EINVAL;
 	}
 
-	return 0;
+	return -EINVAL;
 }
 
 static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_ctx,
@@ -764,14 +761,14 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
 		if (comp_ctx->status == ENA_CMD_COMPLETED) {
-			pr_err("The ena device sent a completion but the driver didn't receive any MSI-X interrupt (cmd %d), autopolling mode is %s\n",
+			pr_err("The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
 			       comp_ctx->cmd_opcode,
 			       admin_queue->auto_polling ? "ON" : "OFF");
 			/* Check if fallback to polling is enabled */
 			if (admin_queue->auto_polling)
 				admin_queue->polling = true;
 		} else {
-			pr_err("The ena device doesn't send any completion for the admin cmd %d status %d\n",
+			pr_err("The ena device didn't send a completion for the admin cmd %d status %d\n",
 			       comp_ctx->cmd_opcode, comp_ctx->status);
 		}
 		/* Check if shifted to polling mode.
@@ -1664,6 +1661,11 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
 	ena_dev->admin_queue.polling = polling;
 }
 
+bool ena_com_get_admin_polling_mode(struct ena_com_dev * ena_dev)
+{
+	return ena_dev->admin_queue.polling;
+}
+
 void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
 					 bool polling)
 {
@@ -2126,7 +2128,9 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	/* write the aenq doorbell after all AENQ descriptors were read */
 	mb();
 	writel_relaxed((u32)aenq->head, dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
+#ifndef MMIOWB_NOT_DEFINED
 	mmiowb();
+#endif
 }
 
 int ena_com_dev_reset(struct ena_com_dev *ena_dev,
@@ -3035,6 +3039,11 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 
 	ena_dev->tx_max_header_size = llq_info->desc_list_entry_size -
 		(llq_info->descs_num_before_header * sizeof(struct ena_eth_io_tx_desc));
+
+	if (ena_dev->tx_max_header_size == 0) {
+		pr_err("the size of the LLQ entry is smaller than needed\n");
+		return -EINVAL;
+	}
 
 	ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_DEV;
 

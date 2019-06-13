@@ -47,7 +47,7 @@
 
 #define DRV_MODULE_VER_MAJOR	2
 #define DRV_MODULE_VER_MINOR	1
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_SUBMINOR 1
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -226,13 +226,14 @@ struct ena_stats_tx {
 struct ena_stats_rx {
 	u64 cnt;
 	u64 bytes;
+	u64 rx_copybreak_pkt;
+	u64 csum_good;
 	u64 refil_partial;
 	u64 bad_csum;
 	u64 page_alloc_fail;
 	u64 skb_alloc_fail;
 	u64 dma_mapping_err;
 	u64 bad_desc_num;
-	u64 rx_copybreak_pkt;
 #if ENA_BUSY_POLL_SUPPORT
 	u64 bp_yield;
 	u64 bp_missed;
@@ -241,7 +242,6 @@ struct ena_stats_rx {
 	u64 bad_req_id;
 	u64 empty_rx_ring;
 	u64 csum_unchecked;
-	u64 csum_good;
 };
 
 struct ena_ring {
@@ -413,8 +413,8 @@ void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 
 int ena_update_queue_sizes(struct ena_adapter *adapter,
-			   int new_tx_size,
-			   int new_rx_size);
+			   u32 new_tx_size,
+			   u32 new_rx_size);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
 

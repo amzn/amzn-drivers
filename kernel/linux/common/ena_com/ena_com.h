@@ -544,7 +544,7 @@ bool ena_com_get_admin_running_state(struct ena_com_dev *ena_dev);
  */
 void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling);
 
-/* ena_com_set_admin_polling_mode - Get the admin completion queue polling mode
+/* ena_com_get_admin_polling_mode - Get the admin completion queue polling mode
  * @ena_dev: ENA communication layer struct
  *
  * Get the admin completion mode.
@@ -554,7 +554,7 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling);
  *
  * @return state
  */
-bool ena_com_get_ena_admin_polling_mode(struct ena_com_dev *ena_dev);
+bool ena_com_get_admin_polling_mode(struct ena_com_dev *ena_dev);
 
 /* ena_com_set_admin_auto_polling_mode - Enable autoswitch to polling mode
  * @ena_dev: ENA communication layer struct
