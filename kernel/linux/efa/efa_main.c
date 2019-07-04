@@ -232,6 +232,7 @@ static void efa_stats_init(struct efa_dev *dev)
 
 #ifdef HAVE_IB_DEV_OPS
 static const struct ib_device_ops efa_dev_ops = {
+	.alloc_hw_stats = efa_alloc_hw_stats,
 #ifdef HAVE_PD_CORE_ALLOCATION
 	.alloc_pd = efa_alloc_pd,
 #else
@@ -258,6 +259,7 @@ static const struct ib_device_ops efa_dev_ops = {
 #ifndef HAVE_NO_KVERBS_DRIVERS
 	.get_dma_mr = efa_get_dma_mr,
 #endif
+	.get_hw_stats = efa_get_hw_stats,
 	.get_link_layer = efa_port_link_layer,
 	.get_port_immutable = efa_get_port_immutable,
 	.mmap = efa_mmap,
@@ -369,6 +371,9 @@ static int efa_ib_device_add(struct efa_dev *dev)
 #ifdef HAVE_IB_DEV_OPS
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
 #else
+#ifdef HAVE_HW_STATS
+	dev->ibdev.alloc_hw_stats = efa_alloc_hw_stats;
+#endif
 	dev->ibdev.alloc_pd = efa_kzalloc_pd;
 	dev->ibdev.alloc_ucontext = efa_kzalloc_ucontext;
 	dev->ibdev.create_ah = efa_kzalloc_ah;
@@ -381,6 +386,9 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.destroy_cq = efa_destroy_cq;
 	dev->ibdev.destroy_qp = efa_destroy_qp;
 	dev->ibdev.get_dma_mr = efa_get_dma_mr;
+#ifdef HAVE_HW_STATS
+	dev->ibdev.get_hw_stats = efa_get_hw_stats;
+#endif
 	dev->ibdev.get_link_layer = efa_port_link_layer;
 #ifdef HAVE_GET_PORT_IMMUTABLE
 	dev->ibdev.get_port_immutable = efa_get_port_immutable;
