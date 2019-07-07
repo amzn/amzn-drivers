@@ -1,0 +1,5 @@
+efa (0.9.2-1.amzn1) unstable; urgency=medium
+
+  * Initial release of EFA kernel driver Debian package
+
+ -- Jie Zhang <zhngaj@amazon.com>  Wed, 22 May 2019 23:03:27 +0000

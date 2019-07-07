@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -e
+
+NAME=efa
+DRIVER_VERSION=0.9.2
+
+dkms remove -m ${NAME} -v ${DRIVER_VERSION} --all
+
+#DEBHELPER#

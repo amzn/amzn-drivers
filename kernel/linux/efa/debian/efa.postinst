@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+NAME=efa
+DRIVER_VERSION=0.9.2
+
+dkms add -m ${NAME} -v ${DRIVER_VERSION}
+for kernel in $(/bin/ls /lib/modules); do
+	dkms build -m ${NAME} -v ${DRIVER_VERSION} -k $kernel
+	dkms install -m ${NAME} -v ${DRIVER_VERSION} -k $kernel
+done
+
+#DEBHELPER#
