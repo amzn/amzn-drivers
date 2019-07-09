@@ -66,6 +66,13 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Sun Jul 7 2019 Gal Pressman <galpress@amazon.com> - 1.3.0
+- Align to the driver that was merged upstream
+- Fix a bug where failed functions would return success return value
+- Fix modify QP udata check backport
+- Fix locking issues in mmap flow
+- Add Debian packaging files
+
 * Tue May 7 2019 Jie Zhang <zhngaj@amazon.com> - 0.9.2
 - Add a separate configuration file to load ib_uverbs as a soft dependency module
   on non-systemd based systems

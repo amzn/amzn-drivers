@@ -13,6 +13,14 @@ The driver was tested on the following distributions:
 * CentOS 7.4
 * CentOS 7.6
 
+## r1.3.0 release notes
+
+* Align to the driver that was merged upstream
+* Fix a bug where failed functions would return success return value
+* Fix modify QP udata check backport
+* Fix locking issues in mmap flow
+* Add Debian packaging files
+
 ## r0.9.2 release notes
 
 * Bug fix module load issue
