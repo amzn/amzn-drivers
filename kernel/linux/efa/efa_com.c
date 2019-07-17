@@ -740,7 +740,6 @@ int efa_com_admin_init(struct efa_com_dev *edev,
 
 	aq->depth = EFA_ADMIN_QUEUE_DEPTH;
 
-	aq->bus = edev->bus;
 	aq->dmadev = edev->dmadev;
 	aq->efa_dev = edev->efa_dev;
 	set_bit(EFA_AQ_STATE_POLLING_BIT, &aq->state);

@@ -59,7 +59,6 @@ enum {
 struct efa_com_admin_queue {
 	void *dmadev;
 	void *efa_dev;
-	void *bus;
 	struct efa_comp_ctx *comp_ctx;
 	u32 completion_timeout; /* usecs */
 	u16 poll_interval; /* msecs */
@@ -107,7 +106,6 @@ struct efa_com_dev {
 	u8 __iomem *reg_bar;
 	void *dmadev;
 	void *efa_dev;
-	void *bus;
 	u32 supported_features;
 	u32 dma_addr_bits;
 
