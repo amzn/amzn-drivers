@@ -39,6 +39,34 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.1.2 release notes
+**New Features**
+* Add module parameter for setting the number of I/O queues.
+
+**Bug Fixes**
+* Add aarch64 to ExclusiveArch directive in ena.spec to allow building
+  the driver using rpm-build on arm instances.
+* Make ethtool -l show correct max number of queues (ethtool -L not
+  implemented yet, but number of queues can be changed via the new
+  num_io_queues module parameter).
+* Fix compilation for both opensuse and suse 15.1
+
+**Minor Changes**
+* Remove redundant print of number of queues and placement policy in
+  ena_probe().
+* Make all types of variables that convey the number and sizeof
+  queues to be u32, for consistency.
+* Move the print to dmesg of creating io queues from ena_probe to
+  ena_up.
+* Rename ena_calc_queue_size() to ena_calc_io_queue_size() for clarity
+  and consistency.
+* Remove redundant number of io queues parameter in functions
+  ena_enable_msix() and ena_enable_msix_and_set_admin_interrupts()
+* Use the local variable ena_dev instead of ctx->ena_dev in
+  ena_calc_io_queue_size().
+* Fix multi row comment alignment.
+* Change num_queues to num_io_queues for clarity and consistency
+
 ## r2.1.1 release notes
 **Bug Fixes**
 * kcompat: fix ndo_select_queue() signature for newer kernels

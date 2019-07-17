@@ -116,6 +116,13 @@ value), the maximum packet header size is set to 96 bytes. When this
 parameter is set to a non 0 value, the maximum packet header size is
 set to 224 bytes, and the TX queue size is reduced by half.
 
+num_io_queues - Controls the number of requested IO queues. The maximum
+possible number is set to be MIN(maximum IO queues supported by the
+device, number of MSI-X vectors supported by the device, number of online
+CPUs). The minimum number of queues is 1. If the number of queues given is
+outside of the range, the number of queues will be set to the closest
+number from within the range.
+
 Disable Predictable Network Names:
 ==================================
 When predicatable network naming is enabled, Linux might change the

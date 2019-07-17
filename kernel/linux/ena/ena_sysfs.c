@@ -65,7 +65,7 @@ static ssize_t ena_store_rx_copybreak(struct device *dev,
 	rtnl_lock();
 	adapter->rx_copybreak = rx_copybreak;
 
-	for (i = 0; i < adapter->num_queues; i++) {
+	for (i = 0; i < adapter->num_io_queues; i++) {
 		rx_ring = &adapter->rx_ring[i];
 		rx_ring->rx_copybreak = rx_copybreak;
 	}

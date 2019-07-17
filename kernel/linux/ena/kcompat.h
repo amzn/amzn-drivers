@@ -158,6 +158,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #define SLE_VERSION(a,b,c) KERNEL_VERSION(a,b,c)
 #endif
 #ifdef CONFIG_SUSE_KERNEL
+#include <linux/suse_version.h>
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,28) )
 /* SLES12 is at least 3.12.28+ based */
 #define SLE_VERSION_CODE SLE_VERSION(12,0,0)
@@ -166,6 +167,9 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #ifndef SLE_VERSION_CODE
 #define SLE_VERSION_CODE 0
 #endif /* SLE_VERSION_CODE */
+#ifndef SUSE_VERSION
+#define SUSE_VERSION 0
+#endif /* SUSE_VERSION */
 
 
 /******************************************************************************/
@@ -358,7 +362,9 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0))
 #define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V3
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)) || \
-      (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8,0)))
+      (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8,0)))|| \
+      (SUSE_VERSION && ((SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 1) || \
+      (SUSE_VERSION > 15)))
 #define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2
 #else
 
