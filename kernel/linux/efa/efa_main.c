@@ -335,7 +335,11 @@ static int efa_ib_device_add(struct efa_dev *dev)
 		goto err_release_doorbell_bar;
 
 	dev->ibdev.owner = THIS_MODULE;
+#ifdef HAVE_UPSTREAM_EFA
+	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
+#else
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;
+#endif
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = 1;
 #ifdef HAVE_DEV_PARENT
@@ -368,6 +372,9 @@ static int efa_ib_device_add(struct efa_dev *dev)
 		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
 #endif
 
+#ifdef HAVE_UPSTREAM_EFA
+	dev->ibdev.driver_id = RDMA_DRIVER_EFA;
+#endif
 #ifdef HAVE_IB_DEV_OPS
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
 #else

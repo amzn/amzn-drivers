@@ -99,6 +99,7 @@
 #define HAVE_DESTROY_CQ_UDATA
 #define HAVE_DESTROY_QP_UDATA
 #define HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
+#define HAVE_UPSTREAM_EFA
 #endif
 
 /* End of upstream defines */
