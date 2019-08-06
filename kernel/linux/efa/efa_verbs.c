@@ -1103,6 +1103,23 @@ static int efa_destroy_cq_idx(struct efa_dev *dev, int cq_idx)
 	return efa_com_destroy_cq(&dev->edev, &params);
 }
 
+#ifdef HAVE_IB_VOID_DESTROY_CQ
+void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+{
+	struct efa_dev *dev = to_edev(ibcq->device);
+	struct efa_cq *cq = to_ecq(ibcq);
+
+	ibdev_dbg(&dev->ibdev,
+		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
+		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
+
+	efa_destroy_cq_idx(dev, cq->cq_idx);
+	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
+			 DMA_FROM_DEVICE);
+
+	kfree(cq);
+}
+#else
 #ifdef HAVE_DESTROY_CQ_UDATA
 int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 #else
@@ -1127,6 +1144,7 @@ int efa_destroy_cq(struct ib_cq *ibcq)
 	kfree(cq);
 	return 0;
 }
+#endif
 
 static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 				 struct efa_ibv_create_cq_resp *resp)

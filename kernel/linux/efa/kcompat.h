@@ -104,6 +104,7 @@
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0)
 #define HAVE_IB_DEVICE_OPS_COMMON
+#define HAVE_IB_VOID_DESTROY_CQ
 #endif
 
 /* End of upstream defines */

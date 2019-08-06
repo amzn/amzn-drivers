@@ -184,7 +184,9 @@ int efa_destroy_qp(struct ib_qp *ibqp);
 struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata);
-#ifdef HAVE_DESTROY_CQ_UDATA
+#ifdef HAVE_IB_VOID_DESTROY_CQ
+void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
+#elif defined(HAVE_DESTROY_CQ_UDATA)
 int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 #else
 int efa_destroy_cq(struct ib_cq *ibcq);
