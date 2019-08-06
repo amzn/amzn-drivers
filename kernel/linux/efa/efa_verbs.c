@@ -1159,16 +1159,37 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 	return 0;
 }
 
-static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
-				  int vector, struct ib_ucontext *ibucontext,
-				  struct ib_udata *udata)
+#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+struct ib_cq *efa_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_udata *udata)
+#elif defined(HAVE_CREATE_CQ_ATTR)
+struct ib_cq *efa_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_ucontext *ibucontext,
+			    struct ib_udata *udata)
+#else
+struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
+			    int vector,
+			    struct ib_ucontext *ibucontext,
+			    struct ib_udata *udata)
+#endif
 {
+#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct efa_ucontext, ibucontext);
+#else
+	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
+#endif
 	struct efa_ibv_create_cq_resp resp = {};
 	struct efa_com_create_cq_params params;
 	struct efa_com_create_cq_result result;
 	struct efa_dev *dev = to_edev(ibdev);
 	struct efa_ibv_create_cq cmd = {};
 	bool cq_entry_inserted = false;
+#if defined(HAVE_CREATE_CQ_NO_UCONTEXT) || defined(HAVE_CREATE_CQ_ATTR)
+	int entries = attr->cqe;
+#endif
 	struct efa_cq *cq;
 	int err;
 
@@ -1247,7 +1268,7 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		goto err_out;
 	}
 
-	cq->ucontext = to_eucontext(ibucontext);
+	cq->ucontext = ucontext;
 	cq->size = PAGE_ALIGN(cmd.cq_entry_size * entries * cmd.num_sub_cqs);
 	cq->cpu_addr = efa_zalloc_mapped(dev, &cq->dma_addr, cq->size,
 					 DMA_FROM_DEVICE);
@@ -1308,37 +1329,6 @@ err_out:
 	atomic64_inc(&dev->stats.sw_stats.create_cq_err);
 	return ERR_PTR(err);
 }
-
-#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
-struct ib_cq *efa_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_udata *udata)
-{
-	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(udata,
-								  struct efa_ucontext,
-								  ibucontext);
-
-	return do_create_cq(ibdev, attr->cqe, attr->comp_vector,
-			    &ucontext->ibucontext, udata);
-}
-#elif defined(HAVE_CREATE_CQ_ATTR)
-struct ib_cq *efa_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *ibucontext,
-			    struct ib_udata *udata)
-{
-	return do_create_cq(ibdev, attr->cqe, attr->comp_vector, ibucontext,
-			    udata);
-}
-#else
-struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
-			    int vector,
-			    struct ib_ucontext *ibucontext,
-			    struct ib_udata *udata)
-{
-	return do_create_cq(ibdev, entries, vector, ibucontext, udata);
-}
-#endif
 
 #ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 static int umem_to_page_list(struct efa_dev *dev,
