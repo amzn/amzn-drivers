@@ -3,6 +3,7 @@
  * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
+#include "kcompat.h"
 #include <linux/vmalloc.h>
 
 #include <rdma/ib_addr.h>
