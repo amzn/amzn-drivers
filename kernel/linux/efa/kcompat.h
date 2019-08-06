@@ -156,6 +156,17 @@ free:
 	dev_info(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+#define ibdev_err_ratelimited(_ibdev, format, arg...) \
+	dev_err_ratelimited(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
+#define ibdev_dbg_ratelimited(_ibdev, format, arg...) \
+	dev_dbg_ratelimited(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
+#define ibdev_warn_ratelimited(_ibdev, format, arg...) \
+	dev_warn_ratelimited(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
+#define ibdev_info_ratelimited(_ibdev, format, arg...) \
+	dev_info_ratelimited(&((struct ib_device *)(_ibdev))->dev, format, ##arg)
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0) && \
 	RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7, 6)
 #include <linux/slab.h>
