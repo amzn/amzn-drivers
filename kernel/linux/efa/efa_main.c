@@ -232,6 +232,10 @@ static void efa_stats_init(struct efa_dev *dev)
 
 #ifdef HAVE_IB_DEV_OPS
 static const struct ib_device_ops efa_dev_ops = {
+#ifdef HAVE_IB_DEVICE_OPS_COMMON
+	.driver_id = RDMA_DRIVER_EFA,
+#endif
+
 	.alloc_hw_stats = efa_alloc_hw_stats,
 #ifdef HAVE_PD_CORE_ALLOCATION
 	.alloc_pd = efa_alloc_pd,
@@ -372,8 +376,10 @@ static int efa_ib_device_add(struct efa_dev *dev)
 		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
 #endif
 
+#ifndef HAVE_IB_DEVICE_OPS_COMMON
 #ifdef HAVE_UPSTREAM_EFA
 	dev->ibdev.driver_id = RDMA_DRIVER_EFA;
+#endif
 #endif
 #ifdef HAVE_IB_DEV_OPS
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);

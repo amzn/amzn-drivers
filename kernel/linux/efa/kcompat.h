@@ -102,6 +102,10 @@
 #define HAVE_UPSTREAM_EFA
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0)
+#define HAVE_IB_DEVICE_OPS_COMMON
+#endif
+
 /* End of upstream defines */
 
 #if !defined(HAVE_CREATE_AH_UDATA) || !defined(HAVE_IB_QUERY_DEVICE_UDATA)
