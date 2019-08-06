@@ -233,6 +233,7 @@ static void efa_stats_init(struct efa_dev *dev)
 #ifdef HAVE_IB_DEV_OPS
 static const struct ib_device_ops efa_dev_ops = {
 #ifdef HAVE_IB_DEVICE_OPS_COMMON
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_EFA,
 	.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION,
 #endif
@@ -339,7 +340,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		goto err_release_doorbell_bar;
 
-	dev->ibdev.owner = THIS_MODULE;
 #ifdef HAVE_UPSTREAM_EFA
 	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
 #else
@@ -381,6 +381,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.driver_id = RDMA_DRIVER_EFA;
 #endif
 	dev->ibdev.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION;
+	dev->ibdev.owner = THIS_MODULE;
 #endif
 #ifdef HAVE_IB_DEV_OPS
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
