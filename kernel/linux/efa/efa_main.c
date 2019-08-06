@@ -234,6 +234,7 @@ static void efa_stats_init(struct efa_dev *dev)
 static const struct ib_device_ops efa_dev_ops = {
 #ifdef HAVE_IB_DEVICE_OPS_COMMON
 	.driver_id = RDMA_DRIVER_EFA,
+	.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION,
 #endif
 
 	.alloc_hw_stats = efa_alloc_hw_stats,
@@ -351,7 +352,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 #else
 	dev->ibdev.dma_device = &pdev->dev;
 #endif
-	dev->ibdev.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION;
 
 	dev->ibdev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
@@ -380,6 +380,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 #ifdef HAVE_UPSTREAM_EFA
 	dev->ibdev.driver_id = RDMA_DRIVER_EFA;
 #endif
+	dev->ibdev.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION;
 #endif
 #ifdef HAVE_IB_DEV_OPS
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
