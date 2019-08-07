@@ -21,8 +21,9 @@ override_dh_auto_clean:
 	dh_clean
 
 override_dh_auto_build:
+	echo "Skip build"
 
-override_dh_install:
+override_dh_auto_install:
 	mkdir -p ${DESTDIR}/${INSTALL_PATH}
 	install -D -m 644 conf/efa.conf		${DESTDIR}/etc/modules-load.d/efa.conf
 	install -D -m 644 conf/efa-modprobe.conf       ${DESTDIR}/etc/modprobe.d/efa.conf
