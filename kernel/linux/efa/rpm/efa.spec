@@ -66,6 +66,10 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu Aug 8 2019 Gal Pressman <galpress@amazon.com> - 1.3.1
+- Fix build issue in debian/rules file
+- Fix kcompat issue (usage before include)
+
 * Sun Jul 7 2019 Gal Pressman <galpress@amazon.com> - 1.3.0
 - Align to the driver that was merged upstream
 - Fix a bug where failed functions would return success return value

@@ -13,6 +13,11 @@ The driver was tested on the following distributions:
 * CentOS 7.4
 * CentOS 7.6
 
+## r1.3.1 release notes
+
+* Fix build issue in debian/rules file
+* Fix kcompat issue (usage before include)
+
 ## r1.3.0 release notes
 
 * Align to the driver that was merged upstream
