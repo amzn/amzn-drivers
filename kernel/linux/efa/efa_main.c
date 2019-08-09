@@ -285,7 +285,7 @@ static const struct ib_device_ops efa_dev_ops = {
 	.req_notify_cq = efa_req_notify_cq,
 #endif
 
-#ifdef HAVE_UCONTEXT_CORE_ALLOCATION
+#ifdef HAVE_AH_CORE_ALLOCATION
 	INIT_RDMA_OBJ_SIZE(ib_ah, efa_ah, ibah),
 #endif
 #ifdef HAVE_PD_CORE_ALLOCATION
