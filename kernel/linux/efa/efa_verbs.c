@@ -1116,8 +1116,9 @@ void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
 			 DMA_FROM_DEVICE);
-
+#ifndef HAVE_CQ_CORE_ALLOCATION
 	kfree(cq);
+#endif
 }
 #else
 #ifdef HAVE_DESTROY_CQ_UDATA
@@ -1159,38 +1160,30 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 	return 0;
 }
 
-#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
-struct ib_cq *efa_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_udata *udata)
-#elif defined(HAVE_CREATE_CQ_ATTR)
-struct ib_cq *efa_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *ibucontext,
-			    struct ib_udata *udata)
+#ifdef HAVE_CREATE_CQ_ATTR
+int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		  struct ib_udata *udata)
 #else
-struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
-			    int vector,
-			    struct ib_ucontext *ibucontext,
-			    struct ib_udata *udata)
+int efa_create_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 #endif
 {
 #ifdef HAVE_CREATE_CQ_NO_UCONTEXT
 	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
 		udata, struct efa_ucontext, ibucontext);
 #else
-	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
+	struct efa_ucontext *ucontext = to_ecq(ibcq)->ucontext;
 #endif
 	struct efa_ibv_create_cq_resp resp = {};
 	struct efa_com_create_cq_params params;
 	struct efa_com_create_cq_result result;
+	struct ib_device *ibdev = ibcq->device;
 	struct efa_dev *dev = to_edev(ibdev);
 	struct efa_ibv_create_cq cmd = {};
+	struct efa_cq *cq = to_ecq(ibcq);
 	bool cq_entry_inserted = false;
-#if defined(HAVE_CREATE_CQ_NO_UCONTEXT) || defined(HAVE_CREATE_CQ_ATTR)
+#ifdef HAVE_CREATE_CQ_ATTR
 	int entries = attr->cqe;
 #endif
-	struct efa_cq *cq;
 	int err;
 
 	ibdev_dbg(ibdev, "create_cq entries %d\n", entries);
@@ -1262,19 +1255,13 @@ struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
 		goto err_out;
 	}
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
 	cq->ucontext = ucontext;
 	cq->size = PAGE_ALIGN(cmd.cq_entry_size * entries * cmd.num_sub_cqs);
 	cq->cpu_addr = efa_zalloc_mapped(dev, &cq->dma_addr, cq->size,
 					 DMA_FROM_DEVICE);
 	if (!cq->cpu_addr) {
 		err = -ENOMEM;
-		goto err_free_cq;
+		goto err_out;
 	}
 
 	params.uarn = cq->ucontext->uarn;
@@ -1293,8 +1280,8 @@ struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
 
 	err = cq_mmap_entries_setup(dev, cq, &resp);
 	if (err) {
-		ibdev_dbg(ibdev,
-			  "Could not setup cq[%u] mmap entries\n", cq->cq_idx);
+		ibdev_dbg(ibdev, "Could not setup cq[%u] mmap entries\n",
+			  cq->cq_idx);
 		goto err_destroy_cq;
 	}
 
@@ -1310,11 +1297,10 @@ struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
 		}
 	}
 
-	ibdev_dbg(ibdev,
-		  "Created cq[%d], cq depth[%u]. dma[%pad] virt[0x%p]\n",
+	ibdev_dbg(ibdev, "Created cq[%d], cq depth[%u]. dma[%pad] virt[0x%p]\n",
 		  cq->cq_idx, result.actual_depth, &cq->dma_addr, cq->cpu_addr);
 
-	return &cq->ibcq;
+	return 0;
 
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
@@ -1323,12 +1309,61 @@ err_free_mapped:
 			 DMA_FROM_DEVICE);
 	if (!cq_entry_inserted)
 		free_pages_exact(cq->cpu_addr, cq->size);
-err_free_cq:
-	kfree(cq);
 err_out:
 	atomic64_inc(&dev->stats.sw_stats.create_cq_err);
+	return err;
+}
+
+#ifndef HAVE_CQ_CORE_ALLOCATION
+#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_udata *udata)
+#elif defined(HAVE_CREATE_CQ_ATTR)
+struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_ucontext *ibucontext,
+			     struct ib_udata *udata)
+#else
+struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev, int entries,
+			     int vector,
+			     struct ib_ucontext *ibucontext,
+			     struct ib_udata *udata)
+#endif
+{
+	struct efa_dev *dev = to_edev(ibdev);
+	struct efa_cq *cq;
+	int err;
+
+	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	if (!cq) {
+		atomic64_inc(&dev->stats.sw_stats.create_cq_err);
+		return ERR_PTR(-ENOMEM);
+	}
+
+#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+	cq->ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext,
+						 ibucontext);
+#else
+	cq->ucontext = to_eucontext(ibucontext);
+#endif
+
+	cq->ibcq.device = ibdev;
+#ifdef HAVE_CREATE_CQ_ATTR
+	err = efa_create_cq(&cq->ibcq, attr, udata);
+#else
+	err = efa_create_cq(&cq->ibcq, entries, udata);
+#endif
+	if (err)
+		goto err_free_cq;
+
+	return &cq->ibcq;
+
+err_free_cq:
+	kfree(cq);
 	return ERR_PTR(err);
 }
+#endif
 
 #ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 static int umem_to_page_list(struct efa_dev *dev,

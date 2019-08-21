@@ -254,7 +254,11 @@ static const struct ib_device_ops efa_dev_ops = {
 #else
 	.create_ah = efa_kzalloc_ah,
 #endif
+#ifdef HAVE_CQ_CORE_ALLOCATION
 	.create_cq = efa_create_cq,
+#else
+	.create_cq = efa_kzalloc_cq,
+#endif
 	.create_qp = efa_create_qp,
 	.dealloc_pd = efa_dealloc_pd,
 	.dealloc_ucontext = efa_dealloc_ucontext,
@@ -287,6 +291,9 @@ static const struct ib_device_ops efa_dev_ops = {
 
 #ifdef HAVE_AH_CORE_ALLOCATION
 	INIT_RDMA_OBJ_SIZE(ib_ah, efa_ah, ibah),
+#endif
+#ifdef HAVE_CQ_CORE_ALLOCATION
+	INIT_RDMA_OBJ_SIZE(ib_cq, efa_cq, ibcq),
 #endif
 #ifdef HAVE_PD_CORE_ALLOCATION
 	INIT_RDMA_OBJ_SIZE(ib_pd, efa_pd, ibpd),
@@ -392,7 +399,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.alloc_pd = efa_kzalloc_pd;
 	dev->ibdev.alloc_ucontext = efa_kzalloc_ucontext;
 	dev->ibdev.create_ah = efa_kzalloc_ah;
-	dev->ibdev.create_cq = efa_create_cq;
+	dev->ibdev.create_cq = efa_kzalloc_cq;
 	dev->ibdev.create_qp = efa_create_qp;
 	dev->ibdev.dealloc_pd = efa_dealloc_pd;
 	dev->ibdev.dealloc_ucontext = efa_dealloc_ucontext;

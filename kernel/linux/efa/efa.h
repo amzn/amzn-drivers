@@ -191,20 +191,28 @@ int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 #else
 int efa_destroy_cq(struct ib_cq *ibcq);
 #endif
-#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
-struct ib_cq *efa_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_udata *udata);
-#elif defined(HAVE_CREATE_CQ_ATTR)
-struct ib_cq *efa_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *ibucontext,
-			    struct ib_udata *udata);
+#ifdef HAVE_CREATE_CQ_ATTR
+int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		  struct ib_udata *udata);
 #else
-struct ib_cq *efa_create_cq(struct ib_device *ibdev, int entries,
-			    int vector,
-			    struct ib_ucontext *ibucontext,
-			    struct ib_udata *udata);
+int efa_create_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
+#endif
+#ifndef HAVE_CQ_CORE_ALLOCATION
+#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_udata *udata);
+#elif defined(HAVE_CREATE_CQ_ATTR)
+struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_ucontext *ibucontext,
+			     struct ib_udata *udata);
+#else
+struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev, int entries,
+			     int vector,
+			     struct ib_ucontext *ibucontext,
+			     struct ib_udata *udata);
+#endif
 #endif
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
