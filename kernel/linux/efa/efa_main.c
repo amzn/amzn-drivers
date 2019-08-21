@@ -814,8 +814,9 @@ static int efa_everbs_dev_init(struct efa_dev *dev, int devnum)
 					EFA_EVERBS_DEVICE_NAME "%d",
 					devnum);
 	if (IS_ERR(dev->everbs_dev)) {
-		ibdev_err(&dev->ibdev, "Failed to create device: %s%d\n",
-			  EFA_EVERBS_DEVICE_NAME, devnum);
+		err = PTR_ERR(dev->everbs_dev);
+		ibdev_err(&dev->ibdev, "Failed to create device: %s%d [%d]\n",
+			  EFA_EVERBS_DEVICE_NAME, devnum, err);
 		goto err;
 	}
 
