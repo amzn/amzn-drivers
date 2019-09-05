@@ -13,6 +13,11 @@ The driver was tested on the following distributions:
 * CentOS 7.4
 * CentOS 7.6
 
+## r1.4.0 release notes
+* Expose device statistics
+* Rate limit admin queue error prints
+* Properly assign err variable on everbs device creation failure
+
 ## r1.3.1 release notes
 
 * Fix build issue in debian/rules file

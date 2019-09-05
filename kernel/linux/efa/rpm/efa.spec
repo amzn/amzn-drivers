@@ -66,6 +66,11 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu Sep 5 2019 Gal Pressman <galpress@amazon.com> - 1.4.0
+- Expose device statistics
+- Rate limit admin queue error prints
+- Properly assign err variable on everbs device creation failure
+
 * Thu Aug 8 2019 Gal Pressman <galpress@amazon.com> - 1.3.1
 - Fix build issue in debian/rules file
 - Fix kcompat issue (usage before include)
