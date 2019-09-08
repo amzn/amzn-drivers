@@ -66,8 +66,6 @@ struct efa_dev {
 	u64 mem_bar_len;
 	u64 db_bar_addr;
 	u64 db_bar_len;
-	u8 addr[EFA_GID_SIZE];
-	u32 mtu;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
 	struct msix_entry admin_msix_entry;
