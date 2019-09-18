@@ -429,15 +429,15 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.req_notify_cq = efa_req_notify_cq;
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0)
+#ifdef HAVE_IB_REGISTER_DEVICE_TWO_PARAMS
+	err = ib_register_device(&dev->ibdev, "efa_%d");
+#elif defined(HAVE_IB_REGISTER_DEVICE_NAME_PARAM)
+	err = ib_register_device(&dev->ibdev, "efa_%d", NULL);
+#else
 	strlcpy(dev->ibdev.name, "efa_%d",
 		sizeof(dev->ibdev.name));
 
 	err = ib_register_device(&dev->ibdev, NULL);
-#elif defined(HAVE_IB_REGISTER_DEVICE_TWO_PARAMS)
-	err = ib_register_device(&dev->ibdev, "efa_%d");
-#else
-	err = ib_register_device(&dev->ibdev, "efa_%d", NULL);
 #endif
 	if (err)
 		goto err_release_doorbell_bar;

@@ -407,12 +407,12 @@ int efa_query_device(struct ib_device *ibdev,
 	props->max_cqe = dev_attr->max_cq_depth;
 	props->max_qp_wr = min_t(u32, dev_attr->max_sq_depth,
 				 dev_attr->max_rq_depth);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-	props->max_sge = min_t(u16, dev_attr->max_sq_sge,
-			       dev_attr->max_rq_sge);
-#else
+#ifdef HAVE_MAX_SEND_RCV_SGE
 	props->max_send_sge = dev_attr->max_sq_sge;
 	props->max_recv_sge = dev_attr->max_rq_sge;
+#else
+	props->max_sge = min_t(u16, dev_attr->max_sq_sge,
+			       dev_attr->max_rq_sge);
 #endif
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
@@ -1000,7 +1000,7 @@ static int efa_modify_qp_validate(struct efa_dev *dev, struct efa_qp *qp,
 		return -EOPNOTSUPP;
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,20,0)
+#ifdef HAVE_IB_MODIFY_QP_IS_OK_FOUR_PARAMS
 	if (!ib_modify_qp_is_ok(cur_state, new_state, IB_QPT_UD,
 				qp_attr_mask)) {
 #else
@@ -2212,7 +2212,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	pfn = entry->address >> PAGE_SHIFT;
 	switch (entry->mmap_flag) {
 	case EFA_MMAP_IO_NC:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,20,0)
+#ifdef HAVE_RDMA_USER_MMAP_IO
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn, length,
 					pgprot_noncached(vma->vm_page_prot));
 #else
@@ -2222,7 +2222,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 #endif
 		break;
 	case EFA_MMAP_IO_WC:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,20,0)
+#ifdef HAVE_RDMA_USER_MMAP_IO
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn, length,
 					pgprot_writecombine(vma->vm_page_prot));
 #else
@@ -2614,14 +2614,14 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 #endif
 
 #ifndef HAVE_NO_KVERBS_DRIVERS
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-int efa_post_send(struct ib_qp *ibqp,
-		  struct ib_send_wr *wr,
-		  struct ib_send_wr **bad_wr)
-#else
+#ifdef HAVE_POST_CONST_WR
 int efa_post_send(struct ib_qp *ibqp,
 		  const struct ib_send_wr *wr,
 		  const struct ib_send_wr **bad_wr)
+#else
+int efa_post_send(struct ib_qp *ibqp,
+		  struct ib_send_wr *wr,
+		  struct ib_send_wr **bad_wr)
 #endif
 {
 	struct efa_dev *dev = to_edev(ibqp->device);
@@ -2630,14 +2630,14 @@ int efa_post_send(struct ib_qp *ibqp,
 	return -EOPNOTSUPP;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-int efa_post_recv(struct ib_qp *ibqp,
-		  struct ib_recv_wr *wr,
-		  struct ib_recv_wr **bad_wr)
-#else
+#ifdef HAVE_POST_CONST_WR
 int efa_post_recv(struct ib_qp *ibqp,
 		  const struct ib_recv_wr *wr,
 		  const struct ib_recv_wr **bad_wr)
+#else
+int efa_post_recv(struct ib_qp *ibqp,
+		  struct ib_recv_wr *wr,
+		  struct ib_recv_wr **bad_wr)
 #endif
 {
 	struct efa_dev *dev = to_edev(ibqp->device);
