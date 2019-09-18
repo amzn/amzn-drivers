@@ -2195,8 +2195,8 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 {
 	struct efa_mmap_entry *entry;
 	unsigned long va;
+	int err = 0;
 	u64 pfn;
-	int err;
 
 	entry = mmap_entry_get(dev, ucontext, key, length);
 	if (!entry) {
