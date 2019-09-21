@@ -1,3 +1,9 @@
+efa (1.4.1-1.amzn1) unstable; urgency=medium
+  * Fix Incorrect error print
+  * Add support for CentOS 7.7
+
+ -- Gal Pressman <galpress@amazon.com>  Fri, 20 Sep 2019 18:57:58 +0000
+
 efa (1.4.0-1.amzn1) unstable; urgency=medium
 
   * Expose device statistics

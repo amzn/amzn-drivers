@@ -3,7 +3,7 @@
 set -e
 
 NAME=efa
-DRIVER_VERSION=1.4.0
+DRIVER_VERSION=1.4.1
 
 dkms add -m ${NAME} -v ${DRIVER_VERSION}
 for kernel in $(/bin/ls /lib/modules); do

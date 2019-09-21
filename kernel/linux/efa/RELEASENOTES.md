@@ -12,6 +12,7 @@ The driver was tested on the following distributions:
 **CentOS:**
 * CentOS 7.4
 * CentOS 7.6
+* CentOS 7.7
 
 **Red Hat Enterprise Linux:**
 * Red Hat Enterprise Linux 7.6
@@ -19,6 +20,10 @@ The driver was tested on the following distributions:
 **Ubuntu:**
 * Ubuntu 16.04
 * Ubuntu 18.04
+
+## r1.4.1 release notes
+* Fix Incorrect error print
+* Add support for CentOS 7.7
 
 ## r1.4.0 release notes
 * Expose device statistics

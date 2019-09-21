@@ -66,6 +66,10 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Fri Sep 20 2019 Gal Pressman <galpress@amazon.com> - 1.4.1
+- Fix Incorrect error print
+- Add support for CentOS 7.7
+
 * Thu Sep 5 2019 Gal Pressman <galpress@amazon.com> - 1.4.0
 - Expose device statistics
 - Rate limit admin queue error prints
