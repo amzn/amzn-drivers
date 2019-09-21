@@ -13,6 +13,13 @@ The driver was tested on the following distributions:
 * CentOS 7.4
 * CentOS 7.6
 
+**Red Hat Enterprise Linux:**
+* Red Hat Enterprise Linux 7.6
+
+**Ubuntu:**
+* Ubuntu 16.04
+* Ubuntu 18.04
+
 ## r1.4.0 release notes
 * Expose device statistics
 * Rate limit admin queue error prints
