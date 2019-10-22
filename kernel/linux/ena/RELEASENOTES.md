@@ -39,6 +39,26 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.1.3 release notes
+**New Features**
+* Replace old adaptive interrupt moderation algorithm with the DIM
+  algorithm.
+* Introduce driver_supported_features field in host_info, and use it
+  to signal to the device that the driver supports adaptive interrupt
+  moderation.
+
+**Bug Fixes**
+* Prevent NULL pointer dereference when an admin command is executed
+  during the execution of ena_remove().
+* Fix compilation error in early SUSE versions due to missing
+  suse_version.h file.
+* Fix continuous keep-alive resets.
+* Avoid potential memory access violation by validating Rx descriptor
+  req_id in the proper place.
+* Fix issue where llq header size set by force_large_llq_header module
+  parameter did not survive a device reset, causing a driver-device
+  mismatch of header size.
+
 ## r2.1.2 release notes
 **New Features**
 * Add module parameter for setting the number of I/O queues.

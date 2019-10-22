@@ -158,7 +158,9 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #define SLE_VERSION(a,b,c) KERNEL_VERSION(a,b,c)
 #endif
 #ifdef CONFIG_SUSE_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 14)
 #include <linux/suse_version.h>
+#endif
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,28) )
 /* SLES12 is at least 3.12.28+ based */
 #define SLE_VERSION_CODE SLE_VERSION(12,0,0)
@@ -655,6 +657,27 @@ do {									\
 
 #ifndef mmiowb
 #define MMIOWB_NOT_DEFINED
+#endif
+
+#ifndef _ULL
+#define _ULL(x) (_AC(x, ULL))
+#endif
+
+#ifndef ULL
+#define ULL(x) (_ULL(x))
+#endif
+
+#ifndef BIT_ULL
+#define BIT_ULL(nr) (ULL(1) << (nr))
+#endif
+
+#ifndef BITS_PER_TYPE
+#define BITS_PER_TYPE(type) (sizeof(type) * BITS_PER_BYTE)
+#endif
+
+#ifndef DIV_ROUND_DOWN_ULL
+#define DIV_ROUND_DOWN_ULL(ll, d) \
+	({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
 #endif
 
 #endif /* _KCOMPAT_H_ */

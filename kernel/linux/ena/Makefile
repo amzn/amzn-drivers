@@ -3,6 +3,8 @@ ENA_COM_PATH=../common/ena_com/
 obj-m += ena.o
 ena-objs := ena_netdev.o \
 		ena_ethtool.o \
+		dim.o \
+		net_dim.o \
 		$(ENA_COM_PATH)/ena_com.o \
 		$(ENA_COM_PATH)/ena_eth_com.o
 

@@ -33,7 +33,13 @@
 #ifndef ENA_H
 #define ENA_H
 
+#include "kcompat.h"
 #include <linux/bitops.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 3, 0)
+#include "dim.h"
+#else
+#include <linux/dim.h>
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 3, 0) */
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/interrupt.h>
@@ -41,13 +47,12 @@
 #include <linux/skbuff.h>
 #include <linux/u64_stats_sync.h>
 
-#include "kcompat.h"
 #include "ena_com.h"
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	2
 #define DRV_MODULE_VER_MINOR	1
-#define DRV_MODULE_VER_SUBMINOR 2
+#define DRV_MODULE_VER_SUBMINOR 3
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -160,6 +165,7 @@ struct ena_napi {
 	atomic_t unmask_interrupt;
 #endif
 	u32 qid;
+	struct dim dim;
 };
 
 struct ena_calc_queue_size_ctx {
@@ -290,8 +296,7 @@ struct ena_ring {
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 	u32  smoothed_interval;
 	u32  per_napi_packets;
-	u32  per_napi_bytes;
-	enum ena_intr_moder_level moder_tbl_idx;
+	u16 non_empty_napi_events;
 	struct u64_stats_sync syncp;
 	union {
 		struct ena_stats_tx tx_stats;
