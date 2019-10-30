@@ -4,8 +4,31 @@ ___
 
 ### Normal releases
 
+#### v19.08
+_Release of the new version of the driver - r2.0.1._
+
+Bug Fixes:
+* Don't count Tx packets by summing up the number of buffers. It could cause
+  Tx packets to be too big for mbuf chains.
+* Fix Rx checksum error statistic counting. It was checked on Tx path instead of
+  Rx.
+* Fix assigning NUMA node to IO queues. DPDK has special API to do that from the
+  application perspective, PMD shouldn't be trying to resolve appropriate NUMA
+  node on it's own.
+* Fix admin CQ polling mode for 32-bit applications.
+* Mask mbuf flags and compare them with appropriate flags when Tx checksum
+  offload is used as '&' operator may give false positives.
+
+#### v19.05
+Bug Fixes:
+* Fix assignment of the Rx checksum capabilities - they were assigned to the Tx
+  variable.
+* Get device info statically, to make call to the get_eth_dev_info_get() safe
+  for the multithread applications.
+
 #### v19.02
 _Release of the new version of the driver - r2.0.0._
+
 New Features:
 * Add Low Latency Queue v2 (LLQv2). This feature reduces the latency
   of the packets by pushing the header directly through the PCI to the
@@ -21,7 +44,6 @@ New Features:
 Bug Fixes:
 * The reset routine was aligned with the DPDK API, so now it can be
   handled as in other PMDs.
-* Fix out of order (OOO) completion.
 * Fix memory leaks due to port stops and starts in the middle of
   traffic.
 * Assign to rte_errno only posivite values.
@@ -43,6 +65,7 @@ Minor Changes:
 _Release of the new version of the driver - r1.1.1._
 
 Bug fixes:
+* Fix out of order (OOO) completion.
 * Add information about VFIO support and instructions (Note - it should also
   apply to older DPDK releases, but it cannot be upstreamed for no longer
   supported versions).
@@ -137,6 +160,8 @@ Bug Fixes:
 * Improve safety of string handling.
 
 #### v16.07
+_Release of the new version of the driver - r1.0.0._
+
 New Features:
 * Configure debug memory area in the ENA which can be used for storing
   additional information.
@@ -153,7 +178,7 @@ Minor changes:
 * Doorbells optimization.
 
 #### v16.04
-_Release of the driver (r1.0.0)_
+_Release of the driver (unversioned)_
 
 Bug Fixes:
 * Use correct field for checking Rx offloads (the Tx field was used before).
@@ -171,7 +196,34 @@ Bug Fixes:
 
 There comes only backported patches.
 
+#### v18.11.3
+Bug fixes:
+* Fix Rx checksum error statistic counting. It was checked on Tx path instead of
+  Rx. (v19.08)
+* Fix assigning NUMA node to IO queues. DPDK has special API to do that from the
+  application perspective, PMD shouldn't be trying to resolve appropriate NUMA
+  node on it's own. (v19.08)
+* Fix admin CQ polling mode for 32-bit applications. (v19.08)
+* Mask mbuf flags and compare them with appropriate flags when Tx checksum
+  offload is used as '&' operator may give false positives. (v19.08)
+
+#### v18.11.1
+Bug fixes:
+* Assign to rte_errno only posivite values. (v19.02)
+* Fix device init with multi-process. (v19.02)
+
+#### v18.08.1
+Bug fixes:
+* Fix setting hash in the received mbuf. Instead of queue ID, value received
+  from the descriptor should be passed there. (v18.11)
+* Fix out of order (OOO) completion. (v18.11)
+* Recreate HW IO rings on start and stop to prevent descriptors memory leak
+  (v18.11)
+* Fix Rx out of order completion - the refill was not assigning mbufs to Rx
+  buffers properly (v18.11)
+
 #### v18.05.1
+Bug fixes:
 * Add checks for pointers acquired from rte_memzone_reserve in coherent memory
   allocation, to prevent device from accessing NULL pointers. (v18.08)
 * Do not allocate physically contiguous memory in the ENA_MEM_ALLOC_NODE, as it
@@ -184,7 +236,20 @@ There comes only backported patches.
   virtualized environment when link speed cannot be specified accurately.
   (v18.08)
 
+#### v17.11.6
+Bug fixes:
+* Assign to rte_errno only posivite values. (v19.02)
+* Fix device init with multi-process. (v19.02)
+* Update completion queue after Tx and Rx cleanups. (v19.02)
+* Add supported RSS offloads types. (v19.02)
+
+#### v17.11.5
+Bug fixes:
+* Fix setting hash in the received mbuf. Instead of queue ID, value received
+  from the descriptor should be passed there. (v18.11)
+
 #### v17.11.4
+Bug fixes:
 * Add checks for pointers acquired from rte_memzone_reserve in coherent memory
   allocation, to prevent device from accessing NULL pointers. (v18.08)
 * Do not allocate physically contiguous memory in the ENA_MEM_ALLOC_NODE, as it
@@ -219,8 +284,8 @@ Bug fixes:
 * Add information about VFIO support and instructions (Note - it should also
   apply to older DPDK releases, but it cannot be upstreamed for no longer
   supported version).
-* Fix Rx out of order completion - the refill was not assigning mbufs to Rx
-  buffers properly
+* Fix setting hash in the received mbuf. Instead of queue ID, value received
+  from the descriptor should be passed there. (v18.11)
 
 #### v16.11.8
 Bug fixes:
