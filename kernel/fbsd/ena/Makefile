@@ -40,12 +40,17 @@ KMOD    = if_ena
 
 # Shared source
 SRCS    = device_if.h bus_if.h pci_if.h
-SRCS	+= ena.c ena_com.c ena_eth_com.c ena_sysctl.c
+SRCS	+= ena_com.c ena_eth_com.c
+SRCS	+= ena.c ena_sysctl.c ena_datapath.c ena_netmap.c
 
 CFLAGS  += -DSMP -O2
 
 # Enable debug messages and sysctls
 # CFLAGS  += -DENA_DEBUG
+
+# Add netmap support in the driver.
+# Uncomment this only if the netmap is enabled in the kernel.
+# CFLAGS += -DDEV_NETMAP
 
 clean:
 	rm -f opt_bdg.h device_if.h bus_if.h pci_if.h setdef* *_StripErr
