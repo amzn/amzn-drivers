@@ -1,7 +1,7 @@
 From 6b822a13ac30962df62aa1ab537d7795ef1ec154 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:38 +0100
-Subject: [PATCH 05/11] net/ena: add supported RSS offloads types
+Subject: [PATCH 05/16] net/ena: add supported RSS offloads types
 
 [ upstream commit b01ead202beb45346d7daeb2f2b1a608006af644 ]
 
@@ -12,6 +12,7 @@ missing information was added.
 Fixes: 1173fca25af9 ("ena: add polling-mode driver")
 Cc: stable@dpdk.org
 
+Change-Id: I91366df39fdc4290a479fe1cb1c552c3a9394f2e
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -33,5 +34,5 @@ index 6bfda3516..73cebe843 100644
  	dev_info->max_rx_pktlen  = adapter->max_mtu;
  	dev_info->max_mac_addrs = 1;
 -- 
-2.14.1
+2.20.1
 

@@ -1,7 +1,7 @@
 From f8f96ba4b28049cf514ba8c5ba0324e25c063f2b Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:44 +0100
-Subject: [PATCH 14/15] net/ena: update completion queue after cleanup
+Subject: [PATCH 14/19] net/ena: update completion queue after cleanup
 
 [ upstream commit a45462c507e98b49cb5c2302e0be3c72d2e20a1a ]
 
@@ -11,6 +11,7 @@ ena_com_update_dev_comp_head().
 Fixes: 1daff5260ff8 ("net/ena: use unmasked head and tail")
 Cc: stable@dpdk.org
 
+Change-Id: Ic57a9ad208badc587423844f3afec3005c4c5f0a
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -45,5 +46,5 @@ index 088893230..9642bdb18 100644
  
  	return sent_idx;
 -- 
-2.14.1
+2.20.1
 

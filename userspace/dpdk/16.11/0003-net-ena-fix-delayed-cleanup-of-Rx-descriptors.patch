@@ -1,7 +1,7 @@
 From 9566e5c1adc033c0a43601def1132a4775522cb0 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Thu, 18 May 2017 17:41:51 +0200
-Subject: [PATCH 03/15] net/ena: fix delayed cleanup of Rx descriptors
+Subject: [PATCH 03/19] net/ena: fix delayed cleanup of Rx descriptors
 
 [ backported from upstream commit ec78af6bc0556cf2a1133185ca33fb835b38afe0 ]
 
@@ -18,6 +18,7 @@ ring state.
 
 Fixes: 1daff5260ff8 ("net/ena: use unmasked head and tail")
 
+Change-Id: Ie36046371daa8d3002608d30a064ee4499931e1f
 Signed-off-by: Michal Krawczyk <mk@semihalf.com>
 Reviewed-by: Jakub Palider <jpalider@gmail.com>
 Acked-by: Jan Medala <jan.medala@outlook.com>
@@ -47,5 +48,5 @@ index 2318cf35d..8d4898d67 100644
  }
  
 -- 
-2.14.1
+2.20.1
 

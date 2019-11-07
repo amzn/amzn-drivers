@@ -1,7 +1,7 @@
 From a1f3aa39b175e931705981c4dc608b7b7c7f8fc8 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:20 +0200
-Subject: [PATCH 06/13] net/ena: fix GENMASK_ULL macro
+Subject: [PATCH 06/17] net/ena: fix GENMASK_ULL macro
 
 [ upstream commit 7544aee8d0b4ae0262b1ba7e1539cf8171664df7 ]
 
@@ -12,6 +12,7 @@ is undefined operation and failed on some platforms.
 Fixes: 9ba7981ec992 ("ena: add communication layer for DPDK")
 Cc: stable@dpdk.org
 
+Change-Id: I2094d149a9ff038824ebdff734b2e47bcb0f003f
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -38,5 +39,5 @@ index 977bee49f..06b637870 100644
  #ifdef RTE_LIBRTE_ENA_COM_DEBUG
  #define ena_trc_dbg(format, arg...)					\
 -- 
-2.14.1
+2.20.1
 

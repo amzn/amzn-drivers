@@ -1,7 +1,7 @@
 From 952581ced26c55856be49a2e8220debd940966ab Mon Sep 17 00:00:00 2001
 From: Stewart Allen <allenste@amazon.com>
 Date: Thu, 25 Oct 2018 19:59:22 +0200
-Subject: [PATCH 06/10] net/ena: fix passing RSS hash to mbuf
+Subject: [PATCH 06/15] net/ena: fix passing RSS hash to mbuf
 
 [ upstream commit e5df9f33db00eb9d322abaefff30da74fd0e625d ]
 
@@ -11,6 +11,7 @@ from the device. Now, the RSS hash from the Rx descriptor is being set.
 Fixes: 1173fca25af9 ("ena: add polling-mode driver")
 Cc: stable@dpdk.org
 
+Change-Id: Iea37e68a1d685800166fa3733f150ad79a2e0b25
 Signed-off-by: Stewart Allen <allenste@amazon.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -31,5 +32,5 @@ index ebc911168..f0849a455 100644
  		/* pass to DPDK application head mbuf */
  		rx_pkts[recv_idx] = mbuf_head;
 -- 
-2.14.1
+2.20.1
 

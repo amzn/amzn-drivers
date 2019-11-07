@@ -1,13 +1,14 @@
 From 8927533a74100b6620a2c2bd264a1cff7afe4170 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:43 +0100
-Subject: [PATCH 08/11] net/ena: add new way of getting Rx drops
+Subject: [PATCH 08/16] net/ena: add new way of getting Rx drops
 
 [ upstream commit 94c3e3765d9e0366acf145668d32d5eee3200c2b ]
 
 The Rx drops cannot be acquired using the older API. Now, it must be
 read in keep alive message.
 
+Change-Id: I67a5d331933b2326943b33aaf3336c730fc6f091
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -67,5 +68,5 @@ index 322e90ace..8eb8543c2 100644
  
  struct ena_stats_dev {
 -- 
-2.14.1
+2.20.1
 

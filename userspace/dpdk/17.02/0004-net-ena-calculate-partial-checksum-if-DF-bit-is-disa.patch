@@ -1,7 +1,7 @@
 From 931953ad093d51d077a787d5901a33863f33e040 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 10 Apr 2017 16:28:11 +0200
-Subject: [PATCH 04/17] net/ena: calculate partial checksum if DF bit is
+Subject: [PATCH 04/21] net/ena: calculate partial checksum if DF bit is
  disabled
 
 [ upstream commit bc5ef57d43c5f4ea423734b2aeae070ae19dd91f ]
@@ -18,6 +18,7 @@ frame because we have to look inside the packet to check for the DF flag.
 To make it work properly, PMD is assuming that before sending
 packet application called function rte_eth_tx_prepare().
 
+Change-Id: I0e62aa883e1579ba6288c8ed1dddf1386a72dd6e
 Signed-off-by: Michal Krawczyk <mk@semihalf.com>
 Reviewed-by: Jakub Palider <jpalider@gmail.com>
 Acked-by: Jan Medala <jan.medala@outlook.com>
@@ -84,5 +85,5 @@ index e6e889bdd..3ba990142 100644
  		 * hardware must be provided with partial checksum, otherwise
  		 * it will take care of necessary calculations.
 -- 
-2.14.1
+2.20.1
 

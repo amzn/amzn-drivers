@@ -1,7 +1,7 @@
 From db52b57f5e85c103a254cf1f055dbd641a316881 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:19 +0200
-Subject: [PATCH 04/10] net/ena: change memory type
+Subject: [PATCH 04/14] net/ena: change memory type
 
 [ upstream commit 9f32c7e7e6ce58ab772913f54f8328c1c0186a17 ]
 
@@ -14,6 +14,7 @@ To avoid both issue use rte_zmalloc_socket.
 Fixes: 3d3edc265fc8 ("net/ena: make coherent memory allocation NUMA-aware")
 Cc: stable@dpdk.org
 
+Change-Id: I09427bfc0d3b7f90771c5a7be16aef3b95bd9069
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -41,5 +42,5 @@ index cc69b3372..ff873e807 100644
  
  #define ENA_MEM_ALLOC(dmadev, size) rte_zmalloc(NULL, size, 1)
 -- 
-2.14.1
+2.20.1
 

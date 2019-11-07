@@ -1,0 +1,36 @@
+From 760b83027274fee51de1a948fd9aac44b863d86f Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Tue, 14 May 2019 13:11:26 +0200
+Subject: [PATCH 1/4] net/ena: fix Tx statistics
+
+[ upstream commit 5673e285a63347068e51dbd191915348f6a580b0 ]
+
+Instead of counting number of used NIC Tx bufs just count number
+of Tx packets.
+
+Fixes: 45b6d86184fc ("net/ena: add per-queue software counters stats")
+Cc: stable@dpdk.org
+
+Change-Id: I8e3260f11ed4b98a5917634d6dfbe92b986c788a
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 3eb38165c..178c23031 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2391,7 +2391,7 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 		tx_info->tx_descs = nb_hw_desc;
+ 
+ 		next_to_use++;
+-		tx_ring->tx_stats.cnt += tx_info->num_of_bufs;
++		tx_ring->tx_stats.cnt++;
+ 		tx_ring->tx_stats.bytes += total_length;
+ 	}
+ 	tx_ring->tx_stats.available_desc =
+-- 
+2.20.1
+

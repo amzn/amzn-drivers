@@ -1,7 +1,7 @@
 From 65a31061fe33969bfc2dc73862d5446f0327041c Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 4 Sep 2017 14:46:32 +0200
-Subject: [PATCH 01/10] Backport ENA PMD to v16.04
+Subject: [PATCH 01/14] Backport ENA PMD to v16.04
 
 The ENA PMD was backported from the commit:
 222555480a7f9979d10faa9bb8b9773b0e1aa058
@@ -13,17 +13,17 @@ net/ena: fix cleanup of the Tx bufs
 
 net/ena: add memory initialization for the allocation macros
 ---
- drivers/net/ena/Makefile                        |   5 -
- drivers/net/ena/base/ena_com.c                  | 276 ++++++++-------
- drivers/net/ena/base/ena_com.h                  |  82 +++--
- drivers/net/ena/base/ena_defs/ena_admin_defs.h  | 107 +-----
- drivers/net/ena/base/ena_defs/ena_eth_io_defs.h | 436 ++++++-----------------
- drivers/net/ena/base/ena_defs/ena_gen_info.h    |   4 +-
- drivers/net/ena/base/ena_eth_com.c              |  32 +-
- drivers/net/ena/base/ena_eth_com.h              |  14 +
- drivers/net/ena/base/ena_plat_dpdk.h            |  54 ++-
- drivers/net/ena/ena_ethdev.c                    | 448 +++++++++++++++++++-----
- drivers/net/ena/ena_ethdev.h                    |  63 ++--
+ drivers/net/ena/Makefile                      |   5 -
+ drivers/net/ena/base/ena_com.c                | 276 +++++------
+ drivers/net/ena/base/ena_com.h                |  82 ++--
+ .../net/ena/base/ena_defs/ena_admin_defs.h    | 107 +----
+ .../net/ena/base/ena_defs/ena_eth_io_defs.h   | 436 +++++------------
+ drivers/net/ena/base/ena_defs/ena_gen_info.h  |   4 +-
+ drivers/net/ena/base/ena_eth_com.c            |  32 +-
+ drivers/net/ena/base/ena_eth_com.h            |  14 +
+ drivers/net/ena/base/ena_plat_dpdk.h          |  54 ++-
+ drivers/net/ena/ena_ethdev.c                  | 448 ++++++++++++++----
+ drivers/net/ena/ena_ethdev.h                  |  63 ++-
  11 files changed, 793 insertions(+), 728 deletions(-)
 
 diff --git a/drivers/net/ena/Makefile b/drivers/net/ena/Makefile
@@ -3011,5 +3011,5 @@ index ba6f01e66..dc3080ffd 100644
  	int id_number;
  	char name[ENA_NAME_MAX_LEN];
 -- 
-2.14.1
+2.20.1
 

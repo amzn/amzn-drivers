@@ -1,7 +1,7 @@
 From 126e0497aa41ff7b6fb6f2569626e6fed44bfe78 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Thu, 25 Oct 2018 19:59:21 +0200
-Subject: [PATCH 01/14] net/ena: recreate HW IO rings on start and stop
+Subject: [PATCH 01/19] net/ena: recreate HW IO rings on start and stop
 
 [ upstream commit df238f84c0a21d642bb9517d0c75ba831eeceb46 ]
 
@@ -18,9 +18,10 @@ created on start and not destroyed on stop.
 Fixes: eb0ef49dd5d5 ("net/ena: add stop and uninit routines")
 Cc: stable@dpdk.org
 
+Change-Id: I12bd19b6246b49acba56c3c6e463e88187cecd1f
 Signed-off-by: Michal Krawczyk <mk@semihalf.com>
 ---
- drivers/net/ena/ena_ethdev.c | 196 ++++++++++++++++++++-----------------------
+ drivers/net/ena/ena_ethdev.c | 196 ++++++++++++++++-------------------
  1 file changed, 91 insertions(+), 105 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
@@ -359,5 +360,5 @@ index c255dc6db..de5d2edc2 100644
  
  static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
 -- 
-2.14.1
+2.20.1
 

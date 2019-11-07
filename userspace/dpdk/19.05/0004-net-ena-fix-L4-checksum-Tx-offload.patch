@@ -1,0 +1,52 @@
+From 6dd476778b15dc6fb702df5c2783d7b93f25e2e9 Mon Sep 17 00:00:00 2001
+From: Maciej Bielski <mba@semihalf.com>
+Date: Thu, 1 Aug 2019 13:45:36 +0200
+Subject: [PATCH 4/4] net/ena: fix L4 checksum Tx offload
+
+[ upstream commit 40e7c02155625f18a87faf5e6a8cec2e986146e8 ]
+
+During an if-condition evaluation, a 2-bit flag evaluates to 'true' for
+'0x1', '0x2' and '0x3'. Thus, from this perspective these flags are
+indistinguishable. To make them distinct, respective bits must be
+extracted with a mask and then checked for strict equality.
+
+Specifically here, even if `PKT_TX_UDP_CKSUM` (value '0x3') was set, the
+expression `mbuf->ol_flags & PKT_TX_TCP` (the second flag of value
+'0x1') is evaluated first and the result is 'true'. In consequence, for
+UDP packets the execution flow enters an incorrect branch.
+
+Fixes: 56b8b9b7e5d2 ("net/ena: convert to new Tx offloads API")
+Cc: stable@dpdk.org
+
+Change-Id: I7917b209856f24e5d0b6481a94b322d09266bc5b
+Reported-by: Eduard Serra <eserra@vmware.com>
+Signed-off-by: Maciej Bielski <mba@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 4def70c4b..e49edfa79 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -330,12 +330,13 @@ static inline void ena_tx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 		}
+ 
+ 		/* check if L4 checksum is needed */
+-		if ((mbuf->ol_flags & PKT_TX_TCP_CKSUM) &&
++		if (((mbuf->ol_flags & PKT_TX_L4_MASK) == PKT_TX_TCP_CKSUM) &&
+ 		    (queue_offloads & DEV_TX_OFFLOAD_TCP_CKSUM)) {
+ 			ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_TCP;
+ 			ena_tx_ctx->l4_csum_enable = true;
+-		} else if ((mbuf->ol_flags & PKT_TX_UDP_CKSUM) &&
+-			   (queue_offloads & DEV_TX_OFFLOAD_UDP_CKSUM)) {
++		} else if (((mbuf->ol_flags & PKT_TX_L4_MASK) ==
++				PKT_TX_UDP_CKSUM) &&
++				(queue_offloads & DEV_TX_OFFLOAD_UDP_CKSUM)) {
+ 			ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_UDP;
+ 			ena_tx_ctx->l4_csum_enable = true;
+ 		} else {
+-- 
+2.20.1
+

@@ -1,7 +1,7 @@
 From aa598c8325215876567bb3c785090c56c7fb618c Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:31 +0100
-Subject: [PATCH 02/11] net/ena: skip packet with wrong request id
+Subject: [PATCH 02/16] net/ena: skip packet with wrong request id
 
 [ upstream commit f00930d929151fc09914e6d61b827f9f81645324 ]
 
@@ -12,6 +12,7 @@ is not making any sense.
 Fixes: c2034976673d ("net/ena: add Rx out of order completion")
 Cc: stable@dpdk.org
 
+Change-Id: Icf8b42409e116cc7edc978878a8cc6eb95bb1b7d
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -32,5 +33,5 @@ index 7a84783b6..6d3a60c7a 100644
  		/* fill mbuf attributes if any */
  		ena_rx_mbuf_prepare(mbuf_head, &ena_rx_ctx);
 -- 
-2.14.1
+2.20.1
 

@@ -1,7 +1,7 @@
 From c5b08a137d41947130192010b99829b84cfdf43c Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 16 Jun 2017 08:19:16 +0000
-Subject: [PATCH 05/17] net/ena: fix cleanup of the Tx bufs
+Subject: [PATCH 05/21] net/ena: fix cleanup of the Tx bufs
 
 [ upstream commit 207a514ce516f8ab3c1ad2b0f930f045b90b773c ]
 
@@ -15,6 +15,7 @@ range between head and tail was being cleaned up.
 Fixes: 1173fca25af9 ("ena: add polling-mode driver")
 Cc: stable@dpdk.org
 
+Change-Id: I17d4e85371b6f6fd44a9d8cea20576ead68303df
 Signed-off-by: Michal Krawczyk <mk@semihalf.com>
 ---
  drivers/net/ena/ena_ethdev.c | 8 ++++----
@@ -48,5 +49,5 @@ index 3ba990142..7fca0278d 100644
  		/* Put back descriptor to the ring for reuse */
  		tx_ring->empty_tx_reqs[next_to_clean & ring_mask] = req_id;
 -- 
-2.14.1
+2.20.1
 

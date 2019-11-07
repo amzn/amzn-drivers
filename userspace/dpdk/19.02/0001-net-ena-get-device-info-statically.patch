@@ -1,0 +1,123 @@
+From 5433ba938e996f8309cdbc45284e1f54f16c081e Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 15 Feb 2019 09:36:39 +0100
+Subject: [PATCH 1/6] net/ena: get device info statically
+
+[ upstream commit 117ba4a60488a0f96a5737f38ddba6d0f9a728b6 ]
+
+Whenever the app is calling rte_eth_dev_info_get(), it shouldn't use the
+admin command. It was causing problems, if it was called from the
+secondary process - the main process was crashing, and the secondary app
+wasn't getting any result, as the admin request couldn't be processed by
+the process which was requesting the data.
+
+To fix that, the data is being written to the adapter structure during
+device initialization routine.
+
+Change-Id: I94f61f51223725602f70ac9795acf02b7b014984
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 31 ++++++++++++-------------------
+ drivers/net/ena/ena_ethdev.h |  8 +++++++-
+ 2 files changed, 19 insertions(+), 20 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 8bb05caa2..08b1ab195 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1804,9 +1804,14 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	/* Set max MTU for this device */
+ 	adapter->max_mtu = get_feat_ctx.dev_attr.max_mtu;
+ 
+-	/* set device support for TSO */
+-	adapter->tso4_supported = get_feat_ctx.offload.tx &
+-				  ENA_ADMIN_FEATURE_OFFLOAD_DESC_TSO_IPV4_MASK;
++	/* set device support for offloads */
++	adapter->offloads.tso4_supported = (get_feat_ctx.offload.tx &
++		ENA_ADMIN_FEATURE_OFFLOAD_DESC_TSO_IPV4_MASK) != 0;
++	adapter->offloads.tx_csum_supported = (get_feat_ctx.offload.tx &
++		ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L4_IPV4_CSUM_PART_MASK) != 0;
++	adapter->offloads.tx_csum_supported =
++		(get_feat_ctx.offload.rx_supported &
++		ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_L4_IPV4_CSUM_MASK) != 0;
+ 
+ 	/* Copy MAC address and point DPDK to it */
+ 	eth_dev->data->mac_addrs = (struct ether_addr *)adapter->mac_addr;
+@@ -1939,9 +1944,7 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ {
+ 	struct ena_adapter *adapter;
+ 	struct ena_com_dev *ena_dev;
+-	struct ena_com_dev_get_features_ctx feat;
+ 	uint64_t rx_feat = 0, tx_feat = 0;
+-	int rc = 0;
+ 
+ 	ena_assert_msg(dev->data != NULL, "Uninitialized device\n");
+ 	ena_assert_msg(dev->data->dev_private != NULL, "Uninitialized device\n");
+@@ -1960,26 +1963,16 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 			ETH_LINK_SPEED_50G  |
+ 			ETH_LINK_SPEED_100G;
+ 
+-	/* Get supported features from HW */
+-	rc = ena_com_get_dev_attr_feat(ena_dev, &feat);
+-	if (unlikely(rc)) {
+-		RTE_LOG(ERR, PMD,
+-			"Cannot get attribute for ena device rc= %d\n", rc);
+-		return;
+-	}
+-
+ 	/* Set Tx & Rx features available for device */
+-	if (feat.offload.tx & ENA_ADMIN_FEATURE_OFFLOAD_DESC_TSO_IPV4_MASK)
++	if (adapter->offloads.tso4_supported)
+ 		tx_feat	|= DEV_TX_OFFLOAD_TCP_TSO;
+ 
+-	if (feat.offload.tx &
+-	    ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L4_IPV4_CSUM_PART_MASK)
++	if (adapter->offloads.tx_csum_supported)
+ 		tx_feat |= DEV_TX_OFFLOAD_IPV4_CKSUM |
+ 			DEV_TX_OFFLOAD_UDP_CKSUM |
+ 			DEV_TX_OFFLOAD_TCP_CKSUM;
+ 
+-	if (feat.offload.rx_supported &
+-	    ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_L4_IPV4_CSUM_MASK)
++	if (adapter->offloads.rx_csum_supported)
+ 		rx_feat |= DEV_RX_OFFLOAD_IPV4_CKSUM |
+ 			DEV_RX_OFFLOAD_UDP_CKSUM  |
+ 			DEV_RX_OFFLOAD_TCP_CKSUM;
+@@ -2171,7 +2164,7 @@ eth_ena_prep_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 			/* If IPv4 header has DF flag enabled and TSO support is
+ 			 * disabled, partial chcecksum should not be calculated.
+ 			 */
+-			if (!tx_ring->adapter->tso4_supported)
++			if (!tx_ring->adapter->offloads.tso4_supported)
+ 				continue;
+ 		}
+ 
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 309b92f65..221760c62 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -167,6 +167,12 @@ struct ena_stats_dev {
+ 	u64 dev_stop;
+ };
+ 
++struct ena_offloads {
++	bool tso4_supported;
++	bool tx_csum_supported;
++	bool rx_csum_supported;
++};
++
+ /* board specific private data structure */
+ struct ena_adapter {
+ 	/* OS defined structs */
+@@ -188,7 +194,7 @@ struct ena_adapter {
+ 
+ 	u16 num_queues;
+ 	u16 max_mtu;
+-	u8 tso4_supported;
++	struct ena_offloads offloads;
+ 
+ 	int id_number;
+ 	char name[ENA_NAME_MAX_LEN];
+-- 
+2.20.1
+
