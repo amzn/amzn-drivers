@@ -1,7 +1,7 @@
 From d69ed2f5bb0a6fd916cfa13ea866ff3ad50ea567 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:18 +0200
-Subject: [PATCH 04/13] net/ena: check pointer before memset
+Subject: [PATCH 04/17] net/ena: check pointer before memset
 
 [ upstream commit 46916aa17d4b2007df8c0454f99ba0ca8b8cb93b ]
 
@@ -11,6 +11,7 @@ Using memset on NULL pointer cause segfault.
 Fixes: 9ba7981ec992 ("ena: add communication layer for DPDK")
 Cc: stable@dpdk.org
 
+Change-Id: I7f7d1150234fd49312d9104d9603752ee4a3a0c8
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -59,5 +60,5 @@ index 71a8c1e22..955d6302d 100644
  
  #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) \
 -- 
-2.14.1
+2.20.1
 

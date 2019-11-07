@@ -1,7 +1,7 @@
 From a1aa40a4e7d291f9cb389dc5ca3988ce2c30b92b Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:39 +0100
-Subject: [PATCH 09/14] net/ena: fix invalid reference to variable in union
+Subject: [PATCH 09/19] net/ena: fix invalid reference to variable in union
 
 [ upstream commit eccbe2ffdc755a9e759c6ba480f6c15ccb1163c7 ]
 
@@ -12,6 +12,7 @@ any failure, but for consistency should be changed.
 Fixes: c2034976673d ("net/ena: add Rx out of order completion")
 Cc: stable@dpdk.org
 
+Change-Id: Ica129f31dfe6cec83f5ef9efd06e64f837a222a7
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -32,5 +33,5 @@ index 9cab09b57..59375dd2f 100644
  	/* Store pointer to this queue in upper layer */
  	rxq->configured = 1;
 -- 
-2.14.1
+2.20.1
 

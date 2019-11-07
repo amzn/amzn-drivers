@@ -1,7 +1,7 @@
 From 5a56e222261788b4ff1f0a778bad136a8017494c Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 25 Jan 2019 09:10:25 +0100
-Subject: [PATCH 15/15] net/ena: fix dev init with multi-process
+Subject: [PATCH 15/19] net/ena: fix dev init with multi-process
 
 [ upstream commit fd9768905870856a2340266d25f8c0100dfccfff ]
 
@@ -15,6 +15,7 @@ main process.
 Fixes: 1173fca25af9 ("ena: add polling-mode driver")
 Cc: stable@dpdk.org
 
+Change-Id: I7350adee016294df2e9e9c93fa81a7a8503cf8f2
 Signed-off-by: Michal Krawczyk <mk@semihalf.com>
 ---
  drivers/net/ena/ena_ethdev.c | 10 +++++-----
@@ -49,5 +50,5 @@ index 9642bdb18..5a0d39cb2 100644
  	adapter->pdev = pci_dev;
  
 -- 
-2.14.1
+2.20.1
 

@@ -1,7 +1,7 @@
 From ab96831a8a190f887430181af291670826413568 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:22 +0200
-Subject: [PATCH 04/10] net/ena: set link speed as none
+Subject: [PATCH 04/15] net/ena: set link speed as none
 
 [ upstream commit 41e59028dd8ab2038a7655c6fc3098222661aa53 ]
 
@@ -13,6 +13,7 @@ rely on this value when using ENA PMD.
 Fixes: 1173fca25af9 ("ena: add polling-mode driver")
 Cc: stable@dpdk.org
 
+Change-Id: I046f53eb179ba5171c687038820045affee833f3
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -33,5 +34,5 @@ index 34b2a8d78..9eecb986e 100644
  
  	return 0;
 -- 
-2.14.1
+2.20.1
 

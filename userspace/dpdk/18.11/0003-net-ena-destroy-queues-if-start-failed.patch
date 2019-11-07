@@ -1,7 +1,7 @@
 From b497931c27c5641df96f82dc844e0322ef14bd65 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:35 +0100
-Subject: [PATCH 03/11] net/ena: destroy queues if start failed
+Subject: [PATCH 03/16] net/ena: destroy queues if start failed
 
 [ upstream commit 26e5543dc85b3be23879ba90ddb00e3456179805 ]
 
@@ -15,10 +15,11 @@ ena_free_io_queues_all() is renamed to ena_queue_stop_all().
 Fixes: df238f84c0a2 ("net/ena: recreate HW IO rings on start and stop")
 Cc: stable@dpdk.org
 
+Change-Id: I58b546f78c9c9fae4f645a0a494ca38606462650
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
- drivers/net/ena/ena_ethdev.c | 95 ++++++++++++++++++++++++++++----------------
+ drivers/net/ena/ena_ethdev.c | 95 +++++++++++++++++++++++-------------
  1 file changed, 60 insertions(+), 35 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
@@ -214,5 +215,5 @@ index 6d3a60c7a..f41c8b8e8 100644
  		return ENA_COM_FAULT;
  	}
 -- 
-2.14.1
+2.20.1
 

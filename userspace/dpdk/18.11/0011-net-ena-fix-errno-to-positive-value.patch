@@ -1,7 +1,7 @@
 From 80cb46cd599694535d26a5c6d77fb4e06de3a2cc Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 25 Jan 2019 09:10:26 +0100
-Subject: [PATCH 11/11] net/ena: fix errno to positive value
+Subject: [PATCH 11/16] net/ena: fix errno to positive value
 
 [ upstream commit baeed5f404dd1b049118cfec26a2fd3203671572 ]
 
@@ -11,6 +11,7 @@ to be fixed.
 Fixes: b3fc5a1ae10d ("net/ena: add Tx preparation")
 Cc: stable@dpdk.org
 
+Change-Id: I18449563866b6344f236d696395166383f3238e6
 Signed-off-by: Michal Krawczyk <mk@semihalf.com>
 ---
  drivers/net/ena/ena_ethdev.c | 6 +++---
@@ -47,5 +48,5 @@ index 3507e69ab..04b989347 100644
  		}
  	}
 -- 
-2.14.1
+2.20.1
 

@@ -1,7 +1,7 @@
 From 3941b2982c75bd966ab918e429f76acef8eb3a0e Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Tue, 9 Jan 2018 16:19:08 +0100
-Subject: [PATCH 02/10] net/ena: do not set Tx L4 offloads in Rx path
+Subject: [PATCH 02/14] net/ena: do not set Tx L4 offloads in Rx path
 
 [ upstream commit fd617795679019c7aea5ab1e8c85db02cf53f169 ]
 
@@ -14,6 +14,7 @@ correct.
 Fixes: 1173fca25af9 ("ena: add polling-mode driver")
 Cc: stable@dpdk.org
 
+Change-Id: I6d643e4c87fa8788ff98d84c9c0931393c1abf12
 Reported-by: Matthew Smith <mgsmith@netgate.com>
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Signed-off-by: Michal Krawczyk <mk@semihalf.com>
@@ -56,5 +57,5 @@ index 8823c51cf..9d677b8d7 100644
  
  static inline void ena_tx_mbuf_prepare(struct rte_mbuf *mbuf,
 -- 
-2.14.1
+2.20.1
 

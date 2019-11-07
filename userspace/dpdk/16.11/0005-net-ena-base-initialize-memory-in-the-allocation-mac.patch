@@ -1,7 +1,7 @@
 From 752d24a3c56d0c7bffcba40249912b8fe112af4b Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 16 Jun 2017 09:10:48 +0000
-Subject: [PATCH 05/15] net/ena/base: initialize memory in the allocation
+Subject: [PATCH 05/19] net/ena/base: initialize memory in the allocation
  macros
 
 [ upstream commit 2861ea8df0173f047efe2636ef3b9643d4d989bc ]
@@ -12,6 +12,7 @@ completion of the invalid mbuf.
 Fixes: 3d3edc265fc8 ("net/ena: make coherent memory allocation NUMA-aware")
 Cc: stable@dpdk.org
 
+Change-Id: I4d9f76d67302d42faa8c8abdd16963692e8c98d2
 Signed-off-by: Alexander Matushevsky <matua@amazon.com>
 Signed-off-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -39,5 +40,5 @@ index 87c3bf13b..a812d75e2 100644
  	} while (0)
  
 -- 
-2.14.1
+2.20.1
 

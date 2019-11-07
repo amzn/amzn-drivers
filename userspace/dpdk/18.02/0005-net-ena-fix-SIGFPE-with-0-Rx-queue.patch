@@ -1,7 +1,7 @@
 From 3d1ec83f9e963e57e731debc6c74e05a4e955687 Mon Sep 17 00:00:00 2001
 From: Daria Kolistratova <daria.kolistratova@intel.com>
 Date: Tue, 26 Jun 2018 18:38:56 +0100
-Subject: [PATCH 05/10] net/ena: fix SIGFPE with 0 Rx queue
+Subject: [PATCH 05/15] net/ena: fix SIGFPE with 0 Rx queue
 
 [ upstream commit 361913ad6f8c05fc541fe4bfdae3b0dc095ae3af ]
 
@@ -11,6 +11,7 @@ It happens when the application is also requesting ETH_MQ_RX_RSS_FLAG
 in the rte_dev->data->dev_conf.rxmode.mq_mode.
 Fixed adding zero rx queues check.
 
+Change-Id: I04fff738df0134172be5443cdc1af3a3b35a2c32
 Signed-off-by: Daria Kolistratova <daria.kolistratova@intel.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -31,5 +32,5 @@ index 9eecb986e..ec72407f6 100644
  		if (rc)
  			return rc;
 -- 
-2.14.1
+2.20.1
 

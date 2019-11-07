@@ -1,7 +1,7 @@
 From 9b101ebef9993996594c00756ef6c0e2817e3037 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:29 +0100
-Subject: [PATCH 05/14] net/ena: add reset reason in Rx error
+Subject: [PATCH 05/19] net/ena: add reset reason in Rx error
 
 [ upstream commit 9b260dbf7412819f9a5fc544872b1447d6938afe ]
 
@@ -12,6 +12,7 @@ ENA_REGS_RESET_TOO_MANY_RX_DESCS.
 Fixes: 241da076b1f7 ("net/ena: adjust error checking and cleaning")
 Cc: stable@dpdk.org
 
+Change-Id: I45b4627f3cfd9cb080e989c8a7a9edd41cb9ec44
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
@@ -32,5 +33,5 @@ index 87c95b2e7..b74276d98 100644
  			return 0;
  		}
 -- 
-2.14.1
+2.20.1
 

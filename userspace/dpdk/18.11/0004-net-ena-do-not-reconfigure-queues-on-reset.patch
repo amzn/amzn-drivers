@@ -1,7 +1,7 @@
 From bc12ed25639cc0bdda4fd294137e97e56f666af1 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:36 +0100
-Subject: [PATCH 04/11] net/ena: do not reconfigure queues on reset
+Subject: [PATCH 04/16] net/ena: do not reconfigure queues on reset
 
 [ upstream commit e457bc70e5d6d589b1c3e1e93979aa42a64fbc06 ]
 
@@ -18,10 +18,11 @@ during stop.
 Fixes: 2081d5e2e92d ("net/ena: add reset routine")
 Cc: stable@dpdk.org
 
+Change-Id: I8e582e45c8dba3c0c752a06d609170d04f08f08f
 Signed-off-by: Rafal Kozik <rk@semihalf.com>
 Acked-by: Michal Krawczyk <mk@semihalf.com>
 ---
- drivers/net/ena/ena_ethdev.c | 107 +++++++++++++++----------------------------
+ drivers/net/ena/ena_ethdev.c | 107 +++++++++++++----------------------
  1 file changed, 38 insertions(+), 69 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
@@ -200,5 +201,5 @@ index f41c8b8e8..6bfda3516 100644
  }
  
 -- 
-2.14.1
+2.20.1
 

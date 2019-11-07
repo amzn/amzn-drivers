@@ -1,7 +1,7 @@
 From a8c9bdcc04fddbd930f1856ce7f56dc7b20e4d0b Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Thu, 18 May 2017 17:41:50 +0200
-Subject: [PATCH 02/15] net/ena: fix Rx descriptors allocation
+Subject: [PATCH 02/19] net/ena: fix Rx descriptors allocation
 
 [ backported from upstream commit a467e8f37a3eec98210c0c3ec04bf6e9506ddd81 ]
 
@@ -66,5 +66,5 @@ index dd53c32d9..2318cf35d 100644
  	if (ring_size - desc_in_use > ENA_RING_DESCS_RATIO(ring_size))
  		ena_populate_rx_queue(rx_ring, ring_size - desc_in_use);
 -- 
-2.14.1
+2.20.1
 
