@@ -203,4 +203,8 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
 }
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+#define IB_PORT_PHYS_STATE_LINK_UP 5
+#endif
+
 #endif /* _KCOMPAT_H_ */
