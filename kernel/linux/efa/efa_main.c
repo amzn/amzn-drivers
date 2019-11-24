@@ -369,7 +369,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 #endif
 
 #ifndef HAVE_IB_DEVICE_OPS_COMMON
-#ifdef HAVE_UPSTREAM_EFA
+#ifdef HAVE_DRIVER_ID
 	dev->ibdev.driver_id = RDMA_DRIVER_EFA;
 #endif
 	dev->ibdev.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION;
