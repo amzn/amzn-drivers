@@ -430,7 +430,11 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	ibdev_info(&dev->ibdev, "IB device registered\n");
 
 #ifdef HAVE_CUSTOM_COMMANDS
-	sscanf(dev_name(&dev->ibdev.dev), "efa_%d\n", &devnum);
+	if (sscanf(dev_name(&dev->ibdev.dev), "efa_%d\n", &devnum) != 1) {
+		err = -EINVAL;
+		goto err_unregister_ibdev;
+	}
+
 	err = efa_everbs_dev_init(dev, devnum);
 	if (err)
 		goto err_unregister_ibdev;
