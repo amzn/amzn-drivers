@@ -66,6 +66,12 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Dec 11 2019 Gal Pressman <galpress@amazon.com> - 1.5.0
+- RDMA read support
+- Make ib_uverbs a soft dependency
+- Fix ioctl flows on older kernels
+- SuSE 15.1 support
+
 * Fri Sep 20 2019 Gal Pressman <galpress@amazon.com> - 1.4.1
 - Fix Incorrect error print
 - Add support for CentOS 7.7

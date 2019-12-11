@@ -21,6 +21,15 @@ The driver was tested on the following distributions:
 * Ubuntu 16.04
 * Ubuntu 18.04
 
+**SuSE:**
+* SuSE 15.1
+
+## r1.5.0 release notes
+* RDMA read support
+* Make ib_uverbs a soft dependency
+* Fix ioctl flows on older kernels
+* SuSE 15.1 support
+
 ## r1.4.1 release notes
 * Fix Incorrect error print
 * Add support for CentOS 7.7

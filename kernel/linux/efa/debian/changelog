@@ -1,3 +1,11 @@
+efa (1.5.0-1.amzn1) unstable; urgency=medium
+  * RDMA read support
+  * Make ib_uverbs a soft dependency
+  * Fix ioctl flows on older kernels
+  * SuSE 15.1 support
+
+ -- Gal Pressman <galpress@amazon.com>  Wed, 11 Dec 2019 13:18:56 +0000
+
 efa (1.4.1-1.amzn1) unstable; urgency=medium
   * Fix Incorrect error print
   * Add support for CentOS 7.7
