@@ -891,7 +891,8 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, bool frags)
 static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 				  struct ena_com_rx_buf_info *ena_bufs,
 				  u32 descs,
-				  u16 *next_to_clean)
+				  u16 *next_to_clean,
+				  u8 offset)
 {
 	struct sk_buff *skb;
 	struct ena_rx_buffer *rx_info;
@@ -911,6 +912,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 	}
 
 	rx_info = &rx_ring->rx_buffer_info[req_id];
+	rx_info->page_offset = offset;
 
 	if (unlikely(!rx_info->page)) {
 		netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
@@ -974,6 +976,8 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_info->page,
 				rx_info->page_offset, len, ENA_PAGE_SIZE);
+		/* The offset is non zero only for the first buffer */
+		rx_info->page_offset = 0;
 
 		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 			  "rx skb updated. len %d. data_len %d\n",
@@ -1141,6 +1145,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		ena_rx_ctx.ena_bufs = rx_ring->ena_bufs;
 		ena_rx_ctx.max_bufs = rx_ring->sgl_size;
 		ena_rx_ctx.descs = 0;
+		ena_rx_ctx.pkt_offset = 0;
 		rc = ena_com_rx_pkt(rx_ring->ena_com_io_cq,
 				    rx_ring->ena_com_io_sq,
 				    &ena_rx_ctx);
@@ -1157,7 +1162,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 		/* allocate skb and fill it */
 		skb = ena_rx_skb(rx_ring, rx_ring->ena_bufs, ena_rx_ctx.descs,
-				 &next_to_clean);
+				 &next_to_clean, ena_rx_ctx.pkt_offset);
 
 		/* exit if we failed to retrieve a buffer */
 		if (unlikely(!skb)) {
@@ -2664,6 +2669,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 	host_info->num_cpus = num_online_cpus();
 
 	host_info->driver_supported_features =
+		ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK |
 		ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK;
 
 	rc = ena_com_set_host_attributes(ena_dev);

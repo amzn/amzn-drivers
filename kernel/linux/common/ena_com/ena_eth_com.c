@@ -521,7 +521,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	struct ena_eth_io_rx_cdesc_base *cdesc = NULL;
 	u16 cdesc_idx = 0;
 	u16 nb_hw_desc;
-	u16 i;
+	u16 i = 0;
 
 	WARN(io_cq->direction != ENA_COM_IO_QUEUE_DIRECTION_RX, "wrong Q type");
 
@@ -540,13 +540,14 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 		return -ENOSPC;
 	}
 
-	for (i = 0; i < nb_hw_desc; i++) {
-		cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx + i);
+	cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx);
+	ena_rx_ctx->pkt_offset = cdesc->offset;
 
+	do {
 		ena_buf->len = cdesc->length;
 		ena_buf->req_id = cdesc->req_id;
 		ena_buf++;
-	}
+	} while ((++i < nb_hw_desc) && (cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx + i)));
 
 	/* Update SQ head ptr */
 	io_sq->next_to_comp += nb_hw_desc;

@@ -39,6 +39,11 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.1.4 release notes
+**New Features**
+* Add support for the RX offset feature - where the device writes data
+  with an offset from the beginning of an RX buffer.
+
 ## r2.1.3 release notes
 **New Features**
 * Replace old adaptive interrupt moderation algorithm with the DIM
