@@ -22,4 +22,4 @@ install: modules
 	$(MAKE) -C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) modules_install
 
 clean:
-	$(MAKE)-C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) clean
+	$(MAKE) -C /lib/modules/$(KERNEL_VERSION)/build M=$(CURDIR) clean
