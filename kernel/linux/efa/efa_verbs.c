@@ -281,8 +281,8 @@ static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
  * ucontext destruction when the core code guarentees no concurrency.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
-			     u64 address, size_t length, u8 mmap_flag)
+static u64 mmap_entry_insert(struct efa_ucontext *ucontext, u64 address,
+			     size_t length, u8 mmap_flag)
 {
 	struct efa_user_mmap_entry *entry;
 	u32 next_mmap_page;
@@ -312,7 +312,7 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	xa_unlock(&ucontext->mmap_xa);
 
 	ibdev_dbg(
-		&dev->ibdev,
+		ucontext->ibucontext.device,
 		"mmap: addr[%#llx], len[%#zx], key[%#llx] inserted\n",
 		entry->address, entry->length, get_mmap_key(entry));
 
@@ -325,7 +325,7 @@ err_unlock:
 
 }
 #else
-static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
+static u64 mmap_entry_insert(struct efa_ucontext *ucontext,
 			     u64 address, size_t length, u8 mmap_flag)
 {
 	struct efa_user_mmap_entry *entry;
@@ -342,7 +342,7 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	mutex_lock(&ucontext->lock);
 	next_mmap_page = ucontext->mmap_xa_page + (length >> PAGE_SHIFT);
 	if (next_mmap_page >= U32_MAX) {
-		ibdev_dbg(&dev->ibdev, "Too many mmap pages\n");
+		ibdev_dbg(ucontext->ibucontext.device, "Too many mmap pages\n");
 		mutex_unlock(&ucontext->lock);
 		kfree(entry);
 		return EFA_MMAP_INVALID;
@@ -354,7 +354,7 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	mutex_unlock(&ucontext->lock);
 
 	ibdev_dbg(
-		&dev->ibdev,
+		ucontext->ibucontext.device,
 		"mmap: addr[%#llx], len[%#zx], key[%#llx] inserted\n",
 		entry->address, entry->length, get_mmap_key(entry));
 
@@ -703,7 +703,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	 * cleaned up until dealloc_ucontext.
 	 */
 	resp->sq_db_mmap_key =
-		mmap_entry_insert(dev, ucontext,
+		mmap_entry_insert(ucontext,
 				  dev->db_bar_addr + resp->sq_db_offset,
 				  PAGE_SIZE, EFA_MMAP_IO_NC);
 	if (resp->sq_db_mmap_key == EFA_MMAP_INVALID)
@@ -712,7 +712,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	resp->sq_db_offset &= ~PAGE_MASK;
 
 	resp->llq_desc_mmap_key =
-		mmap_entry_insert(dev, ucontext,
+		mmap_entry_insert(ucontext,
 				  dev->mem_bar_addr + resp->llq_desc_offset,
 				  PAGE_ALIGN(params->sq_ring_size_in_bytes +
 					     (resp->llq_desc_offset & ~PAGE_MASK)),
@@ -724,7 +724,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 
 	if (qp->rq_size) {
 		resp->rq_db_mmap_key =
-			mmap_entry_insert(dev, ucontext,
+			mmap_entry_insert(ucontext,
 					  dev->db_bar_addr + resp->rq_db_offset,
 					  PAGE_SIZE, EFA_MMAP_IO_NC);
 		if (resp->rq_db_mmap_key == EFA_MMAP_INVALID)
@@ -733,7 +733,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 		resp->rq_db_offset &= ~PAGE_MASK;
 
 		resp->rq_mmap_key =
-			mmap_entry_insert(dev, ucontext,
+			mmap_entry_insert(ucontext,
 					  virt_to_phys(qp->rq_cpu_addr),
 					  qp->rq_size, EFA_MMAP_DMA_PAGE);
 		if (resp->rq_mmap_key == EFA_MMAP_INVALID)
@@ -1152,7 +1152,7 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 				 struct efa_ibv_create_cq_resp *resp)
 {
 	resp->q_mmap_size = cq->size;
-	resp->q_mmap_key = mmap_entry_insert(dev, cq->ucontext,
+	resp->q_mmap_key = mmap_entry_insert(cq->ucontext,
 					     virt_to_phys(cq->cpu_addr),
 					     cq->size, EFA_MMAP_DMA_PAGE);
 	if (resp->q_mmap_key == EFA_MMAP_INVALID)
