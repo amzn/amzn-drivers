@@ -288,7 +288,7 @@ static u64 efa_user_mmap_entry_insert(struct efa_ucontext *ucontext,
 	u32 next_mmap_page;
 	int err;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return EFA_MMAP_INVALID;
 
@@ -331,7 +331,7 @@ static u64 efa_user_mmap_entry_insert(struct efa_ucontext *ucontext,
 	struct efa_user_mmap_entry *entry;
 	u64 next_mmap_page;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return EFA_MMAP_INVALID;
 
