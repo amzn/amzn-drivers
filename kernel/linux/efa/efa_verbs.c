@@ -30,7 +30,7 @@ enum {
 	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
 	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
 
-struct efa_mmap_entry {
+struct efa_user_mmap_entry {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 	struct list_head list;
 #endif
@@ -40,7 +40,7 @@ struct efa_mmap_entry {
 	u8 mmap_flag;
 };
 
-static inline u64 get_mmap_key(const struct efa_mmap_entry *efa)
+static inline u64 get_mmap_key(const struct efa_user_mmap_entry *efa)
 {
 	return ((u64)efa->mmap_flag << EFA_MMAP_FLAG_SHIFT) |
 	       ((u64)efa->mmap_page << PAGE_SHIFT);
@@ -193,7 +193,7 @@ static void *efa_zalloc_mapped(struct efa_dev *dev, dma_addr_t *dma_addr,
 static void mmap_entries_remove_free(struct efa_dev *dev,
 				     struct efa_ucontext *ucontext)
 {
-	struct efa_mmap_entry *entry;
+	struct efa_user_mmap_entry *entry;
 	unsigned long mmap_page;
 
 	xa_for_each(&ucontext->mmap_xa, mmap_page, entry) {
@@ -214,7 +214,7 @@ static void mmap_entries_remove_free(struct efa_dev *dev,
 static void mmap_entries_remove_free(struct efa_dev *dev,
 				     struct efa_ucontext *ucontext)
 {
-	struct efa_mmap_entry *entry, *tmp;
+	struct efa_user_mmap_entry *entry, *tmp;
 
 	list_for_each_entry_safe(entry, tmp, &ucontext->pending_mmaps, list) {
 		list_del(&entry->list);
@@ -232,11 +232,11 @@ static void mmap_entries_remove_free(struct efa_dev *dev,
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
-					     struct efa_ucontext *ucontext,
-					     u64 key, size_t len)
+static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
+						  struct efa_ucontext *ucontext,
+						  u64 key, size_t len)
 {
-	struct efa_mmap_entry *entry;
+	struct efa_user_mmap_entry *entry;
 	u64 mmap_page;
 
 	mmap_page = (key & EFA_MMAP_PAGE_MASK) >> PAGE_SHIFT;
@@ -254,12 +254,11 @@ static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 	return entry;
 }
 #else
-static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
-					     struct efa_ucontext *ucontext,
-					     u64 key,
-					     size_t len)
+static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
+						  struct efa_ucontext *ucontext,
+						  u64 key, size_t len)
 {
-	struct efa_mmap_entry *entry, *tmp;
+	struct efa_user_mmap_entry *entry, *tmp;
 
 	mutex_lock(&ucontext->lock);
 	list_for_each_entry_safe(entry, tmp, &ucontext->pending_mmaps, list) {
@@ -285,7 +284,7 @@ static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 			     u64 address, size_t length, u8 mmap_flag)
 {
-	struct efa_mmap_entry *entry;
+	struct efa_user_mmap_entry *entry;
 	u32 next_mmap_page;
 	int err;
 
@@ -329,7 +328,7 @@ err_unlock:
 static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 			     u64 address, size_t length, u8 mmap_flag)
 {
-	struct efa_mmap_entry *entry;
+	struct efa_user_mmap_entry *entry;
 	u64 next_mmap_page;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -2202,7 +2201,7 @@ int efa_dealloc_ucontext(struct ib_ucontext *ibucontext)
 static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		      struct vm_area_struct *vma, u64 key, size_t length)
 {
-	struct efa_mmap_entry *entry;
+	struct efa_user_mmap_entry *entry;
 	unsigned long va;
 	int err = 0;
 	u64 pfn;
