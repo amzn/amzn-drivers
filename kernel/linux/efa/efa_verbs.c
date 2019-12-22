@@ -34,7 +34,6 @@ struct efa_mmap_entry {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 	struct list_head list;
 #endif
-	void  *obj;
 	u64 address;
 	u64 length;
 	u32 mmap_page;
@@ -202,9 +201,8 @@ static void mmap_entries_remove_free(struct efa_dev *dev,
 
 		ibdev_dbg(
 			&dev->ibdev,
-			"mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
-			entry->obj, get_mmap_key(entry), entry->address,
-			entry->length);
+			"mmap: key[%#llx] addr[%#llx] len[%#llx] removed\n",
+			get_mmap_key(entry), entry->address, entry->length);
 		if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
 			/* DMA mapping is already gone, now free the pages */
 			free_pages_exact(phys_to_virt(entry->address),
@@ -222,9 +220,8 @@ static void mmap_entries_remove_free(struct efa_dev *dev,
 		list_del(&entry->list);
 		ibdev_dbg(
 			&dev->ibdev,
-			"mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
-			entry->obj, get_mmap_key(entry), entry->address,
-			entry->length);
+			"mmap: key[%#llx] addr[%#llx] len[%#llx] removed\n",
+			get_mmap_key(entry), entry->address, entry->length);
 		if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
 			/* DMA mapping is already gone, now free the pages */
 			free_pages_exact(phys_to_virt(entry->address),
@@ -251,8 +248,8 @@ static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 		return NULL;
 
 	ibdev_dbg(&dev->ibdev,
-		  "mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
-		  entry->obj, key, entry->address, entry->length);
+		  "mmap: key[%#llx] addr[%#llx] len[%#llx] removed\n",
+		  key, entry->address, entry->length);
 
 	return entry;
 }
@@ -268,9 +265,8 @@ static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 	list_for_each_entry_safe(entry, tmp, &ucontext->pending_mmaps, list) {
 		if (get_mmap_key(entry) == key && entry->length == len) {
 			ibdev_dbg(&dev->ibdev,
-				  "mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
-				  entry->obj, key, entry->address,
-				  entry->length);
+				  "mmap: key[%#llx] addr[%#llx] len[%#llx] removed\n",
+				  key, entry->address, entry->length);
 			mutex_unlock(&ucontext->lock);
 			return entry;
 		}
@@ -287,7 +283,7 @@ static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
-			     void *obj, u64 address, u64 length, u8 mmap_flag)
+			     u64 address, u64 length, u8 mmap_flag)
 {
 	struct efa_mmap_entry *entry;
 	u32 next_mmap_page;
@@ -297,7 +293,6 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	if (!entry)
 		return EFA_MMAP_INVALID;
 
-	entry->obj = obj;
 	entry->address = address;
 	entry->length = length;
 	entry->mmap_flag = mmap_flag;
@@ -319,8 +314,8 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 
 	ibdev_dbg(
 		&dev->ibdev,
-		"mmap: obj[0x%p] addr[%#llx], len[%#llx], key[%#llx] inserted\n",
-		entry->obj, entry->address, entry->length, get_mmap_key(entry));
+		"mmap: addr[%#llx], len[%#llx], key[%#llx] inserted\n",
+		entry->address, entry->length, get_mmap_key(entry));
 
 	return get_mmap_key(entry);
 
@@ -332,7 +327,7 @@ err_unlock:
 }
 #else
 static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
-			     void *obj, u64 address, u64 length, u8 mmap_flag)
+			     u64 address, u64 length, u8 mmap_flag)
 {
 	struct efa_mmap_entry *entry;
 	u64 next_mmap_page;
@@ -341,7 +336,6 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	if (!entry)
 		return EFA_MMAP_INVALID;
 
-	entry->obj = obj;
 	entry->address = address;
 	entry->length = length;
 	entry->mmap_flag = mmap_flag;
@@ -362,8 +356,8 @@ static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
 
 	ibdev_dbg(
 		&dev->ibdev,
-		"mmap: obj[0x%p] addr[%#llx], len[%#llx], key[%#llx] inserted\n",
-		entry->obj, entry->address, entry->length, get_mmap_key(entry));
+		"mmap: addr[%#llx], len[%#llx], key[%#llx] inserted\n",
+		entry->address, entry->length, get_mmap_key(entry));
 
 	return get_mmap_key(entry);
 }
@@ -710,7 +704,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	 * cleaned up until dealloc_ucontext.
 	 */
 	resp->sq_db_mmap_key =
-		mmap_entry_insert(dev, ucontext, qp,
+		mmap_entry_insert(dev, ucontext,
 				  dev->db_bar_addr + resp->sq_db_offset,
 				  PAGE_SIZE, EFA_MMAP_IO_NC);
 	if (resp->sq_db_mmap_key == EFA_MMAP_INVALID)
@@ -719,7 +713,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	resp->sq_db_offset &= ~PAGE_MASK;
 
 	resp->llq_desc_mmap_key =
-		mmap_entry_insert(dev, ucontext, qp,
+		mmap_entry_insert(dev, ucontext,
 				  dev->mem_bar_addr + resp->llq_desc_offset,
 				  PAGE_ALIGN(params->sq_ring_size_in_bytes +
 					     (resp->llq_desc_offset & ~PAGE_MASK)),
@@ -731,7 +725,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 
 	if (qp->rq_size) {
 		resp->rq_db_mmap_key =
-			mmap_entry_insert(dev, ucontext, qp,
+			mmap_entry_insert(dev, ucontext,
 					  dev->db_bar_addr + resp->rq_db_offset,
 					  PAGE_SIZE, EFA_MMAP_IO_NC);
 		if (resp->rq_db_mmap_key == EFA_MMAP_INVALID)
@@ -740,7 +734,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 		resp->rq_db_offset &= ~PAGE_MASK;
 
 		resp->rq_mmap_key =
-			mmap_entry_insert(dev, ucontext, qp,
+			mmap_entry_insert(dev, ucontext,
 					  virt_to_phys(qp->rq_cpu_addr),
 					  qp->rq_size, EFA_MMAP_DMA_PAGE);
 		if (resp->rq_mmap_key == EFA_MMAP_INVALID)
@@ -1159,7 +1153,7 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 				 struct efa_ibv_create_cq_resp *resp)
 {
 	resp->q_mmap_size = cq->size;
-	resp->q_mmap_key = mmap_entry_insert(dev, cq->ucontext, cq,
+	resp->q_mmap_key = mmap_entry_insert(dev, cq->ucontext,
 					     virt_to_phys(cq->cpu_addr),
 					     cq->size, EFA_MMAP_DMA_PAGE);
 	if (resp->q_mmap_key == EFA_MMAP_INVALID)
