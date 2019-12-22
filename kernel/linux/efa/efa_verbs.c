@@ -281,8 +281,8 @@ static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
  * ucontext destruction when the core code guarentees no concurrency.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-static u64 mmap_entry_insert(struct efa_ucontext *ucontext, u64 address,
-			     size_t length, u8 mmap_flag)
+static u64 efa_user_mmap_entry_insert(struct efa_ucontext *ucontext,
+				      u64 address, size_t length, u8 mmap_flag)
 {
 	struct efa_user_mmap_entry *entry;
 	u32 next_mmap_page;
@@ -325,8 +325,8 @@ err_unlock:
 
 }
 #else
-static u64 mmap_entry_insert(struct efa_ucontext *ucontext,
-			     u64 address, size_t length, u8 mmap_flag)
+static u64 efa_user_mmap_entry_insert(struct efa_ucontext *ucontext,
+				      u64 address, size_t length, u8 mmap_flag)
 {
 	struct efa_user_mmap_entry *entry;
 	u64 next_mmap_page;
@@ -703,20 +703,20 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	 * cleaned up until dealloc_ucontext.
 	 */
 	resp->sq_db_mmap_key =
-		mmap_entry_insert(ucontext,
-				  dev->db_bar_addr + resp->sq_db_offset,
-				  PAGE_SIZE, EFA_MMAP_IO_NC);
+		efa_user_mmap_entry_insert(ucontext,
+					   dev->db_bar_addr + resp->sq_db_offset,
+					   PAGE_SIZE, EFA_MMAP_IO_NC);
 	if (resp->sq_db_mmap_key == EFA_MMAP_INVALID)
 		return -ENOMEM;
 
 	resp->sq_db_offset &= ~PAGE_MASK;
 
 	resp->llq_desc_mmap_key =
-		mmap_entry_insert(ucontext,
-				  dev->mem_bar_addr + resp->llq_desc_offset,
-				  PAGE_ALIGN(params->sq_ring_size_in_bytes +
-					     (resp->llq_desc_offset & ~PAGE_MASK)),
-				  EFA_MMAP_IO_WC);
+		efa_user_mmap_entry_insert(ucontext,
+					   dev->mem_bar_addr + resp->llq_desc_offset,
+					   PAGE_ALIGN(params->sq_ring_size_in_bytes +
+						      (resp->llq_desc_offset & ~PAGE_MASK)),
+					   EFA_MMAP_IO_WC);
 	if (resp->llq_desc_mmap_key == EFA_MMAP_INVALID)
 		return -ENOMEM;
 
@@ -724,18 +724,18 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 
 	if (qp->rq_size) {
 		resp->rq_db_mmap_key =
-			mmap_entry_insert(ucontext,
-					  dev->db_bar_addr + resp->rq_db_offset,
-					  PAGE_SIZE, EFA_MMAP_IO_NC);
+			efa_user_mmap_entry_insert(ucontext,
+						   dev->db_bar_addr + resp->rq_db_offset,
+						   PAGE_SIZE, EFA_MMAP_IO_NC);
 		if (resp->rq_db_mmap_key == EFA_MMAP_INVALID)
 			return -ENOMEM;
 
 		resp->rq_db_offset &= ~PAGE_MASK;
 
 		resp->rq_mmap_key =
-			mmap_entry_insert(ucontext,
-					  virt_to_phys(qp->rq_cpu_addr),
-					  qp->rq_size, EFA_MMAP_DMA_PAGE);
+			efa_user_mmap_entry_insert(ucontext,
+						   virt_to_phys(qp->rq_cpu_addr),
+						   qp->rq_size, EFA_MMAP_DMA_PAGE);
 		if (resp->rq_mmap_key == EFA_MMAP_INVALID)
 			return -ENOMEM;
 
@@ -1152,9 +1152,9 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 				 struct efa_ibv_create_cq_resp *resp)
 {
 	resp->q_mmap_size = cq->size;
-	resp->q_mmap_key = mmap_entry_insert(cq->ucontext,
-					     virt_to_phys(cq->cpu_addr),
-					     cq->size, EFA_MMAP_DMA_PAGE);
+	resp->q_mmap_key = efa_user_mmap_entry_insert(cq->ucontext,
+						      virt_to_phys(cq->cpu_addr),
+						      cq->size, EFA_MMAP_DMA_PAGE);
 	if (resp->q_mmap_key == EFA_MMAP_INVALID)
 		return -ENOMEM;
 
