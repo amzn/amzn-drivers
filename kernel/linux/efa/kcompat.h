@@ -150,6 +150,10 @@
 #define HAVE_CQ_CORE_ALLOCATION
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
+#define HAVE_IB_UMEM_GET_NO_DMASYNC
+#endif
+
 /* End of upstream defines */
 
 #if !defined(HAVE_CREATE_AH_UDATA) || !defined(HAVE_IB_QUERY_DEVICE_UDATA)
