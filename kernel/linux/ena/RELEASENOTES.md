@@ -39,6 +39,60 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.0 release notes
+**New Features**
+* Implement XDP support for DROP and TX actions.
+* Add VXLAN TX checksum offloading support.
+* Map rx buffers bidirectionally to support traffic mirroring.
+* Introduce disable meta descriptor caching feature required by llq
+  accelerated mode.
+* Revert extra_properties feature implementation via ethtool priv-flags.
+* Support set_channels() callback in ethtool.
+
+**Bug Fixes**
+* Fix multiple issues with the RSS feature.
+* Fix uses of round_jiffies() in timer_service.
+* Add missing ethtool TX timestamping indication.
+* Fix ENA_REGS_RESET_DRIVER_INVALID_STATE error during hibernation.
+* Fix race condition causing an incorrect wake up of a TX queue when it is
+  down.
+* Fix dim exported symbols conflicts by removing all EXPORT_SYMBOL directives
+  from dim files.
+* Fix first interrupt accounting in XDP by adding first_interrupt field to
+  napi struct.
+* Fix napi handler misbehavior when the napi budget is zero.
+* Add max value check in ena_set_channels() to disalow setting the number
+  of queues to a higher than allowed maximum number.
+* Fix race condition when setting the number of queues immediately after
+  loading the driver, which caused a crash when changing the number of queues
+  to a larger number than currently set.
+* Fix incorrect setting of number of msix vectors according to num_io_queues,
+  causing crash when changing the number of queues to a larger number after
+  driver reset.
+* Fix ena_tx_timeout() signature for kernels >= 5.5
+
+**Minor Changes**
+* Add RX drops and TX drops counters to ethtool -S command.
+* Aggregate accelerated mode features under struct ena_admin_accel_mode_req
+  currently including the new disable meta descriptor caching feature and
+  the existing max tx burst size feature.
+* Add debug prints to failed commands.
+* Make ena rxfh support ETH_RSS_HASH_NO_CHANGE.
+* Change MTU parameter to be unsigned in ena_com_set_dev_mtu().
+* Remove unused ena_restore_ethtool_params() and relevant fields.
+* Use combined channels instead of separate RX/TX channels in ethtool -l/L.
+* Use SHUTDOWN as reset reason when closing interface.
+* Change RSS default function on probe to Toeplitz.
+* Enable setting the RSS hash function only without changing the key in
+  ethtool.
+* Remove superfulous print of number of queues during ena_up().
+* Remove unnecessary parentheses to pass checkpatch.
+* Add unmask interrupts statistics to ethtool.
+* Arrange local variables in ena_com_fill_hash_function() in reverse christmas
+  tree order.
+* Separate RSS hash function retrieval and RSS key retreival into 2 different
+  functions.
+
 ## r2.1.4 release notes
 **New Features**
 * Add support for the RX offset feature - where the device writes data

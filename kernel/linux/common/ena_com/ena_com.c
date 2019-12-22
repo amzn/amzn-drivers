@@ -64,6 +64,15 @@
 
 #define ENA_POLL_MS	5
 
+/* Default Microsoft RSS key, used for HRSS. */
+static const u8 rss_hash_key[ENA_HASH_KEY_SIZE] = {
+		0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+		0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
+		0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
+		0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
+		0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
+};
+
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
@@ -402,6 +411,8 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		       0x0, io_sq->llq_info.desc_list_entry_size);
 		io_sq->llq_buf_ctrl.descs_left_in_line =
 			io_sq->llq_info.descs_num_before_header;
+		io_sq->disable_meta_caching =
+			io_sq->llq_info.disable_meta_caching;
 
 		if (io_sq->llq_info.max_entries_in_tx_burst > 0)
 			io_sq->entries_in_tx_burst_left =
@@ -617,6 +628,14 @@ static int ena_com_set_llq(struct ena_com_dev *ena_dev)
 	cmd.u.llq.desc_num_before_header_enabled = llq_info->descs_num_before_header;
 	cmd.u.llq.descriptors_stride_ctrl_enabled = llq_info->desc_stride_ctrl;
 
+	if (llq_info->disable_meta_caching)
+		cmd.u.llq.accel_mode.u.set.enabled_flags |=
+			BIT(ENA_ADMIN_DISABLE_META_CACHING);
+
+	if (llq_info->max_entries_in_tx_burst)
+		cmd.u.llq.accel_mode.u.set.enabled_flags |=
+			BIT(ENA_ADMIN_LIMIT_TX_BURST);
+
 	ret = ena_com_execute_admin_command(admin_queue,
 					    (struct ena_admin_aq_entry *)&cmd,
 					    sizeof(cmd),
@@ -733,9 +752,15 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 		       llq_default_cfg->llq_num_decs_before_header,
 		       supported_feat, llq_info->descs_num_before_header);
 	}
+	/* Check for accelerated queue supported */
+	llq_info->disable_meta_caching =
+		llq_features->accel_mode.u.get.supported_flags &
+		BIT(ENA_ADMIN_DISABLE_META_CACHING);
 
-	llq_info->max_entries_in_tx_burst =
-		(u16)(llq_features->max_tx_burst_size /	llq_default_cfg->llq_ring_entry_size_value);
+	if (llq_features->accel_mode.u.get.supported_flags & BIT(ENA_ADMIN_LIMIT_TX_BURST))
+		llq_info->max_entries_in_tx_burst =
+			llq_features->accel_mode.u.get.max_tx_burst_size /
+			llq_default_cfg->llq_ring_entry_size_value;
 
 	rc = ena_com_set_llq(ena_dev);
 	if (rc)
@@ -1042,6 +1067,24 @@ static int ena_com_get_feature(struct ena_com_dev *ena_dev,
 				      0,
 				      0,
 				      feature_ver);
+}
+
+int ena_com_get_current_hash_function(struct ena_com_dev *ena_dev)
+{
+	return ena_dev->rss.hash_func;
+}
+
+static void ena_com_hash_key_fill_default_key(struct ena_com_dev *ena_dev)
+{
+	struct ena_admin_feature_rss_flow_hash_control *hash_key =
+		(ena_dev->rss).hash_key;
+
+	memcpy(hash_key->key, rss_hash_key, sizeof(rss_hash_key));
+	/* The key is stored in the device in u32 array
+	 * as well as the API requires the key to be passed in this
+	 * format. Thus the size of our array should be divided by 4
+	 */
+	hash_key->keys_num = sizeof(rss_hash_key) / sizeof(u32);
 }
 
 static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
@@ -1870,61 +1913,6 @@ int ena_com_get_link_params(struct ena_com_dev *ena_dev,
 	return ena_com_get_feature(ena_dev, resp, ENA_ADMIN_LINK_CONFIG, 0);
 }
 
-int ena_com_extra_properties_strings_init(struct ena_com_dev *ena_dev)
-{
-	struct ena_admin_get_feat_resp resp;
-	struct ena_extra_properties_strings *extra_properties_strings =
-			&ena_dev->extra_properties_strings;
-	u32 rc;
-	extra_properties_strings->size = ENA_ADMIN_EXTRA_PROPERTIES_COUNT *
-		ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN;
-
-	extra_properties_strings->virt_addr =
-		dma_zalloc_coherent(ena_dev->dmadev,
-				    extra_properties_strings->size,
-				    &extra_properties_strings->dma_addr,
-				    GFP_KERNEL);
-	if (unlikely(!extra_properties_strings->virt_addr)) {
-		pr_err("Failed to allocate extra properties strings\n");
-		return 0;
-	}
-
-	rc = ena_com_get_feature_ex(ena_dev, &resp,
-				    ENA_ADMIN_EXTRA_PROPERTIES_STRINGS,
-				    extra_properties_strings->dma_addr,
-				    extra_properties_strings->size, 0);
-	if (rc) {
-		pr_debug("Failed to get extra properties strings\n");
-		goto err;
-	}
-
-	return resp.u.extra_properties_strings.count;
-err:
-	ena_com_delete_extra_properties_strings(ena_dev);
-	return 0;
-}
-
-void ena_com_delete_extra_properties_strings(struct ena_com_dev *ena_dev)
-{
-	struct ena_extra_properties_strings *extra_properties_strings =
-				&ena_dev->extra_properties_strings;
-
-	if (extra_properties_strings->virt_addr) {
-		dma_free_coherent(ena_dev->dmadev,
-				  extra_properties_strings->size,
-				  extra_properties_strings->virt_addr,
-				  extra_properties_strings->dma_addr);
-		extra_properties_strings->virt_addr = NULL;
-	}
-}
-
-int ena_com_get_extra_properties_flags(struct ena_com_dev *ena_dev,
-				       struct ena_admin_get_feat_resp *resp)
-{
-	return ena_com_get_feature(ena_dev, resp,
-				   ENA_ADMIN_EXTRA_PROPERTIES_FLAGS, 0);
-}
-
 int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 			      struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
@@ -2047,7 +2035,7 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	struct ena_admin_aenq_entry *aenq_e;
 	struct ena_admin_aenq_common_desc *aenq_common;
 	struct ena_com_aenq *aenq  = &dev->aenq;
-	unsigned long long timestamp;
+	u64 timestamp;
 	ena_aenq_handler handler_cb;
 	u16 masked_head, processed = 0;
 	u8 phase;
@@ -2065,9 +2053,8 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 		 */
 		dma_rmb();
 
-		timestamp =
-			(unsigned long long)aenq_common->timestamp_low |
-			((unsigned long long)aenq_common->timestamp_high << 32);
+		timestamp = (u64)aenq_common->timestamp_low |
+			    ((u64)aenq_common->timestamp_high << 32);
 		pr_debug("AENQ! Group[%x] Syndrom[%x] timestamp: [%llus]\n",
 			 aenq_common->group, aenq_common->syndrom, timestamp);
 
@@ -2207,7 +2194,7 @@ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
 	return ret;
 }
 
-int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
+int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
 {
 	struct ena_com_admin_queue *admin_queue;
 	struct ena_admin_set_feat_cmd cmd;
@@ -2322,11 +2309,13 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 			       enum ena_admin_hash_functions func,
 			       const u8 *key, u16 key_len, u32 init_val)
 {
-	struct ena_rss *rss = &ena_dev->rss;
+	struct ena_admin_feature_rss_flow_hash_control *hash_key;
 	struct ena_admin_get_feat_resp get_resp;
-	struct ena_admin_feature_rss_flow_hash_control *hash_key =
-		rss->hash_key;
+	enum ena_admin_hash_functions old_func;
+	struct ena_rss *rss = &ena_dev->rss;
 	int rc;
+
+	hash_key = rss->hash_key;
 
 	/* Make sure size is a mult of DWs */
 	if (unlikely(key_len & 0x3))
@@ -2339,22 +2328,23 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 	if (unlikely(rc))
 		return rc;
 
-	if (!((1 << func) & get_resp.u.flow_hash_func.supported_func)) {
+	if (!(BIT(func) & get_resp.u.flow_hash_func.supported_func)) {
 		pr_err("Flow hash function %d isn't supported\n", func);
 		return -EOPNOTSUPP;
 	}
 
 	switch (func) {
 	case ENA_ADMIN_TOEPLITZ:
-		if (key_len > sizeof(hash_key->key)) {
-			pr_err("key len (%hu) is bigger than the max supported (%zu)\n",
-			       key_len, sizeof(hash_key->key));
-			return -EINVAL;
+		if (key) {
+			if (key_len != sizeof(hash_key->key)) {
+				pr_err("key len (%hu) doesn't equal the supported size (%zu)\n",
+				       key_len, sizeof(hash_key->key));
+				return -EINVAL;
+			}
+			memcpy(hash_key->key, key, key_len);
+			rss->hash_init_val = init_val;
+			hash_key->keys_num = key_len >> 2;
 		}
-
-		memcpy(hash_key->key, key, key_len);
-		rss->hash_init_val = init_val;
-		hash_key->keys_num = key_len >> 2;
 		break;
 	case ENA_ADMIN_CRC32:
 		rss->hash_init_val = init_val;
@@ -2364,36 +2354,47 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 		return -EINVAL;
 	}
 
+	old_func = rss->hash_func;
 	rss->hash_func = func;
 	rc = ena_com_set_hash_function(ena_dev);
 
 	/* Restore the old function */
 	if (unlikely(rc))
-		ena_com_get_hash_function(ena_dev, NULL, NULL);
+		rss->hash_func = old_func;
 
 	return rc;
 }
 
 int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
-			      enum ena_admin_hash_functions *func,
-			      u8 *key)
+			      enum ena_admin_hash_functions *func)
 {
 	struct ena_rss *rss = &ena_dev->rss;
 	struct ena_admin_get_feat_resp get_resp;
-	struct ena_admin_feature_rss_flow_hash_control *hash_key =
-		rss->hash_key;
 	int rc;
 
-	rc = ena_com_get_feature_ex(ena_dev, &get_resp,
-				    ENA_ADMIN_RSS_HASH_FUNCTION,
-				    rss->hash_key_dma_addr,
-				    sizeof(*rss->hash_key), 0);
-	if (unlikely(rc))
-		return rc;
+	if (func) {
+		rc = ena_com_get_feature_ex(ena_dev, &get_resp,
+					    ENA_ADMIN_RSS_HASH_FUNCTION,
+					    rss->hash_key_dma_addr,
+					    sizeof(*rss->hash_key), 0);
+		if (unlikely(rc))
+			return rc;
 
-	rss->hash_func = get_resp.u.flow_hash_func.selected_func;
-	if (func)
+		/* ffs returns 1 in case the lsb is set */
+		rss->hash_func = ffs(get_resp.u.flow_hash_func.selected_func);
+		if (rss->hash_func)
+			rss->hash_func--;
+
 		*func = rss->hash_func;
+	}
+
+	return 0;
+}
+
+int ena_com_get_hash_key(struct ena_com_dev *ena_dev, u8 *key)
+{
+	struct ena_admin_feature_rss_flow_hash_control *hash_key =
+		ena_dev->rss.hash_key;
 
 	if (key)
 		memcpy(key, hash_key->key, (size_t)(hash_key->keys_num) << 2);
@@ -2674,6 +2675,8 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 indr_tbl_log_size)
 	rc = ena_com_hash_key_allocate(ena_dev);
 	if (unlikely(rc))
 		goto err_hash_key;
+
+	ena_com_hash_key_fill_default_key(ena_dev);
 
 	rc = ena_com_hash_ctrl_init(ena_dev);
 	if (unlikely(rc))

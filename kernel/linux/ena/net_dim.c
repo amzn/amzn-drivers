@@ -71,7 +71,6 @@ net_dim_get_rx_moderation(u8 cq_period_mode, int ix)
 	cq_moder.cq_period_mode = cq_period_mode;
 	return cq_moder;
 }
-EXPORT_SYMBOL(net_dim_get_rx_moderation);
 
 struct dim_cq_moder
 net_dim_get_def_rx_moderation(u8 cq_period_mode)
@@ -81,7 +80,6 @@ net_dim_get_def_rx_moderation(u8 cq_period_mode)
 
 	return net_dim_get_rx_moderation(cq_period_mode, profile_ix);
 }
-EXPORT_SYMBOL(net_dim_get_def_rx_moderation);
 
 struct dim_cq_moder
 net_dim_get_tx_moderation(u8 cq_period_mode, int ix)
@@ -91,7 +89,6 @@ net_dim_get_tx_moderation(u8 cq_period_mode, int ix)
 	cq_moder.cq_period_mode = cq_period_mode;
 	return cq_moder;
 }
-EXPORT_SYMBOL(net_dim_get_tx_moderation);
 
 struct dim_cq_moder
 net_dim_get_def_tx_moderation(u8 cq_period_mode)
@@ -101,7 +98,6 @@ net_dim_get_def_tx_moderation(u8 cq_period_mode)
 
 	return net_dim_get_tx_moderation(cq_period_mode, profile_ix);
 }
-EXPORT_SYMBOL(net_dim_get_def_tx_moderation);
 
 static int net_dim_step(struct dim *dim)
 {
@@ -245,6 +241,5 @@ void net_dim(struct dim *dim, struct dim_sample end_sample)
 		break;
 	}
 }
-EXPORT_SYMBOL(net_dim);
 
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 3, 0) */

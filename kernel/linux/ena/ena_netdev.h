@@ -41,6 +41,7 @@
 #include <linux/dim.h>
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 3, 0) */
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/inetdevice.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
@@ -51,8 +52,8 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	2
-#define DRV_MODULE_VER_MINOR	1
-#define DRV_MODULE_VER_SUBMINOR 4
+#define DRV_MODULE_VER_MINOR	2
+#define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -135,6 +136,8 @@
 
 #define ENA_IO_TXQ_IDX(q)	(2 * (q))
 #define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+#define ENA_IO_TXQ_IDX_TO_COMBINED_IDX(q)	((q) / 2)
+#define ENA_IO_RXQ_IDX_TO_COMBINED_IDX(q)	(((q) - 1) / 2)
 
 #define ENA_MGMNT_IRQ_IDX		0
 #define ENA_IO_IRQ_FIRST_IDX		1
@@ -147,6 +150,22 @@
 #define ENA_MAX_NO_INTERRUPT_ITERATIONS 3
 
 #define ENA_MMIO_DISABLE_REG_READ	BIT(0)
+
+/* The max MTU size is configured to be the ethernet frame size without
+ * the overhead of the ethernet header, which can have a VLAN header, and
+ * a frame check sequence (FCS).
+ * The buffer size we share with the device is defined to be ENA_PAGE_SIZE
+ */
+
+#ifdef ENA_XDP_SUPPORT
+#define ENA_XDP_MAX_MTU (ENA_PAGE_SIZE - ETH_HLEN - ETH_FCS_LEN - \
+				VLAN_HLEN - XDP_PACKET_HEADROOM)
+
+#define ENA_IS_XDP_INDEX(adapter, index) (((index) >= (adapter)->xdp_first_ring) && \
+	((index) < (adapter)->xdp_first_ring + (adapter)->xdp_num_queues))
+#else
+#define ENA_IS_XDP_INDEX(adapter, index) (false)
+#endif /* ENA_XDP_SUPPORT */
 
 struct ena_irq {
 	irq_handler_t handler;
@@ -161,6 +180,10 @@ struct ena_napi {
 	struct napi_struct napi ____cacheline_aligned;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
+#ifdef ENA_XDP_SUPPORT
+	struct ena_ring *xdp_ring;
+#endif /* ENA_XDP_SUPPORT */
+	bool first_interrupt;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 	atomic_t unmask_interrupt;
 #endif
@@ -188,6 +211,19 @@ struct ena_tx_buffer {
 	u32 tx_descs;
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
+
+#ifdef ENA_XDP_SUPPORT
+	/* XDP buffer structure which is used for sending packets in
+	 * the xdp queues
+	 */
+	struct xdp_frame *xdpf;
+	/* The rx page for the rx buffer that was received in rx and
+	 * re transmitted on xdp tx queues as a result of XDP_TX action.
+	 * We need to free the page once we finished cleaning the buffer in
+	 * clean_xdp_irq()
+	 */
+	struct page *xdp_rx_page;
+#endif /* ENA_XDP_SUPPORT */
 
 	/* Indicate if bufs[0] map the linear data of the skb. */
 	u8 map_linear_data;
@@ -229,6 +265,8 @@ struct ena_stats_tx {
 	u64 bad_req_id;
 	u64 llq_buffer_copy;
 	u64 missed_tx;
+	u64 encap_tx_csummed;
+	u64 unmask_interrupt;
 };
 
 struct ena_stats_rx {
@@ -272,10 +310,15 @@ struct ena_ring {
 	struct ena_adapter *adapter;
 	struct ena_com_io_cq *ena_com_io_cq;
 	struct ena_com_io_sq *ena_com_io_sq;
+#ifdef ENA_XDP_SUPPORT
+	struct bpf_prog *xdp_bpf_prog;
+	struct xdp_rxq_info xdp_rxq;
+#endif
 
 	u16 next_to_use;
 	u16 next_to_clean;
 	u16 rx_copybreak;
+	u16 rx_headroom;
 	u16 qid;
 	u16 mtu;
 	u16 sgl_size;
@@ -284,6 +327,7 @@ struct ena_ring {
 	u8 tx_max_header_size;
 
 	bool first_interrupt;
+	bool disable_meta_caching;
 	u16 no_interrupt_event_cnt;
 
 	/* cpu for TPH */
@@ -327,6 +371,7 @@ struct ena_stats_dev {
 	u64 interface_down;
 	u64 admin_q_pause;
 	u64 rx_drops;
+	u64 tx_drops;
 };
 
 enum ena_flags_t {
@@ -360,9 +405,6 @@ struct ena_adapter {
 	int msix_vecs;
 
 	u32 missing_tx_completion_threshold;
-
-	u32 tx_usecs, rx_usecs; /* interrupt moderation */
-	u32 tx_frames, rx_frames; /* interrupt moderation */
 
 	u32 requested_tx_ring_size;
 	u32 requested_rx_ring_size;
@@ -401,6 +443,7 @@ struct ena_adapter {
 
 	bool wd_state;
 	bool dev_up_before_reset;
+	bool disable_meta_caching;
 	unsigned long last_keep_alive_jiffies;
 
 	struct u64_stats_sync syncp;
@@ -411,7 +454,11 @@ struct ena_adapter {
 
 	enum ena_regs_reset_reason_types reset_reason;
 
-	u8 ena_extra_properties_count;
+#ifdef ENA_XDP_SUPPORT
+	struct bpf_prog *xdp_bpf_prog;
+#endif
+	u32 xdp_first_ring;
+	u32 xdp_num_queues;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
@@ -423,6 +470,8 @@ void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 int ena_update_queue_sizes(struct ena_adapter *adapter,
 			   u32 new_tx_size,
 			   u32 new_rx_size);
+
+int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
 
@@ -527,5 +576,47 @@ static inline bool ena_bp_disable(struct ena_ring *rx_ring)
 	return true;
 }
 #endif /* ENA_BUSY_POLL_SUPPORT */
+
+
+#ifdef ENA_XDP_SUPPORT
+enum ena_xdp_errors_t {
+	ENA_XDP_ALLOWED = 0,
+	ENA_XDP_CURRENT_MTU_TOO_LARGE,
+	ENA_XDP_NO_ENOUGH_QUEUES,
+};
+
+static inline bool ena_xdp_queues_present(struct ena_adapter *adapter)
+{
+	return adapter->xdp_first_ring != 0;
+}
+
+static inline bool ena_xdp_present(struct ena_adapter *adapter)
+{
+	return !!adapter->xdp_bpf_prog;
+}
+
+static inline bool ena_xdp_present_ring(struct ena_ring *ring)
+{
+	return !!ring->xdp_bpf_prog;
+}
+
+static inline int ena_xdp_legal_queue_count(struct ena_adapter *adapter,
+					    u32 queues)
+{
+	return 2 * queues <= adapter->max_num_io_queues;
+}
+
+static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
+{
+	enum ena_xdp_errors_t rc = ENA_XDP_ALLOWED;
+
+	if (adapter->netdev->mtu > ENA_XDP_MAX_MTU)
+		rc = ENA_XDP_CURRENT_MTU_TOO_LARGE;
+	else if (!ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
+		rc = ENA_XDP_NO_ENOUGH_QUEUES;
+
+	return rc;
+}
+#endif /* ENA_XDP_SUPPORT */
 
 #endif /* !(ENA_H) */

@@ -77,7 +77,7 @@ Driver installation:
 ====================
 Please refer to https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking-ena.html#ena-requirements
 for the list of instance types supporting ENA.
-Please make sure Enhanced Networking is enabled on your instance as specified in 
+Please make sure Enhanced Networking is enabled on your instance as specified in
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking-ena.html#test-enhanced-networking-ena
 
 loading driver:
@@ -99,7 +99,8 @@ restart the OS (sudo reboot and reconnect)
 Please note, the following messages might appear during OS boot:
 ena: loading out-of-tree module taints kernel.
 ena: module verification failed: signature and/or required key missing - tainting kernel
-These messages are informational and indicate that out-of-tree driver is being used, and do not affect driver operation.  
+These messages are informational and indicate that out-of-tree driver is being
+used, and do not affect driver operation.
 
 Module Parameters:
 ==================

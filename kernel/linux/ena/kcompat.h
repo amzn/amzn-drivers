@@ -202,6 +202,12 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #endif
 
 /*****************************************************************************/
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)) || \
+     (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 1))))
+#define VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED
+#endif
+
+/*****************************************************************************/
 #if (RHEL_RELEASE_CODE && \
 	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,6)) && \
      (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
@@ -659,6 +665,15 @@ do {									\
 #define MMIOWB_NOT_DEFINED
 #endif
 
+/* In the driver we currently only support CRC32 and Toeplitz.
+ * Since in kernel erlier than 4.12 the CRC32 define didn't exist
+ * We define it here to be XOR. Any user who wishes to select CRC32
+ * as the hash function, can do so by choosing xor through ethtool.
+ */
+#ifndef ETH_RSS_HASH_CRC32
+#define ETH_RSS_HASH_CRC32 ETH_RSS_HASH_XOR
+#endif
+
 #ifndef _ULL
 #define _ULL(x) (_AC(x, ULL))
 #endif
@@ -680,4 +695,13 @@ do {									\
 	({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
 #endif
 
+/* values are taken from here: https://github.com/iovisor/bcc/blob/master/docs/kernel-versions.md */
+
+#if defined(CONFIG_BPF) && LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
+#define ENA_XDP_SUPPORT
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
+#define HAVE_NDO_TX_TIMEOUT_STUCK_QUEUE_PARAMETER
+#endif
 #endif /* _KCOMPAT_H_ */
