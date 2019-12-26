@@ -16,10 +16,6 @@
 
 #include "efa.h"
 
-#define EFA_MMAP_FLAG_SHIFT 56
-#define EFA_MMAP_PAGE_MASK GENMASK(EFA_MMAP_FLAG_SHIFT - 1, 0)
-#define EFA_MMAP_INVALID U64_MAX
-
 enum {
 	EFA_MMAP_DMA_PAGE = 0,
 	EFA_MMAP_IO_WC,
@@ -42,8 +38,7 @@ struct efa_user_mmap_entry {
 
 static inline u64 get_mmap_key(const struct efa_user_mmap_entry *efa)
 {
-	return ((u64)efa->mmap_flag << EFA_MMAP_FLAG_SHIFT) |
-	       ((u64)efa->mmap_page << PAGE_SHIFT);
+	return (u64)efa->mmap_page << PAGE_SHIFT;
 }
 
 #ifdef HAVE_HW_STATS
@@ -239,7 +234,7 @@ static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 	struct efa_user_mmap_entry *entry;
 	u64 mmap_page;
 
-	mmap_page = (key & EFA_MMAP_PAGE_MASK) >> PAGE_SHIFT;
+	mmap_page = key >> PAGE_SHIFT;
 	if (mmap_page > U32_MAX)
 		return NULL;
 
