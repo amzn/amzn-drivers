@@ -282,9 +282,10 @@ static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 static struct efa_user_mmap_entry *
-efa_user_mmap_entry_insert(struct efa_ucontext *ucontext, u64 address,
+efa_user_mmap_entry_insert(struct ib_ucontext *ibucontext, u64 address,
 			   size_t length, u8 mmap_flag, u64 *offset)
 {
+	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_user_mmap_entry *entry;
 	u32 next_mmap_page;
 	int err;
@@ -328,9 +329,10 @@ err_unlock:
 }
 #else
 static struct efa_user_mmap_entry *
-efa_user_mmap_entry_insert(struct efa_ucontext *ucontext, u64 address,
+efa_user_mmap_entry_insert(struct ib_ucontext *ibucontext, u64 address,
 			   size_t length, u8 mmap_flag, u64 *offset)
 {
+	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_user_mmap_entry *entry;
 	u64 next_mmap_page;
 
@@ -711,7 +713,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	 */
 	address = dev->db_bar_addr + resp->sq_db_offset;
 	qp->sq_db_mmap_entry =
-		efa_user_mmap_entry_insert(ucontext,
+		efa_user_mmap_entry_insert(&ucontext->ibucontext,
 					   address,
 					   PAGE_SIZE, EFA_MMAP_IO_NC,
 					   &resp->sq_db_mmap_key);
@@ -725,7 +727,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 			    (resp->llq_desc_offset & ~PAGE_MASK));
 
 	qp->llq_desc_mmap_entry =
-		efa_user_mmap_entry_insert(ucontext,
+		efa_user_mmap_entry_insert(&ucontext->ibucontext,
 					   address, length,
 					   EFA_MMAP_IO_WC,
 					   &resp->llq_desc_mmap_key);
@@ -738,7 +740,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 		address = dev->db_bar_addr + resp->rq_db_offset;
 
 		qp->rq_db_mmap_entry =
-			efa_user_mmap_entry_insert(ucontext,
+			efa_user_mmap_entry_insert(&ucontext->ibucontext,
 						   address, PAGE_SIZE,
 						   EFA_MMAP_IO_NC,
 						   &resp->rq_db_mmap_key);
@@ -749,7 +751,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 
 		address = virt_to_phys(qp->rq_cpu_addr);
 		qp->rq_mmap_entry =
-			efa_user_mmap_entry_insert(ucontext,
+			efa_user_mmap_entry_insert(&ucontext->ibucontext,
 						   address, qp->rq_size,
 						   EFA_MMAP_DMA_PAGE,
 						   &resp->rq_mmap_key);
@@ -1167,7 +1169,7 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 				 struct efa_ibv_create_cq_resp *resp)
 {
 	resp->q_mmap_size = cq->size;
-	cq->mmap_entry = efa_user_mmap_entry_insert(cq->ucontext,
+	cq->mmap_entry = efa_user_mmap_entry_insert(&cq->ucontext->ibucontext,
 						    virt_to_phys(cq->cpu_addr),
 						    cq->size, EFA_MMAP_DMA_PAGE,
 						    &resp->q_mmap_key);
