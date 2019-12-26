@@ -115,6 +115,7 @@ struct efa_cq {
 	struct efa_ucontext *ucontext;
 	dma_addr_t dma_addr;
 	void *cpu_addr;
+	struct efa_user_mmap_entry *mmap_entry;
 	size_t size;
 	u16 cq_idx;
 };
@@ -125,6 +126,13 @@ struct efa_qp {
 	void *rq_cpu_addr;
 	size_t rq_size;
 	enum ib_qp_state state;
+
+	/* Used for saving mmap_xa entries */
+	struct efa_user_mmap_entry *sq_db_mmap_entry;
+	struct efa_user_mmap_entry *llq_desc_mmap_entry;
+	struct efa_user_mmap_entry *rq_db_mmap_entry;
+	struct efa_user_mmap_entry *rq_mmap_entry;
+
 	u32 qp_handle;
 	u32 max_send_wr;
 	u32 max_recv_wr;
