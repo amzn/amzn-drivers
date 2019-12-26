@@ -227,8 +227,7 @@ static void mmap_entries_remove_free(struct efa_dev *dev,
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
-						  struct efa_ucontext *ucontext,
+static struct efa_user_mmap_entry *mmap_entry_get(struct efa_ucontext *ucontext,
 						  u64 key, size_t len)
 {
 	struct efa_user_mmap_entry *entry;
@@ -242,15 +241,14 @@ static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 	if (!entry || get_mmap_key(entry) != key || entry->length != len)
 		return NULL;
 
-	ibdev_dbg(&dev->ibdev,
+	ibdev_dbg(ucontext->ibucontext.device,
 		  "mmap: key[%#llx] addr[%#llx] len[%#zx] removed\n",
 		  key, entry->address, entry->length);
 
 	return entry;
 }
 #else
-static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
-						  struct efa_ucontext *ucontext,
+static struct efa_user_mmap_entry *mmap_entry_get(struct efa_ucontext *ucontext,
 						  u64 key, size_t len)
 {
 	struct efa_user_mmap_entry *entry, *tmp;
@@ -258,7 +256,7 @@ static struct efa_user_mmap_entry *mmap_entry_get(struct efa_dev *dev,
 	mutex_lock(&ucontext->lock);
 	list_for_each_entry_safe(entry, tmp, &ucontext->pending_mmaps, list) {
 		if (get_mmap_key(entry) == key && entry->length == len) {
-			ibdev_dbg(&dev->ibdev,
+			ibdev_dbg(ucontext->ibucontext.device,
 				  "mmap: key[%#llx] addr[%#llx] len[%#zx] removed\n",
 				  key, entry->address, entry->length);
 			mutex_unlock(&ucontext->lock);
@@ -2216,7 +2214,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	int err = 0;
 	u64 pfn;
 
-	entry = mmap_entry_get(dev, ucontext, key, length);
+	entry = mmap_entry_get(ucontext, key, length);
 	if (!entry) {
 		ibdev_dbg(&dev->ibdev, "key[%#llx] does not have valid entry\n",
 			  key);
