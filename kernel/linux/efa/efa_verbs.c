@@ -16,6 +16,10 @@
 
 #include "efa.h"
 
+#ifdef HAVE_EFA_GDR
+#include "efa_gdr.h"
+#endif
+
 enum {
 	EFA_MMAP_DMA_PAGE = 0,
 	EFA_MMAP_IO_WC,
@@ -1734,7 +1738,11 @@ static void pbl_indirect_terminate(struct efa_dev *dev, struct pbl_context *pbl)
 /* create a page buffer list from a mapped user memory region */
 static int pbl_create(struct efa_dev *dev,
 		      struct pbl_context *pbl,
+#ifdef HAVE_EFA_GDR
+		      struct efa_mr *mr,
+#else
 		      struct ib_umem *umem,
+#endif
 		      int hp_cnt,
 		      u8 hp_shift)
 {
@@ -1747,8 +1755,16 @@ static int pbl_create(struct efa_dev *dev,
 
 	if (is_vmalloc_addr(pbl->pbl_buf)) {
 		pbl->physically_continuous = 0;
+#ifdef HAVE_EFA_GDR
+		if (mr->umem)
+			err = umem_to_page_list(dev, mr->umem, pbl->pbl_buf, hp_cnt,
+						hp_shift);
+		else
+			err = nvmem_to_page_list(dev, mr->nvmem, pbl->pbl_buf);
+#else
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
+#endif
 		if (err)
 			goto err_free;
 
@@ -1757,8 +1773,16 @@ static int pbl_create(struct efa_dev *dev,
 			goto err_free;
 	} else {
 		pbl->physically_continuous = 1;
+#ifdef HAVE_EFA_GDR
+		if (mr->umem)
+			err = umem_to_page_list(dev, mr->umem, pbl->pbl_buf, hp_cnt,
+						hp_shift);
+		else
+			err = nvmem_to_page_list(dev, mr->nvmem, pbl->pbl_buf);
+#else
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
+#endif
 		if (err)
 			goto err_free;
 
@@ -1795,8 +1819,17 @@ static int efa_create_inline_pbl(struct efa_dev *dev, struct efa_mr *mr,
 	int err;
 
 	params->inline_pbl = 1;
+#ifdef HAVE_EFA_GDR
+	if (mr->umem)
+		err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
+					params->page_num, params->page_shift);
+	else
+		err = nvmem_to_page_list(dev, mr->nvmem,
+					 params->pbl.inline_pbl_array);
+#else
 	err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
 				params->page_num, params->page_shift);
+#endif
 	if (err)
 		return err;
 
@@ -1813,8 +1846,13 @@ static int efa_create_pbl(struct efa_dev *dev,
 {
 	int err;
 
+#ifdef HAVE_EFA_GDR
+	err = pbl_create(dev, pbl, mr, params->page_num,
+			 params->page_shift);
+#else
 	err = pbl_create(dev, pbl, mr->umem, params->page_num,
 			 params->page_shift);
+#endif
 	if (err) {
 		ibdev_dbg(&dev->ibdev, "Failed to create pbl[%d]\n", err);
 		return err;
@@ -1970,6 +2008,43 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_out;
 	}
 
+#ifdef HAVE_EFA_GDR
+	nvmem_lock();
+	mr->nvmem = nvmem_get(dev, mr, start, length, &pg_sz);
+	if (!mr->nvmem) {
+		nvmem_unlock();
+#ifdef HAVE_IB_UMEM_GET_NO_DMASYNC
+		mr->umem = ib_umem_get(udata, start, length, access_flags);
+#elif defined(HAVE_IB_UMEM_GET_UDATA)
+		mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
+#else
+		mr->umem = ib_umem_get(ibpd->uobject->context, start, length,
+				       access_flags, 0);
+#endif
+		if (IS_ERR(mr->umem)) {
+			err = PTR_ERR(mr->umem);
+			ibdev_dbg(&dev->ibdev,
+				  "Failed to pin and map user space memory[%d]\n",
+				  err);
+			goto err_free;
+		}
+
+#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
+		pg_sz = ib_umem_find_best_pgsz(mr->umem,
+					       dev->dev_attr.page_size_cap,
+					       virt_addr);
+		if (!pg_sz) {
+			err = -EOPNOTSUPP;
+			ibdev_dbg(&dev->ibdev, "Failed to find a suitable page size in page_size_cap %#llx\n",
+				  dev->dev_attr.page_size_cap);
+			goto err_unmap;
+		}
+#else
+		pg_sz = efa_cont_pages(mr->umem, dev->dev_attr.page_size_cap,
+				       virt_addr);
+#endif
+	}
+#else /* !defined(HAVE_EFA_GDR) */
 #ifdef HAVE_IB_UMEM_GET_NO_DMASYNC
 	mr->umem = ib_umem_get(udata, start, length, access_flags);
 #elif defined(HAVE_IB_UMEM_GET_UDATA)
@@ -1984,12 +2059,14 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			  "Failed to pin and map user space memory[%d]\n", err);
 		goto err_free;
 	}
+#endif /* defined(HAVE_EFA_GDR) */
 
 	params.pd = to_epd(ibpd)->pdn;
 	params.iova = virt_addr;
 	params.mr_length_in_bytes = length;
 	params.permissions = access_flags;
 
+#ifndef HAVE_EFA_GDR
 #ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 	pg_sz = ib_umem_find_best_pgsz(mr->umem,
 				       dev->dev_attr.page_size_cap,
@@ -2003,7 +2080,8 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #else
 	pg_sz = efa_cont_pages(mr->umem, dev->dev_attr.page_size_cap,
 			       virt_addr);
-#endif
+#endif /* defined(HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE) */
+#endif /* !defined(HAVE_EFA_GDR) */
 
 	params.page_shift = __ffs(pg_sz);
 	params.page_num = DIV_ROUND_UP(length + (start & (pg_sz - 1)),
@@ -2039,12 +2117,27 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
 	mr->ibmr.length = length;
 #endif
+#ifdef HAVE_EFA_GDR
+	if (mr->nvmem) {
+		mr->nvmem->lkey = result.l_key;
+		nvmem_unlock();
+	}
+#endif
 	ibdev_dbg(&dev->ibdev, "Registered mr[%d]\n", mr->ibmr.lkey);
 
 	return &mr->ibmr;
 
 err_unmap:
+#ifdef HAVE_EFA_GDR
+	if (mr->umem) {
+		ib_umem_release(mr->umem);
+	} else {
+		nvmem_release(dev, mr->nvmem, false);
+		nvmem_unlock();
+	}
+#else
 	ib_umem_release(mr->umem);
+#endif
 err_free:
 	kfree(mr);
 err_out:
@@ -2065,6 +2158,16 @@ int efa_dereg_mr(struct ib_mr *ibmr)
 
 	ibdev_dbg(&dev->ibdev, "Deregister mr[%d]\n", ibmr->lkey);
 
+#ifdef HAVE_EFA_GDR
+	if (mr->nvmem){
+		err = nvmem_put(mr->nvmem_ticket, false);
+		if (err)
+			return err;
+
+		kfree(mr);
+		return 0;
+	}
+#endif
 	params.l_key = mr->ibmr.lkey;
 	err = efa_com_dereg_mr(&dev->edev, &params);
 	if (err)
