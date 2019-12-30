@@ -11,6 +11,10 @@
 #include "efa.h"
 #include "efa_sysfs.h"
 
+#ifdef HAVE_EFA_GDR
+#include "efa_gdr.h"
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
 #define PCI_VENDOR_ID_AMAZON 0x1d0f
 #endif
@@ -858,6 +862,10 @@ static int __init efa_init(void)
 		pr_err("Couldn't register efa driver\n");
 		goto err_register;
 	}
+
+#ifdef HAVE_EFA_GDR
+	nvmem_init();
+#endif
 
 	return 0;
 

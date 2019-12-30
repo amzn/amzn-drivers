@@ -108,6 +108,10 @@ struct efa_pd {
 struct efa_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
+#ifdef HAVE_EFA_GDR
+	struct efa_nvmem *nvmem;
+	u64 nvmem_ticket;
+#endif
 };
 
 struct efa_cq {

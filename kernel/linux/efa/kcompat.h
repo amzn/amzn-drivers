@@ -160,6 +160,10 @@
 #define HAVE_CUSTOM_COMMANDS
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,12,0)
+#define ALIGN_DOWN(x, a)	__ALIGN_KERNEL((x) - ((a) - 1), (a))
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0) && \
 	(RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))
 #include <linux/string.h>

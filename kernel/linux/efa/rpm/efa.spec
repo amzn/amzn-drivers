@@ -46,6 +46,8 @@ install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}
 install -m 644 efa_main.c		%{buildroot}%{install_path}
 install -m 644 efa_sysfs.c		%{buildroot}%{install_path}
 install -m 644 efa_verbs.c		%{buildroot}%{install_path}
+install -m 644 efa_gdr.c		%{buildroot}%{install_path}
+install -m 644 efa_gdr.h		%{buildroot}%{install_path}
 install -m 644 efa-abi.h 		%{buildroot}%{install_path}
 install -m 644 efa_admin_cmds_defs.h 	%{buildroot}%{install_path}
 install -m 644 efa_admin_defs.h 	%{buildroot}%{install_path}

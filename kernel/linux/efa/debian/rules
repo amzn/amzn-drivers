@@ -33,6 +33,8 @@ override_dh_auto_install:
 	install -m 644 efa_main.c		${DESTDIR}/${INSTALL_PATH}
 	install -m 644 efa_sysfs.c		${DESTDIR}/${INSTALL_PATH}
 	install -m 644 efa_verbs.c		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 efa_gdr.c		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 efa_gdr.h		${DESTDIR}/${INSTALL_PATH}
 	install -m 644 efa-abi.h 		${DESTDIR}/${INSTALL_PATH}
 	install -m 644 efa_admin_cmds_defs.h 	${DESTDIR}/${INSTALL_PATH}
 	install -m 644 efa_admin_defs.h 	${DESTDIR}/${INSTALL_PATH}
