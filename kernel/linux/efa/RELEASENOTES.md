@@ -24,6 +24,9 @@ The driver was tested on the following distributions:
 **SuSE:**
 * SuSE 15.1
 
+## r1.5.1 release notes
+* Fix SuSE ioctl flow backport
+
 ## r1.5.0 release notes
 * RDMA read support
 * Make ib_uverbs a soft dependency

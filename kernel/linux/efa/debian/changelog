@@ -1,3 +1,8 @@
+efa (1.5.1-1.amzn1) unstable; urgency=medium
+  * Fix SuSE ioctl flow backport
+
+ -- Gal Pressman <galpress@amazon.com>  Thu, 02 Jan 2020 16:21:54 +0000
+
 efa (1.5.0-1.amzn1) unstable; urgency=medium
   * RDMA read support
   * Make ib_uverbs a soft dependency

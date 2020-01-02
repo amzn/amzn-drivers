@@ -66,6 +66,9 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu Jan 02 2020 Gal Pressman <galpress@amazon.com> - 1.5.1
+- Fix SuSE ioctl flow backport
+
 * Wed Dec 11 2019 Gal Pressman <galpress@amazon.com> - 1.5.0
 - RDMA read support
 - Make ib_uverbs a soft dependency
