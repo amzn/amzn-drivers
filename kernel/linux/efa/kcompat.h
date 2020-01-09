@@ -152,6 +152,7 @@
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
 #define HAVE_IB_UMEM_GET_NO_DMASYNC
+#define HAVE_CORE_MMAP_XA
 #endif
 
 /* End of upstream defines */
