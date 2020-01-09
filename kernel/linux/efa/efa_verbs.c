@@ -230,20 +230,48 @@ static void mmap_entries_remove_free(struct efa_dev *dev,
 }
 #endif
 
+static int mmap_entry_validate(struct efa_ucontext *ucontext,
+			       struct vm_area_struct *vma)
+{
+	size_t length = vma->vm_end - vma->vm_start;
+
+	if (length % PAGE_SIZE != 0 || !(vma->vm_flags & VM_SHARED)) {
+		ibdev_dbg(ucontext->ibucontext.device,
+			  "length[%#zx] is not page size aligned[%#lx] or VM_SHARED is not set [%#lx]\n",
+			  length, PAGE_SIZE, vma->vm_flags);
+		return -EINVAL;
+	}
+
+	if (vma->vm_flags & VM_EXEC) {
+		ibdev_dbg(ucontext->ibucontext.device,
+			  "Mapping executable pages is not permitted\n");
+		return -EPERM;
+	}
+
+	return 0;
+}
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 static struct efa_user_mmap_entry *mmap_entry_get(struct ib_ucontext *ibucontext,
-						  u64 key, size_t len)
+						  struct vm_area_struct *vma)
 {
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_user_mmap_entry *entry;
+	size_t length = vma->vm_end - vma->vm_start;
+	u64 key = vma->vm_pgoff << PAGE_SHIFT;
 	u64 mmap_page;
+	int err;
+
+	err = mmap_entry_validate(ucontext, vma);
+	if (err)
+		return NULL;
 
 	mmap_page = key >> PAGE_SHIFT;
 	if (mmap_page > U32_MAX)
 		return NULL;
 
 	entry = xa_load(&ucontext->mmap_xa, mmap_page);
-	if (!entry || get_mmap_key(entry) != key || entry->length != len)
+	if (!entry || get_mmap_key(entry) != key || entry->length != length)
 		return NULL;
 
 	ibdev_dbg(ibucontext->device,
@@ -254,14 +282,21 @@ static struct efa_user_mmap_entry *mmap_entry_get(struct ib_ucontext *ibucontext
 }
 #else
 static struct efa_user_mmap_entry *mmap_entry_get(struct ib_ucontext *ibucontext,
-						  u64 key, size_t len)
+						  struct vm_area_struct *vma)
 {
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
+	size_t length = vma->vm_end - vma->vm_start;
 	struct efa_user_mmap_entry *entry, *tmp;
+	u64 key = vma->vm_pgoff << PAGE_SHIFT;
+	int err;
+
+	err = mmap_entry_validate(ucontext, vma);
+	if (err)
+		return NULL;
 
 	mutex_lock(&ucontext->lock);
 	list_for_each_entry_safe(entry, tmp, &ucontext->pending_mmaps, list) {
-		if (get_mmap_key(entry) == key && entry->length == len) {
+		if (get_mmap_key(entry) == key && entry->length == length) {
 			ibdev_dbg(ibucontext->device,
 				  "mmap: key[%#llx] addr[%#llx] len[%#zx] removed\n",
 				  key, entry->address, entry->length);
@@ -2312,43 +2347,45 @@ int efa_dealloc_ucontext(struct ib_ucontext *ibucontext)
 }
 
 static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
-		      struct vm_area_struct *vma, u64 key, size_t length)
+		      struct vm_area_struct *vma)
 {
 	struct efa_user_mmap_entry *entry;
 	unsigned long va;
 	int err = 0;
 	u64 pfn;
 
-	entry = mmap_entry_get(&ucontext->ibucontext, key, length);
+	entry = mmap_entry_get(&ucontext->ibucontext, vma);
 	if (!entry) {
-		ibdev_dbg(&dev->ibdev, "key[%#llx] does not have valid entry\n",
-			  key);
+		ibdev_dbg(&dev->ibdev, "pgoff[%#lx] does not have valid entry\n",
+			  vma->vm_pgoff);
 		return -EINVAL;
 	}
 
 	ibdev_dbg(&dev->ibdev,
 		  "Mapping address[%#llx], length[%#zx], mmap_flag[%d]\n",
-		  entry->address, length, entry->mmap_flag);
+		  entry->address, entry->length, entry->mmap_flag);
 
 	pfn = entry->address >> PAGE_SHIFT;
 	switch (entry->mmap_flag) {
 	case EFA_MMAP_IO_NC:
 #ifdef HAVE_RDMA_USER_MMAP_IO
-		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn, length,
+		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
+					entry->length,
 					pgprot_noncached(vma->vm_page_prot));
 #else
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		err = io_remap_pfn_range(vma, vma->vm_start, pfn, length,
+		err = io_remap_pfn_range(vma, vma->vm_start, pfn, entry->length,
 					 vma->vm_page_prot);
 #endif
 		break;
 	case EFA_MMAP_IO_WC:
 #ifdef HAVE_RDMA_USER_MMAP_IO
-		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn, length,
+		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
+					entry->length,
 					pgprot_writecombine(vma->vm_page_prot));
 #else
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-		err = io_remap_pfn_range(vma, vma->vm_start, pfn, length,
+		err = io_remap_pfn_range(vma, vma->vm_start, pfn, entry->length,
 					 vma->vm_page_prot);
 #endif
 		break;
@@ -2368,11 +2405,11 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		ibdev_dbg(
 			&dev->ibdev,
 			"Couldn't mmap address[%#llx] length[%#zx] mmap_flag[%d] err[%d]\n",
-			entry->address, length, entry->mmap_flag, err);
+			entry->address, entry->length, entry->mmap_flag, err);
 		return err;
 	}
 
-	return 0;
+	return err;
 }
 
 int efa_mmap(struct ib_ucontext *ibucontext,
@@ -2381,25 +2418,12 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_dev *dev = to_edev(ibucontext->device);
 	size_t length = vma->vm_end - vma->vm_start;
-	u64 key = vma->vm_pgoff << PAGE_SHIFT;
 
 	ibdev_dbg(&dev->ibdev,
-		  "start %#lx, end %#lx, length = %#zx, key = %#llx\n",
-		  vma->vm_start, vma->vm_end, length, key);
+		  "start %#lx, end %#lx, length = %#zx, pgoff = %#lx\n",
+		  vma->vm_start, vma->vm_end, length, vma->vm_pgoff);
 
-	if (length % PAGE_SIZE != 0 || !(vma->vm_flags & VM_SHARED)) {
-		ibdev_dbg(&dev->ibdev,
-			  "length[%#zx] is not page size aligned[%#lx] or VM_SHARED is not set [%#lx]\n",
-			  length, PAGE_SIZE, vma->vm_flags);
-		return -EINVAL;
-	}
-
-	if (vma->vm_flags & VM_EXEC) {
-		ibdev_dbg(&dev->ibdev, "Mapping executable pages is not permitted\n");
-		return -EPERM;
-	}
-
-	return __efa_mmap(dev, ucontext, vma, key, length);
+	return __efa_mmap(dev, ucontext, vma);
 }
 
 #ifndef HAVE_CREATE_AH_UDATA
