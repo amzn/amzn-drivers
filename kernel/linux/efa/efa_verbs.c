@@ -2368,7 +2368,12 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	pfn = entry->address >> PAGE_SHIFT;
 	switch (entry->mmap_flag) {
 	case EFA_MMAP_IO_NC:
-#ifdef HAVE_RDMA_USER_MMAP_IO
+#ifdef HAVE_CORE_MMAP_XA
+		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
+					entry->length,
+					pgprot_noncached(vma->vm_page_prot),
+					NULL);
+#elif defined(HAVE_RDMA_USER_MMAP_IO)
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
 					entry->length,
 					pgprot_noncached(vma->vm_page_prot));
@@ -2379,7 +2384,12 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 #endif
 		break;
 	case EFA_MMAP_IO_WC:
-#ifdef HAVE_RDMA_USER_MMAP_IO
+#ifdef HAVE_CORE_MMAP_XA
+		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
+					entry->length,
+					pgprot_writecombine(vma->vm_page_prot),
+					NULL);
+#elif defined(HAVE_RDMA_USER_MMAP_IO)
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
 					entry->length,
 					pgprot_writecombine(vma->vm_page_prot));
