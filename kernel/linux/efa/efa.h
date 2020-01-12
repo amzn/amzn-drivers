@@ -89,15 +89,13 @@ struct efa_dev {
 
 struct efa_ucontext {
 	struct ib_ucontext ibucontext;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-	struct xarray mmap_xa;
-#else
+	u16 uarn;
+#ifndef HAVE_CORE_MMAP_XA
 	/* Protects ucontext state */
 	struct mutex lock;
 	struct list_head pending_mmaps;
-#endif
-	u32 mmap_xa_page;
-	u16 uarn;
+	u32 mmap_page;
+#endif /* !defined(HAVE_CORE_MMAP_XA) */
 };
 
 struct efa_pd {
@@ -119,7 +117,7 @@ struct efa_cq {
 	struct efa_ucontext *ucontext;
 	dma_addr_t dma_addr;
 	void *cpu_addr;
-	struct efa_user_mmap_entry *mmap_entry;
+	struct rdma_user_mmap_entry *mmap_entry;
 	size_t size;
 	u16 cq_idx;
 };
@@ -132,10 +130,10 @@ struct efa_qp {
 	enum ib_qp_state state;
 
 	/* Used for saving mmap_xa entries */
-	struct efa_user_mmap_entry *sq_db_mmap_entry;
-	struct efa_user_mmap_entry *llq_desc_mmap_entry;
-	struct efa_user_mmap_entry *rq_db_mmap_entry;
-	struct efa_user_mmap_entry *rq_mmap_entry;
+	struct rdma_user_mmap_entry *sq_db_mmap_entry;
+	struct rdma_user_mmap_entry *llq_desc_mmap_entry;
+	struct rdma_user_mmap_entry *rq_db_mmap_entry;
+	struct rdma_user_mmap_entry *rq_mmap_entry;
 
 	u32 qp_handle;
 	u32 max_send_wr;
@@ -246,6 +244,9 @@ struct ib_ucontext *efa_kzalloc_ucontext(struct ib_device *ibdev,
 #endif
 int efa_mmap(struct ib_ucontext *ibucontext,
 	     struct vm_area_struct *vma);
+#ifdef HAVE_CORE_MMAP_XA
+void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
+#endif
 int efa_create_ah(struct ib_ah *ibah,
 #ifdef HAVE_CREATE_AH_RDMA_ATTR
 		  struct rdma_ah_attr *ah_attr,

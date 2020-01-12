@@ -31,19 +31,13 @@ enum {
 	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
 
 struct efa_user_mmap_entry {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+	struct rdma_user_mmap_entry rdma_entry;
+#ifndef HAVE_CORE_MMAP_XA
 	struct list_head list;
 #endif
 	u64 address;
-	size_t length;
-	u32 mmap_page;
 	u8 mmap_flag;
 };
-
-static inline u64 get_mmap_key(const struct efa_user_mmap_entry *efa)
-{
-	return (u64)efa->mmap_page << PAGE_SHIFT;
-}
 
 #ifdef HAVE_HW_STATS
 #define EFA_DEFINE_STATS(op) \
@@ -151,6 +145,12 @@ static inline struct efa_ah *to_eah(struct ib_ah *ibah)
 	return container_of(ibah, struct efa_ah, ibah);
 }
 
+static inline struct efa_user_mmap_entry *
+to_emmap(struct rdma_user_mmap_entry *rdma_entry)
+{
+	return container_of(rdma_entry, struct efa_user_mmap_entry, rdma_entry);
+}
+
 static inline bool is_rdma_read_cap(struct efa_dev *dev)
 {
 	return dev->dev_attr.device_caps & EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK;
@@ -181,35 +181,14 @@ static void *efa_zalloc_mapped(struct efa_dev *dev, dma_addr_t *dma_addr,
 	return addr;
 }
 
+#ifndef HAVE_CORE_MMAP_XA
 /*
  * This is only called when the ucontext is destroyed and there can be no
- * concurrent query via mmap or allocate on the xarray, thus we can be sure no
+ * concurrent query via mmap or allocate on the database, thus we can be sure no
  * other thread is using the entry pointer. We also know that all the BAR
  * pages have either been zap'd or munmaped at this point.  Normal pages are
  * refcounted and will be freed at the proper time.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-static void mmap_entries_remove_free(struct efa_dev *dev,
-				     struct efa_ucontext *ucontext)
-{
-	struct efa_user_mmap_entry *entry;
-	unsigned long mmap_page;
-
-	xa_for_each(&ucontext->mmap_xa, mmap_page, entry) {
-		xa_erase(&ucontext->mmap_xa, mmap_page);
-
-		ibdev_dbg(
-			&dev->ibdev,
-			"mmap: key[%#llx] addr[%#llx] len[%#zx] removed\n",
-			get_mmap_key(entry), entry->address, entry->length);
-		if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
-			/* DMA mapping is already gone, now free the pages */
-			free_pages_exact(phys_to_virt(entry->address),
-					 entry->length);
-		kfree(entry);
-	}
-}
-#else
 static void mmap_entries_remove_free(struct efa_dev *dev,
 				     struct efa_ucontext *ucontext)
 {
@@ -220,15 +199,15 @@ static void mmap_entries_remove_free(struct efa_dev *dev,
 		ibdev_dbg(
 			&dev->ibdev,
 			"mmap: key[%#llx] addr[%#llx] len[%#zx] removed\n",
-			get_mmap_key(entry), entry->address, entry->length);
+			rdma_user_mmap_get_offset(&entry->rdma_entry),
+			entry->address, entry->rdma_entry.npages * PAGE_SIZE);
 		if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
 			/* DMA mapping is already gone, now free the pages */
 			free_pages_exact(phys_to_virt(entry->address),
-					 entry->length);
+					 entry->rdma_entry.npages * PAGE_SIZE);
 		kfree(entry);
 	}
 }
-#endif
 
 static int mmap_entry_validate(struct efa_ucontext *ucontext,
 			       struct vm_area_struct *vma)
@@ -251,38 +230,9 @@ static int mmap_entry_validate(struct efa_ucontext *ucontext,
 	return 0;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-static struct efa_user_mmap_entry *mmap_entry_get(struct ib_ucontext *ibucontext,
-						  struct vm_area_struct *vma)
-{
-	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
-	struct efa_user_mmap_entry *entry;
-	size_t length = vma->vm_end - vma->vm_start;
-	u64 key = vma->vm_pgoff << PAGE_SHIFT;
-	u64 mmap_page;
-	int err;
-
-	err = mmap_entry_validate(ucontext, vma);
-	if (err)
-		return NULL;
-
-	mmap_page = key >> PAGE_SHIFT;
-	if (mmap_page > U32_MAX)
-		return NULL;
-
-	entry = xa_load(&ucontext->mmap_xa, mmap_page);
-	if (!entry || get_mmap_key(entry) != key || entry->length != length)
-		return NULL;
-
-	ibdev_dbg(ibucontext->device,
-		  "mmap: key[%#llx] addr[%#llx] len[%#zx] removed\n",
-		  key, entry->address, entry->length);
-
-	return entry;
-}
-#else
-static struct efa_user_mmap_entry *mmap_entry_get(struct ib_ucontext *ibucontext,
-						  struct vm_area_struct *vma)
+struct rdma_user_mmap_entry *
+rdma_user_mmap_entry_get(struct ib_ucontext *ibucontext,
+			 struct vm_area_struct *vma)
 {
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	size_t length = vma->vm_end - vma->vm_start;
@@ -296,111 +246,21 @@ static struct efa_user_mmap_entry *mmap_entry_get(struct ib_ucontext *ibucontext
 
 	mutex_lock(&ucontext->lock);
 	list_for_each_entry_safe(entry, tmp, &ucontext->pending_mmaps, list) {
-		if (get_mmap_key(entry) == key && entry->length == length) {
+		if (rdma_user_mmap_get_offset(&entry->rdma_entry) == key &&
+		    entry->rdma_entry.npages * PAGE_SIZE == length) {
 			ibdev_dbg(ibucontext->device,
 				  "mmap: key[%#llx] addr[%#llx] len[%#zx] removed\n",
-				  key, entry->address, entry->length);
+				  key, entry->address,
+				  entry->rdma_entry.npages * PAGE_SIZE);
 			mutex_unlock(&ucontext->lock);
-			return entry;
+			return &entry->rdma_entry;
 		}
 	}
 	mutex_unlock(&ucontext->lock);
 
 	return NULL;
 }
-#endif
-
-/*
- * Note this locking scheme cannot support removal of entries, except during
- * ucontext destruction when the core code guarentees no concurrency.
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-static struct efa_user_mmap_entry *
-efa_user_mmap_entry_insert(struct ib_ucontext *ibucontext, u64 address,
-			   size_t length, u8 mmap_flag, u64 *offset)
-{
-	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
-	struct efa_user_mmap_entry *entry;
-	u32 next_mmap_page;
-	int err;
-
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return NULL;
-
-	entry->address = address;
-	entry->length = length;
-	entry->mmap_flag = mmap_flag;
-
-	xa_lock(&ucontext->mmap_xa);
-	if (check_add_overflow(ucontext->mmap_xa_page,
-			       (u32)(length >> PAGE_SHIFT),
-			       &next_mmap_page))
-		goto err_unlock;
-
-	entry->mmap_page = ucontext->mmap_xa_page;
-	ucontext->mmap_xa_page = next_mmap_page;
-	err = __xa_insert(&ucontext->mmap_xa, entry->mmap_page, entry,
-			  GFP_KERNEL);
-	if (err)
-		goto err_unlock;
-
-	xa_unlock(&ucontext->mmap_xa);
-
-	*offset = get_mmap_key(entry);
-	ibdev_dbg(
-		ucontext->ibucontext.device,
-		"mmap: addr[%#llx], len[%#zx], key[%#llx] inserted\n",
-		entry->address, entry->length, get_mmap_key(entry));
-
-	return entry;
-
-err_unlock:
-	xa_unlock(&ucontext->mmap_xa);
-	kfree(entry);
-	return NULL;
-
-}
-#else
-static struct efa_user_mmap_entry *
-efa_user_mmap_entry_insert(struct ib_ucontext *ibucontext, u64 address,
-			   size_t length, u8 mmap_flag, u64 *offset)
-{
-	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
-	struct efa_user_mmap_entry *entry;
-	u64 next_mmap_page;
-
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return NULL;
-
-	entry->address = address;
-	entry->length = length;
-	entry->mmap_flag = mmap_flag;
-
-	mutex_lock(&ucontext->lock);
-	next_mmap_page = ucontext->mmap_xa_page + (length >> PAGE_SHIFT);
-	if (next_mmap_page >= U32_MAX) {
-		ibdev_dbg(ucontext->ibucontext.device, "Too many mmap pages\n");
-		mutex_unlock(&ucontext->lock);
-		kfree(entry);
-		return NULL;
-	}
-
-	entry->mmap_page = ucontext->mmap_xa_page;
-	ucontext->mmap_xa_page = next_mmap_page;
-	list_add_tail(&entry->list, &ucontext->pending_mmaps);
-	mutex_unlock(&ucontext->lock);
-
-	*offset = get_mmap_key(entry);
-	ibdev_dbg(
-		ucontext->ibucontext.device,
-		"mmap: addr[%#llx], len[%#zx], key[%#llx] inserted\n",
-		entry->address, entry->length, get_mmap_key(entry));
-
-	return entry;
-}
-#endif
+#endif /* !defined (HAVE_CORE_MMAP_XA) */
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 int efa_query_device(struct ib_device *ibdev,
@@ -704,12 +564,29 @@ static int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle)
 	return efa_com_destroy_qp(&dev->edev, &params);
 }
 
+static void efa_qp_user_mmap_entries_remove(struct efa_ucontext *uctx,
+					    struct efa_qp *qp)
+{
+	rdma_user_mmap_entry_remove(qp->rq_mmap_entry);
+	rdma_user_mmap_entry_remove(qp->rq_db_mmap_entry);
+	rdma_user_mmap_entry_remove(qp->llq_desc_mmap_entry);
+	rdma_user_mmap_entry_remove(qp->sq_db_mmap_entry);
+}
+
 #ifdef HAVE_DESTROY_QP_UDATA
 int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 #else
 int efa_destroy_qp(struct ib_qp *ibqp)
 #endif
 {
+#ifdef HAVE_DESTROY_QP_UDATA
+	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(udata,
+		struct efa_ucontext, ibucontext);
+#else
+	struct efa_ucontext *ucontext = ibqp->uobject ?
+		to_eucontext(ibqp->uobject->context) :
+		NULL;
+#endif
 	struct efa_dev *dev = to_edev(ibqp->pd->device);
 	struct efa_qp *qp = to_eqp(ibqp);
 	int err;
@@ -728,9 +605,77 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 				 DMA_TO_DEVICE);
 	}
 
+	efa_qp_user_mmap_entries_remove(ucontext, qp);
 	kfree(qp);
 	return 0;
 }
+
+#ifdef HAVE_CORE_MMAP_XA
+static struct rdma_user_mmap_entry*
+efa_user_mmap_entry_insert(struct ib_ucontext *ucontext,
+			   u64 address, size_t length,
+			   u8 mmap_flag, u64 *offset)
+{
+	struct efa_user_mmap_entry *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	int err;
+
+	if (!entry)
+		return NULL;
+
+	entry->address = address;
+	entry->mmap_flag = mmap_flag;
+
+	err = rdma_user_mmap_entry_insert(ucontext, &entry->rdma_entry,
+					  length);
+	if (err) {
+		kfree(entry);
+		return NULL;
+	}
+	*offset = rdma_user_mmap_get_offset(&entry->rdma_entry);
+
+	return &entry->rdma_entry;
+}
+#else
+static struct rdma_user_mmap_entry *
+efa_user_mmap_entry_insert(struct ib_ucontext *ibucontext, u64 address,
+			   size_t length, u8 mmap_flag, u64 *offset)
+{
+	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
+	struct efa_user_mmap_entry *entry;
+	u64 next_mmap_page;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return NULL;
+
+	entry->address = address;
+	entry->rdma_entry.npages = (u32)DIV_ROUND_UP(length, PAGE_SIZE);
+	entry->mmap_flag = mmap_flag;
+
+	mutex_lock(&ucontext->lock);
+	next_mmap_page = ucontext->mmap_page + (length >> PAGE_SHIFT);
+	if (next_mmap_page >= U32_MAX) {
+		ibdev_dbg(ucontext->ibucontext.device, "Too many mmap pages\n");
+		mutex_unlock(&ucontext->lock);
+		kfree(entry);
+		return NULL;
+	}
+
+	entry->rdma_entry.start_pgoff = ucontext->mmap_page;
+	ucontext->mmap_page = next_mmap_page;
+	list_add_tail(&entry->list, &ucontext->pending_mmaps);
+	mutex_unlock(&ucontext->lock);
+
+	*offset = rdma_user_mmap_get_offset(&entry->rdma_entry);
+	ibdev_dbg(
+		ucontext->ibucontext.device,
+		"mmap: addr[%#llx], len[%#zx], key[%#llx] inserted\n",
+		entry->address, entry->rdma_entry.npages * PAGE_SIZE,
+		rdma_user_mmap_get_offset(&entry->rdma_entry));
+
+	return &entry->rdma_entry;
+}
+#endif
 
 static int qp_mmap_entries_setup(struct efa_qp *qp,
 				 struct efa_dev *dev,
@@ -741,10 +686,6 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	size_t length;
 	u64 address;
 
-	/*
-	 * Once an entry is inserted it might be mmapped, hence cannot be
-	 * cleaned up until dealloc_ucontext.
-	 */
 	address = dev->db_bar_addr + resp->sq_db_offset;
 	qp->sq_db_mmap_entry =
 		efa_user_mmap_entry_insert(&ucontext->ibucontext,
@@ -766,7 +707,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 					   EFA_MMAP_IO_WC,
 					   &resp->llq_desc_mmap_key);
 	if (!qp->llq_desc_mmap_entry)
-		return -ENOMEM;
+		goto err_remove_mmap;
 
 	resp->llq_desc_offset &= ~PAGE_MASK;
 
@@ -779,7 +720,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 						   EFA_MMAP_IO_NC,
 						   &resp->rq_db_mmap_key);
 		if (!qp->rq_db_mmap_entry)
-			return -ENOMEM;
+			goto err_remove_mmap;
 
 		resp->rq_db_offset &= ~PAGE_MASK;
 
@@ -790,12 +731,17 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 						   EFA_MMAP_DMA_PAGE,
 						   &resp->rq_mmap_key);
 		if (!qp->rq_mmap_entry)
-			return -ENOMEM;
+			goto err_remove_mmap;
 
 		resp->rq_mmap_size = qp->rq_size;
 	}
 
 	return 0;
+
+err_remove_mmap:
+	efa_qp_user_mmap_entries_remove(ucontext, qp);
+
+	return -ENOMEM;
 }
 
 static int efa_qp_validate_cap(struct efa_dev *dev,
@@ -1012,7 +958,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			ibdev_dbg(&dev->ibdev,
 				  "Failed to copy udata for qp[%u]\n",
 				  create_qp_resp.qp_num);
-			goto err_destroy_qp;
+			goto err_remove_mmap_entries;
 		}
 	}
 
@@ -1020,12 +966,15 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 
 	return &qp->ibqp;
 
+err_remove_mmap_entries:
+	efa_qp_user_mmap_entries_remove(ucontext, qp);
 err_destroy_qp:
 	efa_destroy_qp_handle(dev, create_qp_resp.qp_handle);
 err_free_mapped:
 	if (qp->rq_size) {
 		dma_unmap_single(&dev->pdev->dev, qp->rq_dma_addr, qp->rq_size,
 				 DMA_TO_DEVICE);
+
 		if (!qp->rq_mmap_entry)
 			free_pages_exact(qp->rq_cpu_addr, qp->rq_size);
 	}
@@ -1168,6 +1117,7 @@ void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
 			 DMA_FROM_DEVICE);
+	rdma_user_mmap_entry_remove(cq->mmap_entry);
 #ifndef HAVE_CQ_CORE_ALLOCATION
 	kfree(cq);
 #endif
@@ -1193,6 +1143,7 @@ int efa_destroy_cq(struct ib_cq *ibcq)
 
 	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
 			 DMA_FROM_DEVICE);
+	rdma_user_mmap_entry_remove(cq->mmap_entry);
 
 	kfree(cq);
 	return 0;
@@ -1343,7 +1294,7 @@ int efa_create_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		if (err) {
 			ibdev_dbg(ibdev,
 				  "Failed to copy udata for create_cq\n");
-			goto err_destroy_cq;
+			goto err_remove_mmap;
 		}
 	}
 
@@ -1352,6 +1303,8 @@ int efa_create_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	return 0;
 
+err_remove_mmap:
+	rdma_user_mmap_entry_remove(cq->mmap_entry);
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 err_free_mapped:
@@ -1359,6 +1312,7 @@ err_free_mapped:
 			 DMA_FROM_DEVICE);
 	if (!cq->mmap_entry)
 		free_pages_exact(cq->cpu_addr, cq->size);
+
 err_out:
 	atomic64_inc(&dev->stats.sw_stats.create_cq_err);
 	return err;
@@ -2263,12 +2217,10 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 		goto err_out;
 
 	ucontext->uarn = result.uarn;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
-	xa_init(&ucontext->mmap_xa);
-#else
+#ifndef HAVE_CORE_MMAP_XA
 	mutex_init(&ucontext->lock);
 	INIT_LIST_HEAD(&ucontext->pending_mmaps);
-#endif
+#endif /* !defined(HAVE_CORE_MMAP_XA) */
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 	resp.cmds_supp_udata_mask |= EFA_USER_CMDS_SUPP_UDATA_QUERY_DEVICE;
@@ -2337,7 +2289,9 @@ int efa_dealloc_ucontext(struct ib_ucontext *ibucontext)
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_dev *dev = to_edev(ibucontext->device);
 
+#ifndef HAVE_CORE_MMAP_XA
 	mmap_entries_remove_free(dev, ucontext);
+#endif
 	efa_dealloc_uar(dev, ucontext->uarn);
 #ifndef HAVE_UCONTEXT_CORE_ALLOCATION
 	kfree(ucontext);
@@ -2346,56 +2300,75 @@ int efa_dealloc_ucontext(struct ib_ucontext *ibucontext)
 #endif
 }
 
+#ifdef HAVE_CORE_MMAP_XA
+void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
+{
+	struct efa_user_mmap_entry *entry = to_emmap(rdma_entry);
+
+	/* DMA mapping is already gone, now free the pages */
+	if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
+		free_pages_exact(phys_to_virt(entry->address),
+				 entry->rdma_entry.npages * PAGE_SIZE);
+	kfree(entry);
+}
+#endif
+
 static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		      struct vm_area_struct *vma)
 {
+	struct rdma_user_mmap_entry *rdma_entry;
 	struct efa_user_mmap_entry *entry;
 	unsigned long va;
 	int err = 0;
 	u64 pfn;
 
-	entry = mmap_entry_get(&ucontext->ibucontext, vma);
-	if (!entry) {
-		ibdev_dbg(&dev->ibdev, "pgoff[%#lx] does not have valid entry\n",
+	rdma_entry = rdma_user_mmap_entry_get(&ucontext->ibucontext, vma);
+	if (!rdma_entry) {
+		ibdev_dbg(&dev->ibdev,
+			  "pgoff[%#lx] does not have valid entry\n",
 			  vma->vm_pgoff);
 		return -EINVAL;
 	}
+	entry = to_emmap(rdma_entry);
 
 	ibdev_dbg(&dev->ibdev,
 		  "Mapping address[%#llx], length[%#zx], mmap_flag[%d]\n",
-		  entry->address, entry->length, entry->mmap_flag);
+		  entry->address, rdma_entry->npages * PAGE_SIZE,
+		  entry->mmap_flag);
 
 	pfn = entry->address >> PAGE_SHIFT;
 	switch (entry->mmap_flag) {
 	case EFA_MMAP_IO_NC:
 #ifdef HAVE_CORE_MMAP_XA
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
-					entry->length,
+					entry->rdma_entry.npages * PAGE_SIZE,
 					pgprot_noncached(vma->vm_page_prot),
-					NULL);
+					rdma_entry);
 #elif defined(HAVE_RDMA_USER_MMAP_IO)
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
-					entry->length,
+					entry->rdma_entry.npages * PAGE_SIZE,
 					pgprot_noncached(vma->vm_page_prot));
 #else
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		err = io_remap_pfn_range(vma, vma->vm_start, pfn, entry->length,
+		err = io_remap_pfn_range(vma, vma->vm_start, pfn,
+					 entry->rdma_entry.npages * PAGE_SIZE,
 					 vma->vm_page_prot);
 #endif
 		break;
 	case EFA_MMAP_IO_WC:
 #ifdef HAVE_CORE_MMAP_XA
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
-					entry->length,
+					entry->rdma_entry.npages * PAGE_SIZE,
 					pgprot_writecombine(vma->vm_page_prot),
-					NULL);
+					rdma_entry);
 #elif defined(HAVE_RDMA_USER_MMAP_IO)
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
-					entry->length,
+					entry->rdma_entry.npages * PAGE_SIZE,
 					pgprot_writecombine(vma->vm_page_prot));
 #else
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-		err = io_remap_pfn_range(vma, vma->vm_start, pfn, entry->length,
+		err = io_remap_pfn_range(vma, vma->vm_start, pfn,
+					 entry->rdma_entry.npages * PAGE_SIZE,
 					 vma->vm_page_prot);
 #endif
 		break;
@@ -2415,10 +2388,11 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		ibdev_dbg(
 			&dev->ibdev,
 			"Couldn't mmap address[%#llx] length[%#zx] mmap_flag[%d] err[%d]\n",
-			entry->address, entry->length, entry->mmap_flag, err);
-		return err;
+			entry->address, rdma_entry->npages * PAGE_SIZE,
+			entry->mmap_flag, err);
 	}
 
+	rdma_user_mmap_entry_put(rdma_entry);
 	return err;
 }
 
