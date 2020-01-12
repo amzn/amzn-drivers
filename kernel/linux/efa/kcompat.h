@@ -281,4 +281,8 @@ static inline void rdma_user_mmap_entry_put(struct rdma_user_mmap_entry *entry)
 }
 #endif
 
+#ifndef sizeof_field
+#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
+#endif
+
 #endif /* _KCOMPAT_H_ */
