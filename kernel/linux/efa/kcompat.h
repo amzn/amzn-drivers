@@ -250,4 +250,35 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
 #define IB_PORT_PHYS_STATE_LINK_UP 5
 #endif
 
+#ifndef HAVE_CORE_MMAP_XA
+#include <linux/types.h>
+#include <linux/device.h>
+
+struct rdma_user_mmap_entry {
+	struct ib_ucontext *ucontext;
+	unsigned long start_pgoff;
+	size_t npages;
+};
+
+/* Return the offset (in bytes) the user should pass to libc's mmap() */
+static inline u64
+rdma_user_mmap_get_offset(const struct rdma_user_mmap_entry *entry)
+{
+	return (u64)entry->start_pgoff << PAGE_SHIFT;
+}
+
+/*
+ * Backported kernels don't keep refcnt on entries, hence they should not
+ * be removed.
+ */
+static inline void
+rdma_user_mmap_entry_remove(struct rdma_user_mmap_entry *entry)
+{
+}
+
+static inline void rdma_user_mmap_entry_put(struct rdma_user_mmap_entry *entry)
+{
+}
+#endif
+
 #endif /* _KCOMPAT_H_ */
