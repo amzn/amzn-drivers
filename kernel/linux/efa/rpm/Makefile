@@ -4,7 +4,7 @@ NAME	= efa
 VERSION	= 1.5.0
 
 TOPDIR  := $(shell git rev-parse --show-toplevel)
-TAG	= master
+TAG	?= HEAD
 TARBALL	= $(NAME)-$(VERSION).tar
 
 RPMDEFS = --define '_topdir  %(pwd)' \
