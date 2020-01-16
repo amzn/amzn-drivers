@@ -564,8 +564,7 @@ static int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle)
 	return efa_com_destroy_qp(&dev->edev, &params);
 }
 
-static void efa_qp_user_mmap_entries_remove(struct efa_ucontext *uctx,
-					    struct efa_qp *qp)
+static void efa_qp_user_mmap_entries_remove(struct efa_qp *qp)
 {
 	rdma_user_mmap_entry_remove(qp->rq_mmap_entry);
 	rdma_user_mmap_entry_remove(qp->rq_db_mmap_entry);
@@ -579,14 +578,6 @@ int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 int efa_destroy_qp(struct ib_qp *ibqp)
 #endif
 {
-#ifdef HAVE_DESTROY_QP_UDATA
-	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(udata,
-		struct efa_ucontext, ibucontext);
-#else
-	struct efa_ucontext *ucontext = ibqp->uobject ?
-		to_eucontext(ibqp->uobject->context) :
-		NULL;
-#endif
 	struct efa_dev *dev = to_edev(ibqp->pd->device);
 	struct efa_qp *qp = to_eqp(ibqp);
 	int err;
@@ -605,7 +596,7 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 				 DMA_TO_DEVICE);
 	}
 
-	efa_qp_user_mmap_entries_remove(ucontext, qp);
+	efa_qp_user_mmap_entries_remove(qp);
 	kfree(qp);
 	return 0;
 }
@@ -739,7 +730,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 	return 0;
 
 err_remove_mmap:
-	efa_qp_user_mmap_entries_remove(ucontext, qp);
+	efa_qp_user_mmap_entries_remove(qp);
 
 	return -ENOMEM;
 }
@@ -967,7 +958,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	return &qp->ibqp;
 
 err_remove_mmap_entries:
-	efa_qp_user_mmap_entries_remove(ucontext, qp);
+	efa_qp_user_mmap_entries_remove(qp);
 err_destroy_qp:
 	efa_destroy_qp_handle(dev, create_qp_resp.qp_handle);
 err_free_mapped:
