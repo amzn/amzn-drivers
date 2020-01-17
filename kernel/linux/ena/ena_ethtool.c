@@ -795,7 +795,7 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	return ena_indirection_table_get(adapter->ena_dev, indir);
+	return ena_indirection_table_get(adapter, indir);
 }
 #endif /* >= 3.8.0 */
 
