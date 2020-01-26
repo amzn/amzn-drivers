@@ -39,6 +39,10 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.2 release notes
+**Bug Fixes**
+* Fix compilation error in SLES 12 SP5
+
 ## r2.2.1 release notes
 **Bug Fixes**
 * fix incorrect parameter to ena_indirection_table_get() in kernels in
