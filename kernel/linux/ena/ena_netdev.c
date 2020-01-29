@@ -2399,8 +2399,10 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
 	if (netif_xmit_stopped(txq) || !skb->xmit_more) {
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
+	if (netif_xmit_stopped(txq)) {
 #endif
 		/* trigger the dma engine. ena_com_write_sq_doorbell()
 		 * has a mb
@@ -2424,6 +2426,11 @@ error_drop_packet:
 	return NETDEV_TX_OK;
 }
 
+#ifdef HAVE_NDO_SELECT_QUEUE_SIMPLE
+static u16 ena_select_queue(struct net_device *dev,
+						    struct sk_buff *skb,
+						    struct net_device *sb_dev)
+#else
 #ifdef HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2
 static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 			    struct net_device *sb_dev,
@@ -2439,6 +2446,7 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 #else
 static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb)
 #endif
+#endif
 {
 	u16 qid;
 	/* we suspect that this is good for in--kernel network services that
@@ -2447,16 +2455,18 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb)
 	 */
 	if (skb_rx_queue_recorded(skb))
 		qid = skb_get_rx_queue(skb);
-	else
-#if (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2)
-		qid = fallback(dev, skb, NULL);
-#elif (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V1)
-		qid = fallback(dev, skb);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
-		qid = __netdev_pick_tx(dev, skb);
+
+#ifndef HAVE_NDO_SELECT_QUEUE_SIMPLE
+   #if (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2)
+	qid = fallback(dev, skb, NULL);
+   #elif (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V1)
+	qid = fallback(dev, skb);
+   #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
+	qid = __netdev_pick_tx(dev, skb);
 #else
-		qid = skb_tx_hash(dev, skb);
+		qid = skb_tx_hash(dev, sb_dev, skb);
 #endif /* HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2 */
+#endif /* HAVE_NDO_SELECT_QUEUE_SIMPLE */
 
 	return qid;
 }

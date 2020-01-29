@@ -38,8 +38,5 @@ endif
 all:
 	make -C $(KSRC) M=$(CURDIR) modules
 
-modules modules_install help :
-	make -C $(KSRC)  M=${CURDIR} EXTRA_CFLAGS="$(EXTRA_CFLAGS)" $@
-
 clean:
 	make -C $(KSRC) M=$(CURDIR) clean
