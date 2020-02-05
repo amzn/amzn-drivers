@@ -39,6 +39,11 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.3 release notes
+**Bug Fixes**
+* Revert VXLAN TX checksum offloading support due to issues with other tunnel types.
+* Avoid unnecessary constant rearming of interrupt vector when busy-polling.
+
 ## r2.2.2 release notes
 **Bug Fixes**
 * Fix compilation error in SLES 12 SP5

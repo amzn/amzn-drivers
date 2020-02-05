@@ -1433,9 +1433,8 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 	req_id = ena_bufs[buf].req_id;
 
 	rc = validate_rx_req_id(rx_ring, req_id);
-	if (unlikely(rc < 0)) {
+	if (unlikely(rc < 0))
 		return NULL;
-	}
 
 	rx_info = &rx_ring->rx_buffer_info[req_id];
 	rx_info->page_offset = offset;
@@ -2032,7 +2031,8 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 		 * from the interrupt context (vs from sk_busy_loop)
 		 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
-		if (napi_complete_done(napi, rx_work_done)) {
+		if (napi_complete_done(napi, rx_work_done) &&
+		    atomic_cmpxchg(&ena_napi->unmask_interrupt, 1, 0)) {
 #else
 		napi_complete_done(napi, rx_work_done);
 		if (atomic_cmpxchg(&ena_napi->unmask_interrupt, 1, 0)) {
@@ -2090,13 +2090,9 @@ static irqreturn_t ena_intr_msix_io(int irq, void *data)
 
 	ena_napi->first_interrupt = true;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
-	napi_schedule_irqoff(&ena_napi->napi);
-#else
 	smp_mb__before_atomic();
 	atomic_set(&ena_napi->unmask_interrupt, 1);
 	napi_schedule_irqoff(&ena_napi->napi);
-#endif
 
 	return IRQ_HANDLED;
 }
@@ -2998,59 +2994,7 @@ int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count)
 	return dev_was_up ? ena_open(adapter->netdev) : 0;
 }
 
-static int vxlan_tx_csum_offload_handle(struct ena_ring *tx_ring,
-					struct ena_com_tx_ctx *ena_tx_ctx,
-					struct sk_buff *skb)
-{
-#ifdef VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED
-	struct ena_com_tx_meta *ena_meta = &ena_tx_ctx->ena_meta;
-	u8 l3_protocol;
-	u8 l4_inner_protocol;
-	u8 l4_protocol;
-
-	/* Get inner packet's L3 protocol (only IPV4 is supported) */
-	if (likely(inner_ip_hdr(skb)->version == IPVERSION)) {
-		l3_protocol = ENA_ETH_IO_L3_PROTO_IPV4;
-		l4_inner_protocol = inner_ip_hdr(skb)->protocol;
-	} else {
-		return 1;
-	}
-
-	/* Get inner packet's L4 protocol */
-	switch (l4_inner_protocol) {
-	case IPPROTO_TCP:
-		l4_protocol = ENA_ETH_IO_L4_PROTO_TCP;
-		break;
-	case IPPROTO_UDP:
-		l4_protocol = ENA_ETH_IO_L4_PROTO_UDP;
-		break;
-	default:
-		return 1;
-	}
-
-	/* According to the RFC: not a GSO packet and do not fragment
-	 * Set L3 headers and L4 protocol to point to inner VXLAN packet
-	 */
-	ena_tx_ctx->df = 1;
-	ena_tx_ctx->meta_valid = 1;
-	ena_tx_ctx->l3_proto = l3_protocol;
-	ena_tx_ctx->l4_proto = l4_protocol;
-	ena_meta->mss = 0;
-	ena_meta->l3_hdr_len = skb_inner_network_header_len(skb);
-	ena_meta->l3_hdr_offset = skb_inner_network_offset(skb);
-
-	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->tx_stats.encap_tx_csummed++;
-	u64_stats_update_end(&tx_ring->syncp);
-
-	return 0;
-#else /* VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED */
-	return 1;
-#endif /* VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED */
-}
-
-static void ena_tx_csum(struct ena_ring *tx_ring,
-			struct ena_com_tx_ctx *ena_tx_ctx,
+static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx,
 			struct sk_buff *skb,
 			bool disable_meta_caching)
 {
@@ -3087,25 +3031,10 @@ static void ena_tx_csum(struct ena_ring *tx_ring,
 			break;
 		}
 
-		if (l4_protocol == IPPROTO_TCP) {
+		if (l4_protocol == IPPROTO_TCP)
 			ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_TCP;
-		} else {
-			if (l4_protocol == IPPROTO_UDP &&
-			    skb->encapsulation &&
-			    !skb_is_gso(skb)) {
-				/* For VXLAN Tx checksum offloading:
-				 * Set L3 headers and L4 protocol to point to
-				 * inner VXLAN packet
-				 */
-				if (likely(vxlan_tx_csum_offload_handle(tx_ring, ena_tx_ctx, skb) == 0))
-					return;
-			}
-
-			/* No encapsulation or VXLAN Tx checksum offload
-			 * handling failed: set to UDP and continue
-			 */
+		else
 			ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_UDP;
-		}
 
 		ena_meta->mss = mss;
 		ena_meta->l3_hdr_len = skb_network_header_len(skb);
@@ -3297,7 +3226,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	ena_tx_ctx.header_len = header_len;
 
 	/* set flags and meta data */
-	ena_tx_csum(tx_ring, &ena_tx_ctx, skb, tx_ring->disable_meta_caching);
+	ena_tx_csum(&ena_tx_ctx, skb, tx_ring->disable_meta_caching);
 
 	rc = ena_xmit_common(dev,
 			     tx_ring,
@@ -4452,10 +4381,6 @@ static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
 	netdev->features =
 		dev_features |
 		NETIF_F_SG |
-#ifdef VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED
-		NETIF_F_GSO_UDP_TUNNEL |
-		NETIF_F_GSO_UDP_TUNNEL_CSUM |
-#endif /* VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED */
 #ifdef NETIF_F_RXHASH
 		NETIF_F_RXHASH |
 #endif /* NETIF_F_RXHASH */
@@ -4471,11 +4396,6 @@ static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
 	netdev->hw_features |= netdev->features;
 #endif
 	netdev->vlan_features |= netdev->features;
-
-#ifdef VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED
-	netdev->hw_enc_features = NETIF_F_IP_CSUM |
-				  NETIF_F_HW_CSUM;
-#endif /* VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED */
 }
 
 static void ena_set_conf_feat_params(struct ena_adapter *adapter,

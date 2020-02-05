@@ -53,7 +53,7 @@
 
 #define DRV_MODULE_VER_MAJOR	2
 #define DRV_MODULE_VER_MINOR	2
-#define DRV_MODULE_VER_SUBMINOR 2
+#define DRV_MODULE_VER_SUBMINOR 3
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -184,9 +184,7 @@ struct ena_napi {
 	struct ena_ring *xdp_ring;
 #endif /* ENA_XDP_SUPPORT */
 	bool first_interrupt;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 	atomic_t unmask_interrupt;
-#endif
 	u32 qid;
 	struct dim dim;
 };
@@ -265,7 +263,6 @@ struct ena_stats_tx {
 	u64 bad_req_id;
 	u64 llq_buffer_copy;
 	u64 missed_tx;
-	u64 encap_tx_csummed;
 	u64 unmask_interrupt;
 };
 

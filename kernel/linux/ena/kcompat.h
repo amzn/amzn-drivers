@@ -202,12 +202,6 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #endif
 
 /*****************************************************************************/
-#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)) || \
-     (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 1))))
-#define VXLAN_TX_CHECKSUM_OFFLOAD_SUPPORTED
-#endif
-
-/*****************************************************************************/
 #if (RHEL_RELEASE_CODE && \
 	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,6)) && \
      (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
