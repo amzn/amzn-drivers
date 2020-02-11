@@ -15,7 +15,7 @@
 #include "efa_gdr.h"
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+#ifndef HAVE_PCI_VENDOR_ID_AMAZON
 #define PCI_VENDOR_ID_AMAZON 0x1d0f
 #endif
 #define PCI_DEV_ID_EFA_VF 0xefa0
@@ -141,7 +141,7 @@ static void efa_setup_mgmnt_irq(struct efa_dev *dev)
 	dev->admin_irq.handler = efa_intr_msix_mgmnt;
 	dev->admin_irq.data = dev;
 	dev->admin_irq.vector =
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
+#ifndef HAVE_PCI_IRQ_VECTOR
 		dev->admin_msix_entry.vector;
 #else
 		pci_irq_vector(dev->pdev, dev->admin_msix_vector_idx);
@@ -315,7 +315,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 #endif
 	int err;
 
-#ifndef HAVE_CREATE_AH_UDATA
+#ifdef HAVE_CREATE_AH_NO_UDATA
 	INIT_LIST_HEAD(&dev->efa_ah_list);
 	mutex_init(&dev->ah_list_lock);
 #endif
@@ -465,7 +465,7 @@ err_release_doorbell_bar:
 
 static void efa_ib_device_remove(struct efa_dev *dev)
 {
-#ifndef HAVE_CREATE_AH_UDATA
+#ifdef HAVE_CREATE_AH_NO_UDATA
 	WARN_ON(!list_empty(&dev->efa_ah_list));
 #endif
 	efa_com_dev_reset(&dev->edev, EFA_REGS_RESET_NORMAL);
@@ -479,7 +479,7 @@ static void efa_ib_device_remove(struct efa_dev *dev)
 
 static void efa_disable_msix(struct efa_dev *dev)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
+#ifndef HAVE_PCI_IRQ_VECTOR
 	pci_disable_msix(dev->pdev);
 #else
 	pci_free_irq_vectors(dev->pdev);
@@ -495,7 +495,7 @@ static int efa_enable_msix(struct efa_dev *dev)
 	dev_dbg(&dev->pdev->dev, "Trying to enable MSI-X, vectors %d\n",
 		msix_vecs);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
+#ifndef HAVE_PCI_IRQ_VECTOR
 	dev->admin_msix_entry.entry = EFA_MGMNT_MSIX_VEC_IDX;
 	irq_num = pci_enable_msix_range(dev->pdev,
 					&dev->admin_msix_entry,
@@ -630,7 +630,7 @@ static struct efa_dev *efa_probe_device(struct pci_dev *pdev)
 	if (err)
 		goto err_reg_read_destroy;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
+#ifdef HAVE_PCI_IRQ_VECTOR
 	edev->aq.msix_vector_idx = dev->admin_msix_vector_idx;
 	edev->aenq.msix_vector_idx = dev->admin_msix_vector_idx;
 #else
@@ -728,7 +728,7 @@ static ssize_t
 (*efa_everbs_cmd_table[EFA_EVERBS_CMD_MAX])(struct efa_dev *dev,
 					    const char __user *buf, int in_len,
 					    int out_len) = {
-#ifndef HAVE_CREATE_AH_UDATA
+#ifdef HAVE_CREATE_AH_NO_UDATA
 	[EFA_EVERBS_CMD_GET_AH] = efa_everbs_cmd_get_ah,
 #endif
 #ifndef HAVE_IB_QUERY_DEVICE_UDATA

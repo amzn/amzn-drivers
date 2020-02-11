@@ -67,7 +67,7 @@ struct efa_dev {
 	u64 db_bar_addr;
 	u64 db_bar_len;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
+#ifndef HAVE_PCI_IRQ_VECTOR
 	struct msix_entry admin_msix_entry;
 #else
 	int admin_msix_vector_idx;

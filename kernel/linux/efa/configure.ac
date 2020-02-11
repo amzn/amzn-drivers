@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+# Copyright 2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+
 AC_INIT([efa], [1.5.1], [])
 
 AC_CONFIG_SRCDIR([src/efa_main.c])
@@ -26,6 +29,8 @@ AS_IF([test -n "$nvidia"], [
 	[AC_MSG_ERROR([NVIDIA P2P path incorrect or doesn't contain Module.symvers and nvidia/nv-p2p.h])])
 ], [gdr="no"])
 AM_CONDITIONAL([HAVE_EFA_GDR], [test "x$gdr" = "xyes"])
+
+EFA_CONFIG_RDMA
 
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_OUTPUT

@@ -349,7 +349,7 @@ int efa_query_port(struct ib_device *ibdev, u8 port,
 	props->pkey_tbl_len = 1;
 	props->active_speed = IB_SPEED_EDR;
 	props->active_width = IB_WIDTH_4X;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+#ifdef HAVE_IB_MTU_INT_TO_ENUM
 	props->max_mtu = ib_mtu_int_to_enum(dev->dev_attr.mtu);
 	props->active_mtu = ib_mtu_int_to_enum(dev->dev_attr.mtu);
 #else
@@ -464,7 +464,7 @@ int efa_alloc_pd(struct ib_pd *ibpd,
 #endif
 
 	if (udata->inlen &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+#ifdef HAVE_UVERBS_CMD_HDR_FIX
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 #else
 	    /* WA for e093111ddb6c ("IB/core: Fix input len in multiple user verbs") */
@@ -843,7 +843,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	}
 
 	if (udata->inlen > sizeof(cmd) &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+#ifdef HAVE_UVERBS_CMD_HDR_FIX
 	    !ib_is_udata_cleared(udata, sizeof(cmd),
 				 udata->inlen - sizeof(cmd))) {
 #else
@@ -1034,7 +1034,7 @@ int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 #endif
 
 	if (udata->inlen &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+#ifdef HAVE_UVERBS_CMD_HDR_FIX
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 #else
 	    /* WA for e093111ddb6c ("IB/core: Fix input len in multiple user verbs") */
@@ -1206,7 +1206,7 @@ int efa_create_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	}
 
 	if (udata->inlen > sizeof(cmd) &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+#ifdef HAVE_UVERBS_CMD_HDR_FIX
 	    !ib_is_udata_cleared(udata, sizeof(cmd),
 				 udata->inlen - sizeof(cmd))) {
 #else
@@ -1960,7 +1960,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #endif
 
 	if (udata->inlen &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+#ifdef HAVE_UVERBS_CMD_HDR_FIX
 	    !ib_is_udata_cleared(udata, 0, sizeof(udata->inlen))) {
 #else
 	    /* WA for e093111ddb6c ("IB/core: Fix input len in multiple user verbs") */
@@ -2096,7 +2096,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 	mr->ibmr.lkey = result.l_key;
 	mr->ibmr.rkey = result.r_key;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
+#ifdef HAVE_IB_MR_LENGTH
 	mr->ibmr.length = length;
 #endif
 #ifdef HAVE_EFA_GDR
@@ -2216,7 +2216,7 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 	resp.cmds_supp_udata_mask |= EFA_USER_CMDS_SUPP_UDATA_QUERY_DEVICE;
 #endif
-#ifdef HAVE_CREATE_AH_UDATA
+#ifndef HAVE_CREATE_AH_NO_UDATA
 	resp.cmds_supp_udata_mask |= EFA_USER_CMDS_SUPP_UDATA_CREATE_AH;
 #endif
 	resp.sub_cqs_per_cq = dev->dev_attr.sub_cqs_per_cq;
@@ -2400,7 +2400,7 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 	return __efa_mmap(dev, ucontext, vma);
 }
 
-#ifndef HAVE_CREATE_AH_UDATA
+#ifdef HAVE_CREATE_AH_NO_UDATA
 struct efa_ah_id {
 	struct list_head list;
 	/* dest_addr */
@@ -2514,7 +2514,7 @@ int efa_create_ah(struct ib_ah *ibah,
 {
 	struct efa_dev *dev = to_edev(ibah->device);
 	struct efa_com_create_ah_params params = {};
-#ifdef HAVE_CREATE_AH_UDATA
+#ifndef HAVE_CREATE_AH_NO_UDATA
 	struct efa_ibv_create_ah_resp resp = {};
 #endif
 	struct efa_com_create_ah_result result;
@@ -2530,7 +2530,7 @@ int efa_create_ah(struct ib_ah *ibah,
 	}
 #endif
 
-#ifdef HAVE_CREATE_AH_UDATA
+#ifndef HAVE_CREATE_AH_NO_UDATA
 #ifndef HAVE_NO_KVERBS_DRIVERS
 	if (!udata) {
 		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
@@ -2540,7 +2540,7 @@ int efa_create_ah(struct ib_ah *ibah,
 #endif
 
 	if (udata->inlen &&
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+#ifdef HAVE_UVERBS_CMD_HDR_FIX
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 #else
 	    /* WA for e093111ddb6c ("IB/core: Fix input len in multiple user verbs") */
@@ -2562,7 +2562,7 @@ int efa_create_ah(struct ib_ah *ibah,
 	memcpy(ah->id, ah_attr->grh.dgid.raw, sizeof(ah->id));
 	ah->ah = result.ah;
 
-#ifdef HAVE_CREATE_AH_UDATA
+#ifndef HAVE_CREATE_AH_NO_UDATA
 	resp.efa_address_handle = result.ah;
 
 	if (udata->outlen) {
@@ -2616,7 +2616,7 @@ struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
 #ifndef HAVE_CREATE_DESTROY_AH_FLAGS
 	u32 flags = 0;
 #endif
-#ifndef HAVE_CREATE_AH_UDATA
+#ifdef HAVE_CREATE_AH_NO_UDATA
 	void *udata = NULL;
 #endif
 
@@ -2672,7 +2672,7 @@ int efa_destroy_ah(struct ib_ah *ibah)
 	err = efa_ah_destroy(dev, ah);
 	if (err)
 		return err;
-#ifndef HAVE_CREATE_AH_UDATA
+#ifdef HAVE_CREATE_AH_NO_UDATA
 	efa_put_ah_id(dev, ah->id);
 #endif
 #ifndef HAVE_AH_CORE_ALLOCATION
@@ -2799,7 +2799,7 @@ enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
 }
 
 #ifdef HAVE_CUSTOM_COMMANDS
-#ifndef HAVE_CREATE_AH_UDATA
+#ifdef HAVE_CREATE_AH_NO_UDATA
 ssize_t efa_everbs_cmd_get_ah(struct efa_dev *dev,
 			      const char __user *buf,
 			      int in_len,
