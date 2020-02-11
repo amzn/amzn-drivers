@@ -67,8 +67,8 @@ Supported PCI vendor ID/device IDs
 ==================================
 1d0f:efa0 - EFA used in EC2 virtualized and bare-metal instances.
 
-EFA Source Code Directory Structure
-===================================
+EFA Source Code Directory Structure (under src/)
+================================================
 efa_main.c, efa.h - Main Linux kernel driver.
 efa_verbs.c       - Verbs implementations.
 efa_com.[ch], efa_com_cmd.[ch]      - Management communication layer.
