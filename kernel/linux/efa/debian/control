@@ -1,12 +1,12 @@
 Source: efa
 Maintainer: ec2-efa-maintainers <ec2-efa-maintainers@amazon.com>
-Build-Depends: debhelper, dkms
+Build-Depends: debhelper
 Standards-Version: 4.3.0
 Homepage: https://github.com/amzn/amzn-drivers
 
 Package: efa
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, dkms
 Description: Linux kernel driver for Elastic Fabric Adapter (EFA)
  Elastic Fabric Adapter (EFA), a new network device that provides reliable
  userspace communication and kernel bypass capabilities, targeting more
