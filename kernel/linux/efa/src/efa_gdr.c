@@ -27,9 +27,9 @@ void nvmem_init(void)
 	mutex_init(&nvmem_list_lock);
 	INIT_LIST_HEAD(&nvmem_list);
 	/*
-	* Ideally, first ticket would be zero, but that would make callback
-	* data NULL which is invalid.
-	*/
+	 * Ideally, first ticket would be zero, but that would make callback
+	 * data NULL which is invalid.
+	 */
 	next_nvmem_ticket = 1;
 }
 
@@ -140,7 +140,7 @@ static int nvmem_dma_map(struct efa_dev *dev, struct efa_nvmem *nvmem)
 	return 0;
 }
 
-struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr,u64 start,
+struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 			    u64 length, unsigned int *pgsz)
 {
 	struct efa_nvmem *nvmem;

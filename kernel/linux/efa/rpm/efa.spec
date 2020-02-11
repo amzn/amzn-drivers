@@ -53,6 +53,8 @@ install -m 644 Makefile.kernel		%{buildroot}%{install_path}
 install -m 644 autogen.sh		%{buildroot}%{install_path}
 install -m 644 configure.ac		%{buildroot}%{install_path}
 install -m 644 config/Makefile		%{buildroot}%{install_path}/config
+install -m 644 config/efa.m4		%{buildroot}%{install_path}/config
+install -m 644 config/build-linux.m4	%{buildroot}%{install_path}/config
 cd src
 install -m 644 efa_com.c		%{buildroot}%{install_path}/src
 install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}/src
