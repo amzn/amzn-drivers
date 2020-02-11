@@ -41,6 +41,7 @@ mkdir -p %{buildroot}%{install_path}
 install -D -m 644 conf/efa.conf		%{buildroot}/etc/modules-load.d/efa.conf
 install -D -m 644 conf/efa-modprobe.conf	%{buildroot}/etc/modprobe.d/efa.conf
 install -m 644 conf/dkms.conf		%{buildroot}%{install_path}
+cd src
 install -m 644 efa_com.c		%{buildroot}%{install_path}
 install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}
 install -m 644 efa_main.c		%{buildroot}%{install_path}
