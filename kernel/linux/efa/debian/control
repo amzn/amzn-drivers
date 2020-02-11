@@ -6,7 +6,7 @@ Homepage: https://github.com/amzn/amzn-drivers
 
 Package: efa
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, dkms
+Depends: ${shlibs:Depends}, ${misc:Depends}, dkms, autoconf, automake
 Description: Linux kernel driver for Elastic Fabric Adapter (EFA)
  Elastic Fabric Adapter (EFA), a new network device that provides reliable
  userspace communication and kernel bypass capabilities, targeting more

@@ -23,28 +23,39 @@ override_dh_auto_clean:
 override_dh_auto_build:
 	echo "Skip build"
 
+override_dh_auto_configure:
+	echo "Skip configure"
+
 override_dh_auto_install:
 	mkdir -p ${DESTDIR}/${INSTALL_PATH}
+	mkdir -p ${DESTDIR}/${INSTALL_PATH}/config
+	mkdir -p ${DESTDIR}/${INSTALL_PATH}/src
 	install -D -m 644 conf/efa.conf		${DESTDIR}/etc/modules-load.d/efa.conf
 	install -D -m 644 conf/efa-modprobe.conf ${DESTDIR}/etc/modprobe.d/efa.conf
 	install -m 644 conf/dkms.conf		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_com.c		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_com_cmd.c	${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_main.c		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_sysfs.c		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_verbs.c		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_gdr.c		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_gdr.h		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa-abi.h 		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_admin_cmds_defs.h ${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_admin_defs.h 	${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_com_cmd.h	${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_com.h		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_common_defs.h	${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa.h		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_regs_defs.h	${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/efa_sysfs.h		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/kcompat.h		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 src/Makefile		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 src/efa_com.c		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_com_cmd.c	${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_main.c		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_sysfs.c		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_verbs.c		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_gdr.c		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_gdr.h		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa-abi.h 		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_admin_cmds_defs.h ${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_admin_defs.h 	${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_com_cmd.h	${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_com.h		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_common_defs.h	${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa.h		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_regs_defs.h	${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_sysfs.h		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/kcompat.h		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/Makefile.am		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 README			${DESTDIR}/${INSTALL_PATH}
 	install -m 644 RELEASENOTES.md		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 Makefile.am		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 Makefile.kernel		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 Makefile.common		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 autogen.sh		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 configure.ac		${DESTDIR}/${INSTALL_PATH}
+	install -m 644 config/Makefile		${DESTDIR}/${INSTALL_PATH}/config
