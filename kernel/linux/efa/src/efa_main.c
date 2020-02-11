@@ -342,7 +342,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		goto err_release_doorbell_bar;
 
-#ifdef HAVE_UPSTREAM_EFA
+#ifdef HAVE_RDMA_NODE_UNSPECIFIED
 	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
 #else
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;

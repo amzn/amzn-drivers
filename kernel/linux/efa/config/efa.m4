@@ -683,6 +683,17 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if have unspecified node type])
+	EFA_TRY_COMPILE([
+	], [
+		int a = RDMA_NODE_UNSPECIFIED;
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_RDMA_NODE_UNSPECIFIED, 1, have unspecified node type)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])
 
