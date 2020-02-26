@@ -8,12 +8,23 @@ The driver was verified on the following distributions:
 
 **Releases:**
 * FreeBSD 11.3
-* FreeBSD 12.0
+* FreeBSD 12.1
 
 **Development:**
-* stable/11 - r352773
-* stable/12 - r352266
-* HEAD - r352778
+* stable/11 - r358167
+* stable/12 - r358167
+* HEAD - r358167
+
+## r2.1.1 release notes
+**New Features**
+* Initialize cleanup task as NET_TASK - it is required by the latest
+  stack updates as NET_TASK is entering epoch mode upon execution.
+
+**Bug Fixes**
+* Fix race on multiple queues when LLQ is being enabled with Tx checksum
+  offload. It could lead to data corruption.
+* Fix compilation for gcc by defining validate_rx_req_id() as
+  'static inline'.
 
 ## r2.1.0 release notes
 **New Features**
