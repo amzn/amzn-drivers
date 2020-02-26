@@ -9,6 +9,7 @@ The following drivers are included:
 * [FreeBSD kernel driver](./kernel/fbsd/ena) for Elastic Network Adapter (ENA)
 * [DPDK driver for ENA](./userspace/dpdk) for critical fixes to previously released ENA DPDK drivers in DPDK official releases
 * [Linux kernel driver](./kernel/linux/efa) for Elastic Fabric Adapter (EFA)
+* [Linux kernel driver](./kernel/linux/gvt_compress) for Graviton2 Compression Engine
 
 For Linux driver SRPM build instruction available [here](./kernel/linux/rpm/README-rpm.txt)
 

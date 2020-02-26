@@ -1,0 +1,160 @@
+Linux Kernel driver for AWS Graviton2 compression device
+========================================================
+
+Overview:
+=========
+AWS Graviton2 instances provide hardware acceleration for compression
+workloads. The compression engine features a new Deflate-based Graviton2
+compression algorithm with inline CRC32c computation for data integrity.
+The driver supports synchronous compression and decompression via
+Kernel Crypto API.
+
+See link below for more information about AWS Graviton instances:
+https://aws.amazon.com/ec2/graviton/
+
+Supported PCI vendor ID/device IDs:
+===================================
+1d0f:ace0 - on Nitro instances
+1c36:0022 - on Bare-metal instances
+
+Driver compilation:
+===================
+Prerequisites:
+Amazon Linux 2
+--------------
+sudo yum install kernel-devel-$(uname -r)
+Ubuntu
+------
+sudo apt install build-essential
+
+Compilation:
+Run "make" in the kernel/linux/graviton_compress/ folder.
+gvt_compress.ko is created inside the folder
+
+Driver installation:
+====================
+Loading driver:
+---------------
+insmod gvt_compress.ko
+
+Once driver is loaded, one or more compression algorithms will be
+registered with crypto API and is visible at /proc/crypto:
+
+name         : gvt_compress:0000:00:0b.0
+driver       : gvt_compress
+module       : gvt_compress
+priority     : 500
+refcnt       : 1
+selftest     : passed
+internal     : no
+type         : compression
+
+The algorithm name is in the format "gvt_compress:<pci_bdf>"
+which allows a specific compression device to be used.
+
+Please note, the following messages might appear during module load:
+
+gvt_compress: loading out-of-tree module taints kernel.
+alg: No test for gvt_compress:0000:00:0b.0 (gvt_compress)
+gvt_compress: module verification failed: signature and/or required key missing - tainting kernel
+
+These messages are informational and indicate that out-of-tree driver
+is being used, and do not affect driver operation.
+
+Module Parameters:
+==================
+compress_level - Controls the compression level to be used.
+                 1-5 levels are supported. Level 1 offers the fastest
+                 compression speed and lower compression ratio while
+                 Level 5 offers better compression ratio and slower
+                 compression speed.
+                 Default value: 4
+req_timeout_ms - Controls request timeout value in milliseconds.
+                 Default value: 100
+num_channels   - Controls the number of requested compression channels.
+                 1-16 channels are supported. Unless you have concerns
+                 with memory utilization, it is not recommended to change it.
+                 Default value: 16
+
+Compressed Data format:
+=======================
+Graviton2 compression is a Deflate-based algorithm and does data integrity
+check using CRC32c as part of decompression. The compressed data begins with
+a 32 byte header followed by series of data blocks. CRC32c is computed on the
+input data and stored in the header. As part of decompression, CRC32c is
+computed and checked against the CRC32c value in the header. CRC32c mismatch
+is considered as an error during decompression. See gvt_compress_hdr.h
+for the header format.
+
+Source Code Directory Structure:
+================================
+gvt_compress.h               - Device structures and shared macros
+gvt_compress_hdr.h           - Compressed data header format
+gvt_compress_pci.c           - PCIe device probe/remove
+gvt_compress_alg.c           - Registering and handling of crypto algorithm
+gvt_compress_core.c          - Handles device resources
+gvt_compress_sysfs.c         - Sysfs files
+gvt_compress_device.c        - Handles submission/completion of requests to HW
+gvt_compress_device_init.c   - HW device initialization
+
+Data Path Interface:
+====================
+Linux Kernel Crypto API has the following data-path interfaces for
+compression and decompression:
+
+#include <linux/crypto.h>
+
+/* Allocation/Free of compression transform */
+struct crypto_comp *
+crypto_alloc_comp(const char *alg_name, u32 type, u32 mask);
+void
+crypto_free_comp(struct crypto_comp *tfm);
+
+/* Compress/Decompress */
+int
+crypto_comp_compress(struct crypto_comp *tfm,
+                         const u8 *src, unsigned int slen,
+                         u8 *dst, unsigned int *dlen);
+int
+crypto_comp_decompress(struct crypto_comp *tfm,
+                           const u8 *src, unsigned int slen,
+                           u8 *dst, unsigned int *dlen);
+
+Graviton2 compression driver supports a maximum of 64KiB
+for source and destination length.
+The upper bound for compressed size based on input size can be
+expressed as follows:
+#define GVT_COMPRESS_BOUND(in_len) \
+        ((in_len) + ((in_len) >> 3) + 32)
+
+Error codes
+-----------
+The following error codes may be returned from compress/decompress
+functions:
+
+-EINVAL : Invalid arguments
+-EFBIG  : Insufficient space for compressed output
+-EIO    : Internal fatal error, driver module has to be reloaded to recover
+
+Statistics:
+===========
+
+Compression statistics are available for each channel at
+/sys/bus/pci/devices/<pci_bdf>/channels/chan[0-15]/
+
+comp_reqs           - count of compression requests
+comp_input_bytes    - number of bytes input for compress
+comp_output_bytes   - number of bytes output from compress
+decomp_reqs         - count of decompression requests
+decomp_input_bytes  - number of bytes input for decompress
+decomp_output_bytes - number of bytes output from decompress
+completion_err      - count of requests completed with error
+hw_desc_err         - count of 'out of hw descriptor' error
+
+More device error statistics are available at
+/sys/bus/pci/devices/<pci_bdf>/channels/dev/
+
+chan_unavail_err    - count of channel unavailable error
+comp_user_err       - count of invalid user argument error for compress
+decomp_user_err     - count of invalid user argument error for decompress
+device_err          - count of fatal device error
