@@ -81,6 +81,13 @@ install -m 644 Makefile.am		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Feb 26 2020 Gal Pressman <galpress@amazon.com> - 1.6.0
+- Add NVIDIA GPUDirect RDMA support
+- Add a configure script to the compilation process and use it to test for kernel funcionality
+- Change directory structure, the source files are now located under src/
+- Fix compilation on certain kernels of SuSE15.1
+- Backport changes from upstream kernel
+
 * Thu Jan 02 2020 Gal Pressman <galpress@amazon.com> - 1.5.1
 - Fix SuSE ioctl flow backport
 

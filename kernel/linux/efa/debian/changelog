@@ -1,3 +1,13 @@
+efa (1.6.0-1.amzn1) unstable; urgency=medium
+  * Add NVIDIA GPUDirect RDMA support
+  * Add a configure script to the compilation process and use it to test for
+    kernel functionality
+  * Change directory structure, the source files are now located under src/
+  * Fix compilation on certain kernels of SuSE15.1
+  * Backport changes from upstream kernel
+
+ -- Gal Pressman <galpress@amazon.com>  Wed, 26 Feb 2020 14:54:52 +0000
+
 efa (1.5.1-1.amzn1) unstable; urgency=medium
   * Fix SuSE ioctl flow backport
 
