@@ -24,6 +24,13 @@ The driver was tested on the following distributions:
 **SuSE:**
 * SuSE 15.1
 
+## r1.6.0 release notes
+* Add NVIDIA GPUDirect RDMA support
+* Add a configure script to the compilation process and use it to test for kernel functionality
+* Change directory structure, the source files are now located under src/
+* Fix compilation on certain kernels of SuSE15.1
+* Backport changes from upstream kernel
+
 ## r1.5.1 release notes
 * Fix SuSE ioctl flow backport
 
