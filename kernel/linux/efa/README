@@ -38,7 +38,32 @@ sudo yum install gcc
 sudo yum install kernel-devel-$(uname -r)
 
 Compilation:
-Run "make", efa.ko is created inside the folder.
+Run:
+./autogen.sh
+./configure
+make
+
+efa.ko is created inside the src/ folder.
+
+In order to compile the driver with GPUDirect RDMA enabled, run configure with
+the following parameter:
+./configure --with-gdr=<path_to_nvidia_dir>
+
+Where the <path_to_nvidia_dir> points to the directory of the nvidia driver
+(usually under /usr/src/nvidia*). The directory must contain:
+* Module.symvers
+* nv-p2p.h (inside the nvidia directory)
+
+You can verify the driver was compiled with GDR support by running modinfo on
+the .ko file and making sure the following line is present:
+...
+gdr:            Y
+...
+
+And the depends line contains the nvidia module.
+
+For more information regarding GPUDirect RDMA, visit:
+https://docs.nvidia.com/cuda/gpudirect-rdma/index.html
 
 To build EFA RPMs run `make` in the rpm/ folder. Your environment will need to
 be setup to build RPMs. The EFA RPM will install the EFA kernel driver source,
