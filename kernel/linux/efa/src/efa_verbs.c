@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "kcompat.h"
@@ -181,6 +181,14 @@ static void *efa_zalloc_mapped(struct efa_dev *dev, dma_addr_t *dma_addr,
 	return addr;
 }
 
+static void efa_free_mapped(struct efa_dev *dev, void *cpu_addr,
+			    dma_addr_t dma_addr,
+			    size_t size, enum dma_data_direction dir)
+{
+	dma_unmap_single(&dev->pdev->dev, dma_addr, size, dir);
+	free_pages_exact(cpu_addr, size);
+}
+
 #ifndef HAVE_CORE_MMAP_XA
 /*
  * This is only called when the ucontext is destroyed and there can be no
@@ -201,10 +209,6 @@ static void mmap_entries_remove_free(struct efa_dev *dev,
 			"mmap: key[%#llx] addr[%#llx] len[%#zx] removed\n",
 			rdma_user_mmap_get_offset(&entry->rdma_entry),
 			entry->address, entry->rdma_entry.npages * PAGE_SIZE);
-		if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
-			/* DMA mapping is already gone, now free the pages */
-			free_pages_exact(phys_to_virt(entry->address),
-					 entry->rdma_entry.npages * PAGE_SIZE);
 		kfree(entry);
 	}
 }
@@ -583,6 +587,9 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 	int err;
 
 	ibdev_dbg(&dev->ibdev, "Destroy qp[%u]\n", ibqp->qp_num);
+
+	efa_qp_user_mmap_entries_remove(qp);
+
 	err = efa_destroy_qp_handle(dev, qp->qp_handle);
 	if (err)
 		return err;
@@ -592,11 +599,10 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 			  "qp->cpu_addr[0x%p] freed: size[%lu], dma[%pad]\n",
 			  qp->rq_cpu_addr, qp->rq_size,
 			  &qp->rq_dma_addr);
-		dma_unmap_single(&dev->pdev->dev, qp->rq_dma_addr, qp->rq_size,
-				 DMA_TO_DEVICE);
+		efa_free_mapped(dev, qp->rq_cpu_addr, qp->rq_dma_addr,
+				qp->rq_size, DMA_TO_DEVICE);
 	}
 
-	efa_qp_user_mmap_entries_remove(qp);
 	kfree(qp);
 	return 0;
 }
@@ -962,13 +968,9 @@ err_remove_mmap_entries:
 err_destroy_qp:
 	efa_destroy_qp_handle(dev, create_qp_resp.qp_handle);
 err_free_mapped:
-	if (qp->rq_size) {
-		dma_unmap_single(&dev->pdev->dev, qp->rq_dma_addr, qp->rq_size,
-				 DMA_TO_DEVICE);
-
-		if (!qp->rq_mmap_entry)
-			free_pages_exact(qp->rq_cpu_addr, qp->rq_size);
-	}
+	if (qp->rq_size)
+		efa_free_mapped(dev, qp->rq_cpu_addr, qp->rq_dma_addr,
+				qp->rq_size, DMA_TO_DEVICE);
 err_free_qp:
 	kfree(qp);
 err_out:
@@ -1105,10 +1107,10 @@ void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
 		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
 
-	efa_destroy_cq_idx(dev, cq->cq_idx);
-	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
-			 DMA_FROM_DEVICE);
 	rdma_user_mmap_entry_remove(cq->mmap_entry);
+	efa_destroy_cq_idx(dev, cq->cq_idx);
+	efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
+			DMA_FROM_DEVICE);
 #ifndef HAVE_CQ_CORE_ALLOCATION
 	kfree(cq);
 #endif
@@ -1128,13 +1130,13 @@ int efa_destroy_cq(struct ib_cq *ibcq)
 		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
 		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
 
+	rdma_user_mmap_entry_remove(cq->mmap_entry);
 	err = efa_destroy_cq_idx(dev, cq->cq_idx);
 	if (err)
 		return err;
 
-	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
-			 DMA_FROM_DEVICE);
-	rdma_user_mmap_entry_remove(cq->mmap_entry);
+	efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
+			DMA_FROM_DEVICE);
 
 	kfree(cq);
 	return 0;
@@ -1299,10 +1301,8 @@ err_remove_mmap:
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 err_free_mapped:
-	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
-			 DMA_FROM_DEVICE);
-	if (!cq->mmap_entry)
-		free_pages_exact(cq->cpu_addr, cq->size);
+	efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
+			DMA_FROM_DEVICE);
 
 err_out:
 	atomic64_inc(&dev->stats.sw_stats.create_cq_err);
@@ -2296,10 +2296,6 @@ void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
 {
 	struct efa_user_mmap_entry *entry = to_emmap(rdma_entry);
 
-	/* DMA mapping is already gone, now free the pages */
-	if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
-		free_pages_exact(phys_to_virt(entry->address),
-				 entry->rdma_entry.npages * PAGE_SIZE);
 	kfree(entry);
 }
 #endif
