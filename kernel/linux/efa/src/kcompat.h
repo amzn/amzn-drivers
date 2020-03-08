@@ -132,4 +132,18 @@ static inline void rdma_user_mmap_entry_put(struct rdma_user_mmap_entry *entry)
 #define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
 #endif
 
+#ifndef HAVE_BITFIELD_H
+#define __bf_shf(x) (__builtin_ffsll(x) - 1)
+
+#define FIELD_PREP(_mask, _val)                                         \
+	({                                                              \
+		((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask);   \
+	})
+
+#define FIELD_GET(_mask, _reg)                                          \
+	({                                                              \
+		(typeof(_mask))(((_reg) & (_mask)) >> __bf_shf(_mask)); \
+	})
+#endif
+
 #endif /* _KCOMPAT_H_ */

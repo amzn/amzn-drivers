@@ -694,6 +694,17 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if have bitfield.h])
+	EFA_TRY_COMPILE([
+		#include <linux/bitfield.h>
+	], [
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_BITFIELD_H, 1, have bitfield.h)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])
 
