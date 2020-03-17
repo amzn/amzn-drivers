@@ -1995,7 +1995,10 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	mr->nvmem = nvmem_get(dev, mr, start, length, &pg_sz);
 	if (!mr->nvmem) {
 		nvmem_unlock();
-#ifdef HAVE_IB_UMEM_GET_NO_DMASYNC
+#ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
+		mr->umem = ib_umem_get(ibpd->device, start, length,
+				       access_flags);
+#elif HAVE_IB_UMEM_GET_NO_DMASYNC
 		mr->umem = ib_umem_get(udata, start, length, access_flags);
 #elif defined(HAVE_IB_UMEM_GET_UDATA)
 		mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
@@ -2027,7 +2030,9 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #endif
 	}
 #else /* !defined(HAVE_EFA_GDR) */
-#ifdef HAVE_IB_UMEM_GET_NO_DMASYNC
+#ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
+	mr->umem = ib_umem_get(ibpd->device, start, length, access_flags);
+#elif HAVE_IB_UMEM_GET_NO_DMASYNC
 	mr->umem = ib_umem_get(udata, start, length, access_flags);
 #elif defined(HAVE_IB_UMEM_GET_UDATA)
 	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
