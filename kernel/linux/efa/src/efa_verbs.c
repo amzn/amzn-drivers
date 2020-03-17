@@ -1976,6 +1976,9 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		IB_ACCESS_LOCAL_WRITE |
 		(is_rdma_read_cap(dev) ? IB_ACCESS_REMOTE_READ : 0);
 
+#ifdef HAVE_IB_ACCESS_OPTIONAL
+	access_flags &= ~IB_ACCESS_OPTIONAL;
+#endif
 	if (access_flags & ~supp_access_flags) {
 		ibdev_dbg(&dev->ibdev,
 			  "Unsupported access flags[%#x], supported[%#x]\n",

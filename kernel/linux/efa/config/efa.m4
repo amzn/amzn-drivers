@@ -718,6 +718,17 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if IB_ACCESS_OPTIONAL exists])
+	EFA_TRY_COMPILE([
+	], [
+		int a = IB_ACCESS_OPTIONAL;
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_IB_ACCESS_OPTIONAL, 1, IB_ACCESS_OPTIONAL exists)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])
 
