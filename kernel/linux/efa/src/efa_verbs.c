@@ -1959,7 +1959,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	}
 #endif
 
-	if (udata->inlen &&
+	if (udata && udata->inlen &&
 #ifdef HAVE_UVERBS_CMD_HDR_FIX
 	    !ib_is_udata_cleared(udata, 0, sizeof(udata->inlen))) {
 #else
