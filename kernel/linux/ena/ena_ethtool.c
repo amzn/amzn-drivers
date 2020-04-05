@@ -214,7 +214,7 @@ int ena_get_sset_count(struct net_device *netdev, int sset)
 		return -EOPNOTSUPP;
 
 	return adapter->num_io_queues * (ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX)
-	       + ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
+		+ ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
 }
 
 static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
@@ -440,7 +440,7 @@ static void ena_get_drvinfo(struct net_device *dev,
 	struct ena_adapter *adapter = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
+	strlcpy(info->version, DRV_MODULE_GENERATION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 }
@@ -739,7 +739,7 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 			u8 *hfunc)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
-	enum ena_admin_hash_functions ena_func = ENA_ADMIN_TOEPLITZ;
+	enum ena_admin_hash_functions ena_func;
 	u8 func;
 	int rc;
 
@@ -747,12 +747,19 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	if (rc)
 		return rc;
 
+	/* We call this function in order to check if the device
+	 * supports getting/setting the hash function.
+	 */
+	rc = ena_com_get_hash_function(adapter->ena_dev, &ena_func);
+	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			rc = 0;
+
+		return rc;
+	}
+
 	rc = ena_com_get_hash_key(adapter->ena_dev, key);
 	if (rc)
-		return rc;
-
-	rc = ena_com_get_hash_function(adapter->ena_dev, &ena_func);
-	if (rc && rc != -EOPNOTSUPP)
 		return rc;
 
 	switch (ena_func) {
@@ -782,6 +789,17 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
 	rc = ena_indirection_table_get(adapter, indir);
 	if (rc)
 		return rc;
+
+	/* We call this function in order to check if the device
+	 * supports getting/setting the hash function.
+	 */
+	rc = ena_com_get_hash_function(adapter->ena_dev, &ena_func);
+	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			rc = 0;
+
+		return rc;
+	}
 
 	rc = ena_com_get_hash_key(adapter->ena_dev, key);
 	if (rc)

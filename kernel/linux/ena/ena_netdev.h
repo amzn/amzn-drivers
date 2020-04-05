@@ -51,16 +51,16 @@
 #include "ena_com.h"
 #include "ena_eth_com.h"
 
-#define DRV_MODULE_VER_MAJOR	2
-#define DRV_MODULE_VER_MINOR	2
-#define DRV_MODULE_VER_SUBMINOR 3
+#define DRV_MODULE_GEN_MAJOR	2
+#define DRV_MODULE_GEN_MINOR	2
+#define DRV_MODULE_GEN_SUBMINOR 4
 
 #define DRV_MODULE_NAME		"ena"
-#ifndef DRV_MODULE_VERSION
-#define DRV_MODULE_VERSION \
-	__stringify(DRV_MODULE_VER_MAJOR) "."	\
-	__stringify(DRV_MODULE_VER_MINOR) "."	\
-	__stringify(DRV_MODULE_VER_SUBMINOR) "g"
+#ifndef DRV_MODULE_GENERATION
+#define DRV_MODULE_GENERATION \
+	__stringify(DRV_MODULE_GEN_MAJOR) "."	\
+	__stringify(DRV_MODULE_GEN_MINOR) "."	\
+	__stringify(DRV_MODULE_GEN_SUBMINOR) "g"
 #endif
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
@@ -109,8 +109,6 @@
 
 #define ENA_RX_RSS_TABLE_LOG_SIZE  7
 #define ENA_RX_RSS_TABLE_SIZE	(1 << ENA_RX_RSS_TABLE_LOG_SIZE)
-
-#define ENA_HASH_KEY_SIZE	40
 
 /* The number of tx packet completions that will be handled each NAPI poll
  * cycle is ring_size / ENA_TX_POLL_BUDGET_DIVIDER.
