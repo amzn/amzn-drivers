@@ -2770,6 +2770,14 @@ static int ena_up(struct ena_adapter *adapter)
 	 */
 	ena_init_napi_in_range(adapter, 0, io_queue_count);
 
+#ifdef CONFIG_ARM64
+	/* enable DIM by default on ARM machines, also needs to happen
+	 * before enabling IRQs since DIM is ran from napi routine
+	 */
+	if (ena_com_interrupt_moderation_supported(adapter->ena_dev))
+		ena_com_enable_adaptive_moderation(adapter->ena_dev);
+#endif
+
 	rc = ena_request_io_irq(adapter);
 	if (rc)
 		goto err_req_irq;

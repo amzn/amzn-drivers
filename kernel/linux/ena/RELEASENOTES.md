@@ -39,6 +39,9 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.5 release notes
+**New Features**
+* Enable dynamic interrupt moderation on ARM64
 
 ## r2.2.4 release notes
 **Bug Fixes**
