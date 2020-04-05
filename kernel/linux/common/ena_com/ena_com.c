@@ -64,15 +64,6 @@
 
 #define ENA_POLL_MS	5
 
-/* Default Microsoft RSS key, used for HRSS. */
-static const u8 rss_hash_key[ENA_HASH_KEY_SIZE] = {
-		0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
-		0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
-		0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
-		0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
-		0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
-};
-
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
@@ -1079,17 +1070,21 @@ static void ena_com_hash_key_fill_default_key(struct ena_com_dev *ena_dev)
 	struct ena_admin_feature_rss_flow_hash_control *hash_key =
 		(ena_dev->rss).hash_key;
 
-	memcpy(hash_key->key, rss_hash_key, sizeof(rss_hash_key));
+	netdev_rss_key_fill(&hash_key->key, sizeof(hash_key->key));
 	/* The key is stored in the device in u32 array
 	 * as well as the API requires the key to be passed in this
 	 * format. Thus the size of our array should be divided by 4
 	 */
-	hash_key->keys_num = sizeof(rss_hash_key) / sizeof(u32);
+	hash_key->keys_num = sizeof(hash_key->key) / sizeof(u32);
 }
 
 static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
 {
 	struct ena_rss *rss = &ena_dev->rss;
+
+	if (!ena_com_check_supported_feature_id(ena_dev,
+						ENA_ADMIN_RSS_HASH_FUNCTION))
+		return -EOPNOTSUPP;
 
 	rss->hash_key =
 		dma_zalloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_key),
@@ -2194,7 +2189,7 @@ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
 	return ret;
 }
 
-int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
+int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 {
 	struct ena_com_admin_queue *admin_queue;
 	struct ena_admin_set_feat_cmd cmd;
@@ -2672,11 +2667,15 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 indr_tbl_log_size)
 	if (unlikely(rc))
 		goto err_indr_tbl;
 
+	/* The following function might return unsupported in case the
+	 * device doesn't support setting the key / hash function. We can safely
+	 * ignore this error and have indirection table support only.
+	 */
 	rc = ena_com_hash_key_allocate(ena_dev);
-	if (unlikely(rc))
+	if (likely(!rc))
+		ena_com_hash_key_fill_default_key(ena_dev);
+	else if (rc != -EOPNOTSUPP)
 		goto err_hash_key;
-
-	ena_com_hash_key_fill_default_key(ena_dev);
 
 	rc = ena_com_hash_ctrl_init(ena_dev);
 	if (unlikely(rc))
@@ -2895,8 +2894,8 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 			    struct ena_admin_feature_llq_desc *llq_features,
 			    struct ena_llq_configurations *llq_default_cfg)
 {
+	struct ena_com_llq_info *llq_info = &ena_dev->llq_info;
 	int rc;
-	struct ena_com_llq_info *llq_info = &(ena_dev->llq_info);;
 
 	if (!llq_features->max_llq_num) {
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
@@ -2910,7 +2909,7 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 	ena_dev->tx_max_header_size = llq_info->desc_list_entry_size -
 		(llq_info->descs_num_before_header * sizeof(struct ena_eth_io_tx_desc));
 
-	if (ena_dev->tx_max_header_size == 0) {
+	if (unlikely(ena_dev->tx_max_header_size == 0)) {
 		pr_err("the size of the LLQ entry is smaller than needed\n");
 		return -EINVAL;
 	}

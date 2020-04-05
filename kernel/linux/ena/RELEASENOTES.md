@@ -39,6 +39,24 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+
+## r2.2.4 release notes
+**Bug Fixes**
+* Use random key to configure RSS instead of static one.
+* Fix multiple issues with the RSS configuration.
+* Restore accidentally deleted meta-descriptor-caching-related code.
+
+**Minor Changes**
+* Set default tx interrupt moderation interval to 64, aligning it to upstream.
+* Align comments surrounding create_queues_with_size_backoff() to upstream code.
+* Minor cosmetic changes.
+* Remove redundant print from ena_init().
+* Change DRV_MODULE_VERSION to DRV_MODULE_GENERATION as in upstream code.
+* Remove redefinition of ENA_HASH_KEY_SIZE in ena_netdev.h.
+* Add missing row to README.
+* Remove unused variable in XDP code.
+* Use HAVE_NETDEV_XMIT_MORE in kcompat.h.
+
 ## r2.2.3 release notes
 **Bug Fixes**
 * Revert VXLAN TX checksum offloading support due to issues with other tunnel types.

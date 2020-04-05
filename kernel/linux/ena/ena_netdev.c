@@ -56,12 +56,12 @@
 #include "ena_pci_id_tbl.h"
 #include "ena_sysfs.h"
 
-static char version[] = DEVICE_NAME " v" DRV_MODULE_VERSION "\n";
+static char version[] = DEVICE_NAME " v" DRV_MODULE_GENERATION "\n";
 
 MODULE_AUTHOR("Amazon.com, Inc. or its affiliates");
 MODULE_DESCRIPTION(DEVICE_NAME);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
+MODULE_VERSION(DRV_MODULE_GENERATION);
 
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (5 * HZ)
@@ -347,7 +347,6 @@ static int ena_xdp_xmit_buff(struct net_device *dev,
 	struct ena_com_tx_ctx ena_tx_ctx = {0};
 	struct ena_tx_buffer *tx_info;
 	struct ena_ring *xdp_ring;
-	struct ena_ring *rx_ring;
 	u16 next_to_use, req_id;
 	int rc;
 	void *push_hdr;
@@ -358,8 +357,6 @@ static int ena_xdp_xmit_buff(struct net_device *dev,
 	req_id = xdp_ring->free_ids[next_to_use];
 	tx_info = &xdp_ring->tx_buffer_info[req_id];
 	tx_info->num_of_bufs = 0;
-	rx_ring = &xdp_ring->adapter->rx_ring[qid -
-		  xdp_ring->adapter->xdp_first_ring];
 	page_ref_inc(rx_info->page);
 	tx_info->xdp_rx_page = rx_info->page;
 
@@ -701,6 +698,7 @@ static void ena_init_io_rings(struct ena_adapter *adapter,
 		txr->sgl_size = adapter->max_tx_sgl_size;
 		txr->smoothed_interval =
 			ena_com_get_nonadaptive_moderation_interval_tx(ena_dev);
+		txr->disable_meta_caching = adapter->disable_meta_caching;
 
 		/* Don't init RX queues for xdp queues */
 		if (!ENA_IS_XDP_INDEX(adapter, i)) {
@@ -1522,9 +1520,8 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		req_id = ena_bufs[buf].req_id;
 
 		rc = validate_rx_req_id(rx_ring, req_id);
-		if (unlikely(rc < 0)) {
+		if (unlikely(rc < 0))
 			return NULL;
-		}
 
 		rx_info = &rx_ring->rx_buffer_info[req_id];
 	} while (1);
@@ -2639,7 +2636,8 @@ create_err:
 }
 
 static void set_io_rings_size(struct ena_adapter *adapter,
-				     int new_tx_size, int new_rx_size)
+			      int new_tx_size,
+			      int new_rx_size)
 {
 	int i;
 
@@ -2653,17 +2651,16 @@ static void set_io_rings_size(struct ena_adapter *adapter,
  * low on memory. If there is not enough memory to allocate io queues
  * the driver will try to allocate smaller queues.
  *
- * The heuristic is as follows:
+ * The backoff algorithm is as follows:
+ *  1. Try to allocate TX and RX and if successful.
+ *  1.1. return success
  *
- * 1. Try to allocate TX and RX and if successful return success.
- * 2. If TX and RX are both smaller or equal to 256 return failure.
+ *  2. Divide by 2 the size of the larger of RX and TX queues (or both if their size is the same).
  *
- * 3. If TX and RX sizes differ:
- * 3.1. Divide by 2 the size of the larger one and go back to 1.
- *
- * 4. Else (TX and RX sizes are the same)
- * 4.1 Divide both RX and TX sizes by 2
- * and go back to 1
+ *  3. If TX or RX is smaller than 256
+ *  3.1. return failure.
+ *  4. else
+ *  4.1. go back to 1.
  */
 static int create_queues_with_size_backoff(struct ena_adapter *adapter)
 {
@@ -3271,8 +3268,12 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
+#ifdef HAVE_NETDEV_XMIT_MORE
 	if (netif_xmit_stopped(txq) || !netdev_xmit_more()) {
-#endif
+#else
+	if (netif_xmit_stopped(txq) || !skb->xmit_more) {
+#endif /* HAVE_NETDEV_XMIT_MORE */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0) */
 		/* trigger the dma engine. ena_com_write_sq_doorbell()
 		 * has a mb
 		 */
@@ -3382,9 +3383,9 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 	strncpy(host_info->os_dist_str, utsname()->release,
 		sizeof(host_info->os_dist_str) - 1);
 	host_info->driver_version =
-		(DRV_MODULE_VER_MAJOR) |
-		(DRV_MODULE_VER_MINOR << ENA_ADMIN_HOST_INFO_MINOR_SHIFT) |
-		(DRV_MODULE_VER_SUBMINOR << ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT) |
+		(DRV_MODULE_GEN_MAJOR) |
+		(DRV_MODULE_GEN_MINOR << ENA_ADMIN_HOST_INFO_MINOR_SHIFT) |
+		(DRV_MODULE_GEN_SUBMINOR << ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT) |
 		("g"[0] << ENA_ADMIN_HOST_INFO_MODULE_TYPE_SHIFT);
 	host_info->num_cpus = num_online_cpus();
 
@@ -3962,6 +3963,7 @@ static int ena_restore_device(struct ena_adapter *adapter)
 
 	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
 	adapter->last_keep_alive_jiffies = jiffies;
+
 	dev_err(&pdev->dev,
 		"Device reset completed successfully, Driver info: %s\n",
 		version);
@@ -4626,7 +4628,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	calc_queue_ctx.get_feat_ctx = &get_feat_ctx;
 	calc_queue_ctx.pdev = pdev;
 
-	/* initial TX and RX interrupt delay, Assumes 1 usec granularity.
+	/* Initial TX and RX interrupt delay. Assumes 1 usec granularity.
 	 * Updated during device initialization with the real granularity
 	 */
 	ena_dev->intr_moder_tx_interval = ENA_INTR_INITIAL_TX_INTERVAL_USECS;
@@ -4904,8 +4906,6 @@ static struct pci_driver ena_pci_driver = {
 
 static int __init ena_init(void)
 {
-	pr_info("%s", version);
-
 	ena_wq = create_singlethread_workqueue(DRV_MODULE_NAME);
 	if (!ena_wq) {
 		pr_err("Failed to create workqueue\n");

@@ -652,8 +652,8 @@ do {									\
 #endif
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0))
-#define netdev_xmit_more() ((skb->xmit_more))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0))
+#define HAVE_NETDEV_XMIT_MORE
 #endif
 
 #ifndef mmiowb
@@ -699,4 +699,38 @@ do {									\
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
 #define HAVE_NDO_TX_TIMEOUT_STUCK_QUEUE_PARAMETER
 #endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) && \
+    !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1)) && \
+                            (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6, 6)))) && \
+                            !(UBUNTU_VERSION_CODE) && \
+                            !defined(UEK3_RELEASE)
+
+#define DO_ONCE(func, ...)						     \
+	({								     \
+		static bool ___done = false;				     \
+		if (unlikely(!___done)) {				     \
+				func(__VA_ARGS__);			     \
+				___done = true;				     \
+		}							     \
+	})
+
+#define get_random_once(buf, nbytes)					     \
+	DO_ONCE(get_random_bytes, (buf), (nbytes))
+
+#define net_get_random_once(buf, nbytes)				     \
+	get_random_once((buf), (nbytes))
+
+/* RSS keys are 40 or 52 bytes long */
+#define NETDEV_RSS_KEY_LEN 52
+static u8 netdev_rss_key[NETDEV_RSS_KEY_LEN];
+
+static inline void netdev_rss_key_fill(void *buffer, size_t len)
+{
+	BUG_ON(len > sizeof(netdev_rss_key));
+	net_get_random_once(netdev_rss_key, sizeof(netdev_rss_key));
+	memcpy(buffer, netdev_rss_key, len);
+}
+#endif
+
 #endif /* _KCOMPAT_H_ */
