@@ -39,6 +39,10 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.7 release notes
+**Minor Changes**
+* Expose additional PCI device ID
+
 ## r2.2.6 release notes
 **Bug Fixes**
 * Disable rx offset feature
