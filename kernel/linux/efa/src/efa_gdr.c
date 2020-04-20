@@ -10,17 +10,7 @@
 
 static struct mutex nvmem_list_lock;
 static struct list_head nvmem_list;
-static u64 next_nvmem_ticket;
-
-void nvmem_lock(void)
-{
-	mutex_lock(&nvmem_list_lock);
-}
-
-void nvmem_unlock(void)
-{
-	mutex_unlock(&nvmem_list_lock);
-}
+static atomic64_t next_nvmem_ticket;
 
 void nvmem_init(void)
 {
@@ -30,7 +20,7 @@ void nvmem_init(void)
 	 * Ideally, first ticket would be zero, but that would make callback
 	 * data NULL which is invalid.
 	 */
-	next_nvmem_ticket = 1;
+	atomic64_set(&next_nvmem_ticket, 1);
 }
 
 static int nvmem_pgsz(enum nvidia_p2p_page_size_type pgszt)
@@ -47,10 +37,17 @@ static int nvmem_pgsz(enum nvidia_p2p_page_size_type pgszt)
 	}
 }
 
-static void nvmem_free(struct efa_nvmem *nvmem)
+static struct efa_nvmem *ticket_to_nvmem(u64 ticket)
 {
-	list_del(&nvmem->list);
-	kfree(nvmem);
+	struct efa_nvmem *nvmem;
+
+	lockdep_assert_held(&nvmem_list_lock);
+	list_for_each_entry(nvmem, &nvmem_list, list) {
+		if (nvmem->ticket == ticket)
+			return nvmem;
+	}
+
+	return NULL;
 }
 
 int nvmem_put(u64 ticket, bool in_cb)
@@ -60,46 +57,54 @@ int nvmem_put(u64 ticket, bool in_cb)
 	struct efa_dev *dev;
 	int err;
 
-	nvmem_lock();
+	mutex_lock(&nvmem_list_lock);
 	nvmem = ticket_to_nvmem(ticket);
 	if (!nvmem) {
-		nvmem_unlock();
-		return 0;
+		/*
+		 * Callback shouldn't happen after the MR has been dereigstered,
+		 * unless the user app is doing very racy stuff.
+		 */
+		WARN(1, "Ticket %llu not found in the nvmem list\n", ticket);
+		mutex_unlock(&nvmem_list_lock);
+		return -EINVAL;
 	}
 
 	dev = nvmem->dev;
-	params.l_key = nvmem->lkey;
-	err = efa_com_dereg_mr(&dev->edev, &params);
-	if (err) {
-		nvmem_unlock();
-		return err;
+	if (nvmem->needs_dereg) {
+		params.l_key = nvmem->lkey;
+		err = efa_com_dereg_mr(&dev->edev, &params);
+		if (err) {
+			mutex_unlock(&nvmem_list_lock);
+			return err;
+		}
+		nvmem->needs_dereg = false;
 	}
 
 	nvmem_release(dev, nvmem, in_cb);
-	nvmem_unlock();
+
+	/* Dereg is the last nvmem consumer, delete the ticket */
+	if (!in_cb) {
+		list_del(&nvmem->list);
+		kfree(nvmem);
+	}
+	mutex_unlock(&nvmem_list_lock);
 
 	return 0;
 }
 
 static void nvmem_free_cb(void *data)
 {
+	pr_debug("Free callback ticket %llu\n", (u64)data);
 	nvmem_put((u64)data, true);
 }
 
 static int nvmem_get_pages(struct efa_dev *dev, struct efa_nvmem *nvmem,
 			   u64 addr, u64 size)
 {
-	u64 ticket;
-	u64 virt_start;
-	u64 pinsz;
 	int err;
 
-	ticket = nvmem->ticket;
-	virt_start = ALIGN_DOWN(addr, GPU_PAGE_SIZE);
-	pinsz = addr + size - virt_start;
-
-	err = nvidia_p2p_get_pages(0, 0, virt_start, pinsz, &nvmem->pgtbl,
-				   nvmem_free_cb, (void *)ticket);
+	err = nvidia_p2p_get_pages(0, 0, addr, size, &nvmem->pgtbl,
+				   nvmem_free_cb, (void *)nvmem->ticket);
 	if (err) {
 		ibdev_dbg(&dev->ibdev, "nvidia_p2p_get_pages failed %d\n", err);
 		return err;
@@ -108,11 +113,10 @@ static int nvmem_get_pages(struct efa_dev *dev, struct efa_nvmem *nvmem,
 	if (!NVIDIA_P2P_PAGE_TABLE_VERSION_COMPATIBLE(nvmem->pgtbl)) {
 		ibdev_dbg(&dev->ibdev, "Incompatible page table version %#08x\n",
 			  nvmem->pgtbl->version);
-		nvidia_p2p_put_pages(0, 0, virt_start, nvmem->pgtbl);
+		nvidia_p2p_put_pages(0, 0, addr, nvmem->pgtbl);
+		nvmem->pgtbl = NULL;
 		return -EINVAL;
 	}
-
-	nvmem->virt_start = virt_start;
 
 	return 0;
 }
@@ -134,6 +138,7 @@ static int nvmem_dma_map(struct efa_dev *dev, struct efa_nvmem *nvmem)
 			  nvmem->dma_mapping->version);
 		nvidia_p2p_dma_unmap_pages(dev->pdev, nvmem->pgtbl,
 					   nvmem->dma_mapping);
+		nvmem->dma_mapping = NULL;
 		return -EINVAL;
 	}
 
@@ -144,38 +149,46 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 			    u64 length, unsigned int *pgsz)
 {
 	struct efa_nvmem *nvmem;
+	u64 virt_start;
+	u64 pinsz;
 	int err;
 
-	lockdep_assert_held(&nvmem_list_lock);
 	nvmem = kzalloc(sizeof(*nvmem), GFP_KERNEL);
 	if (!nvmem)
 		return NULL;
 
-	nvmem->ticket = next_nvmem_ticket++;
+	nvmem->ticket = atomic64_fetch_inc(&next_nvmem_ticket);
 	mr->nvmem_ticket = nvmem->ticket;
-	err = nvmem_get_pages(dev, nvmem, start, length);
-	if (err)
-		goto err_ticket_rollback;
+	nvmem->dev = dev;
+	virt_start = ALIGN_DOWN(start, GPU_PAGE_SIZE);
+	pinsz = start + length - virt_start;
+	nvmem->virt_start = virt_start;
+
+	err = nvmem_get_pages(dev, nvmem, virt_start, pinsz);
+	if (err) {
+		/* Most likely cpu pages */
+		goto err_free;
+	}
 
 	err = nvmem_dma_map(dev, nvmem);
 	if (err)
-		goto err_put_pages;
+		goto err_put;
 
 	*pgsz = nvmem_pgsz(nvmem->pgtbl->page_size);
 	if (!*pgsz)
-		goto err_dma_unmap;
+		goto err_unmap;
 
+	mutex_lock(&nvmem_list_lock);
 	list_add(&nvmem->list, &nvmem_list);
-	nvmem->dev = dev;
+	mutex_unlock(&nvmem_list_lock);
 
 	return nvmem;
 
-err_dma_unmap:
+err_unmap:
 	nvidia_p2p_dma_unmap_pages(dev->pdev, nvmem->pgtbl, nvmem->dma_mapping);
-err_put_pages:
+err_put:
 	nvidia_p2p_put_pages(0, 0, start, nvmem->pgtbl);
-err_ticket_rollback:
-	next_nvmem_ticket--;
+err_free:
 	kfree(nvmem);
 	return NULL;
 }
@@ -192,30 +205,25 @@ int nvmem_to_page_list(struct efa_dev *dev, struct efa_nvmem *nvmem,
 	return 0;
 }
 
-struct efa_nvmem *ticket_to_nvmem(u64 ticket)
-{
-	struct efa_nvmem *nvmem;
-
-	lockdep_assert_held(&nvmem_list_lock);
-	list_for_each_entry(nvmem, &nvmem_list, list) {
-		if (nvmem->ticket == ticket)
-			return nvmem;
-	}
-
-	return NULL;
-}
-
 void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem, bool in_cb)
 {
-	lockdep_assert_held(&nvmem_list_lock);
 	if (in_cb) {
-		nvidia_p2p_free_dma_mapping(nvmem->dma_mapping);
-		nvidia_p2p_free_page_table(nvmem->pgtbl);
-	} else {
-		nvidia_p2p_dma_unmap_pages(dev->pdev, nvmem->pgtbl,
-					   nvmem->dma_mapping);
-		nvidia_p2p_put_pages(0, 0, nvmem->virt_start, nvmem->pgtbl);
-	}
+		if (nvmem->dma_mapping) {
+			nvidia_p2p_free_dma_mapping(nvmem->dma_mapping);
+			nvmem->dma_mapping = NULL;
+		}
 
-	nvmem_free(nvmem);
+		if (nvmem->pgtbl) {
+			nvidia_p2p_free_page_table(nvmem->pgtbl);
+			nvmem->pgtbl = NULL;
+		}
+	} else {
+		if (nvmem->dma_mapping)
+			nvidia_p2p_dma_unmap_pages(dev->pdev, nvmem->pgtbl,
+						   nvmem->dma_mapping);
+
+		if (nvmem->pgtbl)
+			nvidia_p2p_put_pages(0, 0, nvmem->virt_start,
+					     nvmem->pgtbl);
+	}
 }

@@ -1994,10 +1994,8 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	}
 
 #ifdef HAVE_EFA_GDR
-	nvmem_lock();
 	mr->nvmem = nvmem_get(dev, mr, start, length, &pg_sz);
 	if (!mr->nvmem) {
-		nvmem_unlock();
 #ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
 		mr->umem = ib_umem_get(ibpd->device, start, length,
 				       access_flags);
@@ -2110,7 +2108,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #ifdef HAVE_EFA_GDR
 	if (mr->nvmem) {
 		mr->nvmem->lkey = result.l_key;
-		nvmem_unlock();
+		mr->nvmem->needs_dereg = true;
 	}
 #endif
 	ibdev_dbg(&dev->ibdev, "Registered mr[%d]\n", mr->ibmr.lkey);
@@ -2119,12 +2117,10 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 err_unmap:
 #ifdef HAVE_EFA_GDR
-	if (mr->umem) {
-		ib_umem_release(mr->umem);
-	} else {
+	if (mr->nvmem)
 		nvmem_release(dev, mr->nvmem, false);
-		nvmem_unlock();
-	}
+	else
+		ib_umem_release(mr->umem);
 #else
 	ib_umem_release(mr->umem);
 #endif

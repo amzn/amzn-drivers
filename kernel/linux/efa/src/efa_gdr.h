@@ -16,17 +16,15 @@ struct efa_nvmem {
 	u64 virt_start;
 	u64 ticket;
 	u32 lkey;
+	bool needs_dereg;
 	struct list_head list; /* member of nvmem_list */
 };
 
 void nvmem_init(void);
 struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 			    u64 length, unsigned int *pgsz);
-void nvmem_lock(void);
-void nvmem_unlock(void);
 int nvmem_to_page_list(struct efa_dev *dev, struct efa_nvmem *nvmem,
 		       u64 *page_list);
-struct efa_nvmem *ticket_to_nvmem(u64 ticket);
 int nvmem_put(u64 ticket, bool in_cb);
 void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem, bool in_cb);
 
