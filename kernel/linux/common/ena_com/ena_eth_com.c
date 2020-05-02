@@ -574,6 +574,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	}
 
 	cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx);
+	ena_rx_ctx->pkt_offset = cdesc->offset;
 
 	do {
 		ena_buf->len = cdesc->length;
