@@ -53,7 +53,7 @@
 
 #define DRV_MODULE_GEN_MAJOR	2
 #define DRV_MODULE_GEN_MINOR	2
-#define DRV_MODULE_GEN_SUBMINOR 7
+#define DRV_MODULE_GEN_SUBMINOR 8
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_GENERATION
@@ -140,6 +140,8 @@
 #define ENA_MGMNT_IRQ_IDX		0
 #define ENA_IO_IRQ_FIRST_IDX		1
 #define ENA_IO_IRQ_IDX(q)		(ENA_IO_IRQ_FIRST_IDX + (q))
+
+#define ENA_POLL_DELAY_US 5000
 
 /* ENA device should send keep alive msg every 1 sec.
  * We wait for 6 sec just to be on the safe side.

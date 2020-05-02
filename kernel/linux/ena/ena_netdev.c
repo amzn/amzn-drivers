@@ -1415,8 +1415,7 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, bool frags)
 static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 				  struct ena_com_rx_buf_info *ena_bufs,
 				  u32 descs,
-				  u16 *next_to_clean,
-				  u8 offset)
+				  u16 *next_to_clean)
 {
 	struct sk_buff *skb;
 	struct ena_rx_buffer *rx_info;
@@ -1435,7 +1434,6 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		return NULL;
 
 	rx_info = &rx_ring->rx_buffer_info[req_id];
-	rx_info->page_offset = offset;
 
 	if (unlikely(!rx_info->page)) {
 		netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
@@ -1677,6 +1675,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 {
 	u16 next_to_clean = rx_ring->next_to_clean;
 	struct ena_com_rx_ctx ena_rx_ctx;
+	struct ena_rx_buffer *rx_info;
 	struct ena_adapter *adapter;
 	u32 res_budget, work_done;
 	int rx_copybreak_pkt = 0;
@@ -1718,6 +1717,9 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		if (unlikely(ena_rx_ctx.descs == 0))
 			break;
 
+		rx_info = &rx_ring->rx_buffer_info[rx_ring->ena_bufs[0].req_id];
+		rx_info->page_offset = ena_rx_ctx.pkt_offset;
+
 		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 			  "rx_poll: q %d got packet from ena. descs #: %d l3 proto %d l4 proto %d hash: %x\n",
 			  rx_ring->qid, ena_rx_ctx.descs, ena_rx_ctx.l3_proto,
@@ -1732,10 +1734,10 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 			skb = ena_rx_skb(rx_ring,
 					 rx_ring->ena_bufs,
 					 ena_rx_ctx.descs,
-					 &next_to_clean, ena_rx_ctx.pkt_offset);
+					 &next_to_clean);
 #else
 		skb = ena_rx_skb(rx_ring, rx_ring->ena_bufs, ena_rx_ctx.descs,
-				 &next_to_clean, ena_rx_ctx.pkt_offset);
+				 &next_to_clean);
 #endif /* ENA_XDP_SUPPORT */
 
 		if (unlikely(!skb)) {
@@ -3398,6 +3400,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 	host_info->num_cpus = num_online_cpus();
 
 	host_info->driver_supported_features =
+		ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK |
 		ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK |
 		ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_MASK;
 
@@ -4621,6 +4624,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_free_region;
 	}
 
+	ena_dev->ena_min_poll_delay_us = ENA_POLL_DELAY_US;
 	ena_dev->dmadev = &pdev->dev;
 
 	rc = ena_device_init(ena_dev, pdev, &get_feat_ctx, &wd_state);
@@ -4805,13 +4809,15 @@ err_disable_device:
 
 /*****************************************************************************/
 
-/* ena_remove - Device Removal Routine
+/* __ena_shutoff - Helper used in both PCI remove/shutdown routines
  * @pdev: PCI device information struct
+ * @shutdown: Is it a shutdown operation? If false, means it is a removal
  *
- * ena_remove is called by the PCI subsystem to alert the driver
- * that it should release a PCI device.
+ * __ena_shutoff is a helper routine that does the real work on shutdown and
+ * removal paths; the difference between those paths is with regards to whether
+ * dettach or unregister the netdevice.
  */
-static void ena_remove(struct pci_dev *pdev)
+static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 {
 	struct ena_adapter *adapter = pci_get_drvdata(pdev);
 	struct ena_com_dev *ena_dev;
@@ -4830,14 +4836,18 @@ static void ena_remove(struct pci_dev *pdev)
 
 	cancel_work_sync(&adapter->reset_task);
 
-	rtnl_lock();
+	rtnl_lock(); /* lock released inside the below if-else block */
 	adapter->reset_reason = ENA_REGS_RESET_SHUTDOWN;
 	ena_destroy_device(adapter, true);
-	rtnl_unlock();
-
-	unregister_netdev(netdev);
-
-	free_netdev(netdev);
+	if (shutdown) {
+		netif_device_detach(netdev);
+		dev_close(netdev);
+		rtnl_unlock();
+	} else {
+		rtnl_unlock();
+		unregister_netdev(netdev);
+		free_netdev(netdev);
+	}
 
 	ena_com_rss_destroy(ena_dev);
 
@@ -4850,6 +4860,30 @@ static void ena_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 
 	vfree(ena_dev);
+}
+
+/* ena_remove - Device Removal Routine
+ * @pdev: PCI device information struct
+ *
+ * ena_remove is called by the PCI subsystem to alert the driver
+ * that it should release a PCI device.
+ */
+
+static void ena_remove(struct pci_dev *pdev)
+{
+	__ena_shutoff(pdev, false);
+}
+
+/* ena_shutdown - Device Shutdown Routine
+ * @pdev: PCI device information struct
+ *
+ * ena_shutdown is called by the PCI subsystem to alert the driver that
+ * a shutdown/reboot (or kexec) is happening and device must be disabled.
+ */
+
+static void ena_shutdown(struct pci_dev *pdev)
+{
+	__ena_shutoff(pdev, true);
 }
 
 #ifdef CONFIG_PM
@@ -4902,6 +4936,7 @@ static struct pci_driver ena_pci_driver = {
 	.id_table	= ena_pci_tbl,
 	.probe		= ena_probe,
 	.remove		= ena_remove,
+	.shutdown	= ena_shutdown,
 #ifdef CONFIG_PM
 	.suspend    = ena_suspend,
 	.resume     = ena_resume,

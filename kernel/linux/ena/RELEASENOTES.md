@@ -39,6 +39,19 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.8 release notes
+**New Features**
+* Re-enable RX offset feature.
+
+**Bug Fixes**
+* Fix XDP PASS issue due to incorrect handling of offset in rx_info.
+* Add PCI shutdown handler to allow safe kexec.
+* Fix RHEL 8.2 compilation error.
+* Fix kernel 5.5 compilation error.
+
+**Minor Changes**
+* Reduce driver load time.
+
 ## r2.2.7 release notes
 **Minor Changes**
 * Expose additional PCI device ID
