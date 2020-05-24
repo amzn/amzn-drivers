@@ -962,6 +962,10 @@ static int ena_set_tunable(struct net_device *netdev,
 #endif /* 3.18.0 */
 
 static const struct ethtool_ops ena_ethtool_ops = {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
 	.get_link_ksettings	= ena_get_link_ksettings,
 #else

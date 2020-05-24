@@ -39,6 +39,14 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.9 release notes
+**Bug Fixes**
+* Fix memory leak in XDP_TX when TX queue is full.
+* Fix napi budget accounting of XDP packets.
+* Fix driver loading error in kernels >= 5.7 due to unreported
+  interrupt coalescing capabilities.
+* Fix is_doorbell_needed() to account for meta descriptors properly.
+
 ## r2.2.8 release notes
 **New Features**
 * Re-enable RX offset feature.
