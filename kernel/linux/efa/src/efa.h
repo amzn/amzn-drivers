@@ -249,12 +249,16 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
 #endif
 int efa_create_ah(struct ib_ah *ibah,
+#ifdef HAVE_CREATE_AH_INIT_ATTR
+		  struct rdma_ah_init_attr *init_attr,
+#else
 #ifdef HAVE_CREATE_AH_RDMA_ATTR
 		  struct rdma_ah_attr *ah_attr,
 #else
 		  struct ib_ah_attr *ah_attr,
 #endif
 		  u32 flags,
+#endif
 		  struct ib_udata *udata);
 #ifndef HAVE_AH_CORE_ALLOCATION
 #ifdef HAVE_CREATE_DESTROY_AH_FLAGS

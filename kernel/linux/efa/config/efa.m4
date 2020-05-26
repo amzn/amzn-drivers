@@ -729,6 +729,17 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if rdma_ah_init_attr exists])
+	EFA_TRY_COMPILE([
+	], [
+		struct rdma_ah_init_attr ah_attr;
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_CREATE_AH_INIT_ATTR, 1, rdma_ah_init_attr exists)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])
 
