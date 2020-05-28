@@ -39,6 +39,10 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.10 release notes
+**New Features**
+* Add new device statistics to ethtool command
+
 ## r2.2.9 release notes
 **Bug Fixes**
 * Fix memory leak in XDP_TX when TX queue is full.
