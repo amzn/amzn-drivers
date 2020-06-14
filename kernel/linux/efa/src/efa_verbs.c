@@ -315,6 +315,7 @@ int efa_query_device(struct ib_device *ibdev,
 			       dev_attr->max_rq_sge);
 #endif
 	props->max_sge_rd = dev_attr->max_wr_rdma_sge;
+	props->max_pkeys = 1;
 
 #ifdef HAVE_IB_QUERY_DEVICE_UDATA
 	if (udata && udata->outlen) {
