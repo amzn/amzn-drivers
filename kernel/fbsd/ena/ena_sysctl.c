@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,12 @@ __FBSDID("$FreeBSD$");
 static void	ena_sysctl_add_wd(struct ena_adapter *);
 static void	ena_sysctl_add_stats(struct ena_adapter *);
 static void	ena_sysctl_add_tuneables(struct ena_adapter *);
-#ifdef ENA_DEBUG
-static void	ena_sysctl_add_debug(struct ena_adapter *);
-#endif
 static int	ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS);
 static int	ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS);
+static int	ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS);
 
-static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD, 0, "ENA driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "ENA driver parameters");
 
 /*
  * Logging level for changing verbosity of the output
@@ -50,6 +49,20 @@ int ena_log_level = ENA_ALERT | ENA_WARNING;
 SYSCTL_INT(_hw_ena, OID_AUTO, log_level, CTLFLAG_RWTUN,
     &ena_log_level, 0, "Logging level indicating verbosity of the logs");
 
+SYSCTL_CONST_STRING(_hw_ena, OID_AUTO, driver_version, CTLFLAG_RD,
+    DRV_MODULE_VERSION, "ENA driver version");
+
+/*
+ * Use 9k mbufs for the Rx buffers. Default to 0 (use page size mbufs instead).
+ * Using 9k mbufs in low memory conditions might cause allocation to take a lot
+ * of time and lead to the OS instability as it needs to look for the contiguous
+ * pages.
+ * However, page size mbufs has a bit smaller throughput than 9k mbufs, so if
+ * the network performance is the priority, the 9k mbufs can be used.
+ */
+int ena_enable_9k_mbufs = 0;
+SYSCTL_INT(_hw_ena, OID_AUTO, enable_9k_mbufs, CTLFLAG_RDTUN,
+    &ena_enable_9k_mbufs, 0, "Use 9 kB mbufs for Rx descriptors");
 
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
@@ -57,9 +70,6 @@ ena_sysctl_add_nodes(struct ena_adapter *adapter)
 	ena_sysctl_add_wd(adapter);
 	ena_sysctl_add_stats(adapter);
 	ena_sysctl_add_tuneables(adapter);
-#ifdef ENA_DEBUG
-	ena_sysctl_add_debug(adapter);
-#endif
 }
 
 static void
@@ -152,16 +162,16 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    CTLFLAG_RD, &dev_stats->admin_q_pause,
 	    "Admin queue pauses");
 
-	for (i = 0; i < adapter->num_queues; ++i, ++tx_ring, ++rx_ring) {
+	for (i = 0; i < adapter->num_io_queues; ++i, ++tx_ring, ++rx_ring) {
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
 
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
-		    namebuf, CTLFLAG_RD, NULL, "Queue Name");
+		    namebuf, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		/* TX specific stats */
 		tx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
-		    "tx_ring", CTLFLAG_RD, NULL, "TX ring");
+		    "tx_ring", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX ring");
 		tx_list = SYSCTL_CHILDREN(tx_node);
 
 		tx_stats = &tx_ring->tx_stats;
@@ -209,7 +219,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 
 		/* RX specific stats */
 		rx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
-		    "rx_ring", CTLFLAG_RD, NULL, "RX ring");
+		    "rx_ring", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX ring");
 		rx_list = SYSCTL_CHILDREN(rx_node);
 
 		rx_stats = &rx_ring->rx_stats;
@@ -248,7 +258,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 
 	/* Stats read from device */
 	hw_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hw_stats",
-	    CTLFLAG_RD, NULL, "Statistics from hardware");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Statistics from hardware");
 	hw_list = SYSCTL_CHILDREN(hw_node);
 
 	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_packets", CTLFLAG_RD,
@@ -261,21 +271,23 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &hw_stats->tx_bytes, "Bytes transmitted");
 	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_drops", CTLFLAG_RD,
 	    &hw_stats->rx_drops, "Receive packet drops");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "tx_drops", CTLFLAG_RD,
+	    &hw_stats->tx_drops, "Transmit packet drops");
 
 	/* ENA Admin queue stats */
 	admin_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "admin_stats",
-	    CTLFLAG_RD, NULL, "ENA Admin Queue statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ENA Admin Queue statistics");
 	admin_list = SYSCTL_CHILDREN(admin_node);
 
-	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "aborted_cmd", CTLFLAG_RD,
+	SYSCTL_ADD_U64(ctx, admin_list, OID_AUTO, "aborted_cmd", CTLFLAG_RD,
 	    &admin_stats->aborted_cmd, 0, "Aborted commands");
-	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "sumbitted_cmd", CTLFLAG_RD,
+	SYSCTL_ADD_U64(ctx, admin_list, OID_AUTO, "sumbitted_cmd", CTLFLAG_RD,
 	    &admin_stats->submitted_cmd, 0, "Submitted commands");
-	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "completed_cmd", CTLFLAG_RD,
+	SYSCTL_ADD_U64(ctx, admin_list, OID_AUTO, "completed_cmd", CTLFLAG_RD,
 	    &admin_stats->completed_cmd, 0, "Completed commands");
-	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "out_of_space", CTLFLAG_RD,
+	SYSCTL_ADD_U64(ctx, admin_list, OID_AUTO, "out_of_space", CTLFLAG_RD,
 	    &admin_stats->out_of_space, 0, "Queue out of space");
-	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "no_completion", CTLFLAG_RD,
+	SYSCTL_ADD_U64(ctx, admin_list, OID_AUTO, "no_completion", CTLFLAG_RD,
 	    &admin_stats->no_completion, 0, "Commands not completed");
 }
 
@@ -295,94 +307,157 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 	child = SYSCTL_CHILDREN(tree);
 
 	/* Tuneable number of buffers in the buf-ring (drbr) */
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "buf_ring_size", CTLTYPE_INT |
-	    CTLFLAG_RW, adapter, 0, ena_sysctl_buf_ring_size, "I",
-	    "Size of the bufring");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "buf_ring_size",
+	    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_buf_ring_size, "I",
+	    "Size of the Tx buffer ring (drbr).");
 
-	/* Tuneable number of Rx ring size */
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_queue_size", CTLTYPE_INT |
-	    CTLFLAG_RW, adapter, 0, ena_sysctl_rx_queue_size, "I",
-	    "Size of the Rx ring. The size should be a power of 2. "
-	    "Max value is 8K");
+	/* Tuneable number of the Rx ring size */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_queue_size",
+	    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_rx_queue_size, "I",
+	    "Size of the Rx ring. The size should be a power of 2.");
+
+	/* Tuneable number of IO queues */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "io_queues_nb",
+	    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_io_queues_nb, "I", "Number of IO queues.");
 }
 
-#ifdef ENA_DEBUG
-static void
-ena_sysctl_add_debug(struct ena_adapter *adapter)
-{
-	device_t dev;
-
-	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid *tree;
-	struct sysctl_oid_list *child;
-
-	dev = adapter->pdev;
-
-	ctx = device_get_sysctl_ctx(dev);
-	tree = device_get_sysctl_tree(dev);
-	child = SYSCTL_CHILDREN(tree);
-}
-
-#endif /* ENA_DEBUG */
 
 static int
 ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 {
 	struct ena_adapter *adapter = arg1;
-	int val;
+	uint32_t val;
 	int error;
 
 	val = 0;
-	error = sysctl_wire_old_buffer(req, sizeof(int));
+	error = sysctl_wire_old_buffer(req, sizeof(val));
 	if (error == 0) {
 		val = adapter->buf_ring_size;
 		error = sysctl_handle_int(oidp, &val, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (val < 0)
+
+	if (!powerof2(val) || val == 0) {
+		device_printf(adapter->pdev,
+		    "Requested new Tx buffer ring size (%u) is not a power of 2\n",
+		    val);
 		return (EINVAL);
-
-	device_printf(adapter->pdev,
-	    "Requested new buf ring size: %d. Old size: %d\n",
-	    val, adapter->buf_ring_size);
-
-	if (val != adapter->buf_ring_size) {
-		adapter->buf_ring_size = val;
-		adapter->reset_reason = ENA_REGS_RESET_OS_TRIGGER;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	}
 
-	return (0);
+	if (val != adapter->buf_ring_size) {
+		device_printf(adapter->pdev,
+		    "Requested new Tx buffer ring size: %d. Old size: %d\n",
+		    val, adapter->buf_ring_size);
+
+		error = ena_update_buf_ring_size(adapter, val);
+	} else {
+		device_printf(adapter->pdev,
+		    "New Tx buffer ring size is the same as already used: %u\n",
+		    adapter->buf_ring_size);
+	}
+
+	return (error);
 }
 
 static int
 ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 {
 	struct ena_adapter *adapter = arg1;
-	int val;
+	uint32_t val;
 	int error;
 
 	val = 0;
-	error = sysctl_wire_old_buffer(req, sizeof(int));
+	error = sysctl_wire_old_buffer(req, sizeof(val));
 	if (error == 0) {
-		val = adapter->rx_ring_size;
-		error = sysctl_handle_int(oidp, &val, 0, req);
+		val = adapter->requested_rx_ring_size;
+		error = sysctl_handle_32(oidp, &val, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if  (val < 16)
+
+	if  (val < ENA_MIN_RING_SIZE || val > adapter->max_rx_ring_size) {
+		device_printf(adapter->pdev,
+		    "Requested new Rx queue size (%u) is out of range: [%u, %u]\n",
+		    val, ENA_MIN_RING_SIZE, adapter->max_rx_ring_size);
 		return (EINVAL);
-
-	device_printf(adapter->pdev,
-	    "Requested new rx queue size: %d. Old size: %d\n",
-	    val, adapter->rx_ring_size);
-
-	if (val != adapter->rx_ring_size) {
-		adapter->rx_ring_size = val;
-		adapter->reset_reason = ENA_REGS_RESET_OS_TRIGGER;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	}
 
-	return (0);
+	/* Check if the parameter is power of 2 */
+	if (!powerof2(val)) {
+		device_printf(adapter->pdev,
+		    "Requested new Rx queue size (%u) is not a power of 2\n",
+		    val);
+		return (EINVAL);
+	}
+
+	if (val != adapter->requested_rx_ring_size) {
+		device_printf(adapter->pdev,
+		    "Requested new Rx queue size: %u. Old size: %u\n",
+		    val, adapter->requested_rx_ring_size);
+
+		error = ena_update_queue_size(adapter,
+		    adapter->requested_tx_ring_size, val);
+	} else {
+		device_printf(adapter->pdev,
+		    "New Rx queue size is the same as already used: %u\n",
+		    adapter->requested_rx_ring_size);
+	}
+
+	return (error);
+}
+
+/*
+ * Change number of effectively used IO queues adapter->num_io_queues
+ */
+static int
+ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
+{
+	struct ena_adapter *adapter = arg1;
+	uint32_t tmp = 0;
+	int error;
+
+	error = sysctl_wire_old_buffer(req, sizeof(tmp));
+	if (error == 0) {
+		tmp = adapter->num_io_queues;
+		error = sysctl_handle_int(oidp, &tmp, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (tmp == 0) {
+		device_printf(adapter->pdev,
+		    "Requested number of IO queues is zero\n");
+		return (EINVAL);
+	}
+
+	/*
+	 * The adapter::max_num_io_queues is the HW capability. The system
+	 * resources availability may potentially be a tighter limit. Therefore
+	 * the relation `adapter::max_num_io_queues >= adapter::msix_vecs`
+	 * always holds true, while the `adapter::msix_vecs` is variable across
+	 * device reset (`ena_destroy_device()` + `ena_restore_device()`).
+	 */
+	if (tmp > (adapter->msix_vecs - ENA_ADMIN_MSIX_VEC)) {
+		device_printf(adapter->pdev,
+		    "Requested number of IO queues is higher than maximum "
+		    "allowed (%u)\n", adapter->msix_vecs - ENA_ADMIN_MSIX_VEC);
+		return (EINVAL);
+	}
+	if (tmp == adapter->num_io_queues) {
+		device_printf(adapter->pdev,
+		    "Requested number of IO queues is equal to current value "
+		    "(%u)\n", adapter->num_io_queues);
+	} else {
+		device_printf(adapter->pdev,
+		    "Requested new number of IO queues: %u, current value: "
+		    "%u\n", tmp, adapter->num_io_queues);
+
+		error = ena_update_io_queue_nb(adapter, tmp);
+	}
+
+	return (error);
 }

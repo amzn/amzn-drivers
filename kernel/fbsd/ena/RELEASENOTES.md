@@ -8,12 +8,57 @@ The driver was verified on the following distributions:
 
 **Releases:**
 * FreeBSD 11.3
+* FreeBSD 11.4-RC1
 * FreeBSD 12.1
 
 **Development:**
-* stable/11 - r358167
-* stable/12 - r358167
-* HEAD - r358167
+* stable/11 - r361551
+* stable/12 - r361551
+* HEAD - r361551
+
+## r2.2.0 release notes
+**New Features**
+* Add 'Tx drops' statistic which can be acquired by probing sysctl:
+  dev.ena.#.hw_stats.tx_drops
+  Where # stands for the interface number (0, 1, 2, ...).
+* Mark the driver as epoch ready, to properly support latest FreeBSD 13
+  stack changes.
+* Allow changing the number of IO queues during runtime by using sysctl:
+  dev.ena.#.io_queues_nb
+  Where # stands for the interface number (0, 1, 2, ...).
+* Generate default RSS key using RNG in order to improve security.
+
+**Bug Fixes**
+* Fix ENA IO memory read/write macros - add appropriate barriers where
+  needed and remove them where they are no longer needed.
+* Tx DMA mapping in case of the LLQ is being used was totally reworked
+  to improve stability and simplicity.
+* Rx refill optimization for low memory conditions - by default page
+  size clusters are now being used. It can be reverted, as it may affect
+  performance a bit, by setting sysctl "hw.ena.enable_9k_mbufs" to "1"
+  in "/boot/loader.conf" file.
+* Prevent driver from limiting IO queue number in case number of
+  MSIx vectors changed between device resets.
+* Update 'make clean' to remove 'opt_global.h' which started to appear on
+  FreeBSD 13.
+* Fix build for arm64 FreeBSD 12 as pmap_change_attr() isn't public
+  there, yet
+
+**Minor Changes**
+* Update HAL to the newer version.
+* Driver version can now be acquired probing sysctl:
+  hw.ena.driver_version
+* Improve locking on the configuration path - the driver was using two
+  different locks and now it is unified.
+* Rework Rx queue size configuration to do not use hardcoded values and
+  to avoid device reset upon doing so.
+* Tx buffer ring size reconfiguration was also reworked for the same
+  purpose.
+* Create queues with optional backoff in case the OS cannot provide
+  enough resources while setting up the queues.
+* Allow to disable meta caching for Tx path - it may be requested by the
+  device.
+* Set all sysctl nodes and procedures as MP safe.
 
 ## r2.1.1 release notes
 **New Features**

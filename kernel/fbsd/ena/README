@@ -3,7 +3,7 @@ FreeBSD kernel driver for Elastic Network Adapter (ENA) family:
 
 Version:
 ========
-v2.1.1
+v2.2.0
 
 Supported FreeBSD Versions:
 ===========================
@@ -124,9 +124,10 @@ Supported PCI vendor ID/device IDs:
 
 ENA Source Code Directory Structure:
 ====================================
-/*
 ena.[ch]   	  - Main FreeBSD kernel driver.
 ena_sysctl.[ch]   - ENA sysctl nodes for ENA configuration and statistics.
+ena_datapath.[ch] - Implementation of the main I/O path of the driver.
+ena_netmap.[ch]   - Main code supporting the netmap mode in the ENA.
 
 ena_com/*
 ena_com.[ch]      - Management communication layer. This layer is
