@@ -1,7 +1,7 @@
 #
 # BSD LICENSE
 #
-# Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+# Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ SRCS	+= ena_com.c ena_eth_com.c
 SRCS	+= ena.c ena_sysctl.c ena_datapath.c ena_netmap.c
 
 CFLAGS  += -DSMP -O2
+CFLAGS  += -I${.CURDIR}/ena_com
 
 # Enable debug messages and sysctls
 # CFLAGS  += -DENA_DEBUG
@@ -53,7 +54,7 @@ CFLAGS  += -DSMP -O2
 # CFLAGS += -DDEV_NETMAP
 
 clean:
-	rm -f opt_bdg.h device_if.h bus_if.h pci_if.h setdef* *_StripErr
+	rm -f opt_global.h opt_bdg.h device_if.h bus_if.h pci_if.h setdef* *_StripErr
 	rm -f *.o *.kld *.ko .*.o
 	rm -f @ export_syms machine x86
 
