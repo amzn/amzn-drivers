@@ -146,4 +146,10 @@ static inline void rdma_user_mmap_entry_put(struct rdma_user_mmap_entry *entry)
 	})
 #endif
 
+#ifndef HAVE_RDMA_NODE_UNSPECIFIED
+enum {
+	RDMA_NODE_UNSPECIFIED = 7,
+};
+#endif
+
 #endif /* _KCOMPAT_H_ */

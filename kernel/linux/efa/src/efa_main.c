@@ -397,11 +397,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 
 	efa_set_host_info(dev);
 
-#ifdef HAVE_RDMA_NODE_UNSPECIFIED
 	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
-#else
-	dev->ibdev.node_type = RDMA_NODE_IB_CA;
-#endif
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = 1;
 #ifdef HAVE_DEV_PARENT
