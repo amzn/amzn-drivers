@@ -4,6 +4,60 @@ ___
 
 ### Normal releases
 
+#### v20.05
+_Release of the new version of the driver - r2.2.0_
+
+New Features:
+* Support large LLQ headers for use cases like IPv6 with multiple extensions,
+  where standard header size (96B) can be too small for the LLQ. They can be
+  enabled using device parameter 'large_llq_hdr'.
+* Expose 'Tx drops' statistic.
+* Disable meta descriptor caching. New HW may require this feature to be
+  enabled.
+* Reuse zero-length descriptor. Some HW could append descriptor which length
+  is 0. The driver is reusing it back on the Rx so the application doesn't have
+  to handle this case.
+
+Bug Fixes:
+* Create IO rings with the valid value. Previously, the rings were created
+  using maximum allowed IO ring size, making the memory management ineffective.
+* Remove barriers before calling device doorbells. The doorbell function is
+  already calling a barrier.
+* Fix build with optimization flag O1.
+
+Minor Changes:
+* Limit minimum Rx buffer size to 1400B as some HW isn't supporting smaller
+  buffers.
+* Update ena_com to version from 25.09.2019.
+* Refactor getting IO queues capabilities.
+* Refactor Rx path.
+* Refactor Tx path.
+* Limit refill threshold by a fixed value. For big Rx ring, the refill function
+  could be spending too much time or being called to rarely, so the maximum
+  threshold value was set as 256.
+
+#### v20.02
+_Release of the new version of the driver - r2.0.3_
+
+New Features:
+* Add support for 'Rx offsets' - some HW append data to the mbuf in the given
+  offset and now the driver is aware of that.
+
+* Minor Changes:
+* Update ena_com to version from 20.03.2019.
+
+#### v19.11
+_Release of the new version of the driver - r2.0.2._
+
+Bug Fixes:
+* Fix indication of bad L4 Rx checksum. If the packet was fragmented, the L4
+  checksum should be set as PKT_RX_L4_CKSUM_UNKNOWN. Also, the error flag
+  shouldn't be tested, unless the device indicated the L4 checksum was checked.
+
+Minor Changes:
+* Use SPDX license tags.
+* Use dynamic log type for debug logging.
+
 #### v19.08
 _Release of the new version of the driver - r2.0.1._
 
@@ -195,6 +249,17 @@ Bug Fixes:
 ### Stable releases
 
 There comes only backported patches.
+
+#### v19.11.3
+Bug fixes:
+* HAL fixes (v20.05):
+  - Make allocations thread safe.
+  - Prevent allocation of zero sized memory.
+  - Fix testing for supported RSS hash function.
+* Create IO rings with the valid value. Previously, the rings were created
+  using maximum allowed IO ring size, making the memory management
+  ineffective. (v20.05)
+* Fix build with optimization flag O1. (v20.05)
 
 #### v18.11.3
 Bug fixes:
