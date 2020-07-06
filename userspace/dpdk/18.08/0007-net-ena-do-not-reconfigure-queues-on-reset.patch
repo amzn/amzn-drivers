@@ -1,7 +1,7 @@
 From 348d89e8be808017512a318b64108552b97a5fa8 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:36 +0100
-Subject: [PATCH 07/19] net/ena: do not reconfigure queues on reset
+Subject: [PATCH 07/27] net/ena: do not reconfigure queues on reset
 
 [ upstream commit e457bc70e5d6d589b1c3e1e93979aa42a64fbc06 ]
 
@@ -26,7 +26,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 46 insertions(+), 73 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index f050dea82..383028318 100644
+index f050dea82a..383028318e 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -256,6 +256,8 @@ static int ena_rss_reta_query(struct rte_eth_dev *dev,

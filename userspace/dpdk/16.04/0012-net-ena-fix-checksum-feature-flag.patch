@@ -1,7 +1,7 @@
 From ec0b65c55948813480d15c77633177a48af20731 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 8 Apr 2019 12:27:44 +0200
-Subject: [PATCH 12/14] net/ena: fix checksum feature flag
+Subject: [PATCH 12/21] net/ena: fix checksum feature flag
 
 [ upstream commit ef538c1a7f565c9b58518375a500aa864445fd11 ]
 
@@ -18,7 +18,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 6c986cfc0..068641ee5 100644
+index 6c986cfc0e..068641ee51 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1353,7 +1353,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)

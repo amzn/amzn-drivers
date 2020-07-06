@@ -1,0 +1,59 @@
+From b2bb1041cb4d398912b4f33a3e7cce4a0a3cab19 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 2 Jul 2020 10:25:03 +0000
+Subject: [PATCH 22/28] net/ena/base: fix node deallocation
+
+The memzone handle wasn't saved anywhere - it could cause free of the
+invalid memory, as the mem_handle was never holding the right value.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_com.c       | 2 ++
+ drivers/net/ena/base/ena_plat_dpdk.h | 4 +++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index bd6f3c6b12..08c498c877 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -347,6 +347,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
+ 					    size,
+ 					    io_sq->desc_addr.virt_addr,
+ 					    io_sq->desc_addr.phys_addr,
++					    io_sq->desc_addr.mem_handle,
+ 					    ctx->numa_node,
+ 					    dev_node);
+ 		if (!io_sq->desc_addr.virt_addr)
+@@ -400,6 +401,7 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
+ 				    size,
+ 				    io_cq->cdesc_addr.virt_addr,
+ 				    io_cq->cdesc_addr.phys_addr,
++				    io_cq->cdesc_addr.mem_handle,
+ 				    ctx->numa_node,
+ 				    prev_node);
+ 	if (!io_cq->cdesc_addr.virt_addr)
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 06b6378708..2c7887c190 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -206,7 +206,8 @@ typedef uint64_t dma_addr_t;
+ 		   ENA_TOUCH(dmadev);					\
+ 		   rte_memzone_free(handle); })
+ 
+-#define ENA_MEM_ALLOC_COHERENT_NODE(dmadev, size, virt, phys, node, dev_node) \
++#define ENA_MEM_ALLOC_COHERENT_NODE(					\
++	dmadev, size, virt, phys, mem_handle, node, dev_node)		\
+ 	do {								\
+ 		const struct rte_memzone *mz;				\
+ 		char z_name[RTE_MEMZONE_NAMESIZE];			\
+@@ -214,6 +215,7 @@ typedef uint64_t dma_addr_t;
+ 		snprintf(z_name, sizeof(z_name),			\
+ 				"ena_alloc_%d", ena_alloc_cnt++);	\
+ 		mz = rte_memzone_reserve(z_name, size, node, 0); \
++		mem_handle = mz;					\
+ 		if (mz == NULL) {					\
+ 			virt = NULL;					\
+ 			phys = 0;					\
+-- 
+2.20.1
+

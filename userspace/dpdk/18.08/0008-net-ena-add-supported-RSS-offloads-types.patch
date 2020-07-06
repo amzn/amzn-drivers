@@ -1,7 +1,7 @@
 From eec4b9335239bbb7468314bbc2e4f7e96ef66795 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:38 +0100
-Subject: [PATCH 08/19] net/ena: add supported RSS offloads types
+Subject: [PATCH 08/27] net/ena: add supported RSS offloads types
 
 [ upstream commit b01ead202beb45346d7daeb2f2b1a608006af644 ]
 
@@ -20,7 +20,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 3 insertions(+)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 383028318..9cab09b57 100644
+index 383028318e..9cab09b574 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1804,6 +1804,9 @@ static void ena_infos_get(struct rte_eth_dev *dev,

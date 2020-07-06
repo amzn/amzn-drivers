@@ -1,7 +1,7 @@
 From f6b50ee14ce8433701ce0e5d356081a509f68782 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 25 Jan 2019 09:10:25 +0100
-Subject: [PATCH 09/15] net/ena: fix dev init with multi-process
+Subject: [PATCH 09/22] net/ena: fix dev init with multi-process
 
 [ upstream commit fd9768905870856a2340266d25f8c0100dfccfff ]
 
@@ -22,7 +22,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 6 insertions(+), 5 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index ef6bc4067..6bbfd62c0 100644
+index ef6bc40671..6bbfd62c0d 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1297,19 +1297,20 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)

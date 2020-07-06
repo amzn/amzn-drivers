@@ -1,7 +1,7 @@
 From 9056e84fe8cea67e116be9663a56586b16bf96c4 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:31 +0100
-Subject: [PATCH 06/19] net/ena: skip packet with wrong request id
+Subject: [PATCH 06/27] net/ena: skip packet with wrong request id
 
 [ upstream commit f00930d929151fc09914e6d61b827f9f81645324 ]
 
@@ -20,7 +20,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 2 insertions(+)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index b74276d98..f050dea82 100644
+index b74276d985..f050dea82a 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1932,6 +1932,8 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,

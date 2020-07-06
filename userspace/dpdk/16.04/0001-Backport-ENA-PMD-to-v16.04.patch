@@ -1,7 +1,7 @@
 From 65a31061fe33969bfc2dc73862d5446f0327041c Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 4 Sep 2017 14:46:32 +0200
-Subject: [PATCH 01/14] Backport ENA PMD to v16.04
+Subject: [PATCH 01/21] Backport ENA PMD to v16.04
 
 The ENA PMD was backported from the commit:
 222555480a7f9979d10faa9bb8b9773b0e1aa058
@@ -27,7 +27,7 @@ net/ena: add memory initialization for the allocation macros
  11 files changed, 793 insertions(+), 728 deletions(-)
 
 diff --git a/drivers/net/ena/Makefile b/drivers/net/ena/Makefile
-index ac2b55dc7..bf1f5da07 100644
+index ac2b55dc7b..bf1f5da07c 100644
 --- a/drivers/net/ena/Makefile
 +++ b/drivers/net/ena/Makefile
 @@ -51,11 +51,6 @@ SRCS-$(CONFIG_RTE_LIBRTE_ENA_PMD) += ena_ethdev.c
@@ -43,7 +43,7 @@ index ac2b55dc7..bf1f5da07 100644
  
  include $(RTE_SDK)/mk/rte.lib.mk
 diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
-index a21a95130..38a058775 100644
+index a21a951304..38a0587754 100644
 --- a/drivers/net/ena/base/ena_com.c
 +++ b/drivers/net/ena/base/ena_com.c
 @@ -42,9 +42,6 @@
@@ -667,7 +667,7 @@ index a21a95130..38a058775 100644
  
  	rc = ena_com_get_feature(ena_dev, &get_resp,
 diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
-index 19e53ffbf..e53459262 100644
+index 19e53ffbf7..e534592620 100644
 --- a/drivers/net/ena/base/ena_com.h
 +++ b/drivers/net/ena/base/ena_com.h
 @@ -120,8 +120,8 @@ struct ena_com_rx_buf_info {
@@ -850,7 +850,7 @@ index 19e53ffbf..e53459262 100644
  		ena_trc_err("Wrong moderation index %u\n", curr_moder_idx);
  		return;
 diff --git a/drivers/net/ena/base/ena_defs/ena_admin_defs.h b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
-index fe4124697..7a031d903 100644
+index fe4124697a..7a031d903d 100644
 --- a/drivers/net/ena/base/ena_defs/ena_admin_defs.h
 +++ b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
 @@ -58,30 +58,6 @@ enum ena_admin_aq_opcode {
@@ -1072,7 +1072,7 @@ index fe4124697..7a031d903 100644
  
  static inline uint16_t
 diff --git a/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h b/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
-index a547033d1..6bc3d6a7c 100644
+index a547033d1c..6bc3d6a7cf 100644
 --- a/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
 +++ b/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
 @@ -87,28 +87,17 @@ struct ena_eth_io_tx_desc {
@@ -1848,7 +1848,7 @@ index a547033d1..6bc3d6a7c 100644
  #endif /* !defined(ENA_DEFS_LINUX_MAINLINE) */
  #endif /*_ENA_ETH_IO_H_ */
 diff --git a/drivers/net/ena/base/ena_defs/ena_gen_info.h b/drivers/net/ena/base/ena_defs/ena_gen_info.h
-index 4abdffed7..3d2520963 100644
+index 4abdffed77..3d25209632 100644
 --- a/drivers/net/ena/base/ena_defs/ena_gen_info.h
 +++ b/drivers/net/ena/base/ena_defs/ena_gen_info.h
 @@ -31,5 +31,5 @@
@@ -1860,7 +1860,7 @@ index 4abdffed7..3d2520963 100644
 +#define	ENA_GEN_DATE	"Sun Jun  5 10:24:39 IDT 2016"
 +#define	ENA_GEN_COMMIT	"17146ed"
 diff --git a/drivers/net/ena/base/ena_eth_com.c b/drivers/net/ena/base/ena_eth_com.c
-index 459e0bbb9..290a5666f 100644
+index 459e0bbb9d..290a5666fb 100644
 --- a/drivers/net/ena/base/ena_eth_com.c
 +++ b/drivers/net/ena/base/ena_eth_com.c
 @@ -62,7 +62,7 @@ static inline void ena_com_cq_inc_head(struct ena_com_io_cq *io_cq)
@@ -1964,7 +1964,7 @@ index 459e0bbb9..290a5666f 100644
  	ena_com_cq_inc_head(io_cq);
  
 diff --git a/drivers/net/ena/base/ena_eth_com.h b/drivers/net/ena/base/ena_eth_com.h
-index 325d69c0f..71a880c0f 100644
+index 325d69c0f5..71a880c0f1 100644
 --- a/drivers/net/ena/base/ena_eth_com.h
 +++ b/drivers/net/ena/base/ena_eth_com.h
 @@ -142,6 +142,20 @@ static inline int ena_com_update_dev_comp_head(struct ena_com_io_cq *io_cq)
@@ -1989,7 +1989,7 @@ index 325d69c0f..71a880c0f 100644
  {
  	io_sq->next_to_comp += elem;
 diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
-index aab2ac865..a812d75e2 100644
+index aab2ac8656..a812d75e2c 100644
 --- a/drivers/net/ena/base/ena_plat_dpdk.h
 +++ b/drivers/net/ena/base/ena_plat_dpdk.h
 @@ -62,10 +62,10 @@ typedef uint64_t dma_addr_t;
@@ -2096,7 +2096,7 @@ index aab2ac865..a812d75e2 100644
  static inline void writel(u32 value, volatile void  *addr)
  {
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 02af67a24..8823c51cf 100644
+index 02af67a24b..8823c51cf8 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -37,6 +37,8 @@
@@ -2917,7 +2917,7 @@ index 02af67a24..8823c51cf 100644
  
  PMD_REGISTER_DRIVER(ena_pmd_drv);
 diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
-index ba6f01e66..dc3080ffd 100644
+index ba6f01e666..dc3080ffd3 100644
 --- a/drivers/net/ena/ena_ethdev.h
 +++ b/drivers/net/ena/ena_ethdev.h
 @@ -42,30 +42,12 @@

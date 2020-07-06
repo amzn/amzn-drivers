@@ -1,7 +1,7 @@
 From b497931c27c5641df96f82dc844e0322ef14bd65 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:35 +0100
-Subject: [PATCH 03/16] net/ena: destroy queues if start failed
+Subject: [PATCH 03/24] net/ena: destroy queues if start failed
 
 [ upstream commit 26e5543dc85b3be23879ba90ddb00e3456179805 ]
 
@@ -23,7 +23,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 60 insertions(+), 35 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 6d3a60c7a..f41c8b8e8 100644
+index 6d3a60c7a4..f41c8b8e85 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -240,10 +240,12 @@ static void ena_tx_queue_release_bufs(struct ena_ring *ring);

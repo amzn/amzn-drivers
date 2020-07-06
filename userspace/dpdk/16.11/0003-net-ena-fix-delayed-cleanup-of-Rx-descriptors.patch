@@ -1,7 +1,7 @@
 From 9566e5c1adc033c0a43601def1132a4775522cb0 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Thu, 18 May 2017 17:41:51 +0200
-Subject: [PATCH 03/19] net/ena: fix delayed cleanup of Rx descriptors
+Subject: [PATCH 03/26] net/ena: fix delayed cleanup of Rx descriptors
 
 [ backported from upstream commit ec78af6bc0556cf2a1133185ca33fb835b38afe0 ]
 
@@ -27,7 +27,7 @@ Acked-by: Jan Medala <jan.medala@outlook.com>
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 2318cf35d..8d4898d67 100644
+index 2318cf35d6..8d4898d673 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1564,13 +1564,13 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,

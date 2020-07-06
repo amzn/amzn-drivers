@@ -1,7 +1,7 @@
 From 931953ad093d51d077a787d5901a33863f33e040 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Mon, 10 Apr 2017 16:28:11 +0200
-Subject: [PATCH 04/21] net/ena: calculate partial checksum if DF bit is
+Subject: [PATCH 04/28] net/ena: calculate partial checksum if DF bit is
  disabled
 
 [ upstream commit bc5ef57d43c5f4ea423734b2aeae070ae19dd91f ]
@@ -27,7 +27,7 @@ Acked-by: Jan Medala <jan.medala@outlook.com>
  1 file changed, 23 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index e6e889bdd..3ba990142 100644
+index e6e889bdd1..3ba990142e 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1599,14 +1599,33 @@ eth_ena_prep_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,

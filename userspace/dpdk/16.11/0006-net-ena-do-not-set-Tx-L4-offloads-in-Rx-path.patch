@@ -1,7 +1,7 @@
 From 97f897630d47295ac8b8c3b25724b9beeee8b0b2 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Tue, 9 Jan 2018 16:19:08 +0100
-Subject: [PATCH 06/19] net/ena: do not set Tx L4 offloads in Rx path
+Subject: [PATCH 06/26] net/ena: do not set Tx L4 offloads in Rx path
 
 [ upstream commit fd617795679019c7aea5ab1e8c85db02cf53f169 ]
 
@@ -23,7 +23,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index c832d241f..3e73fe1fb 100644
+index c832d241f8..3e73fe1fba 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -248,16 +248,17 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,

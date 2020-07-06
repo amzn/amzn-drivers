@@ -1,0 +1,42 @@
+From 60adf2d2ef7345173230ced72edef6caa2d4b740 Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Mon, 28 Oct 2019 11:23:33 +0100
+Subject: [PATCH 16/21] net/ena: fix indication of bad L4 Rx checksums
+
+[ upstream commit 05817057faba9356900ced61e24a22eef6bc4c87 ]
+
+Add checking of l4_csum_checked and frag flags before checking the
+l4_csum_error flag.
+
+In case of IP fragment/unchecked L4 csum - add PKT_RX_L4_CKSUM_UNKNOWN
+flag to the indicated mbuf.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Change-Id: I9f1414741eb44ca289a8bfd11d7e66110c95040e
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Maciej Bielski <mba@semihalf.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index ac21f0628b..9daeefad86 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -257,8 +257,9 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 	else if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV6)
+ 		packet_type |= RTE_PTYPE_L3_IPV6;
+ 
+-	if (unlikely(ena_rx_ctx->l4_csum_err))
++	if (unlikely(ena_rx_ctx->l4_csum_err) && !ena_rx_ctx->frag)
+ 		ol_flags |= PKT_RX_L4_CKSUM_BAD;
++
+ 	if (unlikely(ena_rx_ctx->l3_csum_err))
+ 		ol_flags |= PKT_RX_IP_CKSUM_BAD;
+ 
+-- 
+2.20.1
+

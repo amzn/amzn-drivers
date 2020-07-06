@@ -1,7 +1,7 @@
 From 731eed0e60a4dbfce98b9dc3860f713ac0671b10 Mon Sep 17 00:00:00 2001
 From: Maciej Bielski <mba@semihalf.com>
 Date: Thu, 1 Aug 2019 13:45:36 +0200
-Subject: [PATCH 15/15] net/ena: fix L4 checksum Tx offload
+Subject: [PATCH 15/22] net/ena: fix L4 checksum Tx offload
 
 [ upstream commit 40e7c02155625f18a87faf5e6a8cec2e986146e8 ]
 
@@ -27,7 +27,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 58ce419fd..1ef7809a1 100644
+index 58ce419fdc..1ef7809a15 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -313,12 +313,13 @@ static inline void ena_tx_mbuf_prepare(struct rte_mbuf *mbuf,

@@ -1,0 +1,118 @@
+From 2cf3e6fb32cfff1a5ed676c12d9f42bfe5cc2d61 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:29:16 +0200
+Subject: [PATCH 12/13] net/ena: limit refill threshold by fixed value
+
+[ upstream commit 7755060798de9c0146df8809926030ed47fc9086 ]
+
+Divider used for both Tx and Rx cleanup/refill threshold can cause too
+big delay in case of the really big rings - for example if the 8k Rx
+ring will be used, the refill won't trigger unless 1024 threshold will
+be reached. It will also cause driver to try to allocate that much
+descriptors.
+
+Limiting it by fixed value - 256 in that case, would limit maximum
+time spent in repopulate function.
+
+Change-Id: Ia8659e6ddf179ff612a780adc6fe55d13eeac6e9
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 26 ++++++++++++++------------
+ drivers/net/ena/ena_ethdev.h | 10 ++++++++++
+ 2 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index b4759ff7ff..8c8ea50271 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -62,14 +62,6 @@
+ /*reverse version of ENA_IO_RXQ_IDX*/
+ #define ENA_IO_RXQ_IDX_REV(q)	((q - 1) / 2)
+ 
+-/* While processing submitted and completed descriptors (rx and tx path
+- * respectively) in a loop it is desired to:
+- *  - perform batch submissions while populating sumbissmion queue
+- *  - avoid blocking transmission of other packets during cleanup phase
+- * Hence the utilization ratio of 1/8 of a queue size.
+- */
+-#define ENA_RING_DESCS_RATIO(ring_size)	(ring_size / 8)
+-
+ #define __MERGE_64B_H_L(h, l) (((uint64_t)h << 32) | l)
+ #define TEST_BIT(val, bit_shift) (val & (1UL << bit_shift))
+ 
+@@ -2015,6 +2007,8 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 	struct ena_ring *rx_ring = (struct ena_ring *)(rx_queue);
+ 	unsigned int ring_size = rx_ring->ring_size;
+ 	unsigned int ring_mask = ring_size - 1;
++	unsigned int free_queue_entries;
++	unsigned int refill_threshold;
+ 	uint16_t next_to_clean = rx_ring->next_to_clean;
+ 	uint16_t desc_in_use = 0;
+ 	uint16_t req_id;
+@@ -2116,11 +2110,15 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 	rx_ring->rx_stats.cnt += recv_idx;
+ 	rx_ring->next_to_clean = next_to_clean;
+ 
+-	desc_in_use = desc_in_use - completed + 1;
++	free_queue_entries = ena_com_free_desc(rx_ring->ena_com_io_sq);
++	refill_threshold =
++		RTE_MIN(ring_size / ENA_REFILL_THRESH_DIVIDER,
++		(unsigned int)ENA_REFILL_THRESH_PACKET);
++
+ 	/* Burst refill to save doorbells, memory barriers, const interval */
+-	if (ring_size - desc_in_use > ENA_RING_DESCS_RATIO(ring_size)) {
++	if (free_queue_entries > refill_threshold) {
+ 		ena_com_update_dev_comp_head(rx_ring->ena_com_io_cq);
+-		ena_populate_rx_queue(rx_ring, ring_size - desc_in_use);
++		ena_populate_rx_queue(rx_ring, free_queue_entries);
+ 	}
+ 
+ 	return recv_idx;
+@@ -2259,6 +2257,7 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 	uint16_t seg_len;
+ 	unsigned int ring_size = tx_ring->ring_size;
+ 	unsigned int ring_mask = ring_size - 1;
++	unsigned int cleanup_budget;
+ 	struct ena_com_tx_ctx ena_tx_ctx;
+ 	struct ena_tx_buffer *tx_info;
+ 	struct ena_com_buf *ebuf;
+@@ -2416,9 +2415,12 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 		/* Put back descriptor to the ring for reuse */
+ 		tx_ring->empty_tx_reqs[next_to_clean & ring_mask] = req_id;
+ 		next_to_clean++;
++		cleanup_budget =
++			RTE_MIN(ring_size / ENA_REFILL_THRESH_DIVIDER,
++			(unsigned int)ENA_REFILL_THRESH_PACKET);
+ 
+ 		/* If too many descs to clean, leave it for another run */
+-		if (unlikely(total_tx_descs > ENA_RING_DESCS_RATIO(ring_size)))
++		if (unlikely(total_tx_descs > cleanup_budget))
+ 			break;
+ 	}
+ 	tx_ring->tx_stats.available_desc =
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 3e2ed177e5..8a7de86805 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -57,6 +57,16 @@
+ #define ENA_WD_TIMEOUT_SEC	3
+ #define ENA_DEVICE_KALIVE_TIMEOUT (ENA_WD_TIMEOUT_SEC * rte_get_timer_hz())
+ 
++/* While processing submitted and completed descriptors (rx and tx path
++ * respectively) in a loop it is desired to:
++ *  - perform batch submissions while populating sumbissmion queue
++ *  - avoid blocking transmission of other packets during cleanup phase
++ * Hence the utilization ratio of 1/8 of a queue size or max value if the size
++ * of the ring is very big - like 8k Rx rings.
++ */
++#define ENA_REFILL_THRESH_DIVIDER      8
++#define ENA_REFILL_THRESH_PACKET       256
++
+ struct ena_adapter;
+ 
+ enum ena_ring_type {
+-- 
+2.20.1
+

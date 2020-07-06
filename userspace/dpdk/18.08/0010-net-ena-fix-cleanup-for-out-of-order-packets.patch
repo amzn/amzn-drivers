@@ -1,7 +1,7 @@
 From 96a79e7e9e8904fb742ab223cfae0ad6a695cec7 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Mon, 17 Dec 2018 12:06:18 +0100
-Subject: [PATCH 10/19] net/ena: fix cleanup for out of order packets
+Subject: [PATCH 10/27] net/ena: fix cleanup for out of order packets
 
 [ upstream commit 709b1dcb73adebb3fc1a838b57d72028feb97e47 ]
 
@@ -27,7 +27,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 11 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 59375dd2f..96880aa87 100644
+index 59375dd2fc..96880aa87b 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -746,17 +746,13 @@ static void ena_tx_queue_release(void *queue)

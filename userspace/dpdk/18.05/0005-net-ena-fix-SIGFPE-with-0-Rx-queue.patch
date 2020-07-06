@@ -1,7 +1,7 @@
 From 68f8ac904a0079e519af7ddc191f4f22f66a2069 Mon Sep 17 00:00:00 2001
 From: Daria Kolistratova <daria.kolistratova@intel.com>
 Date: Tue, 26 Jun 2018 18:38:56 +0100
-Subject: [PATCH 05/15] net/ena: fix SIGFPE with 0 Rx queue
+Subject: [PATCH 05/22] net/ena: fix SIGFPE with 0 Rx queue
 
 [ upstream commit 361913ad6f8c05fc541fe4bfdae3b0dc095ae3af ]
 
@@ -19,7 +19,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index f10bee236..ebc911168 100644
+index f10bee2366..ebc9111684 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -924,7 +924,7 @@ static int ena_start(struct rte_eth_dev *dev)

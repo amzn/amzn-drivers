@@ -1,7 +1,7 @@
 From 357a5c1638730c4f897f29db81726d0e7e4f54ea Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Tue, 4 Jun 2019 12:59:36 +0200
-Subject: [PATCH 17/17] net/ena: fix assigning NUMA node to IO queue
+Subject: [PATCH 17/24] net/ena: fix assigning NUMA node to IO queue
 
 [ upstream commit 4217cb0b7d2c5385f06f531af7f14b860927aba7 ]
 
@@ -23,7 +23,7 @@ Reviewed-by: David Marchand <david.marchand@redhat.com>
  2 files changed, 8 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index c5b2ed730..24fc032e1 100644
+index c5b2ed7307..24fc032e19 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -39,7 +39,6 @@
@@ -106,7 +106,7 @@ index c5b2ed730..24fc032e1 100644
  
  	rxq->rx_buffer_info = rte_zmalloc("rxq->buffer_info",
 diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
-index 4791c53b5..8d5eb5a7c 100644
+index 4791c53b5a..8d5eb5a7ca 100644
 --- a/drivers/net/ena/ena_ethdev.h
 +++ b/drivers/net/ena/ena_ethdev.h
 @@ -90,6 +90,8 @@ struct ena_ring {

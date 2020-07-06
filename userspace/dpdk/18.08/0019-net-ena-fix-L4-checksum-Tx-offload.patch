@@ -27,7 +27,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index f25e5ba82..7768eabba 100644
+index f25e5ba827..7768eabbab 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -335,12 +335,13 @@ static inline void ena_tx_mbuf_prepare(struct rte_mbuf *mbuf,
