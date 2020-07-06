@@ -1,7 +1,7 @@
 From 8927533a74100b6620a2c2bd264a1cff7afe4170 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:43 +0100
-Subject: [PATCH 08/16] net/ena: add new way of getting Rx drops
+Subject: [PATCH 08/24] net/ena: add new way of getting Rx drops
 
 [ upstream commit 94c3e3765d9e0366acf145668d32d5eee3200c2b ]
 
@@ -17,7 +17,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  2 files changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 79266d17e..ee35c9793 100644
+index 79266d17e9..ee35c97930 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -912,6 +912,7 @@ static void ena_stats_restart(struct rte_eth_dev *dev)
@@ -56,7 +56,7 @@ index 79266d17e..ee35c9793 100644
  
  /**
 diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
-index 322e90ace..8eb8543c2 100644
+index 322e90ace8..8eb8543c21 100644
 --- a/drivers/net/ena/ena_ethdev.h
 +++ b/drivers/net/ena/ena_ethdev.h
 @@ -120,6 +120,7 @@ struct ena_driver_stats {

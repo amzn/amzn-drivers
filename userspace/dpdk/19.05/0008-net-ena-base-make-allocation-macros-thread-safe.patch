@@ -1,0 +1,80 @@
+From 409268b6742eca24aad5d962be98e7e6882f2dab Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Wed, 8 Apr 2020 10:28:53 +0200
+Subject: [PATCH 08/13] net/ena/base: make allocation macros thread-safe
+
+[ upstream commit b14fcac035fd8514851c9140a4e26d765b61c532 ]
+
+Memory allocation region id could possibly be non-unique
+due to non-atomic increment, causing allocation failure.
+
+Fixes: 9ba7981ec992 ("ena: add communication layer for DPDK")
+Cc: stable@dpdk.org
+
+Change-Id: Ib9207aaae4e5e7ecdf1a99a0f23a508a53af631d
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 10 ++++++----
+ drivers/net/ena/ena_ethdev.c         |  2 +-
+ 2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 902d91efbe..870764d239 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -1,7 +1,7 @@
+ /*-
+ * BSD LICENSE
+ *
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
++* Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+@@ -204,7 +204,7 @@ do {                                                                   \
+  * Each rte_memzone should have unique name.
+  * To satisfy it, count number of allocations and add it to name.
+  */
+-extern uint32_t ena_alloc_cnt;
++extern rte_atomic32_t ena_alloc_cnt;
+ 
+ #define ENA_MEM_ALLOC_COHERENT(dmadev, size, virt, phys, handle)	\
+ 	do {								\
+@@ -212,7 +212,8 @@ extern uint32_t ena_alloc_cnt;
+ 		char z_name[RTE_MEMZONE_NAMESIZE];			\
+ 		ENA_TOUCH(dmadev); ENA_TOUCH(handle);			\
+ 		snprintf(z_name, sizeof(z_name),			\
+-				"ena_alloc_%d", ena_alloc_cnt++);	\
++			 "ena_alloc_%d",				\
++			 rte_atomic32_add_return(&ena_alloc_cnt, 1));	\
+ 		mz = rte_memzone_reserve(z_name, size, SOCKET_ID_ANY,	\
+ 				RTE_MEMZONE_IOVA_CONTIG);		\
+ 		handle = mz;						\
+@@ -237,7 +238,8 @@ extern uint32_t ena_alloc_cnt;
+ 		char z_name[RTE_MEMZONE_NAMESIZE];			\
+ 		ENA_TOUCH(dmadev); ENA_TOUCH(dev_node);			\
+ 		snprintf(z_name, sizeof(z_name),			\
+-				"ena_alloc_%d", ena_alloc_cnt++);	\
++			 "ena_alloc_%d",				\
++			 rte_atomic32_add_return(&ena_alloc_cnt, 1));	\
+ 		mz = rte_memzone_reserve(z_name, size, node,		\
+ 				RTE_MEMZONE_IOVA_CONTIG);		\
+ 		mem_handle = mz;					\
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index a01c0a0d46..f9c45f60c2 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -117,7 +117,7 @@ struct ena_stats {
+  * Each rte_memzone should have unique name.
+  * To satisfy it, count number of allocation and add it to name.
+  */
+-uint32_t ena_alloc_cnt;
++rte_atomic32_t ena_alloc_cnt;
+ 
+ static const struct ena_stats ena_stats_global_strings[] = {
+ 	ENA_STAT_GLOBAL_ENTRY(wd_expired),
+-- 
+2.20.1
+

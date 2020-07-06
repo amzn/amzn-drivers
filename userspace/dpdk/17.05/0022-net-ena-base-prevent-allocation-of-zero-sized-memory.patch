@@ -1,0 +1,74 @@
+From c75d1cdc64f544125489008eb4883d3aac099de2 Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Wed, 8 Apr 2020 10:28:54 +0200
+Subject: [PATCH 22/24] net/ena/base: prevent allocation of zero sized memory
+
+[ upstream commit 29dc10d9424ccf26a346387b0a707185e2432400 ]
+
+rte_memzone_reserve() will reserve the biggest contiguous memzone
+available if received 0 as size param.
+
+Fixes: 9ba7981ec992 ("ena: add communication layer for DPDK")
+Cc: stable@dpdk.org
+
+Change-Id: I2f71119e93c5e9addd8c538820093f030066d690
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 27 ++++++++++++++++-----------
+ 1 file changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 791471adbd..f3820d5ebd 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -191,14 +191,17 @@ extern rte_atomic32_t ena_alloc_cnt;
+ 
+ #define ENA_MEM_ALLOC_COHERENT(dmadev, size, virt, phys, handle)	\
+ 	do {								\
+-		const struct rte_memzone *mz;				\
+-		char z_name[RTE_MEMZONE_NAMESIZE];			\
++		const struct rte_memzone *mz = NULL;			\
+ 		ENA_TOUCH(dmadev); ENA_TOUCH(handle);			\
+-		snprintf(z_name, sizeof(z_name),			\
++		if (size > 0) {						\
++			char z_name[RTE_MEMZONE_NAMESIZE];		\
++			snprintf(z_name, sizeof(z_name),		\
+ 			 "ena_alloc_%d",				\
+ 			 rte_atomic32_add_return(&ena_alloc_cnt, 1));	\
+-		mz = rte_memzone_reserve(z_name, size, SOCKET_ID_ANY, 0); \
+-		handle = mz;						\
++			mz = rte_memzone_reserve(z_name, size,		\
++				SOCKET_ID_ANY, 0);			\
++			handle = mz;					\
++		}							\
+ 		if (mz == NULL) {					\
+ 			virt = NULL;					\
+ 			phys = 0;					\
+@@ -216,14 +219,16 @@ extern rte_atomic32_t ena_alloc_cnt;
+ #define ENA_MEM_ALLOC_COHERENT_NODE(					\
+ 	dmadev, size, virt, phys, mem_handle, node, dev_node)		\
+ 	do {								\
+-		const struct rte_memzone *mz;				\
+-		char z_name[RTE_MEMZONE_NAMESIZE];			\
++		const struct rte_memzone *mz = NULL;			\
+ 		ENA_TOUCH(dmadev); ENA_TOUCH(dev_node);			\
+-		snprintf(z_name, sizeof(z_name),			\
++		if (size > 0) {						\
++			char z_name[RTE_MEMZONE_NAMESIZE];		\
++			snprintf(z_name, sizeof(z_name),		\
+ 			 "ena_alloc_%d",				\
+-			 rte_atomic32_add_return(&ena_alloc_cnt, 1));	\
+-		mz = rte_memzone_reserve(z_name, size, node, 0);	\
+-		mem_handle = mz;					\
++			 rte_atomic32_add_return(&ena_alloc_cnt, 1));   \
++			mz = rte_memzone_reserve(z_name, size, node, 0); \
++			mem_handle = mz;				\
++		}							\
+ 		if (mz == NULL) {					\
+ 			virt = NULL;					\
+ 			phys = 0;					\
+-- 
+2.20.1
+

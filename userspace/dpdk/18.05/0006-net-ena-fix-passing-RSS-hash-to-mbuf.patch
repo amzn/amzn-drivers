@@ -1,7 +1,7 @@
 From 952581ced26c55856be49a2e8220debd940966ab Mon Sep 17 00:00:00 2001
 From: Stewart Allen <allenste@amazon.com>
 Date: Thu, 25 Oct 2018 19:59:22 +0200
-Subject: [PATCH 06/15] net/ena: fix passing RSS hash to mbuf
+Subject: [PATCH 06/22] net/ena: fix passing RSS hash to mbuf
 
 [ upstream commit e5df9f33db00eb9d322abaefff30da74fd0e625d ]
 
@@ -19,7 +19,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index ebc911168..f0849a455 100644
+index ebc9111684..f0849a455d 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1599,7 +1599,7 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,

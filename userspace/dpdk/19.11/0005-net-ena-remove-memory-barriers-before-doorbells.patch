@@ -1,0 +1,56 @@
+From 21dade5232def5dbbf95e35e19139283dcf02462 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:29:11 +0200
+Subject: [PATCH 5/7] net/ena: remove memory barriers before doorbells
+
+[ upstream commit 38faa87eb8873e04ccef8fcaea4aaf3ad125fc83 ]
+
+The doorbell code is already issuing the doorbell by using rte_write.
+Because of that, there is no need to do that before calling the
+function.
+
+Change-Id: Ia9c348e485987bc618bc7e89bf7fa057cc240617
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index fde5e6178a..b83766772d 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1426,12 +1426,7 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 
+ 	/* When we submitted free recources to device... */
+ 	if (likely(i > 0)) {
+-		/* ...let HW know that it can fill buffers with data
+-		 *
+-		 * Add memory barrier to make sure the desc were written before
+-		 * issue a doorbell
+-		 */
+-		rte_wmb();
++		/* ...let HW know that it can fill buffers with data. */
+ 		ena_com_write_sq_doorbell(rxq->ena_com_io_sq);
+ 
+ 		rxq->next_to_use = next_to_use;
+@@ -2348,7 +2343,6 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 			PMD_DRV_LOG(DEBUG, "llq tx max burst size of queue %d"
+ 				" achieved, writing doorbell to send burst\n",
+ 				tx_ring->id);
+-			rte_wmb();
+ 			ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+ 		}
+ 
+@@ -2371,7 +2365,6 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 	/* If there are ready packets to be xmitted... */
+ 	if (sent_idx > 0) {
+ 		/* ...let HW do its best :-) */
+-		rte_wmb();
+ 		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+ 		tx_ring->tx_stats.doorbells++;
+ 		tx_ring->next_to_use = next_to_use;
+-- 
+2.20.1
+

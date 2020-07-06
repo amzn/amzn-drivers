@@ -1,0 +1,37 @@
+From 2742134ffc05e3a935305438b7541ca6c53de4bc Mon Sep 17 00:00:00 2001
+From: David Harton <dharton@cisco.com>
+Date: Fri, 12 Jul 2019 13:35:43 -0400
+Subject: [PATCH 04/13] net/ena: fix admin CQ polling for 32-bit
+
+[ upstream commit 8190a843ef9bce3696b74ad2b057b5d86cc7b0df ]
+
+Recent modifications to admin command queue polling logic
+did not support 32-bit applications.  Updated the driver to
+work for 32 or 64 bit applications
+
+Fixes: 3adcba9a8987 ("net/ena: update HAL to the newer version")
+Cc: stable@dpdk.org
+
+Change-Id: I254d8d36af4208c713fbffcfbd0d241a88a972ce
+Signed-off-by: David Harton <dharton@cisco.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_com.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index b688067f77..e9b9be28dc 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -547,7 +547,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
+ 						     struct ena_com_admin_queue *admin_queue)
+ {
+ 	unsigned long flags = 0;
+-	unsigned long timeout;
++	uint64_t timeout;
+ 	int ret;
+ 
+ 	timeout = ENA_GET_SYSTEM_TIMEOUT(admin_queue->completion_timeout);
+-- 
+2.20.1
+

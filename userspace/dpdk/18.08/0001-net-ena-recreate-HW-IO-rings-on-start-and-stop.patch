@@ -1,7 +1,7 @@
 From 126e0497aa41ff7b6fb6f2569626e6fed44bfe78 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Thu, 25 Oct 2018 19:59:21 +0200
-Subject: [PATCH 01/19] net/ena: recreate HW IO rings on start and stop
+Subject: [PATCH 01/27] net/ena: recreate HW IO rings on start and stop
 
 [ upstream commit df238f84c0a21d642bb9517d0c75ba831eeceb46 ]
 
@@ -25,7 +25,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 91 insertions(+), 105 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index c255dc6db..de5d2edc2 100644
+index c255dc6dbd..de5d2edc21 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -239,6 +239,8 @@ static void ena_rx_queue_release_bufs(struct ena_ring *ring);

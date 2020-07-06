@@ -1,0 +1,49 @@
+From 32894228b9d1c87c181b29815d183eb78ad1a235 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 3 Jul 2020 13:14:58 +0000
+Subject: [PATCH 21/22] net/ena: set IO ring size to valid value
+
+[ upstream commit badc3a6aa133a886a61b9e3ad666e5675f7ec3d3 ]
+
+IO rings were configured with the maximum allowed size for the Tx/Rx
+rings. However, the application could decide to create smaller rings.
+
+This patch is using value stored in the ring instead of the value from
+the adapter which is indicating the maximum allowed value.
+
+Fixes: df238f84c0a2 ("net/ena: recreate HW IO rings on start and stop")
+Cc: stable@dpdk.org
+
+Change-Id: Icf9102e2aa4e7413b6620b36dd232673239b7291
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 5598cbb4c6..c94417e0b1 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1000,7 +1000,7 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 	ctx.qid = ena_qid;
+ 	ctx.msix_vector = -1; /* admin interrupts not used */
+ 	ctx.mem_queue_type = ena_dev->tx_mem_queue_type;
+-	ctx.queue_size = adapter->tx_ring_size;
++	ctx.queue_size = nb_desc;
+ 	ctx.numa_node = socket_id;
+ 
+ 	rc = ena_com_create_io_queue(ena_dev, &ctx);
+@@ -1114,7 +1114,7 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 	ctx.direction = ENA_COM_IO_QUEUE_DIRECTION_RX;
+ 	ctx.mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+ 	ctx.msix_vector = -1; /* admin interrupts not used */
+-	ctx.queue_size = adapter->rx_ring_size;
++	ctx.queue_size = nb_desc;
+ 	ctx.numa_node = socket_id;
+ 
+ 	rc = ena_com_create_io_queue(ena_dev, &ctx);
+-- 
+2.20.1
+

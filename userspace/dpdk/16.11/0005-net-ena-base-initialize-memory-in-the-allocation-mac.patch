@@ -1,7 +1,7 @@
 From 752d24a3c56d0c7bffcba40249912b8fe112af4b Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 16 Jun 2017 09:10:48 +0000
-Subject: [PATCH 05/19] net/ena/base: initialize memory in the allocation
+Subject: [PATCH 05/26] net/ena/base: initialize memory in the allocation
  macros
 
 [ upstream commit 2861ea8df0173f047efe2636ef3b9643d4d989bc ]
@@ -20,7 +20,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 2 insertions(+)
 
 diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
-index 87c3bf13b..a812d75e2 100644
+index 87c3bf13b4..a812d75e2c 100644
 --- a/drivers/net/ena/base/ena_plat_dpdk.h
 +++ b/drivers/net/ena/base/ena_plat_dpdk.h
 @@ -206,6 +206,7 @@ typedef uint64_t dma_addr_t;

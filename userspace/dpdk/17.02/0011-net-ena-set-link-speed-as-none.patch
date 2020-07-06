@@ -1,7 +1,7 @@
 From 80d00b05a0978bc71fb656ae421e7e5443310e2e Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:22 +0200
-Subject: [PATCH 11/21] net/ena: set link speed as none
+Subject: [PATCH 11/28] net/ena: set link speed as none
 
 [ upstream commit 41e59028dd8ab2038a7655c6fc3098222661aa53 ]
 
@@ -21,7 +21,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index b7812c62b..13eeb6b7b 100644
+index b7812c62b8..13eeb6b7bd 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -708,7 +708,7 @@ static int ena_link_update(struct rte_eth_dev *dev,

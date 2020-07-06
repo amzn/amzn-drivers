@@ -1,7 +1,7 @@
 From 9e3a21bf95fcbf00d3b7e070440bf00f0af85e70 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Tue, 28 May 2019 10:28:34 +0200
-Subject: [PATCH 13/15] net/ena: fix Rx checksum errors statistics
+Subject: [PATCH 13/22] net/ena: fix Rx checksum errors statistics
 
 [ upstream commit ef74b5f7b69b9502ddab81121611243efcfe1dde ]
 
@@ -21,7 +21,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 4b4a2dacb..c96558b48 100644
+index 4b4a2dacb4..c96558b485 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1651,6 +1651,11 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,

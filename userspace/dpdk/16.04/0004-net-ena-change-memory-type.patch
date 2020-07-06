@@ -1,7 +1,7 @@
 From db52b57f5e85c103a254cf1f055dbd641a316881 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:19 +0200
-Subject: [PATCH 04/14] net/ena: change memory type
+Subject: [PATCH 04/21] net/ena: change memory type
 
 [ upstream commit 9f32c7e7e6ce58ab772913f54f8328c1c0186a17 ]
 
@@ -22,7 +22,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 1 insertion(+), 7 deletions(-)
 
 diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
-index cc69b3372..ff873e807 100644
+index cc69b33726..ff873e807d 100644
 --- a/drivers/net/ena/base/ena_plat_dpdk.h
 +++ b/drivers/net/ena/base/ena_plat_dpdk.h
 @@ -223,14 +223,8 @@ typedef uint64_t dma_addr_t;

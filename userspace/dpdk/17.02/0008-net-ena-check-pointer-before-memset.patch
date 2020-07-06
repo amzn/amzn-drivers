@@ -1,7 +1,7 @@
 From 268c0b4c464a91261fdd006d2865e514bf0471b3 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:18 +0200
-Subject: [PATCH 08/21] net/ena: check pointer before memset
+Subject: [PATCH 08/28] net/ena: check pointer before memset
 
 [ upstream commit 46916aa17d4b2007df8c0454f99ba0ca8b8cb93b ]
 
@@ -19,7 +19,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 16 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
-index 71a8c1e22..955d6302d 100644
+index 71a8c1e220..955d6302dc 100644
 --- a/drivers/net/ena/base/ena_plat_dpdk.h
 +++ b/drivers/net/ena/base/ena_plat_dpdk.h
 @@ -189,10 +189,15 @@ typedef uint64_t dma_addr_t;

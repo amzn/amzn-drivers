@@ -1,7 +1,7 @@
 From 74655045af1cdaf8f974a9eb1f923c884ba6ed95 Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 15 Feb 2019 09:36:39 +0100
-Subject: [PATCH 12/15] net/ena: get device info statically
+Subject: [PATCH 12/22] net/ena: get device info statically
 
 [ upstream commit 117ba4a60488a0f96a5737f38ddba6d0f9a728b6 ]
 
@@ -22,7 +22,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  2 files changed, 19 insertions(+), 20 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 7480182ca..a3ccc1c40 100644
+index 7480182cae..a3ccc1c40e 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1361,9 +1361,14 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
@@ -93,7 +93,7 @@ index 7480182ca..a3ccc1c40 100644
  		}
  
 diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
-index dc3080ffd..4791c53b5 100644
+index dc3080ffd3..4791c53b5a 100644
 --- a/drivers/net/ena/ena_ethdev.h
 +++ b/drivers/net/ena/ena_ethdev.h
 @@ -143,6 +143,12 @@ struct ena_stats_rx {

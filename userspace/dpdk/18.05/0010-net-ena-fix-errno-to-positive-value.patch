@@ -1,7 +1,7 @@
 From 3a207a2ce92ded436d0f25fb26b3b529f22dafdb Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 25 Jan 2019 09:10:26 +0100
-Subject: [PATCH 10/15] net/ena: fix errno to positive value
+Subject: [PATCH 10/22] net/ena: fix errno to positive value
 
 [ upstream commit baeed5f404dd1b049118cfec26a2fd3203671572 ]
 
@@ -18,7 +18,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 6bbfd62c0..d09633912 100644
+index 6bbfd62c0d..d096339121 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1664,14 +1664,14 @@ eth_ena_prep_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,

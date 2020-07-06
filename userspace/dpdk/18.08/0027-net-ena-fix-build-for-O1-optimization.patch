@@ -1,0 +1,47 @@
+From 198c105b25519ca4eb65b8c6c0c54cdb8e4c238a Mon Sep 17 00:00:00 2001
+From: Ferruh Yigit <ferruh.yigit@intel.com>
+Date: Mon, 11 May 2020 17:07:24 +0100
+Subject: [PATCH 27/27] net/ena: fix build for O1 optimization
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+[ upstream commit 5f267cb01b41def2af37b8fa56828e75ae91add0 ]
+
+Can be reproduced with "make EXTRA_CFLAGS='-O1'" command using
+gcc (GCC) 9.3.1 20200408 (Red Hat 9.3.1-2)
+
+Build error:
+.../drivers/net/ena/ena_ethdev.c: In function ‘eth_ena_dev_init’:
+.../drivers/net/ena/ena_ethdev.c:1815:20:
+    error: ‘wd_state’ may be used uninitialized in this function
+           [-Werror=maybe-uninitialized]
+ 1815 |  adapter->wd_state = wd_state;
+      |  ~~~~~~~~~~~~~~~~~~^~~~~~~~~~
+
+This looks like false positive, fixing by assigning initial value to
+'wd_state' variable.
+
+Change-Id: I68bd21d4e2a4b41466e670e282856d4f072dadc0
+Signed-off-by: Ferruh Yigit <ferruh.yigit@intel.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 31a768eceb..aa20c7f8c1 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1519,7 +1519,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	u16 tx_sgl_size = 0;
+ 
+ 	static int adapters_found;
+-	bool wd_state;
++	bool wd_state = false;
+ 
+ 	eth_dev->dev_ops = &ena_dev_ops;
+ 	eth_dev->rx_pkt_burst = &eth_ena_recv_pkts;
+-- 
+2.20.1
+

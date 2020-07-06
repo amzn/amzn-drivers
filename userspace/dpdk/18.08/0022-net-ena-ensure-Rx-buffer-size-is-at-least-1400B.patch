@@ -1,0 +1,84 @@
+From 08aaa39c149818d55bb2f31419c355d7310ebe41 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:28:52 +0200
+Subject: [PATCH 22/27] net/ena: ensure Rx buffer size is at least 1400B
+
+[ upstream commit 38364c2687ead97b99402310087c27131a97748c ]
+
+Some of the ENA devices can't handle buffers which are smaller than a
+1400B. Because of this limitation, size of the buffer is being checked
+and limited during the Rx queue setup.
+
+If it's below the allowed value, PMD won't finish it's configuration
+successfully..
+
+Change-Id: Ib402d3bfad98a3fc4f91095d5c6f90c6069da021
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 12 +++++++++++-
+ drivers/net/ena/ena_ethdev.h |  3 ++-
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index dd60b7582d..288e53265a 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1,7 +1,7 @@
+ /*-
+ * BSD LICENSE
+ *
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
++* Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+@@ -1200,6 +1200,7 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 	struct ena_adapter *adapter =
+ 		(struct ena_adapter *)(dev->data->dev_private);
+ 	struct ena_ring *rxq = NULL;
++	size_t buffer_size;
+ 	int i;
+ 
+ 	rxq = &adapter->rx_ring[queue_idx];
+@@ -1224,6 +1225,15 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 		return -EINVAL;
+ 	}
+ 
++	/* ENA isn't supporting buffers smaller than 1400 bytes */
++	buffer_size = rte_pktmbuf_data_room_size(mp) - RTE_PKTMBUF_HEADROOM;
++	if (buffer_size < ENA_RX_BUF_MIN_SIZE) {
++		PMD_DRV_LOG(ERR,
++			"Unsupported size of RX buffer: %zu (min size: %d)\n",
++			buffer_size, ENA_RX_BUF_MIN_SIZE);
++		return -EINVAL;
++	}
++
+ 	rxq->port_id = dev->data->port_id;
+ 	rxq->next_to_clean = 0;
+ 	rxq->next_to_use = 0;
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 2ce0eb79ec..9d887d4b5b 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -1,7 +1,7 @@
+ /*-
+ * BSD LICENSE
+ *
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
++* Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+@@ -49,6 +49,7 @@
+ #define ENA_MIN_FRAME_LEN	64
+ #define ENA_NAME_MAX_LEN	20
+ #define ENA_PKT_MAX_BUFS	17
++#define ENA_RX_BUF_MIN_SIZE	1400
+ 
+ #define ENA_MIN_MTU		128
+ 
+-- 
+2.20.1
+

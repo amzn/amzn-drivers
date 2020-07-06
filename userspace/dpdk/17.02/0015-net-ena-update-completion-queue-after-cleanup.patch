@@ -1,7 +1,7 @@
 From 70b364b1f505d3328719e72db955569b39c5049b Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:44 +0100
-Subject: [PATCH 15/21] net/ena: update completion queue after cleanup
+Subject: [PATCH 15/28] net/ena: update completion queue after cleanup
 
 [ upstream commit a45462c507e98b49cb5c2302e0be3c72d2e20a1a ]
 
@@ -19,7 +19,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 7c9ec59f8..932f711c2 100644
+index 7c9ec59f8e..932f711c26 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1585,8 +1585,10 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,

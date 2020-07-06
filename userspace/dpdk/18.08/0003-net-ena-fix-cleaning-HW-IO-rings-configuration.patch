@@ -1,7 +1,7 @@
 From 79f7b061bfc354f660d4db0173bec4d47e6c43dd Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Wed, 14 Nov 2018 10:59:45 +0100
-Subject: [PATCH 03/19] net/ena: fix cleaning HW IO rings configuration
+Subject: [PATCH 03/27] net/ena: fix cleaning HW IO rings configuration
 
 [ upstream commit 778677dcb20cf29d966f239972b043f0640f55ef ]
 
@@ -19,7 +19,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 7 insertions(+)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index acb1a08e0..9e462099f 100644
+index acb1a08e05..9e462099f3 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1080,6 +1080,7 @@ static int ena_create_io_queue(struct ena_ring *ring)

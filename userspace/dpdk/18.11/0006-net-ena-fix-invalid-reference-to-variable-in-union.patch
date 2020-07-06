@@ -1,7 +1,7 @@
 From 143b491d07c872ad1b0517013efe42ea399610c7 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Fri, 14 Dec 2018 14:18:39 +0100
-Subject: [PATCH 06/16] net/ena: fix invalid reference to variable in union
+Subject: [PATCH 06/24] net/ena: fix invalid reference to variable in union
 
 [ upstream commit eccbe2ffdc755a9e759c6ba480f6c15ccb1163c7 ]
 
@@ -20,7 +20,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 73cebe843..bd3d256da 100644
+index 73cebe8434..bd3d256daf 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -1321,7 +1321,7 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,

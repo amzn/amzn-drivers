@@ -1,7 +1,7 @@
 From c5b08a137d41947130192010b99829b84cfdf43c Mon Sep 17 00:00:00 2001
 From: Michal Krawczyk <mk@semihalf.com>
 Date: Fri, 16 Jun 2017 08:19:16 +0000
-Subject: [PATCH 05/21] net/ena: fix cleanup of the Tx bufs
+Subject: [PATCH 05/28] net/ena: fix cleanup of the Tx bufs
 
 [ upstream commit 207a514ce516f8ab3c1ad2b0f930f045b90b773c ]
 
@@ -22,7 +22,7 @@ Signed-off-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 3ba990142..7fca0278d 100644
+index 3ba990142e..7fca0278d8 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -688,11 +688,10 @@ static void ena_rx_queue_release_bufs(struct ena_ring *ring)

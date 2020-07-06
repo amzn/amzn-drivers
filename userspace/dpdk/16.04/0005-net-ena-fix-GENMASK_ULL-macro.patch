@@ -1,7 +1,7 @@
 From 0bdbbc2dd91c97c89fa5ca57e37013a4f204693c Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Thu, 7 Jun 2018 11:43:20 +0200
-Subject: [PATCH 05/14] net/ena: fix GENMASK_ULL macro
+Subject: [PATCH 05/21] net/ena: fix GENMASK_ULL macro
 
 [ upstream commit 7544aee8d0b4ae0262b1ba7e1539cf8171664df7 ]
 
@@ -20,7 +20,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
-index ff873e807..791b44ff7 100644
+index ff873e807d..791b44ff72 100644
 --- a/drivers/net/ena/base/ena_plat_dpdk.h
 +++ b/drivers/net/ena/base/ena_plat_dpdk.h
 @@ -115,11 +115,13 @@ typedef uint64_t dma_addr_t;

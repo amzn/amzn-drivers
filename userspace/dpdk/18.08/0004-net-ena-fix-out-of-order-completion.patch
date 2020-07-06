@@ -1,7 +1,7 @@
 From 53253faf9e1064d1571eed8d95d3be1cc47cbff9 Mon Sep 17 00:00:00 2001
 From: Rafal Kozik <rk@semihalf.com>
 Date: Wed, 21 Nov 2018 09:21:14 +0100
-Subject: [PATCH 04/19] net/ena: fix out of order completion
+Subject: [PATCH 04/27] net/ena: fix out of order completion
 
 [ upstream commit 79405ee175857cfdbb508f9d55e2a51d95483be6 ]
 
@@ -25,7 +25,7 @@ Acked-by: Michal Krawczyk <mk@semihalf.com>
  2 files changed, 29 insertions(+), 12 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 9e462099f..87c95b2e7 100644
+index 9e462099f3..87c95b2e7f 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
 @@ -760,6 +760,10 @@ static void ena_rx_queue_release(void *queue)
@@ -134,7 +134,7 @@ index 9e462099f..87c95b2e7 100644
  	/* When we submitted free recources to device... */
  	if (likely(i > 0)) {
 diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
-index 2dc8129e0..322e90ace 100644
+index 2dc8129e0e..322e90ace8 100644
 --- a/drivers/net/ena/ena_ethdev.h
 +++ b/drivers/net/ena/ena_ethdev.h
 @@ -87,6 +87,7 @@ struct ena_ring {
