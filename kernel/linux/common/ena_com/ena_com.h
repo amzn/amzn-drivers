@@ -1,33 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2015 Amazon.com, Inc. or its affiliates.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef ENA_COM
@@ -235,11 +208,11 @@ struct ena_com_admin_sq {
 };
 
 struct ena_com_stats_admin {
-	u32 aborted_cmd;
-	u32 submitted_cmd;
-	u32 completed_cmd;
-	u32 out_of_space;
-	u32 no_completion;
+	u64 aborted_cmd;
+	u64 submitted_cmd;
+	u64 completed_cmd;
+	u64 out_of_space;
+	u64 no_completion;
 };
 
 struct ena_com_admin_queue {
@@ -553,7 +526,7 @@ void ena_com_admin_q_comp_intr_handler(struct ena_com_dev *ena_dev);
  * This method goes over the async event notification queue and calls the proper
  * aenq handler.
  */
-void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data);
+void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data);
 
 /* ena_com_abort_admin_commands - Abort all the outstanding admin commands.
  * @ena_dev: ENA communication layer struct
@@ -723,7 +696,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev);
  *
  * Retrieve the hash function from the device.
  *
- * @note: If the caller called ena_com_fill_hash_function but didn't flash
+ * @note: If the caller called ena_com_fill_hash_function but didn't flush
  * it to the device, the new configuration will be lost.
  *
  * @return: 0 on Success and negative value otherwise.
@@ -737,7 +710,7 @@ int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
  *
  * Retrieve the hash key.
  *
- * @note: If the caller called ena_com_fill_hash_key but didn't flash
+ * @note: If the caller called ena_com_fill_hash_key but didn't flush
  * it to the device, the new configuration will be lost.
  *
  * @return: 0 on Success and negative value otherwise.
@@ -777,7 +750,7 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev);
  *
  * Retrieve the hash control from the device.
  *
- * @note: If the caller called ena_com_fill_hash_ctrl but didn't flash
+ * @note: If the caller called ena_com_fill_hash_ctrl but didn't flush
  * it to the device, the new configuration will be lost.
  *
  * @return: 0 on Success and negative value otherwise.
@@ -974,6 +947,27 @@ unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *
 int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 			    struct ena_admin_feature_llq_desc *llq_features,
 			    struct ena_llq_configurations *llq_default_config);
+
+
+/* ena_com_io_sq_to_ena_dev - Extract ena_com_dev using contained field io_sq.
+ * @io_sq: IO submit queue struct
+ *
+ * @return - ena_com_dev struct extracted from io_sq
+ */
+static inline struct ena_com_dev *ena_com_io_sq_to_ena_dev(struct ena_com_io_sq *io_sq)
+{
+	return container_of(io_sq, struct ena_com_dev, io_sq_queues[io_sq->qid]);
+}
+
+/* ena_com_io_cq_to_ena_dev - Extract ena_com_dev using contained field io_cq.
+ * @io_sq: IO submit queue struct
+ *
+ * @return - ena_com_dev struct extracted from io_sq
+ */
+static inline struct ena_com_dev *ena_com_io_cq_to_ena_dev(struct ena_com_io_cq *io_cq)
+{
+	return container_of(io_cq, struct ena_com_dev, io_cq_queues[io_cq->qid]);
+}
 
 static inline bool ena_com_get_adaptive_moderation_enabled(struct ena_com_dev *ena_dev)
 {

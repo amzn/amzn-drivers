@@ -76,6 +76,9 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #include <linux/sizes.h>
 #endif
 
+/* For ACCESS_ONCE, WRITE_ONCE and READ_ONCE macros */
+#include<linux/compiler.h>
+
 #ifndef SZ_256
 #define SZ_256 0x0000100
 #endif
@@ -696,6 +699,10 @@ do {									\
 
 #if defined(CONFIG_BPF) && LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
 #define ENA_XDP_SUPPORT
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0)
+#define XDP_HAS_FRAME_SZ
+#define XDP_CONVERT_TO_FRAME_NAME_CHANGED
+#endif
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
@@ -733,6 +740,13 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
 	net_get_random_once(netdev_rss_key, sizeof(netdev_rss_key));
 	memcpy(buffer, netdev_rss_key, len);
 }
+#endif
+
+#ifndef WRITE_ONCE
+#define WRITE_ONCE(x, val) (ACCESS_ONCE(x) = val)
+#endif
+#ifndef READ_ONCE
+#define READ_ONCE(x) ACCESS_ONCE(x)
 #endif
 
 #endif /* _KCOMPAT_H_ */

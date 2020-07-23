@@ -134,13 +134,6 @@ To disable this feature add net.ifnames=0 to the kernel boot params.
 Edit /etc/default/grub and add net.ifnames=0 to GRUB_CMDLINE_LINUX.
 On Ubuntu run 'update-grub' as well
 
-Supported PCI vendor ID/device IDs:
-===================================
-1d0f:0ec2 - ENA PF
-1d0f:1ec2 - ENA PF with LLQ support
-1d0f:ec20 - ENA VF
-1d0f:ec21 - ENA VF with LLQ support
-
 ENA Source Code Directory Structure:
 ====================================
 ena_com.[ch]      - Management communication layer. This layer is
@@ -153,7 +146,7 @@ ena_eth_io_defs.h - Definition of ENA data path interface.
 ena_common_defs.h - Common definitions for ena_com layer.
 ena_regs_defs.h   - Definition of ENA PCI memory-mapped (MMIO) registers.
 ena_netdev.[ch]   - Main Linux kernel driver.
-ena_syfsfs.[ch]   - Sysfs files.
+ena_sysfs.[ch]    - Sysfs files.
 ena_ethtool.c     - ethtool callbacks.
 ena_pci_id_tbl.h  - Supported device IDs.
 
@@ -320,7 +313,7 @@ RSS:
   inputs for hash functions.
 - The driver configures RSS settings using the AQ SetFeature command
   (ENA_ADMIN_RSS_HASH_FUNCTION, ENA_ADMIN_RSS_HASH_INPUT and
-  ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG properties).
+  ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG properties).
 - If the NETIF_F_RXHASH flag is set, the 32-bit result of the hash
   function delivered in the Rx CQ descriptor is set in the received
   SKB.

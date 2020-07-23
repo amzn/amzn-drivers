@@ -1,39 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2015 - 2018 Amazon.com, Inc. or its affiliates.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 #ifndef _ENA_ADMIN_H_
 #define _ENA_ADMIN_H_
 
 #define ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN 32
 #define ENA_ADMIN_EXTRA_PROPERTIES_COUNT     32
+
+#define ENA_ADMIN_RSS_KEY_PARTS              10
 
 enum ena_admin_aq_opcode {
 	ENA_ADMIN_CREATE_SQ                         = 1,
@@ -57,6 +32,7 @@ enum ena_admin_aq_completion_status {
 	ENA_ADMIN_RESOURCE_BUSY                     = 7,
 };
 
+/* subcommands for the set/get feature admin commands */
 enum ena_admin_aq_feature_id {
 	ENA_ADMIN_DEVICE_ATTRIBUTES                 = 1,
 	ENA_ADMIN_MAX_QUEUES_NUM                    = 2,
@@ -67,7 +43,7 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_MAX_QUEUES_EXT                    = 7,
 	ENA_ADMIN_RSS_HASH_FUNCTION                 = 10,
 	ENA_ADMIN_STATELESS_OFFLOAD_CONFIG          = 11,
-	ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG      = 12,
+	ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG      = 12,
 	ENA_ADMIN_MTU                               = 14,
 	ENA_ADMIN_RSS_HASH_INPUT                    = 18,
 	ENA_ADMIN_INTERRUPT_MODERATION              = 20,
@@ -199,7 +175,7 @@ struct ena_admin_acq_common_desc {
 	u16 extended_status;
 
 	/* indicates to the driver which AQ entry has been consumed by the
-	 *    device and could be reused
+	 * device and could be reused
 	 */
 	u16 sq_head_indx;
 };
@@ -244,8 +220,8 @@ struct ena_admin_aq_create_sq_cmd {
 	 */
 	u8 sq_caps_3;
 
-	/* associated completion queue id. This CQ must be created prior to
-	 *    SQ creation
+	/* associated completion queue id. This CQ must be created prior to SQ
+	 * creation
 	 */
 	u16 cq_idx;
 
@@ -384,7 +360,7 @@ struct ena_admin_aq_get_stats_cmd {
 	u16 queue_idx;
 
 	/* device id, value 0xFFFF means mine. only privileged device can get
-	 *    stats of other device
+	 * stats of other device
 	 */
 	u16 device_id;
 };
@@ -466,8 +442,8 @@ struct ena_admin_get_set_feature_common_desc {
 	u8 feature_id;
 
 	/* The driver specifies the max feature version it supports and the
-	 *    device responds with the currently supported feature version. The
-	 *    field is zero based
+	 * device responds with the currently supported feature version. The
+	 * field is zero based
 	 */
 	u8 feature_version;
 
@@ -479,7 +455,9 @@ struct ena_admin_device_attr_feature_desc {
 
 	u32 device_version;
 
-	/* bitmap of ena_admin_aq_feature_id */
+	/* bitmap of ena_admin_aq_feature_id, which represents supported
+	 * subcommands for the set/get feature admin commands.
+	 */
 	u32 supported_features;
 
 	u32 reserved3;
@@ -565,32 +543,30 @@ struct ena_admin_feature_llq_desc {
 
 	u32 max_llq_depth;
 
-	/*  specify the header locations the device supports. bitfield of
-	 *    enum ena_admin_llq_header_location.
+	/*  specify the header locations the device supports. bitfield of enum
+	 * ena_admin_llq_header_location.
 	 */
 	u16 header_location_ctrl_supported;
 
 	/* the header location the driver selected to use. */
 	u16 header_location_ctrl_enabled;
 
-	/* if inline header is specified - this is the size of descriptor
-	 *    list entry. If header in a separate ring is specified - this is
-	 *    the size of header ring entry. bitfield of enum
-	 *    ena_admin_llq_ring_entry_size. specify the entry sizes the device
-	 *    supports
+	/* if inline header is specified - this is the size of descriptor list
+	 * entry. If header in a separate ring is specified - this is the size
+	 * of header ring entry. bitfield of enum ena_admin_llq_ring_entry_size.
+	 * specify the entry sizes the device supports
 	 */
 	u16 entry_size_ctrl_supported;
 
 	/* the entry size the driver selected to use. */
 	u16 entry_size_ctrl_enabled;
 
-	/* valid only if inline header is specified. First entry associated
-	 *    with the packet includes descriptors and header. Rest of the
-	 *    entries occupied by descriptors. This parameter defines the max
-	 *    number of descriptors precedding the header in the first entry.
-	 *    The field is bitfield of enum
-	 *    ena_admin_llq_num_descs_before_header and specify the values the
-	 *    device supports
+	/* valid only if inline header is specified. First entry associated with
+	 * the packet includes descriptors and header. Rest of the entries
+	 * occupied by descriptors. This parameter defines the max number of
+	 * descriptors precedding the header in the first entry. The field is
+	 * bitfield of enum ena_admin_llq_num_descs_before_header and specify
+	 * the values the device supports
 	 */
 	u16 desc_num_before_header_supported;
 
@@ -598,7 +574,7 @@ struct ena_admin_feature_llq_desc {
 	u16 desc_num_before_header_enabled;
 
 	/* valid only if inline was chosen. bitfield of enum
-	 *    ena_admin_llq_stride_ctrl
+	 * ena_admin_llq_stride_ctrl
 	 */
 	u16 descriptors_stride_ctrl_supported;
 
@@ -608,8 +584,8 @@ struct ena_admin_feature_llq_desc {
 	/* reserved */
 	u32 reserved1;
 
-	/* accelerated low latency queues requirment. driver needs to
-	 * support those requirments in order to use accelerated llq
+	/* accelerated low latency queues requirement. driver needs to
+	 * support those requirements in order to use accelerated llq
 	 */
 	struct ena_admin_accel_mode_req accel_mode;
 };
@@ -633,8 +609,8 @@ struct ena_admin_queue_ext_feature_fields {
 
 	u32 max_tx_header_size;
 
-	/* Maximum Descriptors number, including meta descriptor, allowed for
-	 *    a single Tx packet
+	/* Maximum Descriptors number, including meta descriptor, allowed for a
+	 * single Tx packet
 	 */
 	u16 max_per_packet_tx_descs;
 
@@ -657,8 +633,8 @@ struct ena_admin_queue_feature_desc {
 
 	u32 max_header_size;
 
-	/* Maximum Descriptors number, including meta descriptor, allowed for
-	 *    a single Tx packet
+	/* Maximum Descriptors number, including meta descriptor, allowed for a
+	 * single Tx packet
 	 */
 	u16 max_packet_tx_descs;
 
@@ -754,11 +730,11 @@ enum ena_admin_hash_functions {
 };
 
 struct ena_admin_feature_rss_flow_hash_control {
-	u32 keys_num;
+	u32 key_parts;
 
 	u32 reserved;
 
-	u32 key[10];
+	u32 key[ENA_ADMIN_RSS_KEY_PARTS];
 };
 
 struct ena_admin_feature_rss_flow_hash_function {
@@ -896,8 +872,9 @@ struct ena_admin_host_info {
 	/* 0 : mutable_rss_table_size
 	 * 1 : rx_offset
 	 * 2 : interrupt_moderation
-	 * 3 : map_rx_buf_bidirectional
-	 * 31:4 : reserved
+	 * 3 : rx_buf_mirroring
+	 * 4 : rss_configurable_function_key
+	 * 31:5 : reserved
 	 */
 	u32 driver_supported_features;
 };
@@ -1062,7 +1039,7 @@ struct ena_admin_set_feat_resp {
 struct ena_admin_aenq_common_desc {
 	u16 group;
 
-	u16 syndrom;
+	u16 syndrome;
 
 	/* 0 : phase
 	 * 7:1 : reserved - MBZ
@@ -1086,7 +1063,7 @@ enum ena_admin_aenq_group {
 	ENA_ADMIN_AENQ_GROUPS_NUM                   = 5,
 };
 
-enum ena_admin_aenq_notification_syndrom {
+enum ena_admin_aenq_notification_syndrome {
 	ENA_ADMIN_SUSPEND                           = 0,
 	ENA_ADMIN_RESUME                            = 1,
 	ENA_ADMIN_UPDATE_HINTS                      = 2,
@@ -1220,8 +1197,10 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK                  BIT(1)
 #define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_SHIFT      2
 #define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK       BIT(2)
-#define ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_SHIFT  3
-#define ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_MASK   BIT(3)
+#define ENA_ADMIN_HOST_INFO_RX_BUF_MIRRORING_SHIFT          3
+#define ENA_ADMIN_HOST_INFO_RX_BUF_MIRRORING_MASK           BIT(3)
+#define ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_SHIFT 4
+#define ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK BIT(4)
 
 /* feature_rss_ind_table */
 #define ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK BIT(0)

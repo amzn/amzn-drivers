@@ -39,6 +39,33 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.2.11 release notes
+**New Features**
+* Add stats printing to XDP queues
+* Add queue counters for xdp actions (number of XDP_PASS/XDP_TX etc.)
+* Add support for kernel v5.8
+* Add interrupts unmask statistics to xdp queues
+* Allow configuring RSS function and key
+
+** Bug Fixes **
+* Drop incorrect and irrelevant llq - device id mappings.
+* Avoid remapping the llq mem bar every reset
+* Prevent reset after device destruction
+* Make DMA un-mapping BIDIRECTIONAL to RX pages to match
+  their mapping. This is needed for Traffic Mirroring feature.
+
+**Minor Changes**
+* Change license string to SPDX format
+* Fix some spelling mistakes
+* Change variables and macros names to something more informative
+* Add masking and null checking in code that requires it
+* Align all log message from driver to have the driver's name at the
+  beginning
+* Remove code duplications
+* Removed unnecessary LLQ acceleration mode negotiation
+* Switch to using regular bool values instead atomics for unmask_interrupt
+  (whose name was changed to masked_interrupts).
+
 ## r2.2.10 release notes
 **New Features**
 * Add new device statistics to ethtool command
