@@ -24,6 +24,15 @@ The driver was tested on the following distributions:
 **SuSE:**
 * SuSE 15.1
 
+## r1.9.0 release notes
+* Adapt to upstream kernel
+* Refactor locking scheme in GDR flows
+* Report create CQ error counter
+* Report mmap error counter
+* Report admin commands error counter
+* Add a sysfs indication to GDR drivers
+* Add 0xefa1 device support
+
 ## r1.6.0 release notes
 * Add NVIDIA GPUDirect RDMA support
 * Add a configure script to the compilation process and use it to test for kernel functionality

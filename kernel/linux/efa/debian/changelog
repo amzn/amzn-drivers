@@ -1,3 +1,14 @@
+efa (1.9.0-1.amzn1) unstable; urgency=medium
+  * Adapt to upstream kernel
+  * Refactor locking scheme in GDR flows
+  * Report create CQ error counter
+  * Report mmap error counter
+  * Report admin commands error counter
+  * Add a sysfs indication to GDR drivers
+  * Add 0xefa1 device support
+
+ -- Gal Pressman <galpress@amazon.com>  Mon, 03 Aug 2020 14:00:03 +0000
+
 efa (1.6.0-1.amzn1) unstable; urgency=medium
   * Add NVIDIA GPUDirect RDMA support
   * Add a configure script to the compilation process and use it to test for

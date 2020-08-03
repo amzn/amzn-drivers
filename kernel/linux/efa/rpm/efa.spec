@@ -81,6 +81,15 @@ install -m 644 Makefile.am		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Mon Aug 03 2020 Gal Pressman <galpress@amazon.com> - 1.9.0
+- Adapt to upstream kernel
+- Refactor locking scheme in GDR flows
+- Report create CQ error counter
+- Report mmap error counter
+- Report admin commands error counter
+- Add a sysfs indication to GDR drivers
+- Add 0xefa1 device support
+
 * Wed Feb 26 2020 Gal Pressman <galpress@amazon.com> - 1.6.0
 - Add NVIDIA GPUDirect RDMA support
 - Add a configure script to the compilation process and use it to test for kernel funcionality
