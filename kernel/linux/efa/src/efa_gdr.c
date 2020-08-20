@@ -60,13 +60,9 @@ int nvmem_put(u64 ticket, bool in_cb)
 	mutex_lock(&nvmem_list_lock);
 	nvmem = ticket_to_nvmem(ticket);
 	if (!nvmem) {
-		/*
-		 * Callback shouldn't happen after the MR has been dereigstered,
-		 * unless the user app is doing very racy stuff.
-		 */
-		WARN(1, "Ticket %llu not found in the nvmem list\n", ticket);
+		ibdev_dbg(&dev->ibdev, "Ticket %llu not found in the nvmem list\n", ticket);
 		mutex_unlock(&nvmem_list_lock);
-		return -EINVAL;
+		return 0;
 	}
 
 	dev = nvmem->dev;
