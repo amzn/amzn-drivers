@@ -152,4 +152,12 @@ enum {
 };
 #endif
 
+#ifndef HAVE_ATOMIC64_FETCH_INC
+static __always_inline s64
+atomic64_fetch_inc(atomic64_t *v)
+{
+	return atomic64_inc_return(v) - 1;
+}
+#endif
+
 #endif /* _KCOMPAT_H_ */

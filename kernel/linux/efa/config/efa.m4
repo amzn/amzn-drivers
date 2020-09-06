@@ -740,6 +740,17 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if atomic64_fetch_inc exists])
+	EFA_TRY_COMPILE([
+	], [
+		atomic64_fetch_inc(NULL);
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_ATOMIC64_FETCH_INC, 1, atomic64_fetch_inc exists)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])
 
