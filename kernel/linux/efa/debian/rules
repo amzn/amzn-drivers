@@ -56,7 +56,7 @@ override_dh_auto_install:
 	install -m 644 Makefile.am		${DESTDIR}/${INSTALL_PATH}
 	install -m 644 Makefile.kernel		${DESTDIR}/${INSTALL_PATH}
 	install -m 644 Makefile.common		${DESTDIR}/${INSTALL_PATH}
-	install -m 644 autogen.sh		${DESTDIR}/${INSTALL_PATH}
+	install -m 744 autogen.sh		${DESTDIR}/${INSTALL_PATH}
 	install -m 644 configure.ac		${DESTDIR}/${INSTALL_PATH}
 	install -m 644 config/Makefile		${DESTDIR}/${INSTALL_PATH}/config
 	install -m 644 config/efa.m4		${DESTDIR}/${INSTALL_PATH}/config

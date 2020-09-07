@@ -25,7 +25,7 @@ Requires:	dkms %kernel_module_package_buildreqs autoconf automake
 
 %post
 cd %{install_path}
-bash ./autogen.sh
+./autogen.sh
 dkms add -m %{name} -v %{driver_version}
 for kernel in $(/bin/ls /lib/modules); do
 	dkms build -m %{name} -v %{driver_version} -k $kernel
@@ -50,7 +50,7 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 install -m 644 Makefile.am		%{buildroot}%{install_path}
 install -m 644 Makefile.common		%{buildroot}%{install_path}
 install -m 644 Makefile.kernel		%{buildroot}%{install_path}
-install -m 644 autogen.sh		%{buildroot}%{install_path}
+install -m 744 autogen.sh		%{buildroot}%{install_path}
 install -m 644 configure.ac		%{buildroot}%{install_path}
 install -m 644 config/Makefile		%{buildroot}%{install_path}/config
 install -m 644 config/efa.m4		%{buildroot}%{install_path}/config
