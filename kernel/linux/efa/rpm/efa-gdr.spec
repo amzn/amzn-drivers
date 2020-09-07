@@ -1,6 +1,6 @@
 # Copyright 2019-2020 Amazon.com, Inc. or its affiliates. All rights reserved
 
-%define name			efa
+%define name			efa-gdr
 %define driver_name		efa
 %define debug_package		%{nil}
 
@@ -15,7 +15,7 @@ URL:		https://github.com/amzn/amzn-drivers/
 Source0:	%{name}-%{version}.tar
 
 Requires:	dkms %kernel_module_package_buildreqs autoconf automake
-Conflicts:	efa-gdr
+Conflicts:	efa
 
 %define install_path /usr/src/%{driver_name}-%{version}
 
@@ -44,9 +44,10 @@ cd kernel/linux/efa
 mkdir -p %{buildroot}%{install_path}
 mkdir -p %{buildroot}%{install_path}/config
 mkdir -p %{buildroot}%{install_path}/src
-install -D -m 644 conf/efa.conf		%{buildroot}/etc/modules-load.d/efa.conf
-install -D -m 644 conf/efa-modprobe.conf	%{buildroot}/etc/modprobe.d/efa.conf
-install -m 644 conf/dkms.conf		%{buildroot}%{install_path}
+install -D -m 644 conf/efa-gdr.conf	%{buildroot}/etc/modules-load.d/efa.conf
+install -D -m 644 conf/efa-modprobe-gdr.conf	%{buildroot}/etc/modprobe.d/efa.conf
+install -m 644 conf/dkms-gdr.conf	%{buildroot}%{install_path}/dkms.conf
+install -m 744 conf/configure-dkms-gdr.sh	%{buildroot}%{install_path}
 install -m 644 README			%{buildroot}%{install_path}
 install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 install -m 644 Makefile.am		%{buildroot}%{install_path}

@@ -1,6 +1,11 @@
 # Makefile for creating rpm of the Amazon EFA driver
 
-NAME	= efa
+ifdef GDR
+NAME = efa-gdr
+else
+NAME = efa
+endif
+SPEC = $(NAME).spec
 VERSION	= 1.9.0
 
 TOPDIR  := $(shell git rev-parse --show-toplevel)
@@ -26,10 +31,10 @@ $(TARBALL) : always
 	kernel/linux/efa/) > $@
 
 srpm : $(TARBALL) Makefile
-	rpmbuild -bs $(RPMDEFS) efa.spec
+	rpmbuild -bs $(RPMDEFS) $(SPEC)
 
 rpm : $(TARBALL) Makefile
-	rpmbuild -ba $(RPMDEFS) efa.spec
+	rpmbuild -ba $(RPMDEFS) $(SPEC)
 
 clean :
 	rm -f $(TARBALL) *.src.rpm

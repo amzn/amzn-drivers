@@ -1,0 +1,70 @@
+efa (1.9.0-1.amzn1) unstable; urgency=medium
+  * Adapt to upstream kernel
+  * Refactor locking scheme in GDR flows
+  * Report create CQ error counter
+  * Report mmap error counter
+  * Report admin commands error counter
+  * Add a sysfs indication to GDR drivers
+  * Add 0xefa1 device support
+
+ -- Gal Pressman <galpress@amazon.com>  Mon, 03 Aug 2020 14:00:03 +0000
+
+efa (1.6.0-1.amzn1) unstable; urgency=medium
+  * Add NVIDIA GPUDirect RDMA support
+  * Add a configure script to the compilation process and use it to test for
+    kernel functionality
+  * Change directory structure, the source files are now located under src/
+  * Fix compilation on certain kernels of SuSE15.1
+  * Backport changes from upstream kernel
+
+ -- Gal Pressman <galpress@amazon.com>  Wed, 26 Feb 2020 14:54:52 +0000
+
+efa (1.5.1-1.amzn1) unstable; urgency=medium
+  * Fix SuSE ioctl flow backport
+
+ -- Gal Pressman <galpress@amazon.com>  Thu, 02 Jan 2020 16:21:54 +0000
+
+efa (1.5.0-1.amzn1) unstable; urgency=medium
+  * RDMA read support
+  * Make ib_uverbs a soft dependency
+  * Fix ioctl flows on older kernels
+  * SuSE 15.1 support
+
+ -- Gal Pressman <galpress@amazon.com>  Wed, 11 Dec 2019 13:18:56 +0000
+
+efa (1.4.1-1.amzn1) unstable; urgency=medium
+  * Fix Incorrect error print
+  * Add support for CentOS 7.7
+
+ -- Gal Pressman <galpress@amazon.com>  Fri, 20 Sep 2019 18:57:58 +0000
+
+efa (1.4.0-1.amzn1) unstable; urgency=medium
+
+  * Expose device statistics
+  * Rate limit admin queue error prints
+  * Properly assign err variable on everbs device creation failure
+
+ -- Gal Pressman <galpress@amazon.com>  Thu, 5 Sep 2019 16:31:33 +0000
+
+efa (1.3.1-1.amzn1) unstable; urgency=medium
+
+  * Fix build issue in debian/rules file
+  * Fix kcompat issue (usage before include)
+
+ -- Gal Pressman <galpress@amazon.com>  Thu, 8 Aug 2019 11:19:27 +0000
+
+efa (1.3.0-1.amzn1) unstable; urgency=medium
+
+  * Align to the driver that was merged upstream
+  * Fix a bug where failed functions would return success return value
+  * Fix modify QP udata check backport
+  * Fix locking issues in mmap flow
+  * Add Debian packaging files
+
+ -- Gal Pressman <galpress@amazon.com>  Sun, 7 Jul 2019 15:05:27 +0000
+
+efa (0.9.2-1.amzn1) unstable; urgency=medium
+
+  * Initial release of EFA kernel driver Debian package
+
+ -- Jie Zhang <zhngaj@amazon.com>  Wed, 22 May 2019 23:03:27 +0000

@@ -1,0 +1,10 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: efa
+Upstream-Contact: ec2-efa-maintainers <ec2-efa-maintainers@amazon.com>
+Source: https://github.com/amzn/amzn-drivers
+
+Files: *
+Copyright:
+ Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+License:
+ SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause)

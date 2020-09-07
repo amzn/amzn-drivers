@@ -4,9 +4,9 @@ Build-Depends: debhelper
 Standards-Version: 4.3.0
 Homepage: https://github.com/amzn/amzn-drivers
 
-Package: efa
+Package: efa-gdr
 Architecture: any
-Conflicts: efa-gdr
+Conflicts: efa
 Depends: ${shlibs:Depends}, ${misc:Depends}, dkms, autoconf, automake
 Description: Linux kernel driver for Elastic Fabric Adapter (EFA)
  Elastic Fabric Adapter (EFA), a new network device that provides reliable
