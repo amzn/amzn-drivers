@@ -24,6 +24,12 @@ The driver was tested on the following distributions:
 **SuSE:**
 * SuSE 15.1
 
+## r1.10.0 release notes
+* SRD RNR retry support
+* Remove a wrong warning triggered by GDR cleanup
+* Fix GDR driver compilation on Ubuntu 16.04
+* Add GDR driver packaging (rpm/deb)
+
 ## r1.9.0 release notes
 * Adapt to upstream kernel
 * Refactor locking scheme in GDR flows

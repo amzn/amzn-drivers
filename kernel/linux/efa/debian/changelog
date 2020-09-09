@@ -1,3 +1,11 @@
+efa (1.10.0-1.amzn1) unstable; urgency=medium
+  * SRD RNR retry support
+  * Remove a wrong warning triggered by GDR cleanup
+  * Fix GDR driver compilation on Ubuntu 16.04
+  * Add GDR driver packaging (rpm/deb)
+
+ -- Gal Pressman <galpress@amazon.com>  Wed, 09 Sep 2020 17:52:09 +0000
+
 efa (1.9.0-1.amzn1) unstable; urgency=medium
   * Adapt to upstream kernel
   * Refactor locking scheme in GDR flows

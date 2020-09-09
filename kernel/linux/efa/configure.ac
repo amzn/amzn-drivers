@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 # Copyright 2020 Amazon.com, Inc. or its affiliates. All rights reserved.
 
-AC_INIT([efa], [1.9.0], [])
+AC_INIT([efa], [1.10.0], [])
 
 AC_CONFIG_SRCDIR([src/efa_main.c])
 AC_CONFIG_HEADERS([src/config.h])

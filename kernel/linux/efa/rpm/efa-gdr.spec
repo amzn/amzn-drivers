@@ -84,6 +84,12 @@ install -m 644 Makefile.am		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Sep 09 2020 Gal Pressman <galpress@amazon.com> - 1.10.0
+- SRD RNR retry support
+- Remove a wrong warning triggered by GDR cleanup
+- Fix GDR driver compilation on Ubuntu 16.04
+- Add GDR driver packaging (rpm/deb)
+
 * Mon Aug 03 2020 Gal Pressman <galpress@amazon.com> - 1.9.0
 - Adapt to upstream kernel
 - Refactor locking scheme in GDR flows

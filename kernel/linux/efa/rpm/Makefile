@@ -6,7 +6,7 @@ else
 NAME = efa
 endif
 SPEC = $(NAME).spec
-VERSION	= 1.9.0
+VERSION	= 1.10.0
 
 TOPDIR  := $(shell git rev-parse --show-toplevel)
 TAG	?= HEAD

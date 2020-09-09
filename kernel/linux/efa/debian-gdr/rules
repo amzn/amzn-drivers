@@ -10,7 +10,7 @@ export DH_VERBOSE = 1
 
 NAME	= efa-gdr
 DRIVER_NAME = efa
-VERSION = 1.9.0
+VERSION = 1.10.0
 DESTDIR:=`pwd`/debian/${NAME}
 INSTALL_PATH = /usr/src/${DRIVER_NAME}-${VERSION}
 
