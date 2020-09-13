@@ -13,11 +13,9 @@ fi
 
 echo "== Using NVIDIA driver path $nvidia_path"
 
-if ! [ -f ${nvidia_path}/Module.symvers ]; then
-	echo "== Module.symvers not found, attempting to build"
-	pushd $nvidia_path
-	SYSSRC="${kernel_source_dir}" make -j$(nproc) || exit 1
-	popd
-fi
+echo "== Building Module.symvers"
+pushd $nvidia_path
+SYSSRC="${kernel_source_dir}" make -j$(nproc) || exit 1
+popd
 
 ./configure --with-kerneldir=/lib/modules/${kernelver} --with-gdr=${nvidia_path}
