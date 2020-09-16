@@ -1546,26 +1546,33 @@ static int umem_to_page_list(struct efa_dev *dev,
 {
 	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
 	unsigned int page_idx = 0;
+	unsigned int pages_in_sg;
 	unsigned int hp_idx = 0;
 	struct scatterlist *sg;
 	unsigned int entry;
+	unsigned int i;
 
 	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
 		  hp_cnt, pages_in_hp);
 
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		if (sg_dma_len(sg) != PAGE_SIZE) {
+		if (sg_dma_len(sg) & ~PAGE_MASK) {
 			ibdev_dbg(&dev->ibdev,
-				  "sg_dma_len[%u] != PAGE_SIZE[%lu]\n",
+				  "sg_dma_len[%u] does not divide by PAGE_SIZE[%lu]\n",
 				  sg_dma_len(sg), PAGE_SIZE);
 			return -EINVAL;
 		}
 
-		if (page_idx % pages_in_hp == 0) {
-			page_list[hp_idx] = sg_dma_address(sg);
-			hp_idx++;
+		pages_in_sg = sg_dma_len(sg) >> PAGE_SHIFT;
+		for (i = 0; i < pages_in_sg; i++) {
+			if (page_idx % pages_in_hp == 0) {
+				page_list[hp_idx] = sg_dma_address(sg) +
+						    i * PAGE_SIZE;
+				hp_idx++;
+			}
+
+			page_idx++;
 		}
-		page_idx++;
 	}
 
 	return 0;
@@ -1580,28 +1587,36 @@ static int umem_to_page_list(struct efa_dev *dev,
 	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
 	struct ib_umem_chunk *chunk;
 	unsigned int page_idx = 0;
+	unsigned int pages_in_sg;
 	unsigned int hp_idx = 0;
 	unsigned int entry;
+	unsigned int i;
 
 	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
 		  hp_cnt, pages_in_hp);
 
 	list_for_each_entry(chunk, &umem->chunk_list, list) {
 		for (entry = 0; entry < chunk->nents; entry++) {
-			if (sg_dma_len(&chunk->page_list[entry]) != PAGE_SIZE) {
+			if (sg_dma_len(&chunk->page_list[entry]) & ~PAGE_MASK) {
 				ibdev_dbg(&dev->ibdev,
-					  "sg_dma_len[%u] != PAGE_SIZE[%lu]\n",
+					  "sg_dma_len[%u] does not divide by PAGE_SIZE[%lu]\n",
 					  sg_dma_len(&chunk->page_list[entry]),
 					  PAGE_SIZE);
 				return -EINVAL;
 			}
 
-			if (page_idx % pages_in_hp == 0) {
-				page_list[hp_idx] =
-					sg_dma_address(&chunk->page_list[entry]);
-				hp_idx++;
+			pages_in_sg = sg_dma_len(&chunk->page_list[entry])
+				      >> PAGE_SHIFT;
+			for (i = 0; i < pages_in_sg; i++) {
+				if (page_idx % pages_in_hp == 0) {
+					page_list[hp_idx] =
+						sg_dma_address(&chunk->page_list[entry]) +
+						i * PAGE_SIZE;
+					hp_idx++;
+				}
+
+				page_idx++;
 			}
-			page_idx++;
 		}
 	}
 
