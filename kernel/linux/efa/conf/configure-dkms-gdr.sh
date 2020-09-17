@@ -15,6 +15,7 @@ echo "== Using NVIDIA driver path $nvidia_path"
 
 echo "== Building Module.symvers"
 pushd $nvidia_path
+SYSSRC="${kernel_source_dir}" make clean || exit 1
 SYSSRC="${kernel_source_dir}" make -j$(nproc) || exit 1
 popd
 
