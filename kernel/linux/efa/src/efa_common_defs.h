@@ -15,11 +15,11 @@
 
 #define EFA_GET(ptr, mask) FIELD_GET(mask##_MASK, *(ptr))
 
-#define EFA_SET(ptr, mask, value) \
-	({ \
-		typeof(ptr) _ptr = ptr; \
-		*_ptr = (*_ptr & ~(mask##_MASK)) | \
-			FIELD_PREP(mask##_MASK, value); \
+#define EFA_SET(ptr, mask, value)                                              \
+	({                                                                     \
+		typeof(ptr) _ptr = ptr;                                        \
+		*_ptr = (*_ptr & ~(mask##_MASK)) |                             \
+			FIELD_PREP(mask##_MASK, value);                        \
 	})
 
 struct efa_common_mem_addr {

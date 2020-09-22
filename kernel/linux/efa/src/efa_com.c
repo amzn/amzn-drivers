@@ -414,8 +414,9 @@ static void efa_com_handle_single_admin_completion(struct efa_com_admin_queue *a
 
 	comp_ctx = efa_com_get_comp_ctx(aq, cmd_id, false);
 	if (!comp_ctx) {
-		ibdev_err(aq->efa_dev,
-			  "comp_ctx is NULL. Changing the admin queue running state\n");
+		ibdev_err(
+			aq->efa_dev,
+			"comp_ctx is NULL. Changing the admin queue running state\n");
 		clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 		return;
 	}
@@ -942,26 +943,31 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 		  EFA_GET(&ver, EFA_REGS_VERSION_MAJOR_VERSION),
 		  EFA_GET(&ver, EFA_REGS_VERSION_MINOR_VERSION));
 
-	EFA_SET(&min_ver, EFA_REGS_VERSION_MAJOR_VERSION, EFA_ADMIN_API_VERSION_MAJOR);
-	EFA_SET(&min_ver, EFA_REGS_VERSION_MINOR_VERSION, EFA_ADMIN_API_VERSION_MINOR);
+	EFA_SET(&min_ver, EFA_REGS_VERSION_MAJOR_VERSION,
+		EFA_ADMIN_API_VERSION_MAJOR);
+	EFA_SET(&min_ver, EFA_REGS_VERSION_MINOR_VERSION,
+		EFA_ADMIN_API_VERSION_MINOR);
 	if (ver < min_ver) {
-		ibdev_err(edev->efa_dev,
-			  "EFA version is lower than the minimal version the driver supports\n");
+		ibdev_err(
+			edev->efa_dev,
+			"EFA version is lower than the minimal version the driver supports\n");
 		return -EOPNOTSUPP;
 	}
 
-	ibdev_dbg(edev->efa_dev,
-		  "efa controller version: %d.%d.%d implementation version %d\n",
-		  EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION),
-		  EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_MINOR_VERSION),
-		  EFA_GET(&ctrl_ver,
-			  EFA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION),
-		  EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_IMPL_ID));
+	ibdev_dbg(
+		edev->efa_dev,
+		"efa controller version: %d.%d.%d implementation version %d\n",
+		EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION),
+		EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_MINOR_VERSION),
+		EFA_GET(&ctrl_ver,
+			EFA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION),
+		EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_IMPL_ID));
 
 	ctrl_ver_masked =
 		EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION) |
 		EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_MINOR_VERSION) |
-		EFA_GET(&ctrl_ver, EFA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION);
+		EFA_GET(&ctrl_ver,
+			EFA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION);
 
 	EFA_SET(&min_ctrl_ver, EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION,
 		EFA_CTRL_MAJOR);
@@ -971,8 +977,9 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 		EFA_CTRL_SUB_MINOR);
 	/* Validate the ctrl version without the implementation ID */
 	if (ctrl_ver_masked < min_ctrl_ver) {
-		ibdev_err(edev->efa_dev,
-			  "EFA ctrl version is lower than the minimal ctrl version the driver supports\n");
+		ibdev_err(
+			edev->efa_dev,
+			"EFA ctrl version is lower than the minimal ctrl version the driver supports\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -998,7 +1005,8 @@ int efa_com_get_dma_width(struct efa_com_dev *edev)
 	ibdev_dbg(edev->efa_dev, "DMA width: %d\n", width);
 
 	if (width < 32 || width > 64) {
-		ibdev_err(edev->efa_dev, "DMA width illegal value: %d\n", width);
+		ibdev_err(edev->efa_dev, "DMA width illegal value: %d\n",
+			  width);
 		return -EINVAL;
 	}
 

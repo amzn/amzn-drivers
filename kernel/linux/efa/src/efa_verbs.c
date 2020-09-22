@@ -2718,10 +2718,10 @@ int efa_create_ah(struct ib_ah *ibah,
 	int err;
 
 #if defined(HAVE_CREATE_DESTROY_AH_FLAGS) || defined(HAVE_CREATE_AH_INIT_ATTR)
-#ifdef HAVE_CREATE_DESTROY_AH_FLAGS
-	if (!(flags & RDMA_CREATE_AH_SLEEPABLE)) {
-#else
+#ifdef HAVE_CREATE_AH_INIT_ATTR
 	if (!(init_attr->flags & RDMA_CREATE_AH_SLEEPABLE)) {
+#else
+	if (!(flags & RDMA_CREATE_AH_SLEEPABLE)) {
 #endif
 		ibdev_dbg(&dev->ibdev,
 			  "Create address handle is not supported in atomic context\n");

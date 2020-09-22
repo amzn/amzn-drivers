@@ -286,9 +286,10 @@ int efa_com_dereg_mr(struct efa_com_dev *edev,
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
-		ibdev_err_ratelimited(edev->efa_dev,
-				      "Failed to de-register mr(lkey-%u) [%d]\n",
-				      mr_cmd.l_key, err);
+		ibdev_err_ratelimited(
+			edev->efa_dev,
+			"Failed to de-register mr(lkey-%u) [%d]\n",
+			mr_cmd.l_key, err);
 		return err;
 	}
 
