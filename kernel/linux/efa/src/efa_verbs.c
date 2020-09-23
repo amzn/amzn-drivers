@@ -1586,6 +1586,7 @@ static int umem_to_page_list(struct efa_dev *dev,
 	return 0;
 }
 #else
+#warning deprecated api
 static int umem_to_page_list(struct efa_dev *dev,
 			     struct ib_umem *umem,
 			     u64 *page_list,

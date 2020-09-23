@@ -152,6 +152,7 @@ int efa_query_device(struct ib_device *ibdev,
 		     struct ib_device_attr *props,
 		     struct ib_udata *udata);
 #else
+#warning deprecated api
 int efa_query_device(struct ib_device *ibdev,
 		     struct ib_device_attr *props);
 #endif
@@ -200,6 +201,7 @@ int efa_destroy_cq(struct ib_cq *ibcq);
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata);
 #else
+#warning deprecated api
 int efa_create_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 #endif
 #ifndef HAVE_CQ_CORE_ALLOCATION
