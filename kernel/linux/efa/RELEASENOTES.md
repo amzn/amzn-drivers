@@ -24,6 +24,11 @@ The driver was tested on the following distributions:
 **SuSE:**
 * SuSE 15.1
 
+## r1.10.1 release notes
+* Misc fixes to GDR package installation
+* Expose messages and RDMA read statistics
+* Fix an error when registering MR on older kernels
+
 ## r1.10.0 release notes
 * SRD RNR retry support
 * Remove a wrong warning triggered by GDR cleanup

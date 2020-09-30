@@ -83,6 +83,11 @@ install -m 644 Makefile.am		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Sep 30 2020 Gal Pressman <galpress@amazon.com> - 1.10.1
+- Misc fixes to GDR package installation
+- Expose messages and RDMA read statistics
+- Fix an error when registering MR on older kernels
+
 * Wed Sep 09 2020 Gal Pressman <galpress@amazon.com> - 1.10.0
 - SRD RNR retry support
 - Remove a wrong warning triggered by GDR cleanup

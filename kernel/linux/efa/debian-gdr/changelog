@@ -1,3 +1,10 @@
+efa (1.10.1-1.amzn1) unstable; urgency=medium
+  * Misc fixes to GDR package installation
+  * Expose messages and RDMA read statistics
+  * Fix an error when registering MR on older kernels
+
+ -- Gal Pressman <galpress@amazon.com>  Wed, 30 Sep 2020 14:42:44 +0000
+
 efa (1.10.0-1.amzn1) unstable; urgency=medium
   * SRD RNR retry support
   * Remove a wrong warning triggered by GDR cleanup
