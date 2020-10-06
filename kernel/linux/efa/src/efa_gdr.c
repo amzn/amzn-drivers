@@ -60,7 +60,7 @@ int nvmem_put(u64 ticket, bool in_cb)
 	mutex_lock(&nvmem_list_lock);
 	nvmem = ticket_to_nvmem(ticket);
 	if (!nvmem) {
-		ibdev_dbg(&dev->ibdev, "Ticket %llu not found in the nvmem list\n", ticket);
+		pr_debug("Ticket %llu not found in the nvmem list\n", ticket);
 		mutex_unlock(&nvmem_list_lock);
 		return 0;
 	}
