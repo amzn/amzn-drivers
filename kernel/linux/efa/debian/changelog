@@ -1,3 +1,8 @@
+efa (1.10.2-1.amzn1) unstable; urgency=medium
+  * Fix possible use of uninitialized variable in GDR error flow
+
+ -- Gal Pressman <galpress@amazon.com>  Sun, 11 Oct 2020 16:38:54 +0000
+
 efa (1.10.1-1.amzn1) unstable; urgency=medium
   * Misc fixes to GDR package installation
   * Expose messages and RDMA read statistics

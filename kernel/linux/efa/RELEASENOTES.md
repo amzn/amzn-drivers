@@ -24,6 +24,9 @@ The driver was tested on the following distributions:
 **SuSE:**
 * SuSE 15.1
 
+## r1.10.2 release notes
+* Fix possible use of uninitialized variable in GDR error flow
+
 ## r1.10.1 release notes
 * Misc fixes to GDR package installation
 * Expose messages and RDMA read statistics

@@ -84,6 +84,9 @@ install -m 644 Makefile.am		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Sun Oct 11 2020 Gal Pressman <galpress@amazon.com> - 1.10.2
+- Fix possible use of uninitialized variable in GDR error flow
+
 * Wed Sep 30 2020 Gal Pressman <galpress@amazon.com> - 1.10.1
 - Misc fixes to GDR package installation
 - Expose messages and RDMA read statistics
