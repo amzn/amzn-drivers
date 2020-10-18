@@ -703,9 +703,15 @@ do {									\
 #define XDP_HAS_FRAME_SZ
 #define XDP_CONVERT_TO_FRAME_NAME_CHANGED
 #endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+#define ENA_XDP_QUERY_IN_KERNEL
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0) || \
+    (defined(RHEL_RELEASE_CODE) && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 3)))
 #define HAVE_NDO_TX_TIMEOUT_STUCK_QUEUE_PARAMETER
 #endif
 
@@ -747,6 +753,10 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
 #endif
 #ifndef READ_ONCE
 #define READ_ONCE(x) ACCESS_ONCE(x)
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9 ,0)
+#define ENA_GENERIC_PM_OPS
 #endif
 
 #endif /* _KCOMPAT_H_ */

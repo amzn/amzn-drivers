@@ -1,8 +1,12 @@
-Linux kernel driver for Elastic Network Adapter (ENA) family:
-=============================================================
+.. SPDX-License-Identifier: GPL-2.0
 
-Overview:
-=========
+============================================================
+Linux kernel driver for Elastic Network Adapter (ENA) family
+============================================================
+
+Overview
+========
+
 ENA is a networking interface designed to make good use of modern CPU
 features and system architectures.
 
@@ -20,8 +24,8 @@ SR-IOV Physical Function (PF) and Virtual Function (VF) devices.
 ENA devices enable high speed and low overhead network traffic
 processing by providing multiple Tx/Rx queue pairs (the maximum number
 is advertised by the device via the Admin Queue), a dedicated MSI-X
-interrupt vector per Tx/Rx queue pair, and CPU cacheline optimized
-data placement.
+interrupt vector per Tx/Rx queue pair, adaptive interrupt moderation,
+and CPU cacheline optimized data placement.
 
 The ENA driver supports industry standard TCP/IP offload features such
 as checksum offload and TCP transmit segmentation offload (TSO).
@@ -35,8 +39,8 @@ debug logs.
 Some of the ENA devices support a working mode called Low-latency
 Queue (LLQ), which saves several more microseconds.
 
-Driver compilation:
-===================
+Driver compilation
+===================================
 Prerequisites:
 RHEL
 ----
@@ -73,19 +77,19 @@ UBUNTU_ABI=<ABI>
    if "uname -r" yields the output "3.13.0-29-generic", then the ABI is 29,
    and the compilation command is "make UBUNTU_ABI=29".
 
-Driver installation:
+Driver installation
 ====================
 Please refer to https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking-ena.html#ena-requirements
 for the list of instance types supporting ENA.
 Please make sure Enhanced Networking is enabled on your instance as specified in
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking-ena.html#test-enhanced-networking-ena
 
-loading driver:
+loading driver::
 ---------------
 insmod ena.ko
 
 For automatic driver start upon the OS boot
-RHEL / Open Suse / Ubuntu:
+RHEL / Open Suse / Ubuntu::
 --------------------------
 sudo vi /etc/modules-load.d/ena.conf
 insert "ena" to the file
@@ -102,7 +106,7 @@ ena: module verification failed: signature and/or required key missing - taintin
 These messages are informational and indicate that out-of-tree driver is being
 used, and do not affect driver operation.
 
-Module Parameters:
+Module Parameters::
 ==================
 rx_queue_size - Controls the number of requested entries in the Rx
 Queue. Increasing the Rx queue size can be useful in situations
@@ -124,7 +128,7 @@ CPUs). The minimum number of queues is 1. If the number of queues given is
 outside of the range, the number of queues will be set to the closest
 number from within the range.
 
-Disable Predictable Network Names:
+Disable Predictable Network Names::
 ==================================
 When predicatable network naming is enabled, Linux might change the
 device name and affect the network configuration.
@@ -134,25 +138,30 @@ To disable this feature add net.ifnames=0 to the kernel boot params.
 Edit /etc/default/grub and add net.ifnames=0 to GRUB_CMDLINE_LINUX.
 On Ubuntu run 'update-grub' as well
 
-ENA Source Code Directory Structure:
-====================================
-ena_com.[ch]      - Management communication layer. This layer is
-                    responsible for the handling all the management
-                    (admin) communication between the device and the
-                    driver.
-ena_eth_com.[ch]  - Tx/Rx data path.
-ena_admin_defs.h  - Definition of ENA management interface.
-ena_eth_io_defs.h - Definition of ENA data path interface.
-ena_common_defs.h - Common definitions for ena_com layer.
-ena_regs_defs.h   - Definition of ENA PCI memory-mapped (MMIO) registers.
-ena_netdev.[ch]   - Main Linux kernel driver.
-ena_sysfs.[ch]    - Sysfs files.
-ena_ethtool.c     - ethtool callbacks.
-ena_pci_id_tbl.h  - Supported device IDs.
+ENA Source Code Directory Structure
+===================================
+
+=================   ======================================================
+ena_com.[ch]        Management communication layer. This layer is
+		    responsible for the handling all the management
+		    (admin) communication between the device and the
+		    driver.
+ena_eth_com.[ch]    Tx/Rx data path.
+ena_admin_defs.h    Definition of ENA management interface.
+ena_eth_io_defs.h   Definition of ENA data path interface.
+ena_common_defs.h   Common definitions for ena_com layer.
+ena_regs_defs.h     Definition of ENA PCI memory-mapped (MMIO) registers.
+ena_netdev.[ch]     Main Linux kernel driver.
+ena_syfsfs.[ch]     Sysfs files.
+ena_ethtool.c       ethtool callbacks.
+ena_pci_id_tbl.h    Supported device IDs.
+=================   ======================================================
 
 Management Interface:
 =====================
+
 ENA management interface is exposed by means of:
+
 - PCIe Configuration Space
 - Device Registers
 - Admin Queue (AQ) and Admin Completion Queue (ACQ)
@@ -170,6 +179,7 @@ vendor-specific extensions. Most of the management operations are
 framed in a generic Get/Set feature command.
 
 The following admin queue commands are supported:
+
 - Create I/O submission queue
 - Create I/O completion queue
 - Destroy I/O submission queue
@@ -188,12 +198,16 @@ be reported using ACQ. AENQ events are subdivided into groups. Each
 group may have multiple syndromes, as shown below
 
 The events are:
+
+	====================	===============
 	Group			Syndrome
-	Link state change	- X -
-	Fatal error		- X -
+	====================	===============
+	Link state change	**X**
+	Fatal error		**X**
 	Notification		Suspend traffic
 	Notification		Resume traffic
-	Keep-Alive		- X -
+	Keep-Alive		**X**
+	====================	===============
 
 ACQ and AENQ share the same MSI-X vector.
 
@@ -205,8 +219,8 @@ the device every second. The driver re-arms the WD upon reception of a
 Keep-Alive event. A missed Keep-Alive event causes the WD handler to
 fire.
 
-Data Path Interface:
-====================
+Data Path Interface
+===================
 I/O operations are based on Tx and Rx Submission Queues (Tx SQ and Rx
 SQ correspondingly). Each SQ has a completion queue (CQ) associated
 with it.
@@ -215,11 +229,15 @@ The SQs and CQs are implemented as descriptor rings in contiguous
 physical memory.
 
 The ENA driver supports two Queue Operation modes for Tx SQs:
+
 - Regular mode
+
   * In this mode the Tx SQs reside in the host's memory. The ENA
     device fetches the ENA Tx descriptors and packet data from host
     memory.
+
 - Low Latency Queue (LLQ) mode or "push-mode".
+
   * In this mode the driver pushes the transmit descriptors and the
     first few bytes of the packet (negotiable parameter)
     directly to the ENA device memory space.
@@ -235,6 +253,7 @@ Note: Not all ENA devices support LLQ, and this feature is negotiated
 
 The driver supports multi-queue for both Tx and Rx. This has various
 benefits:
+
 - Reduced CPU/thread/process contention on a given Ethernet interface.
 - Cache miss rate on completion is reduced, particularly for data
   cache lines that hold the sk_buff structures.
@@ -244,8 +263,8 @@ benefits:
   packet is running.
 - In hardware interrupt re-direction.
 
-Interrupt Modes:
-================
+Interrupt Modes
+===============
 The driver assigns a single MSI-X vector per queue pair (for both Tx
 and Rx directions). The driver assigns an additional dedicated MSI-X vector
 for management (for ACQ and AENQ).
@@ -256,56 +275,82 @@ removed. I/O queue interrupt registration is performed when the Linux
 interface of the adapter is opened, and it is de-registered when the
 interface is closed.
 
-The management interrupt is named:
+The management interrupt is named::
+
    ena-mgmnt@pci:<PCI domain:bus:slot.function>
-and for each queue pair, an interrupt is named:
+
+and for each queue pair, an interrupt is named::
+
    <interface name>-Tx-Rx-<queue index>
 
 The ENA device operates in auto-mask and auto-clear interrupt
 modes. That is, once MSI-X is delivered to the host, its Cause bit is
 automatically cleared and the interrupt is masked. The interrupt is
-unmasked by the driver after NAPI processing is complete. As a result,
-interrupt moderation is not required.
+unmasked by the driver after NAPI processing is complete.
 
-RX copybreak:
-=============
+Interrupt Moderation
+====================
+ENA driver and device can operate in conventional or adaptive interrupt
+moderation mode.
+
+In conventional mode the driver instructs device to postpone interrupt
+posting according to static interrupt delay value. The interrupt delay
+value can be configured through ethtool(8). The following ethtool
+parameters are supported by the driver: tx-usecs, rx-usecs
+
+In adaptive interrupt moderation mode the interrupt delay value is
+updated by the driver dynamically and adjusted every NAPI cycle
+according to the traffic nature.
+
+Adaptive coalescing can be switched on/off through ethtool(8)
+adaptive_rx on|off parameter.
+
+More information about Adaptive Interrupt Moderation (DIM) can be found in
+https://elixir.bootlin.com/linux/latest/source/Documentation/networking/net_dim.rst
+
+RX copybreak
+============
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
-and can be configured by the sysfs path
+and can be configured by the ETHTOOL_STUNABLE command of the
+SIOCETHTOOL ioctl.
+This option is supported for kernel versions 3.18 and newer.
+Alternatively copybreak values can be configured by the sysfs path
 /sys/bus/pci/devices/<domain:bus:slot.function>/rx_copybreak.
 
-SKB:
-====
+SKB
+===
 The driver-allocated SKB for frames received from Rx handling using
 NAPI context. The allocation method depends on the size of the packet.
 If the frame length is larger than rx_copybreak, napi_get_frags()
 is used, otherwise netdev_alloc_skb_ip_align() is used, the buffer
 content is copied (by CPU) to the SKB, and the buffer is recycled.
 
-Statistics:
-===========
+Statistics
+==========
 The user can obtain ENA device and driver statistics using ethtool.
 The driver can collect regular or extended statistics (including
 per-queue stats) from the device.
 
 In addition the driver logs the stats to syslog upon device reset.
 
-MTU:
-====
+MTU
+===
 The driver supports an arbitrarily large MTU with a maximum that is
 negotiated with the device. The driver configures MTU using the
 SetFeature command (ENA_ADMIN_MTU property). The user can change MTU
 via ip(8) and similar legacy tools.
 
-Stateless Offloads:
-===================
+Stateless Offloads
+==================
 The ENA driver supports:
+
 - TSO over IPv4/IPv6
 - TSO with ECN
 - IPv4 header checksum offload
 - TCP/UDP over IPv4/IPv6 checksum offloads
 
-RSS:
-====
+RSS
+===
 - The ENA device supports RSS that allows flexible Rx traffic
   steering.
 - Toeplitz and CRC32 hash functions are supported.
@@ -320,11 +365,13 @@ RSS:
 - The user can provide a hash key, hash function, and configure the
   indirection table through ethtool(8).
 
-DATA PATH:
-==========
-Tx:
----
+DATA PATH
+=========
+Tx
+--
+
 end_start_xmit() is called by the stack. This function does the following:
+
 - Maps data buffers (skb->data and frags).
 - Populates ena_buf for the push buffer (if the driver and device are
   in push mode.)
@@ -336,8 +383,10 @@ end_start_xmit() is called by the stack. This function does the following:
 - Calls ena_com_prepare_tx(), an ENA communication layer that converts
   the ena_bufs to ENA descriptors (and adds meta ENA descriptors as
   needed.)
+
   * This function also copies the ENA descriptors and the push buffer
     to the Device memory space (if in push mode.)
+
 - Writes doorbell to the ENA device.
 - When the ENA device finishes sending the packet, a completion
   interrupt is raised.
@@ -345,14 +394,16 @@ end_start_xmit() is called by the stack. This function does the following:
 - The ena_clean_tx_irq() function is called. This function handles the
   completion descriptors generated by the ENA, with a single
   completion descriptor per completed packet.
+
   * req_id is retrieved from the completion descriptor. The tx_info of
     the packet is retrieved via the req_id. The data buffers are
     unmapped and req_id is returned to the empty req_id ring.
   * The function stops when the completion descriptors are completed or
     the budget is reached.
 
-Rx:
----
+Rx
+--
+
 - When a packet is received from the ENA device.
 - The interrupt handler schedules NAPI.
 - The ena_clean_rx_irq() function is called. This function calls
@@ -361,13 +412,17 @@ Rx:
   no new packet is found.
 - Then it calls the ena_clean_rx_irq() function.
 - ena_eth_rx_skb() checks packet length:
+
   * If the packet is small (len < rx_copybreak), the driver allocates
     a SKB for the new packet, and copies the packet payload into the
     SKB data buffer.
+
     - In this way the original data buffer is not passed to the stack
       and is reused for future Rx packets.
+
   * Otherwise the function unmaps the Rx buffer, then allocates the
     new SKB structure and hooks the Rx buffer to the SKB frags.
+
 - The new SKB is updated with the necessary information (protocol,
   checksum hw verify result, etc.), and then passed to the network
   stack, using the NAPI interface function napi_gro_receive().

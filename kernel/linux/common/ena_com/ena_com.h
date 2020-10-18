@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
@@ -307,6 +307,7 @@ struct ena_com_dev {
 	void __iomem *mem_bar;
 	void *dmadev;
 	void *bus;
+	struct net_device *net_device;
 
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 	u32 tx_max_header_size;
@@ -344,7 +345,6 @@ struct ena_com_dev_get_features_ctx {
 	struct ena_admin_feature_offload_desc offload;
 	struct ena_admin_ena_hw_hints hw_hints;
 	struct ena_admin_feature_llq_desc llq;
-	struct ena_admin_feature_rss_ind_table ind_table;
 };
 
 struct ena_com_create_io_ctx {
@@ -947,7 +947,6 @@ unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *
 int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 			    struct ena_admin_feature_llq_desc *llq_features,
 			    struct ena_llq_configurations *llq_default_config);
-
 
 /* ena_com_io_sq_to_ena_dev - Extract ena_com_dev using contained field io_sq.
  * @io_sq: IO submit queue struct

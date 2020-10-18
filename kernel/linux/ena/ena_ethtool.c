@@ -14,17 +14,17 @@ struct ena_stats {
 
 #define ENA_STAT_ENA_COM_ENTRY(stat) { \
 	.name = #stat, \
-	.stat_offset = offsetof(struct ena_com_stats_admin, stat) \
+	.stat_offset = offsetof(struct ena_com_stats_admin, stat) / sizeof(u64) \
 }
 
 #define ENA_STAT_ENTRY(stat, stat_type) { \
 	.name = #stat, \
-	.stat_offset = offsetof(struct ena_stats_##stat_type, stat) \
+	.stat_offset = offsetof(struct ena_stats_##stat_type, stat) / sizeof(u64) \
 }
 
 #define ENA_STAT_HW_ENTRY(stat, stat_type) { \
 	.name = #stat, \
-	.stat_offset = offsetof(struct ena_admin_##stat_type, stat) \
+	.stat_offset = offsetof(struct ena_admin_##stat_type, stat) / sizeof(u64) \
 }
 
 #define ENA_STAT_RX_ENTRY(stat) \
@@ -100,6 +100,7 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(xdp_pass),
 	ENA_STAT_RX_ENTRY(xdp_tx),
 	ENA_STAT_RX_ENTRY(xdp_invalid),
+	ENA_STAT_RX_ENTRY(xdp_redirect),
 #endif
 };
 
@@ -144,12 +145,11 @@ static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)
 		for (j = 0; j < ENA_STATS_ARRAY_TX; j++) {
 			ena_stats = &ena_stats_tx_strings[j];
 
-			ptr = (u64 *)((uintptr_t)&ring->tx_stats +
-				(uintptr_t)ena_stats->stat_offset);
+			ptr = (u64 *)&ring->tx_stats + ena_stats->stat_offset;
 
 			ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
 		}
-		/* XDP tx queues don't have a rx queue counterpart */
+		/* XDP TX queues don't have a RX queue counterpart */
 		if (!ENA_IS_XDP_INDEX(adapter, i)) {
 			/* Rx stats */
 			ring = &adapter->rx_ring[i];
@@ -157,8 +157,8 @@ static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)
 			for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
 				ena_stats = &ena_stats_rx_strings[j];
 
-				ptr = (u64 *)((uintptr_t)&ring->rx_stats +
-					(uintptr_t)ena_stats->stat_offset);
+				ptr = (u64 *)&ring->rx_stats +
+					ena_stats->stat_offset;
 
 				ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
 			}
@@ -175,8 +175,8 @@ static void ena_dev_admin_queue_stats(struct ena_adapter *adapter, u64 **data)
 	for (i = 0; i < ENA_STATS_ARRAY_ENA_COM; i++) {
 		ena_stats = &ena_stats_ena_com_strings[i];
 
-		ptr = (u64 *)((uintptr_t)&adapter->ena_dev->admin_queue.stats +
-			(uintptr_t)ena_stats->stat_offset);
+		ptr = (u64 *)&adapter->ena_dev->admin_queue.stats +
+			ena_stats->stat_offset;
 
 		*(*data)++ = *ptr;
 	}
@@ -193,8 +193,7 @@ static void ena_get_stats(struct ena_adapter *adapter,
 	for (i = 0; i < ENA_STATS_ARRAY_GLOBAL; i++) {
 		ena_stats = &ena_stats_global_strings[i];
 
-		ptr = (u64 *)((uintptr_t)&adapter->dev_stats +
-			(uintptr_t)ena_stats->stat_offset);
+		ptr = (u64 *)&adapter->dev_stats + ena_stats->stat_offset;
 
 		ena_safe_update_stat(ptr, data++, &adapter->syncp);
 	}
@@ -204,8 +203,8 @@ static void ena_get_stats(struct ena_adapter *adapter,
 		for (i = 0; i < ENA_STATS_ARRAY_ENI(adapter); i++) {
 			ena_stats = &ena_stats_eni_strings[i];
 
-			ptr = (u64 *)((uintptr_t)&adapter->eni_stats +
-				(uintptr_t)ena_stats->stat_offset);
+			ptr = (u64 *)&adapter->eni_stats +
+				ena_stats->stat_offset;
 
 			ena_safe_update_stat(ptr, data++, &adapter->syncp);
 		}
@@ -261,11 +260,11 @@ static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
 			snprintf(*data, ETH_GSTRING_LEN,
 				 "queue_%u_%s_%s", i,
 				 is_xdp ? "xdp_tx" : "tx", ena_stats->name);
-			 (*data) += ETH_GSTRING_LEN;
+			(*data) += ETH_GSTRING_LEN;
 		}
 
 		if (!is_xdp) {
-			/* Rx stats, in XDP there is not RX queue
+			/* RX stats, in XDP there isn't a RX queue
 			 * counterpart
 			 */
 			for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
@@ -956,14 +955,14 @@ static int ena_set_channels(struct net_device *netdev,
 #ifdef ENA_XDP_SUPPORT
 	if (count < ENA_MIN_NUM_IO_QUEUES ||
 	    (ena_xdp_present(adapter) &&
-	    !ena_xdp_legal_queue_count(adapter, channels->combined_count)))
+	    !ena_xdp_legal_queue_count(adapter, count)))
 #else
 	if (count < ENA_MIN_NUM_IO_QUEUES)
 #endif /* ENA_XDP_SUPPORT */
 		return -EINVAL;
+
 	if (count > adapter->max_num_io_queues)
 		return -EINVAL;
-
 
 	return ena_update_queue_count(adapter, count);
 }

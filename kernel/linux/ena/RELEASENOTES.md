@@ -39,6 +39,37 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.3.0 release notes
+**New Features**
+* Introduce XDP redirect implementation
+* Add support for new power management API for kernels >= 5.8
+* Provide interface and device information in logging messages
+
+** Bug Fixes **
+* Performance: set initial DMA width to avoid intel iommu issue.
+* Fixed wrong expression in WARN_ON macro.
+* Fix Sparse static checker errors in xdp code.
+* Move napi declaration inside the loop to avoid Sparse static check warning.
+* Don't init DIM work (dim.work) in case queue creation fails
+* Make missed_tx stat incremental instead of reassigning it.
+* Fix packet's addresses where rx_offset wasn't taken into account.
+* Validate req_id in ena_com_rx_pkt().
+* Make sure timer and reset routine won't be called after freeing device resources.
+* Fix compilation error in RHEL 8.3
+
+**Minor Changes**
+* Initialize net_device earlier to allow its usage in netif_* and netdev_* prints.
+  For more details see [https://www.spinics.net/lists/netdev/msg683250.html]
+* Add function to increase stats to reduce code duplication.
+* Ethtool: convert stat_offset to 8 bytes resolution to remove complex casts in the code.
+* XDP: queue count check: Fix coding style nits.
+* Cosmetic changes that fix alignment issues.
+* Change ena license SPDX comment style in headers.
+* Remove code duplication related to interrupt unmask stat.
+* Fix spelling mistake in XDP stat query code.
+* Move XDP_QUERY handling to the kernel for kernels >= 5.8.
+* Conversion of README from markdown to rst format.
+
 ## r2.2.11 release notes
 **New Features**
 * Add stats printing to XDP queues
@@ -246,7 +277,7 @@ SUSE Linux Enterprise Server 12 SP3
 * kcompat: fix ndo_select_queue() signature for newer kernels
 * kcompat: use netdev_xmit_more() instead of skb->xmit_more()
 * Drop mmiowb() from newer kernels as done in upstream in the following comit:
-  https://github.com/torvalds/linux/commit/fb24ea52f78e0d595852e09e3a55697c8f442189
+  torvalds/linux@fb24ea5
 * Fix compilation on RHEL 8
 * ena_netdev.c: ena_update_queue_sizes: fix race condition with reset
 
