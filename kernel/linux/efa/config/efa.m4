@@ -479,13 +479,12 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 	])
 
 	AC_MSG_CHECKING([if have void destroy cq])
-	EFA_TRY_COMPILE([
-
-		void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) {}
+	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		destroy_cq
 	], [
-		struct ib_device_ops ops = {
-			.destroy_cq = efa_destroy_cq,
-		};
+		efa_destroy_cq
+	], [
+		void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) {}
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_IB_VOID_DESTROY_CQ, 1, have void destroy cq)
