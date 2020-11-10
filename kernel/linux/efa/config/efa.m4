@@ -19,10 +19,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if get_port_immutable exists])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		get_port_immutable
 	], [
-		struct ib_port_immutable *ipi;
+		efa_get_port_immutable
 	], [
-		get_port_immutable(NULL, 0, ipi);
+		int efa_get_port_immutable(struct ib_device *ibdev, u8 port_num, struct ib_port_immutable *immutable) { return 0; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_GET_PORT_IMMUTABLE, 1, get_port_immutable exists)
@@ -32,10 +33,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if create_ah has udata])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		create_ah
 	], [
-		struct ib_udata *udata;
+		efa_kzalloc_ah
 	], [
-		create_ah(NULL, NULL, udata);
+		struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd, struct ib_ah_attr *ah_attr, struct ib_udata *udata) { return NULL; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_CREATE_AH_UDATA, 1, create_ah has udata)
@@ -45,10 +47,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if query_device has udata])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		query_device
 	], [
-		struct ib_udata *udata;
+		efa_query_device
 	], [
-		query_device(NULL, NULL, udata);
+		int efa_query_device(struct ib_device *ibdev, struct ib_device_attr *props, struct ib_udata *udata) { return 0; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_IB_QUERY_DEVICE_UDATA, 1, query_device has udata)
@@ -69,9 +72,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if have hw_stats])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		alloc_hw_stats
 	], [
+		efa_alloc_hw_stats
 	], [
-		alloc_hw_stats(NULL, 0);
+		struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num) { return NULL; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_HW_STATS, 1, have hw_stats)
@@ -214,11 +219,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if create/destroy_ah has flags])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		create_ah
 	], [
-		u32 flags;
-		struct ib_udata *udata;
+		efa_kzalloc_ah
 	], [
-		create_ah(NULL, NULL, flags, udata);
+		struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd, struct rdma_ah_attr *ah_attr, u32 flags, struct ib_udata *udata) { return NULL; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_CREATE_DESTROY_AH_FLAGS, 1, create/destroy_ah has flags)
@@ -355,10 +360,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if have device ops alloc_pd without ucontext])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		alloc_pd
 	], [
-		struct ib_udata *udata;
+		efa_alloc_pd
 	], [
-		alloc_pd(NULL, udata);
+		int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata) { return 0; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_ALLOC_PD_NO_UCONTEXT, 1, have device ops alloc_pd without ucontext)
@@ -368,11 +374,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if have device ops create_cq without ucontext])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		create_cq
 	], [
-		struct ib_cq_init_attr *attr;
-		struct ib_udata *udata;
+		efa_kzalloc_cq
 	], [
-		create_cq(NULL, attr, udata);
+		struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev, const struct ib_cq_init_attr *attr, struct ib_udata *udata) { return NULL; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_CREATE_CQ_NO_UCONTEXT, 1, have device ops create_cq without ucontext)
@@ -382,10 +388,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if have device ops dealloc pd has udata])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		dealloc_pd
 	], [
-		struct ib_udata *udata;
+		efa_dealloc_pd
 	], [
-		dealloc_pd(NULL, udata);
+		void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata) {}
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_DEALLOC_PD_UDATA, 1, have device ops dealloc pd has udata)
@@ -395,10 +402,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if have device ops dereg mr udata])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		dereg_mr
 	], [
-		struct ib_udata *udata;
+		efa_dereg_mr
 	], [
-		dereg_mr(NULL, udata);
+		int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata) { return 0; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_DEREG_MR_UDATA, 1, have device ops dereg mr udata)
@@ -408,10 +416,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if have device ops destroy cq udata])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		destroy_cq
 	], [
-		struct ib_udata *udata;
+		efa_destroy_cq
 	], [
-		destroy_cq(NULL, udata);
+		int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) { return 0; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_DESTROY_CQ_UDATA, 1, have device ops destroy cq udata)
@@ -421,10 +430,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if have device ops destroy qp udata])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		destroy_qp
 	], [
-		struct ib_udata *udata;
+		efa_destroy_qp
 	], [
-		destroy_qp(NULL, udata);
+		int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata) { return 0; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_DESTROY_QP_UDATA, 1, have device ops destroy qp udata)
@@ -572,11 +582,11 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if create_ah doesn't have udata])
 	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		create_ah
 	], [
-		struct ib_pd *ibpd;
-		struct ib_ah_attr *attr;
+		efa_kzalloc_ah
 	], [
-		create_ah(ibpd, attr);
+		struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd, struct ib_ah_attr *ah_attr) { return NULL; }
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_CREATE_AH_NO_UDATA, 1, create_ah doesn't have udata)

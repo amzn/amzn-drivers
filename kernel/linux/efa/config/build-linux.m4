@@ -82,11 +82,11 @@ fi
 AC_DEFUN([EFA_TRY_COMPILE_DEV_OR_OPS_FUNC],
 [
 	EFA_TRY_COMPILE([
-		$1
+		$3
 	], [
-		struct ib_device *dev;
-		$2
-		dev->$3
+		struct ib_device_ops ops = {
+			.$1 = $2,
+		};
 	], [
 		$4
 	], [
@@ -94,11 +94,11 @@ AC_DEFUN([EFA_TRY_COMPILE_DEV_OR_OPS_FUNC],
 	])
 
 	EFA_TRY_COMPILE([
-		$1
+		$3
 	], [
-		struct ib_device_ops *ops;
-		$2
-		ops->$3
+		struct ib_device ibdev = {
+			.$1 = $2,
+		};
 	], [
 		$4
 	], [
