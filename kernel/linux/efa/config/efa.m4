@@ -741,6 +741,19 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if dealloc_pd has udata and return code])
+	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		dealloc_pd
+	], [
+		efa_dealloc_pd
+	], [
+		int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata) { return 0; }
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_DEALLOC_PD_UDATA_RC, 1, dealloc_pd has udata and return code)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])
-

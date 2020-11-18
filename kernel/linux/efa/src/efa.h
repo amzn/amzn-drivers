@@ -172,7 +172,9 @@ int efa_alloc_pd(struct ib_pd *ibpd,
 		 struct ib_ucontext *ibucontext,
 		 struct ib_udata *udata);
 #endif
-#ifdef HAVE_DEALLOC_PD_UDATA
+#ifdef HAVE_DEALLOC_PD_UDATA_RC
+int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
+#elif defined(HAVE_DEALLOC_PD_UDATA)
 void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 #elif defined(HAVE_PD_CORE_ALLOCATION)
 void efa_dealloc_pd(struct ib_pd *ibpd);
