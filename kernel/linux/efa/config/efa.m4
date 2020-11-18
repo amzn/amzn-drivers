@@ -122,37 +122,18 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 	])
 
 	AC_MSG_CHECKING([if have const wr in post verbs])
-	EFA_TRY_COMPILE([
-
+	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		post_send
+	], [
+		efa_post_send
+	], [
 		static int efa_post_send(struct ib_qp *ibqp,
 					const struct ib_send_wr *wr,
 					const struct ib_send_wr **bad_wr)
 		{ return 0; }
-	], [
-		struct ib_device dev = {
-			.post_send = efa_post_send,
-		};
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_POST_CONST_WR, 1, have const wr in post verbs)
-	], [
-		AC_MSG_RESULT(no)
-	])
-
-	AC_MSG_CHECKING([if have device ops const wr in post verbs])
-	EFA_TRY_COMPILE([
-
-		static int efa_post_send(struct ib_qp *ibqp,
-					const struct ib_send_wr *wr,
-					const struct ib_send_wr **bad_wr)
-		{ return 0; }
-	], [
-		struct ib_device_ops ops = {
-			.post_send = efa_post_send,
-		};
-	], [
-		AC_MSG_RESULT(yes)
-		AC_DEFINE(HAVE_POST_CONST_WR, 1, have device ops const wr in post verbs)
 	], [
 		AC_MSG_RESULT(no)
 	])
