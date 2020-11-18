@@ -755,5 +755,19 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if destroy_ah has return code again])
+	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		destroy_ah
+	], [
+		efa_destroy_ah
+	], [
+		int efa_destroy_ah(struct ib_ah *ibah, u32 flags) { return 0; }
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_AH_CORE_ALLOCATION_DESTROY_RC, 1, destroy_ah has return code again)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])

@@ -2851,7 +2851,9 @@ err_free:
 }
 #endif
 
-#ifdef HAVE_AH_CORE_ALLOCATION
+#ifdef HAVE_AH_CORE_ALLOCATION_DESTROY_RC
+int efa_destroy_ah(struct ib_ah *ibah, u32 flags)
+#elif defined(HAVE_AH_CORE_ALLOCATION)
 void efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 #elif defined(HAVE_CREATE_DESTROY_AH_FLAGS)
 int efa_destroy_ah(struct ib_ah *ibah, u32 flags)
@@ -2867,11 +2869,11 @@ int efa_destroy_ah(struct ib_ah *ibah)
 
 	ibdev_dbg(&dev->ibdev, "Destroy ah[%d]\n", ah->ah);
 
-#ifdef HAVE_CREATE_DESTROY_AH_FLAGS
+#if defined(HAVE_CREATE_DESTROY_AH_FLAGS)
 	if (!(flags & RDMA_DESTROY_AH_SLEEPABLE)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Destroy address handle is not supported in atomic context\n");
-#ifdef HAVE_AH_CORE_ALLOCATION
+#if defined(HAVE_AH_CORE_ALLOCATION) && !defined(HAVE_AH_CORE_ALLOCATION_DESTROY_RC)
 		return;
 #else
 		return -EOPNOTSUPP;
@@ -2879,8 +2881,11 @@ int efa_destroy_ah(struct ib_ah *ibah)
 	}
 #endif
 
-#ifdef HAVE_AH_CORE_ALLOCATION
+#if defined(HAVE_AH_CORE_ALLOCATION) || defined(HAVE_AH_CORE_ALLOCATION_DESTROY_RC)
 	efa_ah_destroy(dev, ah);
+#ifdef HAVE_AH_CORE_ALLOCATION_DESTROY_RC
+	return 0;
+#endif
 #else
 	err = efa_ah_destroy(dev, ah);
 	if (err)
@@ -2888,10 +2893,8 @@ int efa_destroy_ah(struct ib_ah *ibah)
 #ifdef HAVE_CREATE_AH_NO_UDATA
 	efa_put_ah_id(dev, ah->id);
 #endif
-#ifndef HAVE_AH_CORE_ALLOCATION
 	kfree(ah);
 	return 0;
-#endif
 #endif
 }
 

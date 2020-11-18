@@ -279,7 +279,9 @@ struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd,
 			     struct ib_ah_attr *ah_attr);
 #endif
 #endif
-#ifdef HAVE_AH_CORE_ALLOCATION
+#ifdef HAVE_AH_CORE_ALLOCATION_DESTROY_RC
+int efa_destroy_ah(struct ib_ah *ibah, u32 flags);
+#elif defined(HAVE_AH_CORE_ALLOCATION)
 void efa_destroy_ah(struct ib_ah *ibah, u32 flags);
 #elif defined(HAVE_CREATE_DESTROY_AH_FLAGS)
 int efa_destroy_ah(struct ib_ah *ibah, u32 flags);
