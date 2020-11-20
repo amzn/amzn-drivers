@@ -7,14 +7,33 @@ ENA driver is supported on all FreeBSD releases starting from 11.2
 The driver was verified on the following distributions:
 
 **Releases:**
-* FreeBSD 11.3
-* FreeBSD 11.4-RC1
-* FreeBSD 12.1
+* FreeBSD 11.4
+* FreeBSD 12.2
 
 **Development:**
-* stable/11 - r361551
-* stable/12 - r361551
-* HEAD - r361551
+* stable/11 - r367416
+* stable/12 - r367418
+* HEAD - 367420
+
+## r2.3.0 release notes
+**New Features**
+* Add ENI (Elastic Network Interface) metrics support. They can be
+  enabled and accessed using the sysctl.
+* Add support for the Rx offsets (HW feature)
+
+**Bug Fixes**
+* Fix driver when running on kernel with RSS option being enabled
+  (please note, that the standalone driver should also be built with
+  'CFLAGS += -DRSS' option in the Makefile).
+* Fix alignment of the ena_com_io_cq descriptors.
+* Fix validation of the Rx requested ID.
+
+**Minor Changes**
+* Add SPDX license identifiers.
+* Add description of all driver tunables to the README file.
+* Fix names/description of the device IDs supported by the driver.
+* Update HAL to the newer version.
+* Remove deprecated ENA_WARN macro.
 
 ## r2.2.0 release notes
 **New Features**

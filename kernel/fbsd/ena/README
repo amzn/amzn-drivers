@@ -3,16 +3,16 @@ FreeBSD kernel driver for Elastic Network Adapter (ENA) family:
 
 Version:
 ========
-v2.2.0
+v2.3.0
 
 Supported FreeBSD Versions:
 ===========================
 amd64:
 - FreeBSD release/11.0 and so on
 - FreeBSD 12, starting from rS3091111
+- FreeBSD 13
 
 aarch64 (A1 instances):
-- FreeBSD stable/11, starting from r345871
 - FreeBSD stable/12, starting from r345872
 - FreeBSD 13, starting from r345371
 
@@ -115,12 +115,164 @@ sync; sleep 30;
 
 Then restart the OS (reboot and reconnect).
 
+Driver tunables:
+=================
+The driver's behavior can be changed using run-time or boot-time sysctl
+arguments.
+
+Boot-time arguments
+-------------------
+The boot-time arguments can be changed in the /boot/loader.conf file (must
+be edited as a root). To make them go live, the system must be rebooted.
+
+- Use 9k mbufs for the Rx descriptors
+  ---
+  Node:          hw.ena.enable_9k_mbufs
+  Scope:         Global for all drivers
+  Input values:  (0|1)
+  Default value: 0
+  Description: If the node value is set to 1, the 9k mbufs will be used for the
+               Rx buffers. If set to 0, the page size mbufs will be used
+               instead.
+               Using 9k buffers for Rx can improve Rx throughput, but in low
+               memory conditions it might increase allocation time, as the
+               system has to look for 3 contiguous pages. This can further lead
+               to OS instability, together with ENA driver reset and NVMe
+               timeouts.
+               If network performance is critical and memory capacity are
+               sufficient, the 9k mbufs can be used.
+
+Run-time arguments
+------------------
+The run-time arguments can be changed anytime, using the sysctl(8) command.
+They can only be modified by a user with the root privileges.
+
+- Controls extra logging verbosity of the driver
+  Scope:         Global for all drivers
+  Node:          hw.ena.log_level
+  Input values:  int
+  Default value: 3
+  Description: The higher the logging level, the more logs will be printed out.
+               Default value (3) is the bitmap combination of two log levels:
+               ALERT and WARNING. The input value for the sysctl an int number,
+               but it should be converted from the appropriate bitmap (please
+               see below).
+               0 means all extra logs are disabled and only error logs will be
+               printed out.
+               The possible flags are:
+               * 0x001 - ENA_ALERT   - Enable ena_com error logs and extra error
+                                       messages.
+               * 0x002 - ENA_WARNING - Enable logs for non critical errors.
+               * 0x004 - ENA_INFO    - Makes the driver more verbose about its
+                                       action.
+               * 0x008 - ENA_DBG     - Enable general debug logs.
+               * 0x010 - ENA_TXPTH   - Enables Tx path tracing - requires
+                                       ENA_DBG flag.
+               * 0x020 - ENA_RXPTH   - Enables Rx path tracing - requires
+                                       ENA_DBG flag.
+               * 0x040 - ENA_RSC     - Enables Tx/Rx resources tracing -
+                                       requires ENA_RXPTH or ENA_TXPTH
+                                       flags and ENA_DBG flag.
+               * 0x080 - ENA_IOQ     - Enables detailed information regarding
+                                       the IO queues - requires ENA_INFO flag.
+               * 0x100 - ENA_ADMQ    - Enables detailed information about admin
+                                       queue actions - requires ENA_INFO flag.
+               * 0x200 - ENA_NETMAP  - Enables extra logs for driver working in
+                                       the netmap mode.
+  Example: To enable extra alerts, warnings, and to trace ENA Tx path, the
+           combination of ENA_ALERT | ENA_WARNING | ENA_DBG | ENA_TXPTH is
+           needed. It gives hex mask: 0x01b, which when converted to decimal
+           value, will give 27. To update the logging level, the below command
+           should be used:
+             sysctl hw.ena.log_level=27
+
+- Number of the currently allocated and used IO queues
+  Scope:         Local for the interface X (X is the interface number)
+  Node:          dev.ena.X.io_queues_nb
+  Input values:  [1, max_num_io_queues]
+  Default value: max_num_io_queues
+  Description: Controls the number of IO queues pairs (Tx/Rx). Currently it's
+               impossible to have different number of Tx and Rx queues.
+               As this call has to reallocate the queues, it will reset the
+               interface and restart all the queues - it means that everything
+               that was currently held in the queue will be lost, leading to
+               potential packet drops.
+               This call can fail if the system isn't able to provide
+               the driver with enough resources. In that situation, the driver
+               will try to revert the previous number of the IO queues. If this
+               also fails, the device reset will be triggered.
+  Example: To use only 2 Tx and Rx queues for the device ena1, the below command
+           should be used:
+             sysctl dev.ena.1.io_queues_nb=2
+
+- Size of the Rx queue
+  Scope:         Local for the interface X (X is the interface number)
+  Node:          dev.ena.X.rx_queue_size
+  Input values:  [256, max_rx_ring_size] - must be a power of 2
+  Default value: 1024
+  Description: Controls the number of IO descriptors for each Rx queue.
+               The user may want to increase the Rx queue size if he can observe
+               high number of the Rx drops in the driver's statistics.
+               For performance reasons, the Rx queue size must be a
+               power of 2.
+               This call can fail if the system isn't able to provide
+               the driver with enough resources. In that situation, the driver
+               will try to revert the previous number of the descriptors. If
+               this also fails, the device reset will be triggered.
+  Example: To increase Rx ring size to 8K descriptors for the device ena0, the
+           below command should be used:
+             sysctl dev.ena.0.rx_queue_size=8192
+
+- Size of the Tx buffer ring (drbr)
+  Scope:         Local for the interface X (X is the interface number)
+  Node:          dev.ena.X.buf_ring_size
+  Input values:  uint32_t - must be a power of 2
+  Default value: 4096
+  Description: Controls the number of mbufs that can be held in the Tx buffer
+               ring. The drbr is being used as a multiple-producer,
+               single-consumer lockless ring for buffering extra mbufs coming
+               from the stack in case the Tx procedure is busy sending the
+               packets or the Tx ring is full.
+               Increasing size of the buffer ring may reduce the number of Tx
+               packets being dropped in case of big Tx burst which can't be
+               handled by the IO queue immediately.
+               Each Tx queue has it's own drbr.
+               It is recommended to keep the drbr with at least the default
+               value, but if the system lacks the resource, it can be reduced.
+               This call can fail if the system isn't able to provide the driver
+               with enough resources. In that situation, the driver will try to
+               revert the previous number of the drbr and trigger the device
+               reset.
+  Example: To make the drbr half of a size for the interface ena0, the below
+           command should be used:
+             sysctl dev.ena.0.buf_ring_size=2048
+
+- Interval in seconds for updating ENI metrics.
+  Scope:         Local for the interface X (X is the interface number)
+  Node:          dev.ena.X.eni_metrics.sample_interval
+  Input values:  [0; 3600]
+  Default value: 0
+  Description: Determines how often (if ever) the ENI metrics should be updated.
+               The ENI metrics are being updated asynchronously in a timer
+               service in order to avoid admin queue overload by sysctl node
+               reading. The value in this node controls the interval between
+               issuing admin command to the device which will update the ENI
+               metrics value.
+               If some application is periodically monitoring the eni_metrics,
+               then the ENI metrics interval can be adjusted accordingly.
+               0 is turning off the update totally. 1 is the minimum interval
+               and is equal to 1 second. The maximum allowed update interval is
+               1 hour.
+  Example: To update of the ENI metrics for the device ena1 every 10 seconds,
+           the below command should be used:
+             sysctl dev.ena.1.eni_metrics.sample_interval=10
+
 Supported PCI vendor ID/device IDs:
 ===================================
 1d0f:0ec2 - ENA PF
-1d0f:1ec2 - ENA PF with LLQ support
+1d0f:1ec2 - ENA PF RSERV0
 1d0f:ec20 - ENA VF
-1d0f:ec21 - ENA VF with LLQ support
+1d0f:ec21 - ENA VF RSERV0
 
 ENA Source Code Directory Structure:
 ====================================

@@ -1,5 +1,5 @@
 #
-# BSD LICENSE
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
 # All rights reserved.
@@ -52,6 +52,10 @@ CFLAGS  += -I${.CURDIR}/ena_com
 # Add netmap support in the driver.
 # Uncomment this only if the netmap is enabled in the kernel.
 # CFLAGS += -DDEV_NETMAP
+
+# Add kernel side RSS support in the driver.
+# Uncomment this only if RSS is enabled in the kernel.
+# CFLAGS += -DRSS
 
 clean:
 	rm -f opt_global.h opt_bdg.h device_if.h bus_if.h pci_if.h setdef* *_StripErr
