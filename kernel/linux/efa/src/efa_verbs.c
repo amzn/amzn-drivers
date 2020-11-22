@@ -1307,7 +1307,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 int efa_create_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 #endif
 {
-#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+#ifdef HAVE_UDATA_TO_DRV_CONTEXT
 	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
 		udata, struct efa_ucontext, ibucontext);
 #else
@@ -1479,7 +1479,7 @@ struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev, int entries,
 		return ERR_PTR(-ENOMEM);
 	}
 
-#ifdef HAVE_CREATE_CQ_NO_UCONTEXT
+#ifdef HAVE_UDATA_TO_DRV_CONTEXT
 	cq->ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext,
 						 ibucontext);
 #else
