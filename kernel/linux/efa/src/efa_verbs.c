@@ -1171,6 +1171,11 @@ int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	}
 #endif
 
+#ifdef HAVE_UVERBS_CMD_MASK_NOT_NEEDED
+	if (qp_attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+#endif
+
 	if (udata->inlen &&
 #ifdef HAVE_UVERBS_CMD_HDR_FIX
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
