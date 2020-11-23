@@ -14,8 +14,12 @@
 # --------------------------------------
 m4_define([EFA_LANG_PROGRAM],
 [
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <rdma/ib_verbs.h>
+
+MODULE_LICENSE(\"Dual BSD/GPL\");
+
 $1
 int
 main (void)
