@@ -769,5 +769,19 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if destroy_cq has return code again])
+	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		destroy_cq
+	], [
+		efa_destroy_cq
+	], [
+		int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) { return 0; }
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_IB_INT_DESTROY_CQ, 1, destroy_cq has return code again)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])

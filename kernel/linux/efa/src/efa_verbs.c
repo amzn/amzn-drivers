@@ -1240,8 +1240,12 @@ static int efa_destroy_cq_idx(struct efa_dev *dev, int cq_idx)
 	return efa_com_destroy_cq(&dev->edev, &params);
 }
 
-#ifdef HAVE_IB_VOID_DESTROY_CQ
+#if defined(HAVE_IB_VOID_DESTROY_CQ) || defined(HAVE_IB_INT_DESTROY_CQ)
+#ifdef HAVE_IB_INT_DESTROY_CQ
+int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+#else
 void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+#endif
 {
 	struct efa_dev *dev = to_edev(ibcq->device);
 	struct efa_cq *cq = to_ecq(ibcq);
@@ -1256,6 +1260,9 @@ void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 			DMA_FROM_DEVICE);
 #ifndef HAVE_CQ_CORE_ALLOCATION
 	kfree(cq);
+#endif
+#ifdef HAVE_IB_INT_DESTROY_CQ
+	return 0;
 #endif
 }
 #else
