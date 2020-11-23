@@ -408,7 +408,8 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.dma_device = &pdev->dev;
 #endif
 
-	dev->ibdev.uverbs_cmd_mask =
+	dev->ibdev.uverbs_cmd_mask |=
+#ifndef HAVE_UVERBS_CMD_MASK_NOT_NEEDED
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
 		(1ull << IB_USER_VERBS_CMD_QUERY_PORT) |
@@ -423,6 +424,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
 		(1ull << IB_USER_VERBS_CMD_QUERY_QP) |
 		(1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
+#endif
 		(1ull << IB_USER_VERBS_CMD_CREATE_AH) |
 		(1ull << IB_USER_VERBS_CMD_DESTROY_AH);
 
