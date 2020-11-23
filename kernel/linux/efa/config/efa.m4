@@ -832,5 +832,20 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	# uverbs_cmd_mask removal is paired with create_user_ah introduction
+	AC_MSG_CHECKING([if uverbs_cmd_mask is not needed])
+	EFA_TRY_COMPILE_DEV_OR_OPS_FUNC([
+		create_user_ah
+	], [
+		efa_create_ah
+	], [
+		int efa_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr, struct ib_udata *udata) { return 0; }
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_UVERBS_CMD_MASK_NOT_NEEDED, 1, uverbs_cmd_mask is not needed)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])
