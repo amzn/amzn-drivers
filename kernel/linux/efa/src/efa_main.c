@@ -314,6 +314,9 @@ static const struct ib_device_ops efa_dev_ops = {
 	.create_cq = efa_kzalloc_cq,
 #endif
 	.create_qp = efa_create_qp,
+#ifdef HAVE_UVERBS_CMD_MASK_NOT_NEEDED
+	.create_user_ah = efa_create_ah,
+#endif
 	.dealloc_pd = efa_dealloc_pd,
 	.dealloc_ucontext = efa_dealloc_ucontext,
 	.dereg_mr = efa_dereg_mr,
@@ -408,8 +411,8 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.dma_device = &pdev->dev;
 #endif
 
-	dev->ibdev.uverbs_cmd_mask |=
 #ifndef HAVE_UVERBS_CMD_MASK_NOT_NEEDED
+	dev->ibdev.uverbs_cmd_mask |=
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
 		(1ull << IB_USER_VERBS_CMD_QUERY_PORT) |
@@ -424,9 +427,9 @@ static int efa_ib_device_add(struct efa_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
 		(1ull << IB_USER_VERBS_CMD_QUERY_QP) |
 		(1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
-#endif
 		(1ull << IB_USER_VERBS_CMD_CREATE_AH) |
 		(1ull << IB_USER_VERBS_CMD_DESTROY_AH);
+#endif
 
 #if defined(HAVE_IB_QUERY_DEVICE_UDATA) && !defined(HAVE_UVERBS_CMD_MASK_NOT_NEEDED)
 	dev->ibdev.uverbs_ex_cmd_mask =
