@@ -477,7 +477,9 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.req_notify_cq = efa_req_notify_cq;
 #endif
 
-#ifdef HAVE_IB_REGISTER_DEVICE_TWO_PARAMS
+#ifdef HAVE_IB_REGISTER_DEVICE_DMA_DEVICE_PARAM
+	err = ib_register_device(&dev->ibdev, "efa_%d", &pdev->dev);
+#elif defined(HAVE_IB_REGISTER_DEVICE_TWO_PARAMS)
 	err = ib_register_device(&dev->ibdev, "efa_%d");
 #elif defined(HAVE_IB_REGISTER_DEVICE_NAME_PARAM)
 	err = ib_register_device(&dev->ibdev, "efa_%d", NULL);
@@ -607,7 +609,7 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 			err);
 		return err;
 	}
-
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 	return 0;
 }
 

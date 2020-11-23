@@ -154,9 +154,13 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 
 	AC_MSG_CHECKING([if ib_register_device has name param])
 	EFA_TRY_COMPILE([
+		int port_callback(struct ib_device *ibdev, u8 n, struct kobject *kobj)
+		{
+			return 0;
+		}
 	], [
 		char name[2];
-		ib_register_device(NULL, name, NULL);
+		ib_register_device(NULL, name, port_callback);
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_IB_REGISTER_DEVICE_NAME_PARAM, 1, ib_register_device has name param)
@@ -810,6 +814,20 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 	], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_IB_UMEM_NUM_DMA_BLOCKS, 1, ib_umem_num_dma_blocks exists)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
+	AC_MSG_CHECKING([if ib_register_device has dma_device param])
+	EFA_TRY_COMPILE([
+	], [
+		struct ib_device *dev;
+		char name[2];
+		struct device *dma_device;
+		ib_register_device(dev, name, dma_device);
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_IB_REGISTER_DEVICE_DMA_DEVICE_PARAM, 1, ib_register_device has dma_device param)
 	], [
 		AC_MSG_RESULT(no)
 	])
