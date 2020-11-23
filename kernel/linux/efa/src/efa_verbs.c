@@ -5,6 +5,7 @@
 
 #include "kcompat.h"
 #include <linux/vmalloc.h>
+#include <linux/log2.h>
 
 #include <rdma/ib_addr.h>
 #include <rdma/ib_umem.h>
@@ -2236,9 +2237,13 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #endif /* defined(HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE) */
 #endif /* !defined(HAVE_EFA_GDR) */
 
-	params.page_shift = __ffs(pg_sz);
-	params.page_num = DIV_ROUND_UP(length + (start & (pg_sz - 1)),
+	params.page_shift = order_base_2(pg_sz);
+#ifdef HAVE_IB_UMEM_NUM_DMA_BLOCKS
+	params.page_num = ib_umem_num_dma_blocks(mr->umem, pg_sz);
+#else
+	params.page_num = DIV_ROUND_UP(length + (virt_addr & (pg_sz - 1)),
 				       pg_sz);
+#endif
 
 	ibdev_dbg(&dev->ibdev,
 		  "start %#llx length %#llx params.page_shift %u params.page_num %u\n",

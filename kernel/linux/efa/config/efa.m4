@@ -800,5 +800,19 @@ AC_DEFUN([EFA_CONFIG_RDMA],
 		AC_MSG_RESULT(no)
 	])
 
+	AC_MSG_CHECKING([if ib_umem_num_dma_blocks exists])
+	EFA_TRY_COMPILE([
+		#include <rdma/ib_umem.h>
+	], [
+		struct ib_umem *umem;
+
+		ib_umem_num_dma_blocks(umem, 0);
+	], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_IB_UMEM_NUM_DMA_BLOCKS, 1, ib_umem_num_dma_blocks exists)
+	], [
+		AC_MSG_RESULT(no)
+	])
+
 	wait
 ])
