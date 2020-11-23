@@ -1340,6 +1340,11 @@ int efa_create_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	ibdev_dbg(ibdev, "create_cq entries %d\n", entries);
 
+#ifdef HAVE_CREATE_CQ_ATTR
+	if (attr->flags)
+		return -EOPNOTSUPP;
+#endif
+
 	if (entries < 1 || entries > dev->dev_attr.max_cq_depth) {
 		ibdev_dbg(ibdev,
 			  "cq: requested entries[%u] non-positive or greater than max[%u]\n",
