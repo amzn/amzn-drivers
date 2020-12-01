@@ -2,7 +2,7 @@
 /etc/depmod.d/%{kmod_name}.conf
 /lib/modules/%2-%1
 /usr/share/doc/kmod-%{kmod_name}/greylist.txt
-/usr/share/doc/kmod-%{kmod_name}/README
+/usr/share/doc/kmod-%{kmod_name}/README.rst
 /usr/share/doc/kmod-%{kmod_name}/RELEASENOTES.md
 /usr/share/doc/kmod-%{kmod_name}/COPYING
 

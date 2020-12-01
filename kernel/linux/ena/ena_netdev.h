@@ -25,7 +25,7 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_GEN_MAJOR	2
-#define DRV_MODULE_GEN_MINOR	3
+#define DRV_MODULE_GEN_MINOR	4
 #define DRV_MODULE_GEN_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
@@ -266,7 +266,33 @@ struct ena_stats_rx {
 	u64 xdp_invalid;
 	u64 xdp_redirect;
 #endif
+	u64 lpc_warm_up;
+	u64 lpc_full;
+	u64 lpc_wrong_numa;
 };
+
+/* LPC definitions */
+#define ENA_LPC_DEFAULT_MULTIPLIER 2
+#define ENA_LPC_MAX_MULTIPLIER 32
+#define ENA_LPC_MULTIPLIER_UNIT 1024
+#define ENA_LPC_MIN_NUM_OF_CHANNELS 16
+
+/* Store DMA address along with the page */
+struct ena_page {
+	struct page *page;
+	dma_addr_t dma_addr;
+};
+
+struct ena_page_cache {
+	/* How many pages are produced */
+	u32 head;
+	/* How many of the entries were initialized */
+	u32 current_size;
+	/* Maximum number of pages the cache can hold */
+	u32 max_size;
+
+	struct ena_page cache[0];
+} ____cacheline_aligned;
 
 struct ena_ring {
 	/* Holds the empty requests for TX/RX
@@ -284,6 +310,7 @@ struct ena_ring {
 	struct pci_dev *pdev;
 	struct napi_struct *napi;
 	struct net_device *netdev;
+	struct ena_page_cache *page_cache;
 	struct ena_com_dev *ena_dev;
 	struct ena_adapter *adapter;
 	struct ena_com_io_cq *ena_com_io_cq;

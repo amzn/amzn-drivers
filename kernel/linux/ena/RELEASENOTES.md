@@ -39,6 +39,13 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.4.0 release notes
+**New Features**
+* Implement local page cache (LPC) system
+
+**Bug Fixes**
+* Rename README to README.rst for rpm generation
+
 ## r2.3.0 release notes
 **New Features**
 * Introduce XDP redirect implementation

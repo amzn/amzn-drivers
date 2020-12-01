@@ -759,4 +759,48 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
 #define ENA_GENERIC_PM_OPS
 #endif
 
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(4, 5 ,0)) && \
+     !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,3)))
+static inline int page_ref_count(struct page *page)
+{
+	return atomic_read(&page->_count);
+}
+
+static inline void page_ref_inc(struct page *page)
+{
+	atomic_inc(&page->_count);
+}
+#endif
+
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)) && \
+     !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2)))
+static inline struct page *dev_alloc_page(void)
+{
+	gfp_t gfp_mask = GFP_ATOMIC | __GFP_NOWARN;
+
+	gfp_mask |= __GFP_COLD | __GFP_COMP;
+
+	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, 0);
+}
+#endif
+
+/* This entry might seem strange because of the #ifndef numa_mem_id(),
+ * but these defines were taken from the Linux kernel
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34)
+#ifndef numa_mem_id
+#ifdef CONFIG_HAVE_MEMORYLESS_NODES
+static inline int numa_mem_id(void)
+{
+	return __this_cpu_read(_numa_mem_);
+}
+#else /* CONFIG_HAVE_MEMORYLESS_NODES */
+static inline int numa_mem_id(void)
+{
+	return numa_node_id();
+}
+#endif /* CONFIG_HAVE_MEMORYLESS_NODES */
+#endif /* numa_mem_id */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34) */
+
 #endif /* _KCOMPAT_H_ */

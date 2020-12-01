@@ -102,6 +102,9 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(xdp_invalid),
 	ENA_STAT_RX_ENTRY(xdp_redirect),
 #endif
+	ENA_STAT_RX_ENTRY(lpc_warm_up),
+	ENA_STAT_RX_ENTRY(lpc_full),
+	ENA_STAT_RX_ENTRY(lpc_wrong_numa),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
