@@ -4,8 +4,33 @@ ___
 
 ### Normal releases
 
-#### v20.05
+#### v20.11
 _Release of the new version of the driver - r2.2.0_
+
+New Features:
+* Expose Elastic Network Interface (ENI) metrics via extended statistics
+  (xstats) interface.
+
+Bug Fixes:
+* Align IO CQ allocations to 4K, as it's required by the latest generation HW
+  for the best performance.
+* Change name of the supported PCI device IDs.
+* Fix setting Rx checksum flag in the mbuf. The driver now sets
+  PKT_RX_*_CKSUM_GOOD flag.
+* Fix xstats global stats offset. Previously it was read from the
+  ena_stats_rx_strings instead of the ena_stats_global_strings array,
+  but due to the same values held in both structures, the functionality
+  of the code was still the same.
+* Lock usages of the admin queue during the driver's runtime to avoid
+  concurrency. The spinlock is used for that purpose.
+
+Minor Changes:
+* Mark ARMv8 as supported by the ENA PMD - the documentation was outdated.
+* Remove ENA_ASSERT macro which wasn't used anywhere.
+* Update ena_com to version from 26.04.2020.
+
+#### v20.05
+_Release of the new version of the driver - r2.1.0_
 
 New Features:
 * Support large LLQ headers for use cases like IPv6 with multiple extensions,
@@ -260,6 +285,19 @@ Bug fixes:
   using maximum allowed IO ring size, making the memory management
   ineffective. (v20.05)
 * Fix build with optimization flag O1. (v20.05)
+
+#### v18.11.9
+Bug fixes:
+* HAL fixes (v20.05):
+  - Fix indentation of multiple defines.
+  - Fix indentation in CQ polling.
+  - Fix documentation of functions.
+  - Fix testing for supported hash function.
+  - Prevent allocation of zero sized memory.
+  - Make allocation macros thread-safe.
+* Create IO rings with the valid value. Previously, the rings were created
+  using maximum allowed IO ring size, making the memory management
+  ineffective. (v20.05)
 
 #### v18.11.3
 Bug fixes:
