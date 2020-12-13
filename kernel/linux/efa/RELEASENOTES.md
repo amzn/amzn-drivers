@@ -4,25 +4,28 @@
 The driver was tested on the following distributions:
 
 **Amazon Linux:**
-* Amazon Linux AMI 2
-* Amazon Linux AMI 2018.03
-* Amazon Linux AMI 2017.09
-* Amazon Linux AMI 2016.09
+* Amazon Linux
+* Amazon Linux 2
 
 **CentOS:**
-* CentOS 7.4
-* CentOS 7.6
-* CentOS 7.7
+* CentOS 7
+* CentOS 8
 
 **Red Hat Enterprise Linux:**
 * Red Hat Enterprise Linux 7.6
+* Red Hat Enterprise Linux 7.7
+* Red Hat Enterprise Linux 7.8
+* Red Hat Enterprise Linux 8.2
+* Red Hat Enterprise Linux 8.3
 
 **Ubuntu:**
 * Ubuntu 16.04
 * Ubuntu 18.04
+* Ubuntu 20.04
 
 **SuSE:**
-* SuSE 15.1
+* SUSE Linux Enterprise 15 SP2
+* openSUSE Leap 15.2
 
 ## r1.10.2 release notes
 * Fix possible use of uninitialized variable in GDR error flow
