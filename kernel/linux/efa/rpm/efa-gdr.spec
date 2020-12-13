@@ -84,6 +84,10 @@ install -m 644 Makefile.am		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Sun Dec 06 2020 Gal Pressman <galpress@amazon.com> - 1.11.0
+- Fix wrong modify QP parameters
+- Align to upstream kernel changes
+
 * Sun Oct 11 2020 Gal Pressman <galpress@amazon.com> - 1.10.2
 - Fix possible use of uninitialized variable in GDR error flow
 

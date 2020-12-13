@@ -1,3 +1,9 @@
+efa (1.11.0-1.amzn1) unstable; urgency=medium
+  * Fix wrong modify QP parameters
+  * Align to upstream kernel changes
+
+ -- Gal Pressman <galpress@amazon.com>  Sun, 06 Dec 2020 10:37:53 +0000
+
 efa (1.10.2-1.amzn1) unstable; urgency=medium
   * Fix possible use of uninitialized variable in GDR error flow
 
