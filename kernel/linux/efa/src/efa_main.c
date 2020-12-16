@@ -290,10 +290,12 @@ static const struct ib_device_ops efa_dev_ops = {
 #else
 	.alloc_ucontext = efa_kzalloc_ucontext,
 #endif
+#ifndef HAVE_UVERBS_CMD_MASK_NOT_NEEDED
 #ifdef HAVE_AH_CORE_ALLOCATION
 	.create_ah = efa_create_ah,
 #else
 	.create_ah = efa_kzalloc_ah,
+#endif
 #endif
 #ifdef HAVE_CQ_CORE_ALLOCATION
 	.create_cq = efa_create_cq,
