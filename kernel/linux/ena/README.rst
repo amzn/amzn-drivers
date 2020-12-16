@@ -27,9 +27,9 @@ is advertised by the device via the Admin Queue), a dedicated MSI-X
 interrupt vector per Tx/Rx queue pair, adaptive interrupt moderation,
 and CPU cacheline optimized data placement.
 
-The ENA driver supports industry standard TCP/IP offload features such
-as checksum offload and TCP transmit segmentation offload (TSO).
-Receive-side scaling (RSS) is supported for multi-core scaling.
+The ENA driver supports industry standard TCP/IP offload features such as
+checksum offload. Receive-side scaling (RSS) is supported for multi-core
+scaling.
 
 The ENA driver and its corresponding devices implement health
 monitoring mechanisms such as watchdog, enabling the device and driver
@@ -127,6 +127,11 @@ device, number of MSI-X vectors supported by the device, number of online
 CPUs). The minimum number of queues is 1. If the number of queues given is
 outside of the range, the number of queues will be set to the closest
 number from within the range.
+
+lpc_size - Controls the size of the Local Page Cache size which would be
+``lpc_size * 1024``. Maximum value for this parameter is 32, and a value of 0
+disables it completely. The default value is 2. See LPC section in this README
+for a description of this system.
 
 Disable Predictable Network Names::
 ==================================
@@ -325,6 +330,34 @@ If the frame length is larger than rx_copybreak, napi_get_frags()
 is used, otherwise netdev_alloc_skb_ip_align() is used, the buffer
 content is copied (by CPU) to the SKB, and the buffer is recycled.
 
+Local Page Cache (LPC)
+======================
+ENA Linux driver allows to reduce lock contention and improve CPU usage by
+allocating RX buffers from a page cache rather than from Linux memory system
+(PCP or buddy allocator). The cache is created and binded per RX queue, and
+pages allocated for the queue are stored in the cache (up to cache maximum
+size).
+
+To set the cache size, one can specify *lpc_size* modules parameter, which would
+create a cache that can hold up to ``lpc_size * 1024`` pages for each RX queue.
+Setting it to 0, would disable this feature completely (fallback to regular page
+allocations).
+
+The cache usage for each queue can be monitored using ``ethtool -S`` counters. Where:
+
+- *rx_queue#_lpc_warm_up* - number of pages that were allocated and stored in
+  the cache
+- *rx_queue#_lpc_full* - number of pages that were allocated without using the
+  cache because it didn't have free pages
+- *rx_queue#_lpc_wrong_numa* -  number of pages from the cache that belong to a
+  different NUMA node than the CPU which runs the NAPI routine. In this case,
+  the driver would try to allocate a new page from the same NUMA node instead
+
+Note that *lpc_size* is set to 2 by default and cannot exceed 32.
+Also LPC is disabled when using XDP or when using less than 16 channels.
+Increasing the cache size might result in higher memory usage, and should be
+handled with care.
+
 Statistics
 ==========
 The user can obtain ENA device and driver statistics using ethtool.
@@ -344,8 +377,6 @@ Stateless Offloads
 ==================
 The ENA driver supports:
 
-- TSO over IPv4/IPv6
-- TSO with ECN
 - IPv4 header checksum offload
 - TCP/UDP over IPv4/IPv6 checksum offloads
 

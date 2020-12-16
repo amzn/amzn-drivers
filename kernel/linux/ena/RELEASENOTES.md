@@ -41,7 +41,7 @@ SUSE Linux Enterprise Server 12 SP3
 
 ## r2.4.0 release notes
 **New Features**
-* Implement local page cache (LPC) system
+* Implement local page cache (LPC) system (see README.rst for details)
 
 **Bug Fixes**
 * Rename README to README.rst for rpm generation
