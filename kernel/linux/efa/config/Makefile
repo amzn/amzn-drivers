@@ -7,7 +7,7 @@ KBUILD_CPPFLAGS += -Werror -Wno-unused-variable -Wno-uninitialized -Wno-maybe-un
 obj-m += $(DRIVER_NAME).o
 $(DRIVER_NAME)-objs := main.o
 
-KERNEL_DIR ?= $(shell uname -r)
+KERNEL_DIR ?= /lib/modules/$(shell uname -r)/build
 
 modules:
 	$(MAKE) -C $(KERNEL_DIR) M=$(CURDIR) modules
