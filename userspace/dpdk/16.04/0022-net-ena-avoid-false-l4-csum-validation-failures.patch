@@ -1,4 +1,4 @@
-From 2755d51400076ee9dd8317be7579cac0d8f5eb86 Mon Sep 17 00:00:00 2001
+From af8d11464462349711496efbbbf0b4065b9ce75d Mon Sep 17 00:00:00 2001
 From: Igor Chauskin <igorch@amazon.com>
 Date: Tue, 5 Jan 2021 11:33:27 +0200
 Subject: [PATCH] net/ena: avoid false l4 csum validation failures
@@ -9,14 +9,14 @@ is not supported by the ENA device.
 
 Signed-off-by: Igor Chauskin <igorch@amazon.com>
 ---
- drivers/net/ena/ena_ethdev.c | 26 ++++++++++++++++++++------
- 1 file changed, 20 insertions(+), 6 deletions(-)
+ drivers/net/ena/ena_ethdev.c | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)
 
 diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
-index 02af67a24..8bd02e2a4 100644
+index 02af67a24..adb91d8dd 100644
 --- a/drivers/net/ena/ena_ethdev.c
 +++ b/drivers/net/ena/ena_ethdev.c
-@@ -145,13 +145,14 @@ static struct eth_dev_ops ena_dev_ops = {
+@@ -145,7 +145,8 @@ static struct eth_dev_ops ena_dev_ops = {
  };
  
  static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
@@ -26,13 +26,6 @@ index 02af67a24..8bd02e2a4 100644
  {
  	uint64_t ol_flags = 0;
  
- 	if (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_TCP)
- 		ol_flags |= PKT_TX_TCP_CKSUM;
--	else if (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP)
-+	if (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP)
- 		ol_flags |= PKT_TX_UDP_CKSUM;
- 
- 	if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV4)
 @@ -159,10 +160,22 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
  	else if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV6)
  		ol_flags |= PKT_TX_IPV6;
