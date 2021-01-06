@@ -58,7 +58,7 @@ index a07bd2b49..2aa1841b1 100644
  	struct ena_com_rx_ctx ena_rx_ctx;
  	int rc = 0;
 +	uint64_t dev_rx_offloads = rx_ring->adapter->rx_supported_offloads;
-+
+ 
  	/* Check adapter state */
  	if (unlikely(rx_ring->adapter->state != ENA_ADAPTER_STATE_RUNNING)) {
 @@ -1944,7 +1959,7 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
