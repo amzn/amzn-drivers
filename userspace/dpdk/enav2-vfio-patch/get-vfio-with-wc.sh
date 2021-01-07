@@ -15,11 +15,14 @@ TMP_DIR="tmp"
 P1="/usr/lib/modules/`uname -r`/kernel/drivers/vfio"
 P2="/lib/modules/`uname -r`/kernel/drivers/vfio"
 
+# This may return an error if executed from inside the script
+set +e
 RED="$(tput setaf 1)"
 GREEN="$(tput setaf 2)"
 
 BOLD="$(tput bold)"
 NORMAL="$(tput sgr0)"
+set -e
 
 function bold {
 	echo -e "${BOLD}${@}${NORMAL}"
@@ -189,6 +192,7 @@ KERNEL_VERSION=$(get_kernel_version)
 
 if [ "${KERNEL_VERSION}" -lt 4100000 ]; then
 	err "Kernel version: $(uname -r) is not supported by the script. Please upgrade kernel to at least v4.10."
+	exit 1
 fi
 
 download_kernel_src
