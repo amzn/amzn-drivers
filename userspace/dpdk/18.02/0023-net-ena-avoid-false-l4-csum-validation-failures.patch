@@ -1,0 +1,75 @@
+From 21fd17c74c6e2db1552bd362de32bd388586fb4d Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Tue, 5 Jan 2021 11:08:08 +0200
+Subject: [PATCH] net/ena: avoid false l4 csum validation failures
+
+The driver should ignore Rx csum validation errors
+for fragments and also when the relevant effload
+is not supported by the ENA device.
+
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 34b2a8d78..ca61850e0 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -272,7 +272,8 @@ static inline int ena_cpu_to_node(int cpu)
+ }
+ 
+ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+-				       struct ena_com_rx_ctx *ena_rx_ctx)
++				       struct ena_com_rx_ctx *ena_rx_ctx,
++				       uint64_t rx_offloads)
+ {
+ 	uint64_t ol_flags = 0;
+ 	uint32_t packet_type = 0;
+@@ -287,10 +288,23 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 	else if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV6)
+ 		packet_type |= RTE_PTYPE_L3_IPV6;
+ 
+-	if (unlikely(ena_rx_ctx->l4_csum_err))
+-		ol_flags |= PKT_RX_L4_CKSUM_BAD;
++	/* Csum error flags are valid only when the device has indicated
++	 * that the corresponding Rx csum offload is supported.
++	 * Also, the driver currently handles L4 Rx offload only for IPv4
++	 */
++	if (!ena_rx_ctx->frag) {
++		if (unlikely(ena_rx_ctx->l4_csum_err))
++			if (packet_type & RTE_PTYPE_L3_IPV4)
++				if (((rx_offloads & DEV_RX_OFFLOAD_TCP_CKSUM) &&
++				     (packet_type & RTE_PTYPE_L4_TCP)) ||
++				   ((rx_offloads & DEV_RX_OFFLOAD_UDP_CKSUM) &&
++				     (packet_type & RTE_PTYPE_L4_UDP)))
++					ol_flags |= PKT_RX_L4_CKSUM_BAD;
++	}
++
+ 	if (unlikely(ena_rx_ctx->l3_csum_err))
+-		ol_flags |= PKT_RX_IP_CKSUM_BAD;
++		if(rx_offloads & DEV_RX_OFFLOAD_IPV4_CKSUM)
++			ol_flags |= PKT_RX_IP_CKSUM_BAD;
+ 
+ 	mbuf->ol_flags = ol_flags;
+ 	mbuf->packet_type = packet_type;
+@@ -1600,6 +1614,7 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 
+ 	struct ena_com_rx_ctx ena_rx_ctx;
+ 	int rc = 0;
++	uint64_t dev_rx_offloads = rx_ring->adapter->rx_supported_offloads;
+ 
+ 	/* Check adapter state */
+ 	if (unlikely(rx_ring->adapter->state != ENA_ADAPTER_STATE_RUNNING)) {
+@@ -1653,7 +1668,7 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 		}
+ 
+ 		/* fill mbuf attributes if any */
+-		ena_rx_mbuf_prepare(mbuf_head, &ena_rx_ctx);
++		ena_rx_mbuf_prepare(mbuf_head, &ena_rx_ctx, dev_rx_offloads);
+ 		mbuf_head->hash.rss = (uint32_t)rx_ring->id;
+ 
+ 		/* pass to DPDK application head mbuf */
+-- 
+2.29.2
+
