@@ -4033,7 +4033,7 @@ static int ena_set_queues_placement_policy(struct pci_dev *pdev,
 
 	llq_feature_mask = 1 << ENA_ADMIN_LLQ;
 	if (!(ena_dev->supported_features & llq_feature_mask)) {
-		dev_err(&pdev->dev,
+		dev_warn(&pdev->dev,
 			"LLQ is not supported Fallback to host mode policy.\n");
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 		return 0;
@@ -4041,7 +4041,7 @@ static int ena_set_queues_placement_policy(struct pci_dev *pdev,
 
 	rc = ena_com_config_dev_mode(ena_dev, llq, llq_default_configurations);
 	if (unlikely(rc)) {
-		dev_err(&pdev->dev,
+		dev_warn(&pdev->dev,
 			"Failed to configure the device mode.  Fallback to host mode policy.\n");
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 	}
