@@ -4041,7 +4041,7 @@ static int ena_set_queues_placement_policy(struct pci_dev *pdev,
 
 	rc = ena_com_config_dev_mode(ena_dev, llq, llq_default_configurations);
 	if (unlikely(rc)) {
-		dev_warn(&pdev->dev,
+		dev_err(&pdev->dev,
 			"Failed to configure the device mode.  Fallback to host mode policy.\n");
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 	}
