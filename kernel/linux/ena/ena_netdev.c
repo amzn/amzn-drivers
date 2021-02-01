@@ -46,15 +46,15 @@ MODULE_VERSION(DRV_MODULE_GENERATION);
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
 		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
 static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+module_param(debug, int, 0444);
+MODULE_PARM_DESC(debug, "Debug level (-1=default,0=none,...,16=all)");
 
 static int rx_queue_size = ENA_DEFAULT_RING_SIZE;
-module_param(rx_queue_size, int, S_IRUGO);
+module_param(rx_queue_size, int, 0444);
 MODULE_PARM_DESC(rx_queue_size, "Rx queue size. The size should be a power of 2. Max value is 8K\n");
 
 static int force_large_llq_header;
-module_param(force_large_llq_header, int, S_IRUGO);
+module_param(force_large_llq_header, int, 0444);
 MODULE_PARM_DESC(force_large_llq_header, "Increases maximum supported header size in LLQ mode to 224 bytes, while reducing the maximum TX queue size by half.\n");
 
 static int num_io_queues = ENA_MAX_NUM_IO_QUEUES;
@@ -62,7 +62,7 @@ module_param(num_io_queues, int, 0444);
 MODULE_PARM_DESC(num_io_queues, "Sets number of RX/TX queues to allocate to device. The maximum value depends on the device and number of online CPUs.\n");
 
 static int lpc_size = ENA_LPC_DEFAULT_MULTIPLIER;
-module_param(lpc_size, uint, 0);
+module_param(lpc_size, uint, 0444);
 MODULE_PARM_DESC(lpc_size, "Each local page cache (lpc) holds N * 1024 pages. This parameter sets N which is rounded up to a multiplier of 2. If zero, the page cache is disabled. Max: 32\n");
 
 static struct ena_aenq_handlers aenq_handlers;
