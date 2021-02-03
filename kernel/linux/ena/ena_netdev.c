@@ -2572,7 +2572,6 @@ static void ena_del_napi_in_range(struct ena_adapter *adapter,
 	int i;
 
 	for (i = first_index; i < first_index + count; i++) {
-		napi_hash_del(&adapter->ena_napi[i].napi);
 		netif_napi_del(&adapter->ena_napi[i].napi);
 
 #ifdef ENA_XDP_SUPPORT
