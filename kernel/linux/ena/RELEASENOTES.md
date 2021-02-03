@@ -39,6 +39,13 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.4.1 release notes
+**Bug Fixes**
+* Fix compilation error in kernels >= 5.10
+
+**Minor Changes**
+* Make all module parameters readable
+
 ## r2.4.0 release notes
 **New Features**
 * Implement local page cache (LPC) system (see README.rst for details)
