@@ -1,3 +1,8 @@
+efa (1.11.1-1.amzn1) unstable; urgency=medium
+  * Fix GDR driver packaging issues
+
+ -- Gal Pressman <galpress@amazon.com>  Thu, 28 Jan 2021 09:59:26 +0000
+
 efa (1.11.0-1.amzn1) unstable; urgency=medium
   * Fix wrong modify QP parameters
   * Align to upstream kernel changes

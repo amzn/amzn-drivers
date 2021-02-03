@@ -27,6 +27,9 @@ The driver was tested on the following distributions:
 * SUSE Linux Enterprise 15 SP2
 * openSUSE Leap 15.2
 
+## r1.11.1 release notes
+* Fix GDR driver packaging issues
+
 ## r1.11.0 release notes
 * Fix wrong modify QP parameters
 * Align to upstream kernel changes

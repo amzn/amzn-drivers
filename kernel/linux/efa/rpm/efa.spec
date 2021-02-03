@@ -83,6 +83,9 @@ install -m 644 Makefile.am		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu Jan 28 2021 Gal Pressman <galpress@amazon.com> - 1.11.1
+- Fix GDR driver packaging issues
+
 * Sun Dec 06 2020 Gal Pressman <galpress@amazon.com> - 1.11.0
 - Fix wrong modify QP parameters
 - Align to upstream kernel changes
