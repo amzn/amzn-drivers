@@ -39,15 +39,16 @@ sudo yum install kernel-devel-$(uname -r)
 
 Compilation:
 Run:
-./autogen.sh
-./configure
+mkdir build
+cd build
+cmake ..
 make
 
 efa.ko is created inside the src/ folder.
 
-In order to compile the driver with GPUDirect RDMA enabled, run configure with
+In order to compile the driver with GPUDirect RDMA enabled, run cmake with
 the following parameter:
-./configure --with-gdr=<path_to_nvidia_dir>
+cmake -DNVIDIA_DIR=<path_to_nvidia_dir> ..
 
 Where the <path_to_nvidia_dir> points to the directory of the nvidia driver
 (usually under /usr/src/nvidia*). The directory must contain:

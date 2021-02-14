@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+/*
+ * Copyright 2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ */
+
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <rdma/ib_verbs.h>
+
+MODULE_LICENSE("Dual BSD/GPL");
+
+@prologue@
+int
+main (void)
+{
+@body@
+  ;
+  return 0;
+}

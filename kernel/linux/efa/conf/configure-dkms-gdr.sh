@@ -18,4 +18,7 @@ make KERNEL_UNAME="${kernelver}" clean || exit 1
 make KERNEL_UNAME="${kernelver}" -j$(nproc) || exit 1
 popd
 
-./configure --with-kerneldir=/lib/modules/${kernelver} --with-gdr=${nvidia_path}
+mkdir -p build
+pushd build
+cmake -DKERNEL_VER=${kernelver} -DNVIDIA_DIR=${nvidia_path} ..
+popd

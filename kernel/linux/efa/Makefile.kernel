@@ -1,9 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
-
-obj-m += efa.o
-efa-y := $(EFA_CFILES:.c=.o)
-ifeq ($(shell test -n "$(NVIDIA)" && echo "true" || echo ""),true)
-KBUILD_CPPFLAGS += -I$(NVIDIA)/nvidia/
-KBUILD_EXTRA_SYMBOLS = $(NVIDIA)/Module.symvers
-endif

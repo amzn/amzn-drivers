@@ -1,0 +1,2 @@
+obj-m := efa.o
+efa-y := $(patsubst %.c,%.o, $(filter %.c, @efa_sources_string@))

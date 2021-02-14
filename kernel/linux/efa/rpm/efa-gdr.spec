@@ -14,7 +14,7 @@ License:	Dual BSD/GPL
 URL:		https://github.com/amzn/amzn-drivers/
 Source0:	%{name}-%{version}.tar
 
-Requires:	dkms %kernel_module_package_buildreqs autoconf automake
+Requires:	dkms %kernel_module_package_buildreqs cmake
 Conflicts:	efa
 
 %define install_path /usr/src/%{driver_name}-%{version}
@@ -27,7 +27,6 @@ Conflicts:	efa
 
 %post
 cd %{install_path}
-./autogen.sh
 dkms add -m %{driver_name} -v %{driver_version}
 for kernel in $(/bin/ls /lib/modules); do
 	dkms build -m %{driver_name} -v %{driver_version} -k $kernel
@@ -47,17 +46,16 @@ mkdir -p %{buildroot}%{install_path}/src
 install -D -m 644 conf/efa-gdr.conf	%{buildroot}/etc/modules-load.d/efa.conf
 install -D -m 644 conf/efa-modprobe-gdr.conf	%{buildroot}/etc/modprobe.d/efa.conf
 install -m 644 conf/dkms-gdr.conf	%{buildroot}%{install_path}/dkms.conf
-install -m 744 conf/configure-dkms-gdr.sh	%{buildroot}%{install_path}
+install -m 744 conf/configure-dkms-gdr.sh	%{buildroot}%{install_path}/configure-dkms.sh
+install -m 644 CMakeLists.txt		%{buildroot}%{install_path}
 install -m 644 README			%{buildroot}%{install_path}
 install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
-install -m 644 Makefile.am		%{buildroot}%{install_path}
-install -m 644 Makefile.common		%{buildroot}%{install_path}
-install -m 644 Makefile.kernel		%{buildroot}%{install_path}
-install -m 744 autogen.sh		%{buildroot}%{install_path}
-install -m 644 configure.ac		%{buildroot}%{install_path}
 install -m 644 config/Makefile		%{buildroot}%{install_path}/config
-install -m 644 config/efa.m4		%{buildroot}%{install_path}/config
-install -m 644 config/build-linux.m4	%{buildroot}%{install_path}/config
+install -m 644 config/main.c.in		%{buildroot}%{install_path}/config
+install -m 744 config/compile_conftest.sh	%{buildroot}%{install_path}/config
+install -m 644 config/efa.cmake		%{buildroot}%{install_path}/config
+install -m 744 config/runbg.sh		%{buildroot}%{install_path}/config
+install -m 744 config/wait_for_pid.sh	%{buildroot}%{install_path}/config
 cd src
 install -m 644 efa_com.c		%{buildroot}%{install_path}/src
 install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}/src
@@ -76,7 +74,8 @@ install -m 644 efa.h			%{buildroot}%{install_path}/src
 install -m 644 efa_regs_defs.h		%{buildroot}%{install_path}/src
 install -m 644 efa_sysfs.h		%{buildroot}%{install_path}/src
 install -m 644 kcompat.h		%{buildroot}%{install_path}/src
-install -m 644 Makefile.am		%{buildroot}%{install_path}/src
+install -m 644 CMakeLists.txt		%{buildroot}%{install_path}/src
+install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
 
 %files
 %{install_path}
