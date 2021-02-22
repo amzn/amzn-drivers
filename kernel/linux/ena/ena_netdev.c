@@ -4115,18 +4115,26 @@ static int ena_device_init(struct ena_com_dev *ena_dev, struct pci_dev *pdev,
 		goto err_mmio_read_less;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(dma_width));
+	if (rc) {
+		dev_err(dev, "dma_set_mask_and_coherent failed %d\n", rc);
+		goto err_mmio_read_less;
+	}
+#else
 	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_width));
 	if (rc) {
-		dev_err(dev, "pci_set_dma_mask failed 0x%x\n", rc);
+		dev_err(dev, "pci_set_dma_mask failed %d\n", rc);
 		goto err_mmio_read_less;
 	}
 
 	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(dma_width));
 	if (rc) {
-		dev_err(dev, "err_pci_set_consistent_dma_mask failed 0x%x\n",
+		dev_err(dev, "err_pci_set_consistent_dma_mask failed %d\n",
 			rc);
 		goto err_mmio_read_less;
 	}
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0) */
 
 	/* ENA admin level init */
 	rc = ena_com_admin_init(ena_dev, &aenq_handlers);
@@ -4936,6 +4944,13 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(ENA_MAX_PHYS_ADDR_SIZE_BITS));
+	if (rc) {
+		dev_err(&pdev->dev, "dma_set_mask_and_coherent failed %d\n", rc);
+		goto err_disable_device;
+	}
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0) */
 	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(ENA_MAX_PHYS_ADDR_SIZE_BITS));
 	if (rc) {
 		dev_err(&pdev->dev, "pci_set_dma_mask failed %d\n", rc);
@@ -4948,6 +4963,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			rc);
 		goto err_disable_device;
 	}
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0) */
 
 	pci_set_master(pdev);
 
