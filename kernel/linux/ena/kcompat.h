@@ -799,4 +799,8 @@ static inline int numa_mem_id(void)
 #define AF_XDP_BUSY_POLL_SUPPORTED
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+#define ENA_LINEAR_FRAG_SUPPORTED
+#endif
+
 #endif /* _KCOMPAT_H_ */
