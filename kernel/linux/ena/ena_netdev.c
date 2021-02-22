@@ -429,7 +429,6 @@ static int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 	u32 verdict = XDP_PASS;
 	struct xdp_frame *xdpf;
 	u64 *xdp_stat;
-	int qid;
 
 	rcu_read_lock();
 	xdp_prog = READ_ONCE(rx_ring->xdp_bpf_prog);
@@ -454,8 +453,7 @@ static int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 		}
 
 		/* Find xmit queue */
-		qid = rx_ring->qid + rx_ring->adapter->num_io_queues;
-		xdp_ring = &rx_ring->adapter->tx_ring[qid];
+		xdp_ring = rx_ring->xdp_ring;
 
 		/* The XDP queues are shared between XDP_TX and XDP_REDIRECT */
 		spin_lock(&xdp_ring->xdp_tx_lock);
@@ -793,6 +791,9 @@ static void ena_init_io_rings(struct ena_adapter *adapter,
 				ena_com_get_nonadaptive_moderation_interval_rx(ena_dev);
 			rxr->empty_rx_queue = 0;
 			adapter->ena_napi[i].dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+#ifdef ENA_XDP_SUPPORT
+			rxr->xdp_ring = &adapter->tx_ring[i + adapter->num_io_queues];
+#endif
 		}
 	}
 }
