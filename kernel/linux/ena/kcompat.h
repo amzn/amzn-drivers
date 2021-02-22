@@ -803,4 +803,8 @@ static inline int numa_mem_id(void)
 #endif /* numa_mem_id */
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34) */
 
+#ifndef fallthrough
+#define fallthrough do {} while (0)  /* fallthrough */
+#endif
+
 #endif /* _KCOMPAT_H_ */

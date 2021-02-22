@@ -446,6 +446,13 @@ static int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 #else
 		xdpf = convert_to_xdp_frame(xdp);
 #endif
+		if (unlikely(!xdpf)) {
+			trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
+			xdp_stat = &rx_ring->rx_stats.xdp_aborted;
+			verdict = XDP_ABORTED;
+			break;
+		}
+
 		/* Find xmit queue */
 		qid = rx_ring->qid + rx_ring->adapter->num_io_queues;
 		xdp_ring = &rx_ring->adapter->tx_ring[qid];
@@ -459,8 +466,13 @@ static int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 		xdp_stat = &rx_ring->rx_stats.xdp_tx;
 		break;
 	case XDP_REDIRECT:
-		xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
-		xdp_stat = &rx_ring->rx_stats.xdp_redirect;
+		if (likely(!xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog))) {
+			xdp_stat = &rx_ring->rx_stats.xdp_redirect;
+			break;
+		}
+		trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
+		xdp_stat = &rx_ring->rx_stats.xdp_aborted;
+		verdict = XDP_ABORTED;
 		break;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
