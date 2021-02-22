@@ -9,11 +9,24 @@ The driver was verified on the following distributions:
 **Releases:**
 * FreeBSD 11.4
 * FreeBSD 12.2
+* FreeBSD 13.0-BETA3
 
 **Development:**
-* stable/11 - r367416
-* stable/12 - r367418
-* HEAD - 367420
++-----------+---------+--------------+
+| Branch    | ID      | hash         |
++-----------+---------+--------------+
+| stable/11 | n215703 | a069809d907d |
+| stable/12 | n232729 | 2b1f87a83c1c |
+| stable/13 | n244573 | bef16fad3bd2 |
+| HEAD      | n244897 | fae028dd97d8 |
++-----------+---------+--------------+
+
+## r2.3.1 release notes
+**Bug Fixes**
+* Fix resource allocation if the MSIx vector table is not sharing the
+  BAR with the registers. FreeBSD requires all resources to be allocated
+  by the driver, so having unavailable BAR with MSIx vector table on it,
+  will prevent PCI code from allocating MSIx interrupts.
 
 ## r2.3.0 release notes
 **New Features**
