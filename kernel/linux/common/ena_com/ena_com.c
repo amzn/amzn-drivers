@@ -1362,16 +1362,15 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 	comp_ctx = ena_com_submit_admin_cmd(admin_queue, cmd, cmd_size,
 					    comp, comp_size);
 	if (IS_ERR(comp_ctx)) {
-		if (comp_ctx == ERR_PTR(-ENODEV))
+		ret = PTR_ERR(comp_ctx);
+		if (ret == -ENODEV)
 			netdev_dbg(admin_queue->ena_dev->net_device,
-				   "Failed to submit command [%ld]\n",
-				   PTR_ERR(comp_ctx));
+				   "Failed to submit command [%d]\n", ret);
 		else
 			netdev_err(admin_queue->ena_dev->net_device,
-				   "Failed to submit command [%ld]\n",
-				   PTR_ERR(comp_ctx));
+				   "Failed to submit command [%d]\n", ret);
 
-		return (int)PTR_ERR(comp_ctx);
+		return ret;
 	}
 
 	ret = ena_com_wait_and_process_admin_cq(comp_ctx, admin_queue);
@@ -2258,7 +2257,7 @@ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
 	return ret;
 }
 
-int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
+int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
 {
 	struct ena_com_admin_queue *admin_queue;
 	struct ena_admin_set_feat_cmd cmd;
@@ -2277,7 +2276,7 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
 	cmd.aq_common_descriptor.flags = 0;
 	cmd.feat_common.feature_id = ENA_ADMIN_MTU;
-	cmd.u.mtu.mtu = (u32)mtu;
+	cmd.u.mtu.mtu = mtu;
 
 	ret = ena_com_execute_admin_command(admin_queue,
 					    (struct ena_admin_aq_entry *)&cmd,
@@ -2700,7 +2699,7 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 		return ret;
 	}
 
-	cmd.control_buffer.length = (u32)(1ULL << rss->tbl_log_size) *
+	cmd.control_buffer.length = (1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	ret = ena_com_execute_admin_command(admin_queue,
@@ -2723,7 +2722,7 @@ int ena_com_indirect_table_get(struct ena_com_dev *ena_dev, u32 *ind_tbl)
 	u32 tbl_size;
 	int i, rc;
 
-	tbl_size = (u32)(1ULL << rss->tbl_log_size) *
+	tbl_size = (1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	rc = ena_com_get_feature_ex(ena_dev, &get_resp,
