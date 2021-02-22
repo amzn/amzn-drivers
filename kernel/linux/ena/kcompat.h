@@ -38,7 +38,9 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 #ifndef LINUX_VERSION_CODE
 #include <linux/version.h>
-#else
+#endif
+
+#ifndef KERNEL_VERSION
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif
 
@@ -125,10 +127,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *  3.16.0-23-generic
  * ABI is 23
  */
-#ifndef UTS_UBUNTU_RELEASE_ABI
-#define UTS_UBUNTU_RELEASE_ABI 0
-#define UBUNTU_VERSION_CODE 0
-#else
+#ifdef UTS_UBUNTU_RELEASE_ABI
 
 #if UTS_UBUNTU_RELEASE_ABI > 255
 #undef UTS_UBUNTU_RELEASE_ABI
@@ -238,7 +237,9 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 /*****************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37) )
-#ifndef netif_set_real_num_tx_queues
+/* The function netif_set_real_num_tx_queues() doesn't return value for
+ * kernels < 2.6.37
+ */
 static inline int _kc_netif_set_real_num_tx_queues(struct net_device *dev,
                                                    unsigned int txq)
 {
@@ -247,16 +248,7 @@ static inline int _kc_netif_set_real_num_tx_queues(struct net_device *dev,
 }
 #define netif_set_real_num_tx_queues(dev, txq) \
         _kc_netif_set_real_num_tx_queues(dev, txq)
-#endif
-#ifndef netif_set_real_num_rx_queues
-static inline int __kc_netif_set_real_num_rx_queues(struct net_device __always_unused *dev,
-                                                    unsigned int __always_unused rxq)
-{
-        return 0;
-}
-#define netif_set_real_num_rx_queues(dev, rxq) \
-        __kc_netif_set_real_num_rx_queues((dev), (rxq))
-#endif
+
 #endif /* < 2.6.37 */
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0) )
@@ -278,18 +270,6 @@ typedef u32 netdev_features_t;
 
 /******************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0) )
-#ifndef skb_add_rx_frag
-#define skb_add_rx_frag _kc_skb_add_rx_frag
-static inline void _kc_skb_add_rx_frag(struct sk_buff *skb, int i,
-				       struct page *page, int off, int size,
-				       unsigned int truesize)
-{
-	skb_fill_page_desc(skb, i, page, off, size);
-	skb->len += size;
-	skb->data_len += size;
-	skb->truesize += truesize;
-}
-#endif
 #ifdef NET_ADDR_RANDOM
 #define eth_hw_addr_random(N) do { \
 	eth_random_addr(N->dev_addr); \
@@ -383,7 +363,7 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
-#if UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,24)
+#if defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,24)
 #define HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V1
 #else
 #define HAVE_NDO_SELECT_QUEUE_ACCEL
@@ -416,7 +396,7 @@ static inline void reinit_completion(struct completion *x)
        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))) \
      && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))&& \
      !defined(UEK3_RELEASE))) || \
-     (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
+     (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 					struct msix_entry *entries,
 					int minvec,
@@ -456,7 +436,7 @@ static inline void *devm_kcalloc(struct device *dev,
 #if (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,8) ) && \
      !RHEL_RELEASE_CODE && \
      !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))) || \
-     (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
+     (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
 enum pkt_hash_types {
 	PKT_HASH_TYPE_NONE,	/* Undefined type */
 	PKT_HASH_TYPE_L2,	/* Input: src_MAC, dest_MAC */
@@ -476,7 +456,7 @@ static inline void skb_set_hash(struct sk_buff *skb, __u32 hash,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0)
 #if !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0) && \
 			        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(6,6)) \
-    && !(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
+    && !(defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
 static inline int pci_msix_vec_count(struct pci_dev *dev)
 {
 	int pos;
@@ -504,7 +484,7 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 #endif
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0) || \
-	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,30))) || \
+	(defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,30))) || \
 	(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) || \
 	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0) \
 	                     && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,1))
@@ -581,7 +561,7 @@ static inline void __napi_schedule_irqoff(struct napi_struct *n)
 	|| (RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,7)) && \
 	                          (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) \
 	                      || RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2)) \
-	|| (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,19,0,51))
+	|| (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,19,0,51))
 #else
 static inline void napi_complete_done(struct napi_struct *n, int work_done)
 {
@@ -590,8 +570,8 @@ static inline void napi_complete_done(struct napi_struct *n, int work_done)
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0) \
-	|| (UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,126)) && \
-	(UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,14,0,0)) \
+	|| (defined(UBUNTU_VERSION_CODE) && \
+	(UBUNTU_VERSION(3,13,0,126) <= UBUNTU_VERSION_CODE && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,14,0,0))) \
 	|| (RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,5))
 
 #else
@@ -718,7 +698,7 @@ do {									\
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) && \
     !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1)) && \
                             (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6, 6)))) && \
-                            !(UBUNTU_VERSION_CODE) && \
+                            !defined(UBUNTU_VERSION_CODE) && \
                             !defined(UEK3_RELEASE)
 
 #define DO_ONCE(func, ...)						     \
@@ -759,12 +739,19 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
 #define ENA_GENERIC_PM_OPS
 #endif
 
-#if ((LINUX_VERSION_CODE < KERNEL_VERSION(4, 5 ,0)) && \
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(4, 6 ,0)) && \
      !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,3)))
+/* Linux versions 4.4.216 - 4.5 (non inclusive) back propagated page_ref_count
+ * function from kernel 4.6. To make things more difficult, Ubuntu didn't add
+ * these changes to its 4.4.* kernels
+ */
+#if !(KERNEL_VERSION(4, 4 ,216) <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < KERNEL_VERSION(4, 5 ,0)) ||\
+      defined(UBUNTU_VERSION_CODE)
 static inline int page_ref_count(struct page *page)
 {
 	return atomic_read(&page->_count);
 }
+#endif /* !(KERNEL_VERSION(4, 4 ,216) <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < KERNEL_VERSION(4, 5 ,0)) */
 
 static inline void page_ref_inc(struct page *page)
 {
