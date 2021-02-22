@@ -3047,6 +3047,11 @@ static bool ena_is_lpc_supported(struct ena_adapter *adapter,
 			  "Local page cache is disabled for less than %d channels\n",
 			  ENA_LPC_MIN_NUM_OF_CHANNELS);
 
+		/* Disable LPC for such case. It can enabled again through
+		 * ethtool private-flag.
+		 */
+		adapter->lpc_size = 0;
+
 		return false;
 	}
 #ifdef ENA_XDP_SUPPORT
@@ -3322,6 +3327,39 @@ static int ena_close(struct net_device *netdev)
 		/* rtnl lock already obtained in dev_ioctl() layer */
 		ena_destroy_device(adapter, false);
 		ena_restore_device(adapter);
+	}
+
+	return 0;
+}
+
+int ena_set_lpc_state(struct ena_adapter *adapter, bool enabled)
+{
+	/* In XDP, lpc_size might be positive even with LPC disabled, use cache
+	 * pointer instead.
+	 */
+	struct ena_page_cache *page_cache = adapter->rx_ring->page_cache;
+
+	/* Exit early if LPC state doesn't change */
+	if (enabled == !!page_cache)
+		return 0;
+
+	if (enabled && !ena_is_lpc_supported(adapter, adapter->rx_ring, true))
+		return -EOPNOTSUPP;
+
+	/* Prevent a case in which disabling LPC on startup, prevents it from
+	 * being enabled afterwards.
+	 */
+	if (!lpc_size)
+		lpc_size = ENA_LPC_DEFAULT_MULTIPLIER;
+
+	adapter->lpc_size = enabled ? lpc_size : 0;
+
+	/* rtnl lock is already obtained in dev_ioctl() layer, so it's safe to
+	 * re-initialize IO resources.
+	 */
+	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags)) {
+		ena_close(adapter->netdev);
+		ena_up(adapter);
 	}
 
 	return 0;

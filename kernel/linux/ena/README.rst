@@ -342,6 +342,9 @@ To set the cache size, one can specify *lpc_size* modules parameter, which would
 create a cache that can hold up to ``lpc_size * 1024`` pages for each RX queue.
 Setting it to 0, would disable this feature completely (fallback to regular page
 allocations).
+The feature can be toggled between on/off state using ethtool private flags,
+e.g.
+    # ethtool --set-priv-flags eth1 local_page_cache off
 
 The cache usage for each queue can be monitored using ``ethtool -S`` counters. Where:
 

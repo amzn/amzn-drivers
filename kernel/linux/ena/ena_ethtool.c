@@ -123,6 +123,13 @@ static const struct ena_stats ena_stats_ena_com_strings[] = {
 #define ENA_STATS_ARRAY_ENI(adapter)	\
 	(ARRAY_SIZE(ena_stats_eni_strings) * (adapter)->eni_stats_supported)
 
+static const char ena_priv_flags_strings[][ETH_GSTRING_LEN] = {
+#define ENA_PRIV_FLAGS_LPC	BIT(0)
+	"local_page_cache",
+};
+
+#define ENA_PRIV_FLAGS_NR ARRAY_SIZE(ena_priv_flags_strings)
+
 static void ena_safe_update_stat(u64 *src, u64 *dst,
 				 struct u64_stats_sync *syncp)
 {
@@ -243,10 +250,15 @@ int ena_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ena_get_sw_stats_count(adapter) +
+		       ena_get_hw_stats_count(adapter);
+	case ETH_SS_PRIV_FLAGS:
+		return ENA_PRIV_FLAGS_NR;
+	}
 
-	return ena_get_sw_stats_count(adapter) + ena_get_hw_stats_count(adapter);
+	return -EOPNOTSUPP;
 }
 
 static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
@@ -327,10 +339,14 @@ static void ena_get_ethtool_strings(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	if (sset != ETH_SS_STATS)
-		return;
-
-	ena_get_strings(adapter, data, adapter->eni_stats_supported);
+	switch (sset) {
+	case ETH_SS_STATS:
+		ena_get_strings(adapter, data, adapter->eni_stats_supported);
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(data, ena_priv_flags_strings, sizeof(ena_priv_flags_strings));
+		break;
+	}
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
@@ -501,6 +517,8 @@ static void ena_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_MODULE_GENERATION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
+
+	info->n_priv_flags = ENA_PRIV_FLAGS_NR;
 }
 
 static void ena_get_ringparam(struct net_device *netdev,
@@ -1018,6 +1036,25 @@ static int ena_set_tunable(struct net_device *netdev,
 }
 #endif /* 3.18.0 */
 
+static u32 ena_get_priv_flags(struct net_device *netdev)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	u32 priv_flags = 0;
+
+	if (adapter->rx_ring->page_cache)
+		priv_flags |= ENA_PRIV_FLAGS_LPC;
+
+	return priv_flags;
+}
+
+static int ena_set_priv_flags(struct net_device *netdev, u32 priv_flags)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
+	/* LPC is the only supported private flag for now */
+	return ena_set_lpc_state(adapter, !!(priv_flags & ENA_PRIV_FLAGS_LPC));
+}
+
 static const struct ethtool_ops ena_ethtool_ops = {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
@@ -1067,6 +1104,8 @@ static const struct ethtool_ops ena_ethtool_ops = {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 	.get_ts_info            = ethtool_op_get_ts_info,
 #endif
+	.get_priv_flags		= ena_get_priv_flags,
+	.set_priv_flags		= ena_set_priv_flags,
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev)
