@@ -212,6 +212,7 @@ struct ena_rx_buffer {
 	struct sk_buff *skb;
 	struct page *page;
 	u32 page_offset;
+	bool is_lpc_page;
 	struct ena_com_buf ena_buf;
 } ____cacheline_aligned;
 

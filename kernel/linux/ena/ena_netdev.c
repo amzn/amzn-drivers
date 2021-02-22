@@ -1137,15 +1137,20 @@ static struct page *ena_return_cache_page(struct ena_ring *rx_ring,
 	return ena_page->page;
 }
 
-static struct page *ena_get_page(struct ena_ring *rx_ring, dma_addr_t *dma, int current_nid)
+static struct page *ena_get_page(struct ena_ring *rx_ring, dma_addr_t *dma,
+				 int current_nid, bool *is_lpc_page)
 {
 	struct ena_page_cache *page_cache = rx_ring->page_cache;
 	u32 head, cache_current_size;
 	struct ena_page *ena_page;
 
 	/* Cache size of zero indicates disabled cache */
-	if (!page_cache)
+	if (!page_cache) {
+		*is_lpc_page = false;
 		return ena_alloc_map_page(rx_ring, dma);
+	}
+
+	*is_lpc_page = true;
 
 	cache_current_size = page_cache->current_size;
 	head = page_cache->head;
@@ -1166,7 +1171,7 @@ static struct page *ena_get_page(struct ena_ring *rx_ring, dma_addr_t *dma, int 
 
 		/* Add a new page to the cache */
 		ena_page->page = ena_alloc_map_page(rx_ring, dma);
-		if (!ena_page->page)
+		if (unlikely(!ena_page->page))
 			return NULL;
 
 		ena_page->dma_addr = *dma;
@@ -1186,6 +1191,7 @@ static struct page *ena_get_page(struct ena_ring *rx_ring, dma_addr_t *dma, int 
 	/* Next page is still in use, so we allocate outside the cache */
 	if (unlikely(page_ref_count(ena_page->page) != 1)) {
 		ena_increase_stat(&rx_ring->rx_stats.lpc_full, 1, &rx_ring->syncp);
+		*is_lpc_page = false;
 		return ena_alloc_map_page(rx_ring, dma);
 	}
 
@@ -1200,6 +1206,7 @@ static int ena_alloc_rx_page(struct ena_ring *rx_ring,
 	int headroom = rx_ring->rx_headroom;
 	struct ena_com_buf *ena_buf;
 	struct page *page;
+	bool is_lpc_page;
 	dma_addr_t dma;
 	int tailroom;
 
@@ -1211,7 +1218,7 @@ static int ena_alloc_rx_page(struct ena_ring *rx_ring,
 		return 0;
 
 	/* We handle DMA here */
-	page = ena_get_page(rx_ring, &dma, current_nid);
+	page = ena_get_page(rx_ring, &dma, current_nid, &is_lpc_page);
 	if (unlikely(!page)) {
 		ena_increase_stat(&rx_ring->rx_stats.page_alloc_fail, 1,
 				  &rx_ring->syncp);
@@ -1224,6 +1231,7 @@ static int ena_alloc_rx_page(struct ena_ring *rx_ring,
 	tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	rx_info->page = page;
+	rx_info->is_lpc_page = is_lpc_page;
 	ena_buf = &rx_info->ena_buf;
 	ena_buf->paddr = dma + headroom;
 	ena_buf->len = ENA_PAGE_SIZE - headroom - tailroom;
@@ -1236,10 +1244,8 @@ static void ena_unmap_rx_buff(struct ena_ring *rx_ring,
 {
 	struct ena_com_buf *ena_buf = &rx_info->ena_buf;
 
-	/* If the ref count of the page is 2, then it belong to the page cache,
-	 * and it is up to it to unmap it.
-	 */
-	if (page_ref_count(rx_info->page) == 1)
+	/* LPC pages are unmapped at cache destruction */
+	if (!rx_info->is_lpc_page)
 		dma_unmap_page(rx_ring->dev, ena_buf->paddr - rx_ring->rx_headroom,
 			       ENA_PAGE_SIZE,
 			       DMA_BIDIRECTIONAL);
