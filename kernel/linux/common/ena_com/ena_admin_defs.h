@@ -825,7 +825,8 @@ enum ena_admin_os_type {
 	ENA_ADMIN_OS_FREEBSD                        = 4,
 	ENA_ADMIN_OS_IPXE                           = 5,
 	ENA_ADMIN_OS_ESXI                           = 6,
-	ENA_ADMIN_OS_GROUPS_NUM                     = 6,
+	ENA_ADMIN_OS_MACOS                          = 7,
+	ENA_ADMIN_OS_GROUPS_NUM                     = 7,
 };
 
 struct ena_admin_host_info {
@@ -1064,8 +1065,6 @@ enum ena_admin_aenq_group {
 };
 
 enum ena_admin_aenq_notification_syndrome {
-	ENA_ADMIN_SUSPEND                           = 0,
-	ENA_ADMIN_RESUME                            = 1,
 	ENA_ADMIN_UPDATE_HINTS                      = 2,
 };
 

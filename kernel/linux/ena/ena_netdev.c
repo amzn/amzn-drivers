@@ -203,7 +203,7 @@ static int ena_xmit_common(struct net_device *dev,
 		netif_err(adapter, tx_queued, dev,
 			  "Failed to prepare tx bufs\n");
 		ena_increase_stat(&ring->tx_stats.prepare_ctx_err, 1,
-			&ring->syncp);
+				  &ring->syncp);
 		if (rc != -ENOMEM) {
 			adapter->reset_reason =
 				ENA_REGS_RESET_DRIVER_INVALID_STATE;
@@ -313,7 +313,7 @@ static int ena_xdp_tx_map_frame(struct ena_ring *xdp_ring,
 
 error_report_dma_error:
 	ena_increase_stat(&xdp_ring->tx_stats.dma_mapping_err, 1,
-		&xdp_ring->syncp);
+			  &xdp_ring->syncp);
 	netif_warn(adapter, tx_queued, adapter->netdev, "Failed to map xdp buff\n");
 
 	xdp_return_frame_rx_napi(tx_info->xdpf);
@@ -364,7 +364,7 @@ static int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
 	if (flags & XDP_XMIT_FLUSH) {
 		ena_com_write_sq_doorbell(xdp_ring->ena_com_io_sq);
 		ena_increase_stat(&xdp_ring->tx_stats.doorbells, 1,
-			&xdp_ring->syncp);
+				  &xdp_ring->syncp);
 	}
 
 	return rc;
@@ -414,7 +414,7 @@ static int ena_xdp_xmit(struct net_device *dev, int n,
 	if (flags & XDP_XMIT_FLUSH) {
 		ena_com_write_sq_doorbell(xdp_ring->ena_com_io_sq);
 		ena_increase_stat(&xdp_ring->tx_stats.doorbells, 1,
-			&xdp_ring->syncp);
+				  &xdp_ring->syncp);
 	}
 
 	spin_unlock(&xdp_ring->xdp_tx_lock);
@@ -427,10 +427,10 @@ static int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 {
 	struct bpf_prog *xdp_prog;
 	struct ena_ring *xdp_ring;
-	struct xdp_frame *xdpf;
-	int qid;
 	u32 verdict = XDP_PASS;
+	struct xdp_frame *xdpf;
 	u64 *xdp_stat;
+	int qid;
 
 	rcu_read_lock();
 	xdp_prog = READ_ONCE(rx_ring->xdp_bpf_prog);
@@ -1192,7 +1192,7 @@ static int ena_alloc_rx_page(struct ena_ring *rx_ring,
 	page = ena_get_page(rx_ring, &dma, current_nid);
 	if (unlikely(!page)) {
 		ena_increase_stat(&rx_ring->rx_stats.page_alloc_fail, 1,
-			&rx_ring->syncp);
+				  &rx_ring->syncp);
 		return -ENOMEM;
 	}
 
@@ -1279,7 +1279,7 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 
 	if (unlikely(i < num)) {
 		ena_increase_stat(&rx_ring->rx_stats.refil_partial, 1,
-			&rx_ring->syncp);
+				  &rx_ring->syncp);
 		netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
 			   "Refilled rx qid %d with only %d buffers (from %d)\n",
 			   rx_ring->qid, i, num);
@@ -1607,7 +1607,7 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 		    test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags)) {
 			netif_tx_wake_queue(txq);
 			ena_increase_stat(&tx_ring->tx_stats.queue_wakeup, 1,
-				&tx_ring->syncp);
+					  &tx_ring->syncp);
 		}
 		__netif_tx_unlock(txq);
 	}
@@ -1627,7 +1627,7 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, bool frags)
 
 	if (unlikely(!skb)) {
 		ena_increase_stat(&rx_ring->rx_stats.skb_alloc_fail, 1,
-			&rx_ring->syncp);
+				  &rx_ring->syncp);
 		netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 			  "Failed to allocate skb. frags: %d\n", frags);
 		return NULL;
@@ -1641,9 +1641,9 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 				  u32 descs,
 				  u16 *next_to_clean)
 {
-	struct sk_buff *skb;
 	struct ena_rx_buffer *rx_info;
 	u16 len, req_id, buf = 0;
+	struct sk_buff *skb;
 #if ENA_BUSY_POLL_SUPPORT
 	bool polling;
 #endif
@@ -1783,7 +1783,7 @@ static void ena_rx_checksum(struct ena_ring *rx_ring,
 		/* ipv4 checksum error */
 		skb->ip_summed = CHECKSUM_NONE;
 		ena_increase_stat(&rx_ring->rx_stats.bad_csum, 1,
-			&rx_ring->syncp);
+				  &rx_ring->syncp);
 		netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 			  "RX IPv4 header checksum error\n");
 		return;
@@ -1795,7 +1795,7 @@ static void ena_rx_checksum(struct ena_ring *rx_ring,
 		if (unlikely(ena_rx_ctx->l4_csum_err)) {
 			/* TCP/UDP checksum error */
 			ena_increase_stat(&rx_ring->rx_stats.bad_csum, 1,
-				&rx_ring->syncp);
+					  &rx_ring->syncp);
 			netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 				  "RX L4 checksum error\n");
 			skb->ip_summed = CHECKSUM_NONE;
@@ -1805,10 +1805,10 @@ static void ena_rx_checksum(struct ena_ring *rx_ring,
 		if (likely(ena_rx_ctx->l4_csum_checked)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			ena_increase_stat(&rx_ring->rx_stats.csum_good, 1,
-				&rx_ring->syncp);
+					  &rx_ring->syncp);
 		} else {
 			ena_increase_stat(&rx_ring->rx_stats.csum_unchecked, 1,
-				&rx_ring->syncp);
+					  &rx_ring->syncp);
 			skb->ip_summed = CHECKSUM_NONE;
 		}
 	} else {
@@ -2047,11 +2047,11 @@ error:
 
 	if (rc == -ENOSPC) {
 		ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1,
-					 &rx_ring->syncp);
+				  &rx_ring->syncp);
 		adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
 	} else {
 		ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1,
-					 &rx_ring->syncp);
+				  &rx_ring->syncp);
 		adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
 	}
 
@@ -2113,7 +2113,7 @@ static void ena_unmask_interrupt(struct ena_ring *tx_ring,
 				true);
 
 	ena_increase_stat(&tx_ring->tx_stats.unmask_interrupt, 1,
-		&tx_ring->syncp);
+			  &tx_ring->syncp);
 
 	/* It is a shared MSI-X.
 	 * Tx and Rx CQ have pointer to it.
@@ -3124,7 +3124,7 @@ static int ena_up(struct ena_adapter *adapter)
 		netif_carrier_on(adapter->netdev);
 
 	ena_increase_stat(&adapter->dev_stats.interface_up, 1,
-		&adapter->syncp);
+			  &adapter->syncp);
 
 	set_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 
@@ -3164,7 +3164,7 @@ static void ena_down(struct ena_adapter *adapter)
 	clear_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 
 	ena_increase_stat(&adapter->dev_stats.interface_down, 1,
-		&adapter->syncp);
+			  &adapter->syncp);
 
 	netif_carrier_off(adapter->netdev);
 	netif_tx_disable(adapter->netdev);
@@ -3404,7 +3404,7 @@ static int ena_check_and_linearize_skb(struct ena_ring *tx_ring,
 	rc = skb_linearize(skb);
 	if (unlikely(rc)) {
 		ena_increase_stat(&tx_ring->tx_stats.linearize_failed, 1,
-			&tx_ring->syncp);
+				  &tx_ring->syncp);
 	}
 
 	return rc;
@@ -3445,7 +3445,7 @@ static int ena_tx_map_skb(struct ena_ring *tx_ring,
 		*header_len = push_len;
 		if (unlikely(skb->data != *push_hdr)) {
 			ena_increase_stat(&tx_ring->tx_stats.llq_buffer_copy, 1,
-				&tx_ring->syncp);
+					  &tx_ring->syncp);
 
 			delta = push_len - skb_head_len;
 		}
@@ -3503,7 +3503,7 @@ static int ena_tx_map_skb(struct ena_ring *tx_ring,
 
 error_report_dma_error:
 	ena_increase_stat(&tx_ring->tx_stats.dma_mapping_err, 1,
-		&tx_ring->syncp);
+			  &tx_ring->syncp);
 	netif_warn(adapter, tx_queued, adapter->netdev, "Failed to map skb\n");
 
 	tx_info->skb = NULL;
@@ -3579,7 +3579,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		netif_tx_stop_queue(txq);
 		ena_increase_stat(&tx_ring->tx_stats.queue_stop, 1,
-			&tx_ring->syncp);
+				  &tx_ring->syncp);
 
 		/* There is a rare condition where this function decide to
 		 * stop the queue but meanwhile clean_tx_irq updates
@@ -3595,7 +3595,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						 ENA_TX_WAKEUP_THRESH)) {
 			netif_tx_wake_queue(txq);
 			ena_increase_stat(&tx_ring->tx_stats.queue_wakeup, 1,
-				&tx_ring->syncp);
+					  &tx_ring->syncp);
 		}
 	}
 
@@ -3611,7 +3611,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
 		ena_increase_stat(&tx_ring->tx_stats.doorbells, 1,
-			&tx_ring->syncp);
+				  &tx_ring->syncp);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 	}
 #endif
@@ -4030,7 +4030,7 @@ static int ena_set_queues_placement_policy(struct pci_dev *pdev,
 
 	llq_feature_mask = 1 << ENA_ADMIN_LLQ;
 	if (!(ena_dev->supported_features & llq_feature_mask)) {
-		dev_err(&pdev->dev,
+		dev_warn(&pdev->dev,
 			"LLQ is not supported Fallback to host mode policy.\n");
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 		return 0;
@@ -4440,8 +4440,8 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		rc = -EIO;
 	}
 
-	ena_increase_stat(&tx_ring->tx_stats.missed_tx , missed_tx,
-		&tx_ring->syncp);
+	ena_increase_stat(&tx_ring->tx_stats.missed_tx, missed_tx,
+			  &tx_ring->syncp);
 
 	return rc;
 }
@@ -4525,7 +4525,7 @@ static void check_for_empty_rx_ring(struct ena_adapter *adapter)
 
 			if (rx_ring->empty_rx_queue >= EMPTY_RX_REFILL) {
 				ena_increase_stat(&rx_ring->rx_stats.empty_rx_ring, 1,
-					&rx_ring->syncp);
+						  &rx_ring->syncp);
 
 				netif_err(adapter, drv, adapter->netdev,
 					  "Trigger refill for ring %d\n", i);
@@ -4556,7 +4556,7 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 		netif_err(adapter, drv, adapter->netdev,
 			  "Keep alive watchdog timeout.\n");
 		ena_increase_stat(&adapter->dev_stats.wd_expired, 1,
-			&adapter->syncp);
+				  &adapter->syncp);
 		adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
 		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	}
@@ -4568,7 +4568,7 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 		netif_err(adapter, drv, adapter->netdev,
 			  "ENA admin queue is not in running state!\n");
 		ena_increase_stat(&adapter->dev_stats.admin_q_pause, 1,
-			&adapter->syncp);
+				  &adapter->syncp);
 		adapter->reset_reason = ENA_REGS_RESET_ADMIN_TO;
 		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	}
