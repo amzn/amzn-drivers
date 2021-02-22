@@ -3028,48 +3028,67 @@ static void ena_free_ring_page_cache(struct ena_ring *rx_ring)
 	rx_ring->page_cache = NULL;
 }
 
+static bool ena_is_lpc_supported(struct ena_adapter *adapter,
+				 struct ena_ring *rx_ring,
+				 bool error_print)
+{
+#ifdef ENA_NETDEV_LOGS_WITHOUT_RV
+	void (*print_log)(const struct net_device *dev, const char *format, ...);
+#else
+	int (*print_log)(const struct net_device *dev, const char *format, ...);
+#endif
+	int channels_nr = adapter->num_io_queues + adapter->xdp_num_queues;
+
+	print_log = (error_print) ? netdev_err : netdev_info;
+
+	/* LPC is disabled below min number of channels */
+	if (channels_nr < ENA_LPC_MIN_NUM_OF_CHANNELS) {
+		print_log(adapter->netdev,
+			  "Local page cache is disabled for less than %d channels\n",
+			  ENA_LPC_MIN_NUM_OF_CHANNELS);
+
+		return false;
+	}
+#ifdef ENA_XDP_SUPPORT
+
+	/* The driver doesn't support page caches under XDP */
+	if (ena_xdp_present_ring(rx_ring)) {
+		print_log(adapter->netdev,
+			  "Local page cache is disabled when using XDP\n");
+		return false;
+	}
+#endif /* ENA_XDP_SUPPORT */
+
+	return true;
+}
+
 /* Calculate the size of the Local Page Cache. If LPC should be disabled, return
  * a size of 0.
  */
 static u32 ena_calculate_cache_size(struct ena_adapter *adapter,
 				    struct ena_ring *rx_ring)
 {
-	int channels_nr = adapter->num_io_queues + adapter->xdp_num_queues;
-	u32 page_cache_size;
+	u32 page_cache_size = adapter->lpc_size;
 
-	/* lpc_size == 0 means disabled cache */
-	if (lpc_size == 0)
+	/* LPC cache size of 0 means disabled cache */
+	if (page_cache_size == 0)
 		return 0;
 
-	/* LPC is disabled below min number of queues */
-	if (channels_nr < ENA_LPC_MIN_NUM_OF_CHANNELS) {
-		netif_info(adapter, ifup, adapter->netdev,
-			   "Local page cache is disabled for less than %d channels\n",
-			   ENA_LPC_MIN_NUM_OF_CHANNELS);
+	if (!ena_is_lpc_supported(adapter, rx_ring, false))
 		return 0;
-	}
 
-	/* Clap the lpc_size to its maximum value */
-	if (lpc_size > ENA_LPC_MAX_MULTIPLIER) {
-		netif_info(adapter, ifup, adapter->netdev,
-			   "Provided lpc_size %d is too large, reducing to %d (max)\n",
-			   lpc_size, ENA_LPC_MAX_MULTIPLIER);
-		/* Override module param value to avoid printing this message
+	/* Clap the LPC size to its maximum value */
+	if (page_cache_size > ENA_LPC_MAX_MULTIPLIER) {
+		netdev_info(adapter->netdev,
+			    "Provided lpc_size %d is too large, reducing to %d (max)\n",
+			    lpc_size, ENA_LPC_MAX_MULTIPLIER);
+		/* Override LPC size to avoid printing this message
 		 * every up/down operation
 		 */
-		lpc_size = ENA_LPC_MAX_MULTIPLIER;
+		adapter->lpc_size = page_cache_size = lpc_size = ENA_LPC_MAX_MULTIPLIER;
 	}
 
-#ifdef ENA_XDP_SUPPORT
-	/* We currently don't support page caches under XDP */
-	if (ena_xdp_present_ring(rx_ring)) {
-		netif_info(adapter, ifup, adapter->netdev,
-			   "Local page cache is disabled when using XDP\n");
-		return 0;
-	}
-#endif /* ENA_XDP_SUPPORT */
-
-	page_cache_size = lpc_size * ENA_LPC_MULTIPLIER_UNIT;
+	page_cache_size = page_cache_size * ENA_LPC_MULTIPLIER_UNIT;
 	page_cache_size = roundup_pow_of_two(page_cache_size);
 
 	return page_cache_size;
@@ -5100,6 +5119,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->num_io_queues = clamp_val(num_io_queues, ENA_MIN_NUM_IO_QUEUES,
 					   max_num_io_queues);
+	adapter->lpc_size = lpc_size;
 	adapter->max_num_io_queues = max_num_io_queues;
 	adapter->last_monitored_tx_qid = 0;
 

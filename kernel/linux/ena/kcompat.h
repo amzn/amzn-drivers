@@ -803,4 +803,8 @@ static inline int numa_mem_id(void)
 #define ENA_LINEAR_FRAG_SUPPORTED
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+#define ENA_NETDEV_LOGS_WITHOUT_RV
+#endif
+
 #endif /* _KCOMPAT_H_ */

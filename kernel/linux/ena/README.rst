@@ -353,10 +353,9 @@ The cache usage for each queue can be monitored using ``ethtool -S`` counters. W
   different NUMA node than the CPU which runs the NAPI routine. In this case,
   the driver would try to allocate a new page from the same NUMA node instead
 
-Note that *lpc_size* is set to 2 by default and cannot exceed 32.
-Also LPC is disabled when using XDP or when using less than 16 channels.
-Increasing the cache size might result in higher memory usage, and should be
-handled with care.
+Note that *lpc_size* is set to 2 by default and cannot exceed 32. Also LPC is
+disabled when using XDP or when using less than 16 queue pairs. Increasing the
+cache size might result in higher memory usage, and should be handled with care.
 
 Statistics
 ==========
