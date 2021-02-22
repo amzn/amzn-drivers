@@ -807,4 +807,8 @@ static inline int numa_mem_id(void)
 #define fallthrough do {} while (0)  /* fallthrough */
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
+#define AF_XDP_BUSY_POLL_SUPPORTED
+#endif
+
 #endif /* _KCOMPAT_H_ */

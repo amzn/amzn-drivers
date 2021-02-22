@@ -536,7 +536,11 @@ static int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 {
 	int rc;
 
+#ifdef AF_XDP_BUSY_POLL_SUPPORTED
+	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid, 0);
+#else
 	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid);
+#endif
 
 	if (rc) {
 		netif_err(rx_ring->adapter, ifup, rx_ring->netdev,
