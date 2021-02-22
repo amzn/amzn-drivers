@@ -150,14 +150,14 @@ struct ena_irq {
 };
 
 struct ena_napi {
-	struct napi_struct napi ____cacheline_aligned;
+	bool first_interrupt ____cacheline_aligned;
+	bool interrupts_masked;
+	struct napi_struct napi;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
 #ifdef ENA_XDP_SUPPORT
 	struct ena_ring *xdp_ring;
 #endif /* ENA_XDP_SUPPORT */
-	bool first_interrupt;
-	bool interrupts_masked;
 	u32 qid;
 	struct dim dim;
 };
@@ -326,7 +326,6 @@ struct ena_ring {
 	/* The maximum header length the device can handle */
 	u8 tx_max_header_size;
 
-	bool first_interrupt;
 	bool disable_meta_caching;
 	u16 no_interrupt_event_cnt;
 

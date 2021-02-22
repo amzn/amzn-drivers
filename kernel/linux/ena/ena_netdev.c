@@ -239,7 +239,6 @@ static int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 	int ret;
 
 	xdp_ring = ena_napi->xdp_ring;
-	xdp_ring->first_interrupt = ena_napi->first_interrupt;
 
 	xdp_budget = budget;
 
@@ -733,7 +732,6 @@ static void ena_init_io_rings_common(struct ena_adapter *adapter,
 	ring->ena_dev = adapter->ena_dev;
 	ring->per_napi_packets = 0;
 	ring->cpu = 0;
-	ring->first_interrupt = false;
 	ring->no_interrupt_event_cnt = 0;
 	u64_stats_init(&ring->syncp);
 }
@@ -2225,9 +2223,6 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 	tx_ring = ena_napi->tx_ring;
 	rx_ring = ena_napi->rx_ring;
 
-	tx_ring->first_interrupt = ena_napi->first_interrupt;
-	rx_ring->first_interrupt = ena_napi->first_interrupt;
-
 	tx_budget = tx_ring->ring_size / ENA_TX_POLL_BUDGET_DIVIDER;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags) ||
@@ -2318,7 +2313,8 @@ static irqreturn_t ena_intr_msix_io(int irq, void *data)
 {
 	struct ena_napi *ena_napi = data;
 
-	ena_napi->first_interrupt = true;
+	/* Used to check HW health */
+	WRITE_ONCE(ena_napi->first_interrupt, true);
 
 	WRITE_ONCE(ena_napi->interrupts_masked, true);
 	smp_wmb(); /* write interrupts_masked before calling napi */
@@ -4366,7 +4362,9 @@ static void ena_fw_reset_device(struct work_struct *work)
 static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 					struct ena_ring *rx_ring)
 {
-	if (likely(rx_ring->first_interrupt))
+	struct ena_napi *ena_napi = container_of(rx_ring->napi, struct ena_napi, napi);
+
+	if (likely(READ_ONCE(ena_napi->first_interrupt)))
 		return 0;
 
 	if (ena_com_cq_empty(rx_ring->ena_com_io_cq))
@@ -4390,6 +4388,8 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 					  struct ena_ring *tx_ring)
 {
+	struct ena_napi *ena_napi = container_of(tx_ring->napi, struct ena_napi, napi);
+	bool is_tx_comp_time_expired;
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
 	u32 missed_tx = 0;
@@ -4403,8 +4403,10 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			/* no pending Tx at this location */
 			continue;
 
-		if (unlikely(!tx_ring->first_interrupt && time_is_before_jiffies(last_jiffies +
-			     2 * adapter->missing_tx_completion_to))) {
+		is_tx_comp_time_expired = time_is_before_jiffies(last_jiffies +
+			 2 * adapter->missing_tx_completion_to);
+
+		if (unlikely(!READ_ONCE(ena_napi->first_interrupt) && is_tx_comp_time_expired)) {
 			/* If after graceful period interrupt is still not
 			 * received, we schedule a reset
 			 */
@@ -4417,8 +4419,10 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			return -EIO;
 		}
 
-		if (unlikely(time_is_before_jiffies(last_jiffies +
-				adapter->missing_tx_completion_to))) {
+		is_tx_comp_time_expired = time_is_before_jiffies(last_jiffies +
+			adapter->missing_tx_completion_to);
+
+		if (unlikely(is_tx_comp_time_expired)) {
 			if (!tx_buf->print_once)
 				netif_notice(adapter, tx_err, adapter->netdev,
 					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
