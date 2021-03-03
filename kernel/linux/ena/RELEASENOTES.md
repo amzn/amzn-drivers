@@ -39,6 +39,39 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.5.0 release notes
+**New Features**
+* Unify skb allocation path and use build_skb()
+* Support ethtool priv-flags and LPC state change
+
+**Bug Fixes**
+* Fix mapping function issues in XDP
+* Fix XDP redirection related failures
+* Fix page_ref_count() related checks to support older kernels correctly.
+* Don't define UBUNTU_VERSION_CODE when not in Ubuntu.
+* Drop unnecessary "#ifdef <function_name>" checks from kcompat.h.
+* Bug fixes and code improvements in legacy poll code
+
+**Minor Changes**
+* Add debug prints to failed commands
+* Minor performance improvements
+* Replace pci_set_dma_mask/_coherent with dma_set_mask_and_coherent
+* Change ena_increase_stat_atomic() function name
+* Change variable casting in ena_com.c
+* Add explicit include of ethtool.h to linux/ethtool.c
+* Change LLQ fallback print from error to warning
+* Remove unused ENA_DEFAULT_MIN_RX_BUFF_ALLOC_SIZE define
+* Remove unused SUSPEND/RESUME defines
+* Add mac OS defines.
+* Use WRITE/READ_ONCE macros for first_interrupt variable
+* Propagate upstream support for AF XDP busypoll
+* Add Jiffies of last napi call to stats
+* Add ena_ring_tx_doorbell() function
+* Cosmetic changes to LPC
+* Add is_lpc_page indication to help with page mapping
+* Back-propagate xdp helpers from upstream kernel
+* Fix RST format in README file
+
 ## r2.4.1 release notes
 **Bug Fixes**
 * Fix compilation error in kernels >= 5.10
