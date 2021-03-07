@@ -293,31 +293,40 @@ static int ena_xdp_tx_map_frame(struct ena_ring *xdp_ring,
 {
 	struct ena_adapter *adapter = xdp_ring->adapter;
 	struct ena_com_buf *ena_buf;
-	dma_addr_t dma = 0;
+	dma_addr_t dma;
+	void *data;
 	u32 size;
 
 	tx_info->xdpf = xdpf;
+	data = tx_info->xdpf->data;
 	size = tx_info->xdpf->len;
-	ena_buf = tx_info->bufs;
 
-	/* llq push buffer */
-	*push_len = min_t(u32, size, xdp_ring->tx_max_header_size);
-	*push_hdr = tx_info->xdpf->data;
+	*push_len = 0;
 
-	if (size - *push_len > 0) {
+	if (xdp_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+		/* LLQ push buffer */
+		*push_len = min_t(u32, size, xdp_ring->tx_max_header_size);
+		*push_hdr = data;
+
+		size -= *push_len;
+	} else {
+		*push_hdr = NULL;
+	}
+
+	if (size > 0) {
 		dma = dma_map_single(xdp_ring->dev,
-				     *push_hdr + *push_len,
-				     size - *push_len,
+				     data + *push_len,
+				     size,
 				     DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(xdp_ring->dev, dma)))
 			goto error_report_dma_error;
 
-		tx_info->map_linear_data = 1;
+		tx_info->map_linear_data = 0;
 		tx_info->num_of_bufs = 1;
+		ena_buf = tx_info->bufs;
+		ena_buf->paddr = dma;
+		ena_buf->len = size;
 	}
-
-	ena_buf->paddr = dma;
-	ena_buf->len = size;
 
 	return 0;
 
@@ -325,10 +334,6 @@ error_report_dma_error:
 	ena_increase_stat(&xdp_ring->tx_stats.dma_mapping_err, 1,
 			  &xdp_ring->syncp);
 	netif_warn(adapter, tx_queued, adapter->netdev, "Failed to map xdp buff\n");
-
-	xdp_return_frame_rx_napi(tx_info->xdpf);
-	tx_info->xdpf = NULL;
-	tx_info->num_of_bufs = 0;
 
 	return -EINVAL;
 }
