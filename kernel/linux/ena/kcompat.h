@@ -101,10 +101,11 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #define __GFP_COLD 0
 #endif
 
-#define ENA_BUSY_POLL_SUPPORT defined(CONFIG_NET_RX_BUSY_POLL) && \
+#if defined(CONFIG_NET_RX_BUSY_POLL) && \
 	LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0) && \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
-
+#define ENA_BUSY_POLL_SUPPORT
+#endif
 /******************************************************************************/
 /************************** Ubuntu macros *************************************/
 /******************************************************************************/

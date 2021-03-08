@@ -87,7 +87,7 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(skb_alloc_fail),
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	ENA_STAT_RX_ENTRY(bp_yield),
 	ENA_STAT_RX_ENTRY(bp_missed),
 	ENA_STAT_RX_ENTRY(bp_cleaned),

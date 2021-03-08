@@ -244,7 +244,7 @@ struct ena_stats_rx {
 	u64 skb_alloc_fail;
 	u64 dma_mapping_err;
 	u64 bad_desc_num;
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	u64 bp_yield;
 	u64 bp_missed;
 	u64 bp_cleaned;
@@ -352,12 +352,12 @@ struct ena_ring {
 
 	u8 *push_buf_intermediate_buf;
 	int empty_rx_queue;
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	atomic_t bp_state;
 #endif
 } ____cacheline_aligned;
 
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 enum ena_busy_poll_state_t {
 	ENA_BP_STATE_IDLE = 0,
 	ENA_BP_STATE_NAPI,
@@ -481,8 +481,7 @@ int ena_update_queue_sizes(struct ena_adapter *adapter,
 int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
-
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 static inline void ena_bp_init_lock(struct ena_ring *rx_ring)
 {
 	/* reset state to idle */
@@ -550,40 +549,7 @@ static inline bool ena_bp_disable(struct ena_ring *rx_ring)
 
 	return rc == ENA_BP_STATE_IDLE;
 }
-#else
-static inline void ena_bp_init_lock(struct ena_ring *rx_ring)
-{
-}
-
-static inline bool ena_bp_lock_napi(struct ena_ring *rx_ring)
-{
-       return true;
-}
-
-static inline void ena_bp_unlock_napi(struct ena_ring *rx_ring)
-{
-}
-
-static inline bool ena_bp_lock_poll(struct ena_ring *rx_ring)
-{
-       return false;
-}
-
-static inline void ena_bp_unlock_poll(struct ena_ring *rx_ring)
-{
-}
-
-static inline bool ena_bp_busy_polling(struct ena_ring *rx_ring)
-{
-       return false;
-}
-
-static inline bool ena_bp_disable(struct ena_ring *rx_ring)
-{
-	return true;
-}
 #endif /* ENA_BUSY_POLL_SUPPORT */
-
 
 #ifdef ENA_XDP_SUPPORT
 enum ena_xdp_errors_t {

@@ -981,7 +981,7 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 	/* Reset rx statistics */
 	memset(&rx_ring->rx_stats, 0x0, sizeof(rx_ring->rx_stats));
 
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	ena_bp_init_lock(rx_ring);
 #endif
 	rx_ring->next_to_clean = 0;
@@ -1659,7 +1659,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 	struct ena_rx_buffer *rx_info;
 	u16 len, req_id, buf = 0;
 	struct sk_buff *skb;
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	bool polling;
 #endif
 	void *va;
@@ -1705,7 +1705,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 					   DMA_FROM_DEVICE);
 
 		skb_put(skb, len);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+#ifdef ENA_BUSY_POLL_SUPPORT
 		skb_mark_napi_id(skb, rx_ring->napi);
 #endif
 		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
@@ -1715,7 +1715,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		return skb;
 	}
 
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	polling = ena_bp_busy_polling(rx_ring);
 	/* For busy poll don't allocate frag */
 	skb = ena_alloc_skb(rx_ring, !polling);
@@ -1751,7 +1751,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		rx_info = &rx_ring->rx_buffer_info[req_id];
 	} while (1);
 
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	if (polling) {
 		int hlen;
 
@@ -2006,7 +2006,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		if (rx_ring->ena_bufs[0].len <= rx_ring->rx_copybreak) {
 			total_len += rx_ring->ena_bufs[0].len;
 			rx_copybreak_pkt++;
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 			if (ena_bp_busy_polling(rx_ring))
 				netif_receive_skb(skb);
 			else
@@ -2016,7 +2016,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 #endif
 		} else {
 			total_len += skb->len;
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 			if (ena_bp_busy_polling(rx_ring))
 				netif_receive_skb(skb);
 			else
@@ -2247,7 +2247,7 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 		napi_complete_done(napi, 0);
 		return 0;
 	}
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	if (!ena_bp_lock_napi(rx_ring))
 		return budget;
 #endif
@@ -2303,7 +2303,7 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 	tx_ring->tx_stats.tx_poll++;
 	u64_stats_update_end(&tx_ring->syncp);
 
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	ena_bp_unlock_napi(rx_ring);
 #endif
 	return ret;
@@ -2584,6 +2584,9 @@ static void ena_del_napi_in_range(struct ena_adapter *adapter,
 	int i;
 
 	for (i = first_index; i < first_index + count; i++) {
+#ifdef ENA_BUSY_POLL_SUPPORT
+		napi_hash_del(&adapter->ena_napi[i].napi);
+#endif /* ENA_BUSY_POLL_SUPPORT */
 		netif_napi_del(&adapter->ena_napi[i].napi);
 
 #ifdef ENA_XDP_SUPPORT
@@ -2591,6 +2594,11 @@ static void ena_del_napi_in_range(struct ena_adapter *adapter,
 			adapter->ena_napi[i].xdp_ring);
 #endif /* ENA_XDP_SUPPORT */
 	}
+#ifdef ENA_BUSY_POLL_SUPPORT
+
+	/* Wait until all uses of napi struct complete */
+	synchronize_net();
+#endif /* ENA_BUSY_POLL_SUPPORT */
 }
 
 static void ena_init_napi_in_range(struct ena_adapter *adapter,
@@ -2610,6 +2618,10 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 #endif /* ENA_XDP_SUPPORT */
 			       ENA_NAPI_BUDGET);
 
+#ifdef ENA_BUSY_POLL_SUPPORT
+		napi_hash_add(&adapter->ena_napi[i].napi);
+
+#endif /* ENA_BUSY_POLL_SUPPORT */
 		if (!ENA_IS_XDP_INDEX(adapter, i)) {
 			napi->rx_ring = &adapter->rx_ring[i];
 			napi->tx_ring = &adapter->tx_ring[i];
@@ -2622,7 +2634,7 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 	}
 }
 
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 				      int first_index,
 				      int count)
@@ -2633,11 +2645,8 @@ static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 	for (i = first_index; i < first_index + count; i++) {
 		napi_disable(&adapter->ena_napi[i].napi);
 
-		/* XDP doesn't have rx_ring */
-		if (ENA_IS_XDP_INDEX(adapter, i))
-			continue;
 		rx_ring = &adapter->rx_ring[i];
-		timeout = 100;
+		timeout = 1000;
 		while (!ena_bp_disable(rx_ring)) {
 			netif_info(adapter, ifdown, adapter->netdev,
 				   "Rx queue %d locked\n", i);
@@ -2645,9 +2654,9 @@ static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 			timeout--;
 
 			if (!timeout) {
-				netif_err(adapter, ifdown, adapter->netdev,
-					  "Tx queue is stuck\n");
-				continue;
+				WARN(!ena_bp_disable(rx_ring),
+				     "Unable to disable busy poll at ring %d\n", i);
+				break;
 			}
 		}
 	}
@@ -3940,7 +3949,7 @@ static struct net_device_stats *ena_get_stats(struct net_device *netdev)
 	return stats;
 }
 #endif
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 
 #define ENA_BP_NAPI_BUDGET 8
 static int ena_busy_poll(struct napi_struct *napi)
@@ -3985,7 +3994,7 @@ static const struct net_device_ops ena_netdev_ops = {
 	.ndo_set_rx_mode	= ena_set_rx_mode,
 #endif
 	.ndo_validate_addr	= eth_validate_addr,
-#if ENA_BUSY_POLL_SUPPORT
+#ifdef ENA_BUSY_POLL_SUPPORT
 	.ndo_busy_poll		= ena_busy_poll,
 #endif
 #ifdef ENA_XDP_SUPPORT
