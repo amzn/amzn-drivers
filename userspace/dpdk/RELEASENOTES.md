@@ -4,6 +4,25 @@ ___
 
 ### Normal releases
 
+#### v21.02
+_Release of the new version of the driver - r2.2.1_
+
+Bug Fixes:
+* Prevent driver from calling doorbell twice on Tx path when Tx burst doorbell
+  threshold is reached and Tx loop is being stopped right after that.
+* Fix assessment of free Tx SQ space. Correct evaluation of the required space
+  for each packet cannot be done effectively before the burst, because it
+  depends on number of segments for each mbuf. Because of that, the driver
+  should attempt to send each packet before returning error.
+* Fix Tx doorbell statistics, by incrementing appropriate counter also for the
+  case when doorbell is being activated after max Tx burst size is being
+  achieved.
+* Flush Rx buffers mempool cache after Rx queue setup to prevent mbufs from
+  being stuck in the mempool cache of the configuration lcore.
+* Validate Rx requested ID upon acquiring descriptor instead of doing that each
+  time it's being used in the driver code. As a result this value is validated
+  only once and a driver code could be simplified.
+
 #### v20.11
 _Release of the new version of the driver - r2.2.0_
 
@@ -210,6 +229,11 @@ New Features:
 * Use dynamic logging instead of static one.
 * Use new Tx and Rx offloads API (introduced in DPDK v18.02).
 
+Bug Fixes:
+* Fix setting Tx offloads flags in the mbuf on the Rx path.
+* Indicate jumbo frames support in the rx features structure which is supported
+  by the device.
+
 #### v17.08
 Bug Fixes:
 * Fix Tx cleanup to prevent the same buffers being released two times.
@@ -230,6 +254,13 @@ New Features:
   before sending them).
 * Add TSO support for the driver (if the HW is supporting it). To make use of
   that, the preparation routine must be called before sending packet.
+
+Bug Fixes:
+* Use correct field for checking Rx offloads (the Tx field was used before).
+* Fix error handling and configuration for host_info structure.
+
+Minor changes:
+* Use I/O device memory read/write API for I/O manipulations.
 
 #### v16.11
 Bug Fixes:
@@ -259,21 +290,45 @@ Minor changes:
 #### v16.04
 _Release of the driver (unversioned)_
 
-Bug Fixes:
-* Use correct field for checking Rx offloads (the Tx field was used before).
-* Fix error handling and configuration for host_info structure.
-
-Minor changes:
-* Use I/O device memory read/write API for I/O manipulations.
-
-Bug Fixes:
-* Fix setting Tx offloads flags in the mbuf on the Rx path.
-* Indicate jumbo frames support in the rx features structure which is supported
-  by the device.
 
 ### Stable releases
 
 There comes only backported patches.
+
+#### v20.11.1
+Bug fixes:
+* Prevent driver from calling doorbell twice on Tx path when Tx burst doorbell
+  threshold is reached and Tx loop is being stopped right after that. (v21.02)
+* Fix assessment of free Tx SQ space. Correct evaluation of the required space
+  for each packet cannot be done effectively before the burst, because it
+  depends on number of segments for each mbuf. Because of that, the driver
+  should attempt to send each packet before returning error. (v21.02)
+* Fix Tx doorbell statistics, by incrementing appropriate counter also for the
+  case when doorbell is being activated after max Tx burst size is being
+  achieved. (v21.02)
+* Flush Rx buffers mempool cache after Rx queue setup to prevent mbufs from
+  being stuck in the mempool cache of the configuration lcore. (v21.02)
+* Validate Rx requested ID upon acquiring descriptor instead of doing that each
+  time it's being used in the driver code. As a result this value is validated
+  only once and a driver code could be simplified. (v21.02)
+
+#### v19.11.6
+Bug fixes:
+* HAL fixes (v20.11):
+  - Fix release of wait event.
+  - Specify delay operations.
+  - Use min/max macros with type conversion.
+* Align IO CQ allocations to 4K, as it's required by the latest generation HW
+  for the best performance. (v20.11)
+* Fix setting Rx checksum flag in the mbuf. The driver now sets
+  PKT_RX_*_CKSUM_GOOD flag. (v20.11)
+* Fix xstats global stats offset. Previously it was read from the
+  ena_stats_rx_strings instead of the ena_stats_global_strings array,
+  but due to the same values held in both structures, the functionality
+  of the code was still the same. (v20.11)
+
+Minor changes:
+* Remove ENA_ASSERT macro which wasn't used anywhere. (v20.11)
 
 #### v19.11.3
 Bug fixes:
@@ -285,6 +340,16 @@ Bug fixes:
   using maximum allowed IO ring size, making the memory management
   ineffective. (v20.05)
 * Fix build with optimization flag O1. (v20.05)
+
+#### v18.11.11
+Bug fixes:
+* HAL fixes (v20.11):
+  - Fix release of wait event.
+  - Specify delay operations.
+  - Use min/max macros with type conversion.
+
+Minor changes:
+* Remove ENA_ASSERT macro which wasn't used anywhere. (v20.11)
 
 #### v18.11.9
 Bug fixes:
