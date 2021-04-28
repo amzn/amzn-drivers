@@ -81,6 +81,11 @@ install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Mon Mar 29 2021 Gal Pressman <galpress@amazon.com> - 1.12.0
+- Add COPYING file
+- Switch to CMake build system
+- Align to upstream kernel
+
 * Thu Jan 28 2021 Gal Pressman <galpress@amazon.com> - 1.11.1
 - Fix GDR driver packaging issues
 

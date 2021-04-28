@@ -27,6 +27,11 @@ The driver was tested on the following distributions:
 * SUSE Linux Enterprise 15 SP2
 * openSUSE Leap 15.2
 
+## r1.12.0 release notes
+* Add COPYING file
+* Switch to CMake build system
+* Align to upstream kernel
+
 ## r1.11.1 release notes
 * Fix GDR driver packaging issues
 
