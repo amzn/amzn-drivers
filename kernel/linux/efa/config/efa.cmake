@@ -25,16 +25,43 @@ function(try_compile_prog_test)
   file(REMOVE_RECURSE ${CMAKE_CURRENT_BINARY_DIR}/${tmp_dir})
 endfunction()
 
+function(wait_for_pid pid)
+  execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config/wait_for_pid.sh ${pid})
+endfunction()
+
+function(wait_for_pids)
+  # Wait for everyone to finish
+  foreach(pid ${pids})
+    wait_for_pid(${pid})
+  endforeach()
+endfunction()
+
+function(process_rl)
+  list(LENGTH pids list_len)
+  if(list_len EQUAL max_process)
+    list(GET pids 0 pid)
+    wait_for_pid(${pid})
+    list(REMOVE_AT pids 0)
+    set(pids "${pids}" CACHE INTERNAL "")
+  endif()
+endfunction()
+
 # CMake "global" variable
 set(pids "" CACHE INTERNAL "")
 
+include(ProcessorCount)
+ProcessorCount(max_process)
+
 function(try_compile prologue body success_def fail_def)
+  # Rate limit processes
+  process_rl()
   set_conf_tmp_dir("${prologue}" "${body}")
   execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config/runbg.sh ${CMAKE_SOURCE_DIR}/config/compile_conftest.sh ${CMAKE_CURRENT_BINARY_DIR}/${tmp_dir} ${KERNEL_DIR} "${success_def}" "${fail_def}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     OUTPUT_STRIP_TRAILING_WHITESPACE
     OUTPUT_VARIABLE pid)
-  set(pids "${pids} ${pid}" CACHE INTERNAL "")
+  list(APPEND pids ${pid})
+  set(pids "${pids}" CACHE INTERNAL "")
 endfunction()
 
 function(try_compile_dev_or_ops fp_name fn_name fn success_def fail_def)
@@ -400,10 +427,5 @@ try_compile_dev_or_ops(create_user_ah efa_create_ah
   "int efa_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr, struct ib_udata *udata) { return 0; }"
   HAVE_UVERBS_CMD_MASK_NOT_NEEDED "")
 
-# Wait for everyone to finish
-string(REPLACE " " ";" pids_list ${pids})
-foreach(pid ${pids_list})
-  execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config/wait_for_pid.sh ${pid})
-endforeach()
-
+wait_for_pids()
 message("-- Inspecting kernel - done")
