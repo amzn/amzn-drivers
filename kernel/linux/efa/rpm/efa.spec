@@ -81,6 +81,9 @@ install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Mon May 10 2021 Gal Pressman <galpress@amazon.com> - 1.12.1
+- Limit number of CMake processes to prevent exhaustion of system resources
+
 * Mon Mar 29 2021 Gal Pressman <galpress@amazon.com> - 1.12.0
 - Add COPYING file
 - Switch to CMake build system
