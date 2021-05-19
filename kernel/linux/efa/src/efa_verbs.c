@@ -233,12 +233,6 @@ static int mmap_entry_validate(struct efa_ucontext *ucontext,
 		return -EINVAL;
 	}
 
-	if (vma->vm_flags & VM_EXEC) {
-		ibdev_dbg(ucontext->ibucontext.device,
-			  "Mapping executable pages is not permitted\n");
-		return -EPERM;
-	}
-
 	return 0;
 }
 
