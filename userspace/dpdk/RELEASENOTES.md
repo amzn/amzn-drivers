@@ -4,6 +4,33 @@ ___
 
 ### Normal releases
 
+#### v21.05
+_Release of the new version of the driver - r2.3.0_
+
+Bug Fixes:
+* Disable ops not supported by the secondary process, to give more verbose
+  information to the caller about API violation.
+* Make the ethdev references multi-process safe. As the PCI device pointer is
+  process local and not valid in other processes, the `data` structure should be
+  used instead.
+* Indicate RSS hash presence in the mbuf, by setting the `PKT_RX_RSS_HASH` and
+  setting the capability: `DEV_RX_OFFLOAD_RSS_HASH`.
+* Report default ring size value and do not treat value
+  `RTE_ETH_DEV_FALLBACK_[TR]X_RINGSIZE` as a hint to use the internal default.
+  The fallback value is set by the ethdev layer and it is valid size value,
+  which is used when the application didn't set ring size and driver doesn't
+  report any size, neither.
+* Fix spurious wakeups of the `pthread_cond_timedwait()` in the
+  `ENA_WAIT_EVENT`, which may sometimes happen according to the POSIX.
+* Fix parsing of the unsupported device arguments.
+* Fix parsing of the large LLQ header device argument.
+* Clear mbuf pointers on the Tx queue release function, to avoid situation when
+  the application could receive duplicate mbufs for two different packets.
+
+Minor Changes:
+* Switch memcpy to optimized version on x86 and x86_64.
+* Update ena_com to version from 18.09.2020.
+
 #### v21.02
 _Release of the new version of the driver - r2.2.1_
 
@@ -311,6 +338,11 @@ Bug fixes:
 * Validate Rx requested ID upon acquiring descriptor instead of doing that each
   time it's being used in the driver code. As a result this value is validated
   only once and a driver code could be simplified. (v21.02)
+
+#### v19.11.7
+Bug fixes:
+* Flush Rx buffers mempool cache after Rx queue setup to prevent mbufs from
+  being stuck in the mempool cache of the configuration lcore.
 
 #### v19.11.6
 Bug fixes:
