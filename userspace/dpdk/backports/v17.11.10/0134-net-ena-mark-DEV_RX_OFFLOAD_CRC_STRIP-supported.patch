@@ -1,0 +1,32 @@
+From 1a74126f5470b2693ab3edd8a11cc322eb28f57a Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Mon, 16 Nov 2020 12:46:29 +0100
+Subject: [PATCH 134/166] net/ena: mark DEV_RX_OFFLOAD_CRC_STRIP supported
+
+ENA always strips the FCS, hence mark this feature as supported in
+dev_info. This is only to make l2fwd happy as it requires the stripping
+without verifying support for this feature via rte_eth_dev_info_get().
+In newer DPDK versions FCS stripping is enabled by default and this flag
+becomes deprecated.
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Change-Id: I9d3fc0d9a3b8dea454b44031b1cedbf40819f9a2
+---
+ drivers/net/ena/ena_ethdev.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 8ab3fc68c2..4c850f83b5 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2094,6 +2094,7 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 			DEV_RX_OFFLOAD_TCP_CKSUM;
+ 
+ 	rx_feat |= DEV_RX_OFFLOAD_JUMBO_FRAME;
++	rx_feat |= DEV_RX_OFFLOAD_CRC_STRIP;
+ 
+ 	/* Inform framework about available features */
+ 	dev_info->rx_offload_capa = rx_feat;
+-- 
+2.25.1
+

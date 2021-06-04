@@ -1,0 +1,54 @@
+From 9e23d92767bb106fa66790330177c1802ad1c6a4 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 24 Sep 2020 07:34:06 +0200
+Subject: [PATCH 133/166] net/ena: upgrade driver version to v2.2.0
+
+The v2.2.0 adds support for network interface metrics, includes some bug
+fixes and updates HAL to the latest version.
+
+Change-Id: Id597a448d27c33ccb66d37d8033e2093bf3c7546
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ doc/guides/rel_notes/release_17_11.rst | 3 ++-
+ drivers/net/ena/ena_ethdev.c           | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/guides/rel_notes/release_17_11.rst b/doc/guides/rel_notes/release_17_11.rst
+index 45625b4a0f..a06b0a0508 100644
+--- a/doc/guides/rel_notes/release_17_11.rst
++++ b/doc/guides/rel_notes/release_17_11.rst
+@@ -273,7 +273,7 @@ New Features
+   applications to classify an input packet by matching it against a set of
+   flow rules. It uses the ``librte_table`` API to manage the flow rules.
+ 
+-* **Release of the ENA PMD v2.0.3**
++* **Release of the ENA PMD v2.2.0**
+ 
+   * Added Low Latency Queue v2 (LLQv2). This feature reduces the latency
+     of the packets by pushing the header directly through the PCI to the
+@@ -288,6 +288,7 @@ New Features
+   * Added per queue statistics.
+   * Added extended statistics using xstats DPDK API.
+   * Added Tx drops as new extended driver statistic.
++  * Added network interface metrics which can be read using xstats.
+   * The reset routine was aligned with the DPDK API, so now it can be
+     handled as in other PMDs.
+   * Fixed out of order (OOO) completion.
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index f50ec146e6..8ab3fc68c2 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -26,7 +26,7 @@
+ #include <ena_eth_io_defs.h>
+ 
+ #define DRV_MODULE_VER_MAJOR	2
+-#define DRV_MODULE_VER_MINOR	1
++#define DRV_MODULE_VER_MINOR	2
+ #define DRV_MODULE_VER_SUBMINOR	0
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+-- 
+2.25.1
+

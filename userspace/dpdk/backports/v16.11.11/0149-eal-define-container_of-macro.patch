@@ -1,0 +1,50 @@
+From 1fb99614ff057e9d204a5b7936b4ce44a0d2f0bb Mon Sep 17 00:00:00 2001
+From: Jan Blunck <jblunck@infradead.org>
+Date: Fri, 23 Dec 2016 16:57:52 +0100
+Subject: [PATCH 149/177] eal: define container_of macro
+
+This macro is based on Jan Viktorin's original patch but also checks the
+type of the passed pointer against the type of the member.
+
+Signed-off-by: Jan Viktorin <viktorin@rehivetech.com>
+Signed-off-by: Shreyansh Jain <shreyansh.jain@nxp.com>
+[jblunck@infradead.org: add type checking and __extension__]
+Signed-off-by: Jan Blunck <jblunck@infradead.org>
+---
+ lib/librte_eal/common/include/rte_common.h | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/lib/librte_eal/common/include/rte_common.h b/lib/librte_eal/common/include/rte_common.h
+index 531e3d0344..3091badc7a 100644
+--- a/lib/librte_eal/common/include/rte_common.h
++++ b/lib/librte_eal/common/include/rte_common.h
+@@ -409,6 +409,26 @@ rte_fls_u32(uint32_t x)
+ #define offsetof(TYPE, MEMBER)  __builtin_offsetof (TYPE, MEMBER)
+ #endif
+ 
++/**
++ * Return pointer to the wrapping struct instance.
++ *
++ * Example:
++ *
++ *  struct wrapper {
++ *      ...
++ *      struct child c;
++ *      ...
++ *  };
++ *
++ *  struct child *x = obtain(...);
++ *  struct wrapper *w = container_of(x, struct wrapper, c);
++ */
++#ifndef container_of
++#define container_of(ptr, type, member)	__extension__ ({		\
++			typeof(((type *)0)->member) *_ptr = (ptr);	\
++			(type *)(((char *)_ptr) - offsetof(type, member)); })
++#endif
++
+ #define _RTE_STR(x) #x
+ /** Take a macro value and get a string version of it */
+ #define RTE_STR(x) _RTE_STR(x)
+-- 
+2.25.1
+

@@ -1,0 +1,43 @@
+From 3eaf5cc28b545e34468a656765db2f576bc10d5f Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Wed, 4 Nov 2020 14:08:55 +0100
+Subject: [PATCH 011/177] ring: add switch fall-through comments
+
+With GCC 7 we need to explicitly document when we are falling through from
+one switch case to another.
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Change-Id: Idafae74ed29a7f21b8ef86e945b6f80d884d3f45
+---
+ lib/librte_ring/rte_ring.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/lib/librte_ring/rte_ring.h b/lib/librte_ring/rte_ring.h
+index c1b311a8b2..47d26dc21e 100644
+--- a/lib/librte_ring/rte_ring.h
++++ b/lib/librte_ring/rte_ring.h
+@@ -364,8 +364,8 @@ void rte_ring_dump(FILE *f, const struct rte_ring *r);
+ 			r->ring[idx+3] = obj_table[i+3]; \
+ 		} \
+ 		switch (n & 0x3) { \
+-			case 3: r->ring[idx++] = obj_table[i++]; \
+-			case 2: r->ring[idx++] = obj_table[i++]; \
++			case 3: r->ring[idx++] = obj_table[i++]; /* fallthrough */ \
++			case 2: r->ring[idx++] = obj_table[i++]; /* fallthrough */ \
+ 			case 1: r->ring[idx++] = obj_table[i++]; \
+ 		} \
+ 	} else { \
+@@ -390,8 +390,8 @@ void rte_ring_dump(FILE *f, const struct rte_ring *r);
+ 			obj_table[i+3] = r->ring[idx+3]; \
+ 		} \
+ 		switch (n & 0x3) { \
+-			case 3: obj_table[i++] = r->ring[idx++]; \
+-			case 2: obj_table[i++] = r->ring[idx++]; \
++			case 3: obj_table[i++] = r->ring[idx++]; /* fallthrough */ \
++			case 2: obj_table[i++] = r->ring[idx++]; /* fallthrough */ \
+ 			case 1: obj_table[i++] = r->ring[idx++]; \
+ 		} \
+ 	} else { \
+-- 
+2.25.1
+

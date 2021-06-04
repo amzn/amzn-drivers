@@ -1,0 +1,201 @@
+From 31f33e1539e5a23dd01f03e8c1fdece4daa17ac2 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:06 +0200
+Subject: [PATCH 020/166] net/ena: add watchdog and keep alive AENQ handler
+
+Keep alive is executing AENQ interrupt periodically. It allows to check
+health of the device and trigger reset event if the device will stop
+responding.
+
+To check for the state of the device, the DPDK application must call
+rte_timer_manage().
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/Makefile     |  1 +
+ drivers/net/ena/ena_ethdev.c | 58 ++++++++++++++++++++++++++++++++++--
+ drivers/net/ena/ena_ethdev.h |  9 ++++++
+ 3 files changed, 66 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/Makefile b/drivers/net/ena/Makefile
+index f9bfe053f6..8be1f7728f 100644
+--- a/drivers/net/ena/Makefile
++++ b/drivers/net/ena/Makefile
+@@ -55,5 +55,6 @@ CFLAGS += $(INCLUDES)
+ LDLIBS += -lrte_eal -lrte_mbuf -lrte_mempool -lrte_ring
+ LDLIBS += -lrte_ethdev -lrte_net -lrte_kvargs
+ LDLIBS += -lrte_bus_pci
++LDLIBS += -lrte_timer
+ 
+ include $(RTE_SDK)/mk/rte.lib.mk
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 6b31851e63..c3946cfb67 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -255,6 +255,7 @@ static bool ena_are_tx_queue_offloads_allowed(struct ena_adapter *adapter,
+ static bool ena_are_rx_queue_offloads_allowed(struct ena_adapter *adapter,
+ 					      uint64_t offloads);
+ static void ena_interrupt_handler_rte(void *cb_arg);
++static void ena_timer_wd_callback(struct rte_timer *timer, void *arg);
+ 
+ static const struct eth_dev_ops ena_dev_ops = {
+ 	.dev_configure        = ena_dev_configure,
+@@ -981,6 +982,7 @@ static int ena_start(struct rte_eth_dev *dev)
+ {
+ 	struct ena_adapter *adapter =
+ 		(struct ena_adapter *)(dev->data->dev_private);
++	uint64_t ticks;
+ 	int rc = 0;
+ 
+ 	rc = ena_check_valid_conf(adapter);
+@@ -1004,6 +1006,13 @@ static int ena_start(struct rte_eth_dev *dev)
+ 
+ 	ena_stats_restart(dev);
+ 
++	adapter->timestamp_wd = rte_get_timer_cycles();
++	adapter->keep_alive_timeout = ENA_DEVICE_KALIVE_TIMEOUT;
++
++	ticks = rte_get_timer_hz();
++	rte_timer_reset(&adapter->timer_wd, ticks, PERIODICAL, rte_lcore_id(),
++			ena_timer_wd_callback, adapter);
++
+ 	adapter->state = ENA_ADAPTER_STATE_RUNNING;
+ 
+ 	return 0;
+@@ -1014,6 +1023,8 @@ static void ena_stop(struct rte_eth_dev *dev)
+ 	struct ena_adapter *adapter =
+ 		(struct ena_adapter *)(dev->data->dev_private);
+ 
++	rte_timer_stop_sync(&adapter->timer_wd);
++
+ 	adapter->state = ENA_ADAPTER_STATE_STOPPED;
+ }
+ 
+@@ -1368,7 +1379,8 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	}
+ 
+ 	aenq_groups = BIT(ENA_ADMIN_LINK_CHANGE) |
+-		      BIT(ENA_ADMIN_NOTIFICATION);
++		      BIT(ENA_ADMIN_NOTIFICATION) |
++		      BIT(ENA_ADMIN_KEEP_ALIVE);
+ 
+ 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
+ 	rc = ena_com_set_aenq_config(ena_dev, aenq_groups);
+@@ -1398,6 +1410,26 @@ static void ena_interrupt_handler_rte(void *cb_arg)
+ 		ena_com_aenq_intr_handler(ena_dev, adapter);
+ }
+ 
++static void ena_timer_wd_callback(__rte_unused struct rte_timer *timer,
++				  void *arg)
++{
++	struct ena_adapter *adapter = (struct ena_adapter *)arg;
++	struct rte_eth_dev *dev = adapter->rte_dev;
++
++	if (adapter->keep_alive_timeout == ENA_HW_HINTS_NO_TIMEOUT)
++		return;
++
++	/* Within reasonable timing range no memory barriers are needed */
++	if ((rte_get_timer_cycles() - adapter->timestamp_wd) >=
++	    adapter->keep_alive_timeout) {
++		RTE_LOG(ERR, PMD, "The ENA device is not responding - "
++			"performing device reset...");
++		adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
++		_rte_eth_dev_callback_process(dev, RTE_ETH_EVENT_INTR_RESET,
++			NULL, NULL);
++	}
++}
++
+ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ {
+ 	struct rte_pci_device *pci_dev;
+@@ -1501,6 +1533,10 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	ena_com_set_admin_polling_mode(ena_dev, false);
+ 	ena_com_admin_aenq_enable(ena_dev);
+ 
++	if (adapters_found == 0)
++		rte_timer_subsystem_init();
++	rte_timer_init(&adapter->timer_wd);
++
+ 	adapters_found++;
+ 	adapter->state = ENA_ADAPTER_STATE_INIT;
+ 
+@@ -1863,6 +1899,16 @@ static void ena_update_hints(struct ena_adapter *adapter,
+ 		/* convert to usec */
+ 		adapter->ena_dev.mmio_read.reg_read_to =
+ 			hints->mmio_read_timeout * 1000;
++
++	if (hints->driver_watchdog_timeout) {
++		if (hints->driver_watchdog_timeout == ENA_HW_HINTS_NO_TIMEOUT)
++			adapter->keep_alive_timeout = ENA_HW_HINTS_NO_TIMEOUT;
++		else
++			// Convert msecs to ticks
++			adapter->keep_alive_timeout =
++				(hints->driver_watchdog_timeout *
++				rte_get_timer_hz()) / 1000;
++	}
+ }
+ 
+ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+@@ -2084,6 +2130,14 @@ static void ena_notification(void *data,
+ 	}
+ }
+ 
++static void ena_keep_alive(void *adapter_data,
++			   __rte_unused struct ena_admin_aenq_entry *aenq_e)
++{
++	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
++
++	adapter->timestamp_wd = rte_get_timer_cycles();
++}
++
+ /**
+  * This handler will called for unknown event group or unimplemented handlers
+  **/
+@@ -2097,7 +2151,7 @@ static struct ena_aenq_handlers aenq_handlers = {
+ 	.handlers = {
+ 		[ENA_ADMIN_LINK_CHANGE] = ena_update_on_link_change,
+ 		[ENA_ADMIN_NOTIFICATION] = ena_notification,
+-		[ENA_ADMIN_KEEP_ALIVE] = unimplemented_aenq_handler
++		[ENA_ADMIN_KEEP_ALIVE] = ena_keep_alive
+ 	},
+ 	.unimplemented_handler = unimplemented_aenq_handler
+ };
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 79e9e655d4..b44cca23e9 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -34,8 +34,10 @@
+ #ifndef _ENA_ETHDEV_H_
+ #define _ENA_ETHDEV_H_
+ 
++#include <rte_cycles.h>
+ #include <rte_pci.h>
+ #include <rte_bus_pci.h>
++#include <rte_timer.h>
+ 
+ #include "ena_com.h"
+ 
+@@ -50,6 +52,9 @@
+ 
+ #define ENA_MMIO_DISABLE_REG_READ	BIT(0)
+ 
++#define ENA_WD_TIMEOUT_SEC	3
++#define ENA_DEVICE_KALIVE_TIMEOUT (ENA_WD_TIMEOUT_SEC * rte_get_timer_hz())
++
+ struct ena_adapter;
+ 
+ enum ena_ring_type {
+@@ -185,6 +190,10 @@ struct ena_adapter {
+ 	bool link_status;
+ 
+ 	enum ena_regs_reset_reason_types reset_reason;
++
++	struct rte_timer timer_wd;
++	uint64_t timestamp_wd;
++	uint64_t keep_alive_timeout;
+ };
+ 
+ #endif /* _ENA_ETHDEV_H_ */
+-- 
+2.25.1
+

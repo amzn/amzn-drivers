@@ -1,0 +1,37 @@
+From 662b1a98060b56b93e1fcea6c37c9cfbf5db9ed8 Mon Sep 17 00:00:00 2001
+From: Bruce Richardson <bruce.richardson@intel.com>
+Date: Thu, 4 May 2017 16:38:20 +0100
+Subject: [PATCH 010/177] app/testpmd: add switch fall-through comments
+
+This fixes compiler warnings with GCC 7.
+
+Fixes: 28d62131a1b1 ("app/testpmd: extend flow director input set commands")
+
+Signed-off-by: Bruce Richardson <bruce.richardson@intel.com>
+---
+ app/test-pmd/cmdline.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/app/test-pmd/cmdline.c b/app/test-pmd/cmdline.c
+index 7590d1bde8..a3337984ae 100644
+--- a/app/test-pmd/cmdline.c
++++ b/app/test-pmd/cmdline.c
+@@ -8552,6 +8552,7 @@ cmd_flow_director_filter_parsed(void *parsed_result,
+ 	case RTE_ETH_FLOW_FRAG_IPV4:
+ 	case RTE_ETH_FLOW_NONFRAG_IPV4_OTHER:
+ 		entry.input.flow.ip4_flow.proto = res->proto_value;
++		/* fall-through */
+ 	case RTE_ETH_FLOW_NONFRAG_IPV4_UDP:
+ 	case RTE_ETH_FLOW_NONFRAG_IPV4_TCP:
+ 		IPV4_ADDR_TO_UINT(res->ip_dst,
+@@ -8584,6 +8585,7 @@ cmd_flow_director_filter_parsed(void *parsed_result,
+ 	case RTE_ETH_FLOW_FRAG_IPV6:
+ 	case RTE_ETH_FLOW_NONFRAG_IPV6_OTHER:
+ 		entry.input.flow.ipv6_flow.proto = res->proto_value;
++		/* fall-through */
+ 	case RTE_ETH_FLOW_NONFRAG_IPV6_UDP:
+ 	case RTE_ETH_FLOW_NONFRAG_IPV6_TCP:
+ 		IPV6_ADDR_TO_ARRAY(res->ip_dst,
+-- 
+2.25.1
+

@@ -1,0 +1,57 @@
+From 0884c836bc6be0f0f5fb8e789d90427cb47e9792 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 11 May 2021 08:45:42 +0200
+Subject: [PATCH 04/16] net/ena/base: remove indirection table from features
+ context
+
+The RSS indirection table shouldn't be included as a part of the
+device features context.
+
+If the driver has to acquire it, it can be done using the separate API
+whenever the RSS configuration is needed.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Amit Bernstein <amitbern@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c | 11 -----------
+ drivers/net/ena/base/ena_com.h |  1 -
+ 2 files changed, 12 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index d025c9cee1..5ca36ab6d9 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -2054,17 +2054,6 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
+ 	else
+ 		return rc;
+ 
+-	rc = ena_com_get_feature(ena_dev, &get_resp,
+-				 ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG, 0);
+-	if (!rc)
+-		memcpy(&get_feat_ctx->ind_table, &get_resp.u.ind_table,
+-		       sizeof(get_resp.u.ind_table));
+-	else if (rc == ENA_COM_UNSUPPORTED)
+-		memset(&get_feat_ctx->ind_table, 0x0,
+-		       sizeof(get_feat_ctx->ind_table));
+-	else
+-		return rc;
+-
+ 	return 0;
+ }
+ 
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index cd116e90e6..ca84e2e8bc 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -338,7 +338,6 @@ struct ena_com_dev_get_features_ctx {
+ 	struct ena_admin_feature_offload_desc offload;
+ 	struct ena_admin_ena_hw_hints hw_hints;
+ 	struct ena_admin_feature_llq_desc llq;
+-	struct ena_admin_feature_rss_ind_table ind_table;
+ };
+ 
+ struct ena_com_create_io_ctx {
+-- 
+2.25.1
+

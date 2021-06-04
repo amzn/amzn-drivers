@@ -1,0 +1,58 @@
+From 73c16052f3ba31c1c480225b1ecd0491c70af388 Mon Sep 17 00:00:00 2001
+From: Bruce Richardson <bruce.richardson@intel.com>
+Date: Thu, 4 May 2017 16:38:15 +0100
+Subject: [PATCH 006/177] net/bnx2x: add switch fall-through comments
+
+Add in a comment for each switch fall-through indicating that it is
+intentional. This will fix compiler warnings with GCC 7.
+
+Fixes: b5bf7719221d ("bnx2x: driver support routines")
+
+Signed-off-by: Bruce Richardson <bruce.richardson@intel.com>
+---
+ drivers/net/bnx2x/ecore_sp.c | 2 +-
+ drivers/net/bnx2x/elink.c    | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/bnx2x/ecore_sp.c b/drivers/net/bnx2x/ecore_sp.c
+index 07376d85d9..cd3edf2026 100644
+--- a/drivers/net/bnx2x/ecore_sp.c
++++ b/drivers/net/bnx2x/ecore_sp.c
+@@ -2728,7 +2728,7 @@ static int ecore_mcast_validate_e2(__rte_unused struct bnx2x_softc *sc,
+ 		/* DEL command deletes all currently configured MACs */
+ 	case ECORE_MCAST_CMD_DEL:
+ 		o->set_registry_size(o, 0);
+-		/* Don't break */
++		/* fall-through */
+ 
+ 		/* RESTORE command will restore the entire multicast configuration */
+ 	case ECORE_MCAST_CMD_RESTORE:
+diff --git a/drivers/net/bnx2x/elink.c b/drivers/net/bnx2x/elink.c
+index 95b4e75984..1200c53a93 100644
+--- a/drivers/net/bnx2x/elink.c
++++ b/drivers/net/bnx2x/elink.c
+@@ -5906,6 +5906,7 @@ elink_status_t elink_set_led(struct elink_params *params,
+ 		 */
+ 		if (!vars->link_up)
+ 			break;
++		/* fall-through */
+ 	case ELINK_LED_MODE_ON:
+ 		if (((params->phy[ELINK_EXT_PHY1].type ==
+ 		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BNX2X8727) ||
+@@ -11549,11 +11550,13 @@ static void elink_phy_def_cfg(struct elink_params *params,
+ 	switch (link_config & PORT_FEATURE_LINK_SPEED_MASK) {
+ 	case PORT_FEATURE_LINK_SPEED_10M_HALF:
+ 		phy->req_duplex = DUPLEX_HALF;
++		/* fall-through */
+ 	case PORT_FEATURE_LINK_SPEED_10M_FULL:
+ 		phy->req_line_speed = ELINK_SPEED_10;
+ 		break;
+ 	case PORT_FEATURE_LINK_SPEED_100M_HALF:
+ 		phy->req_duplex = DUPLEX_HALF;
++		/* fall-through */
+ 	case PORT_FEATURE_LINK_SPEED_100M_FULL:
+ 		phy->req_line_speed = ELINK_SPEED_100;
+ 		break;
+-- 
+2.25.1
+

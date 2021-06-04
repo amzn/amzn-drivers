@@ -1,0 +1,294 @@
+From 2ddb57402228e38d11882fa3f15c411a52798602 Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Wed, 12 May 2021 12:13:45 +0200
+Subject: [PATCH 156/166] net/ena: make ethdev references multi-process safe
+
+rte_pci_device and rte_eth_dev are process-local structures. Therefore
+ena_adapter::pdev and ena_adapter::rte_dev cannot be used universally.
+
+Both ena_timer_wd_callback and ena_interrupt_handler_rte needs access to
+the rte_eth_dev, but as they are being setup and executed in the primary
+process, it is safe to pass there the same pointer, which is used for
+the device configuration.
+
+In all other cases, except the eth_ena_dev_init(), the rte_eth_dev_data
+is used instead.
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 70 ++++++++++++++++++------------------
+ drivers/net/ena/ena_ethdev.h |  4 +--
+ 2 files changed, 36 insertions(+), 38 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 915e032c7f..6c0fd133ff 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -166,6 +166,7 @@ static const struct rte_pci_id pci_id_ena_map[] = {
+ static struct ena_aenq_handlers aenq_handlers;
+ 
+ static int ena_device_init(struct ena_com_dev *ena_dev,
++			   struct rte_pci_device *pdev,
+ 			   struct ena_com_dev_get_features_ctx *get_feat_ctx,
+ 			   bool *wd_state);
+ static int ena_dev_configure(struct rte_eth_dev *dev);
+@@ -465,11 +466,11 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev)
+ }
+ 
+ /* This function calculates the number of xstats based on the current config */
+-static unsigned int ena_xstats_calc_num(struct rte_eth_dev *dev)
++static unsigned int ena_xstats_calc_num(struct rte_eth_dev_data *data)
+ {
+ 	return ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENI +
+-		(dev->data->nb_tx_queues * ENA_STATS_ARRAY_TX) +
+-		(dev->data->nb_rx_queues * ENA_STATS_ARRAY_RX);
++		(data->nb_tx_queues * ENA_STATS_ARRAY_TX) +
++		(data->nb_rx_queues * ENA_STATS_ARRAY_RX);
+ }
+ 
+ static void ena_config_debug_area(struct ena_adapter *adapter)
+@@ -477,7 +478,7 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
+ 	u32 debug_area_size;
+ 	int rc, ss_count;
+ 
+-	ss_count = ena_xstats_calc_num(adapter->rte_dev);
++	ss_count = ena_xstats_calc_num(adapter->edev_data);
+ 
+ 	/* allocate 32 bytes for each string and 64bit for the value */
+ 	debug_area_size = ss_count * ETH_GSTRING_LEN + sizeof(u64) * ss_count;
+@@ -522,7 +523,7 @@ static void ena_close(struct rte_eth_dev *dev)
+ 	rte_intr_disable(intr_handle);
+ 	rte_intr_callback_unregister(intr_handle,
+ 				     ena_interrupt_handler_rte,
+-				     adapter);
++				     dev);
+ 
+ 	/*
+ 	 * MAC is not allocated dynamically. Setting NULL should prevent from
+@@ -595,7 +596,7 @@ static int ena_rss_reta_update(struct rte_eth_dev *dev,
+ 	}
+ 
+ 	RTE_LOG(DEBUG, PMD, "%s(): RSS configured %d entries  for port %d\n",
+-		__func__, reta_size, adapter->rte_dev->data->port_id);
++		__func__, reta_size, dev->data->port_id);
+ 
+ 	return 0;
+ }
+@@ -639,7 +640,7 @@ static int ena_rss_reta_query(struct rte_eth_dev *dev,
+ static int ena_rss_init_default(struct ena_adapter *adapter)
+ {
+ 	struct ena_com_dev *ena_dev = &adapter->ena_dev;
+-	uint16_t nb_rx_queues = adapter->rte_dev->data->nb_rx_queues;
++	uint16_t nb_rx_queues = adapter->edev_data->nb_rx_queues;
+ 	int rc, i;
+ 	u32 val;
+ 
+@@ -678,7 +679,7 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
+ 		goto err_fill_indir;
+ 	}
+ 	RTE_LOG(DEBUG, PMD, "RSS configured for port %d\n",
+-		adapter->rte_dev->data->port_id);
++		adapter->edev_data->port_id);
+ 
+ 	return 0;
+ 
+@@ -849,10 +850,10 @@ static uint32_t ena_get_mtu_conf(struct ena_adapter *adapter)
+ {
+ 	uint32_t max_frame_len = adapter->max_mtu;
+ 
+-	if (adapter->rte_eth_dev_data->dev_conf.rxmode.offloads &
++	if (adapter->edev_data->dev_conf.rxmode.offloads &
+ 	    DEV_RX_OFFLOAD_JUMBO_FRAME)
+ 		max_frame_len =
+-			adapter->rte_eth_dev_data->dev_conf.rxmode.max_rx_pkt_len;
++			adapter->edev_data->dev_conf.rxmode.max_rx_pkt_len;
+ 
+ 	return max_frame_len;
+ }
+@@ -1072,8 +1073,8 @@ static int ena_start(struct rte_eth_dev *dev)
+ 	if (rc)
+ 		goto err_start_tx;
+ 
+-	if (adapter->rte_dev->data->dev_conf.rxmode.mq_mode &
+-	    ETH_MQ_RX_RSS_FLAG && adapter->rte_dev->data->nb_rx_queues > 0) {
++	if (adapter->edev_data->dev_conf.rxmode.mq_mode &
++	    ETH_MQ_RX_RSS_FLAG && adapter->edev_data->nb_rx_queues > 0) {
+ 		rc = ena_rss_init_default(adapter);
+ 		if (rc)
+ 			goto err_rss_init;
+@@ -1086,7 +1087,7 @@ static int ena_start(struct rte_eth_dev *dev)
+ 
+ 	ticks = rte_get_timer_hz();
+ 	rte_timer_reset(&adapter->timer_wd, ticks, PERIODICAL, rte_lcore_id(),
+-			ena_timer_wd_callback, adapter);
++			ena_timer_wd_callback, dev);
+ 
+ 	++adapter->dev_stats.dev_start;
+ 	adapter->state = ENA_ADAPTER_STATE_RUNNING;
+@@ -1516,6 +1517,7 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ }
+ 
+ static int ena_device_init(struct ena_com_dev *ena_dev,
++			   struct rte_pci_device *pdev,
+ 			   struct ena_com_dev_get_features_ctx *get_feat_ctx,
+ 			   bool *wd_state)
+ {
+@@ -1533,9 +1535,7 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	/* The PCIe configuration space revision id indicate if mmio reg
+ 	 * read is disabled.
+ 	 */
+-	readless_supported =
+-		!(((struct rte_pci_device *)ena_dev->dmadev)->id.class_id
+-			       & ENA_MMIO_DISABLE_REG_READ);
++	readless_supported = !(pdev->id.class_id & ENA_MMIO_DISABLE_REG_READ);
+ 	ena_com_set_mmio_read_mode(ena_dev, readless_supported);
+ 
+ 	/* reset device */
+@@ -1606,12 +1606,13 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 
+ static void ena_interrupt_handler_rte(void *cb_arg)
+ {
+-	struct ena_adapter *adapter = cb_arg;
++	struct rte_eth_dev *dev = cb_arg;
++	struct ena_adapter *adapter = dev->data->dev_private;
+ 	struct ena_com_dev *ena_dev = &adapter->ena_dev;
+ 
+ 	ena_com_admin_q_comp_intr_handler(ena_dev);
+ 	if (likely(adapter->state != ENA_ADAPTER_STATE_CLOSED))
+-		ena_com_aenq_intr_handler(ena_dev, adapter);
++		ena_com_aenq_intr_handler(ena_dev, dev);
+ }
+ 
+ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
+@@ -1644,8 +1645,8 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
+ static void ena_timer_wd_callback(__rte_unused struct rte_timer *timer,
+ 				  void *arg)
+ {
+-	struct ena_adapter *adapter = arg;
+-	struct rte_eth_dev *dev = adapter->rte_dev;
++	struct rte_eth_dev *dev = arg;
++	struct ena_adapter *adapter = dev->data->dev_private;
+ 
+ 	check_for_missing_keep_alive(adapter);
+ 	check_for_admin_com_state(adapter);
+@@ -1784,11 +1785,9 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	memset(adapter, 0, sizeof(struct ena_adapter));
+ 	ena_dev = &adapter->ena_dev;
+ 
+-	adapter->rte_eth_dev_data = eth_dev->data;
+-	adapter->rte_dev = eth_dev;
++	adapter->edev_data = eth_dev->data;
+ 
+ 	pci_dev = RTE_ETH_DEV_TO_PCI(eth_dev);
+-	adapter->pdev = pci_dev;
+ 
+ 	PMD_INIT_LOG(INFO, "Initializing %x:%x:%x.%d",
+ 		     pci_dev->addr.domain,
+@@ -1808,7 +1807,8 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	}
+ 
+ 	ena_dev->reg_bar = adapter->regs;
+-	ena_dev->dmadev = adapter->pdev;
++	/* This is a dummy pointer for ena_com functions. */
++	ena_dev->dmadev = adapter;
+ 
+ 	adapter->id_number = adapters_found;
+ 
+@@ -1822,7 +1822,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	}
+ 
+ 	/* device specific initialization routine */
+-	rc = ena_device_init(ena_dev, &get_feat_ctx, &wd_state);
++	rc = ena_device_init(ena_dev, pci_dev, &get_feat_ctx, &wd_state);
+ 	if (rc) {
+ 		PMD_INIT_LOG(CRIT, "Failed to init ENA device");
+ 		goto err;
+@@ -1904,7 +1904,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 
+ 	rte_intr_callback_register(intr_handle,
+ 				   ena_interrupt_handler_rte,
+-				   adapter);
++				   eth_dev);
+ 	rte_intr_enable(intr_handle);
+ 	ena_com_set_admin_polling_mode(ena_dev, false);
+ 	ena_com_admin_aenq_enable(ena_dev);
+@@ -2729,7 +2729,7 @@ static int ena_xstats_get_names(struct rte_eth_dev *dev,
+ 				struct rte_eth_xstat_name *xstats_names,
+ 				unsigned int n)
+ {
+-	unsigned int xstats_count = ena_xstats_calc_num(dev);
++	unsigned int xstats_count = ena_xstats_calc_num(dev->data);
+ 	unsigned int stat, i, count = 0;
+ 
+ 	if (n < xstats_count || !xstats_names)
+@@ -2778,7 +2778,7 @@ static int ena_xstats_get(struct rte_eth_dev *dev,
+ 			  unsigned int n)
+ {
+ 	struct ena_adapter *adapter = dev->data->dev_private;
+-	unsigned int xstats_count = ena_xstats_calc_num(dev);
++	unsigned int xstats_count = ena_xstats_calc_num(dev->data);
+ 	unsigned int stat, i, count = 0;
+ 	int stat_offset;
+ 	void *stats_begin;
+@@ -3001,14 +3001,12 @@ ena_init_log(void)
+ static void ena_update_on_link_change(void *adapter_data,
+ 				      struct ena_admin_aenq_entry *aenq_e)
+ {
+-	struct rte_eth_dev *eth_dev;
+-	struct ena_adapter *adapter;
++	struct rte_eth_dev *eth_dev = adapter_data;
++	struct ena_adapter *adapter = eth_dev->data->dev_private;
+ 	struct ena_admin_aenq_link_change_desc *aenq_link_desc;
+ 	uint32_t status;
+ 
+-	adapter = adapter_data;
+ 	aenq_link_desc = (struct ena_admin_aenq_link_change_desc *)aenq_e;
+-	eth_dev = adapter->rte_dev;
+ 
+ 	status = get_ena_admin_aenq_link_change_desc_link_status(aenq_link_desc);
+ 	adapter->link_status = status;
+@@ -3018,10 +3016,11 @@ static void ena_update_on_link_change(void *adapter_data,
+ 				      NULL);
+ }
+ 
+-static void ena_notification(void *data,
++static void ena_notification(void *adapter_data,
+ 			     struct ena_admin_aenq_entry *aenq_e)
+ {
+-	struct ena_adapter *adapter = data;
++	struct rte_eth_dev *eth_dev = adapter_data;
++	struct ena_adapter *adapter = eth_dev->data->dev_private;
+ 	struct ena_admin_ena_hw_hints *hints;
+ 
+ 	if (aenq_e->aenq_common_desc.group != ENA_ADMIN_NOTIFICATION)
+@@ -3044,7 +3043,8 @@ static void ena_notification(void *data,
+ static void ena_keep_alive(void *adapter_data,
+ 			   __rte_unused struct ena_admin_aenq_entry *aenq_e)
+ {
+-	struct ena_adapter *adapter = adapter_data;
++	struct rte_eth_dev *eth_dev = adapter_data;
++	struct ena_adapter *adapter = eth_dev->data->dev_private;
+ 	struct ena_admin_aenq_keep_alive_desc *desc;
+ 	uint64_t rx_drops;
+ 	uint64_t tx_drops;
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 3e5a50b04c..c2db9687e3 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -210,9 +210,7 @@ struct ena_offloads {
+ /* board specific private data structure */
+ struct ena_adapter {
+ 	/* OS defined structs */
+-	struct rte_pci_device *pdev;
+-	struct rte_eth_dev_data *rte_eth_dev_data;
+-	struct rte_eth_dev *rte_dev;
++	struct rte_eth_dev_data *edev_data;
+ 
+ 	struct ena_com_dev ena_dev __rte_cache_aligned;
+ 
+-- 
+2.25.1
+

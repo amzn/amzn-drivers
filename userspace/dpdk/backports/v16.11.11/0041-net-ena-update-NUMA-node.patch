@@ -1,0 +1,30 @@
+From 105d3fd09f16996ce75c01bad1bb805e9c448226 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:17 +0200
+Subject: [PATCH 041/177] net/ena: update NUMA node
+
+During initializing Tx queues update Non-Uniform Memory Access
+configuration in NIC firmware.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 14efd0b5aa..3d739acaa0 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1080,6 +1080,8 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 		goto err_destroy_io_queue;
+ 	}
+ 
++	ena_com_update_numa_node(txq->ena_com_io_cq, ctx.numa_node);
++
+ 	txq->port_id = dev->data->port_id;
+ 	txq->next_to_clean = 0;
+ 	txq->next_to_use = 0;
+-- 
+2.25.1
+

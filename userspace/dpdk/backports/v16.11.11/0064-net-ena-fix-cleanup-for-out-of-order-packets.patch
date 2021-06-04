@@ -1,0 +1,81 @@
+From b11a4eadc9721baadd5324ab4c94380b4e139a51 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Mon, 17 Dec 2018 12:06:18 +0100
+Subject: [PATCH 064/177] net/ena: fix cleanup for out of order packets
+
+When wrong req_id is detected some previous mbufs could be used for
+receiving different segments of received packets. In such cases chained
+mbufs will be twice returned to pool.
+
+To prevent it chained mbuf is now freed just after error detection.
+
+To simplify cleaning, pointers taken for Rx ring are set to NULL.
+
+As after ena_rx_queue_release_bufs and ena_tx_queue_release_bufs queues
+are not used updating of next_to_clean pointer is not necessary.
+
+Fixes: c2034976673d ("net/ena: add Rx out of order completion")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index beb0f2f4d0..859ec6651d 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -725,17 +725,13 @@ static void ena_tx_queue_release(void *queue)
+ 
+ static void ena_rx_queue_release_bufs(struct ena_ring *ring)
+ {
+-	unsigned int ring_mask = ring->ring_size - 1;
+-
+-	while (ring->next_to_clean != ring->next_to_use) {
+-		struct rte_mbuf *m =
+-			ring->rx_buffer_info[ring->next_to_clean & ring_mask];
+-
+-		if (m)
+-			__rte_mbuf_raw_free(m);
++	unsigned int i;
+ 
+-		ring->next_to_clean++;
+-	}
++	for (i = 0; i < ring->ring_size; ++i)
++		if (ring->rx_buffer_info[i]) {
++			__rte_mbuf_raw_free(ring->rx_buffer_info[i]);
++			ring->rx_buffer_info[i] = NULL;
++		}
+ }
+ 
+ static void ena_tx_queue_release_bufs(struct ena_ring *ring)
+@@ -747,8 +743,6 @@ static void ena_tx_queue_release_bufs(struct ena_ring *ring)
+ 
+ 		if (tx_buf->mbuf)
+ 			rte_pktmbuf_free(tx_buf->mbuf);
+-
+-		ring->next_to_clean++;
+ 	}
+ }
+ 
+@@ -1992,10 +1986,14 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 		while (segments < ena_rx_ctx.descs) {
+ 			req_id = ena_rx_ctx.ena_bufs[segments].req_id;
+ 			rc = validate_rx_req_id(rx_ring, req_id);
+-			if (unlikely(rc))
++			if (unlikely(rc)) {
++				if (segments != 0)
++					__rte_mbuf_raw_free(mbuf_head);
+ 				break;
++			}
+ 
+ 			mbuf = rx_buff_info[req_id];
++			rx_buff_info[req_id] = NULL;
+ 			mbuf->data_len = ena_rx_ctx.ena_bufs[segments].len;
+ 			mbuf->data_off = RTE_PKTMBUF_HEADROOM;
+ 			mbuf->refcnt = 1;
+-- 
+2.25.1
+

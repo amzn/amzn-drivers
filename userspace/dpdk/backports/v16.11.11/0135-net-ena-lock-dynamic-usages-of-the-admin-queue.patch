@@ -1,0 +1,88 @@
+From 491b29dd7ff8d7d25f2352bd0685fd5825990ea7 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 16 Jul 2020 10:51:09 +0000
+Subject: [PATCH 135/177] net/ena: lock dynamic usages of the admin queue
+
+There are some cases, where the admin queue commands after the
+configuration phase finished - for example, the application could ask
+for the driver statitics from multiple cores at once.
+
+As by the design, the admin queue is not multithread safe, the spinlock
+was added to protect all usages of the admin queue after the
+configuration is done.
+
+Change-Id: I3fa897afb42639514fb688f60e0fea13c3c05f6b
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/ena_ethdev.c | 9 +++++++++
+ drivers/net/ena/ena_ethdev.h | 7 +++++++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index b277db5b04..dd86296971 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -530,7 +530,9 @@ static int ena_rss_reta_update(struct rte_eth_dev *dev,
+ 		}
+ 	}
+ 
++	rte_spinlock_lock(&adapter->admin_lock);
+ 	rc = ena_com_indirect_table_set(ena_dev);
++	rte_spinlock_unlock(&adapter->admin_lock);
+ 	if (unlikely(rc && rc != ENA_COM_UNSUPPORTED)) {
+ 		RTE_LOG(ERR, PMD, "Cannot flush the indirect table\n");
+ 		return rc;
+@@ -559,7 +561,9 @@ static int ena_rss_reta_query(struct rte_eth_dev *dev,
+ 	    (reta_size > RTE_RETA_GROUP_SIZE && ((reta_conf + 1) == NULL)))
+ 		return -EINVAL;
+ 
++	rte_spinlock_lock(&adapter->admin_lock);
+ 	rc = ena_com_indirect_table_get(ena_dev, indirect_table);
++	rte_spinlock_unlock(&adapter->admin_lock);
+ 	if (unlikely(rc && rc != ENA_COM_UNSUPPORTED)) {
+ 		RTE_LOG(ERR, PMD, "cannot get indirect table\n");
+ 		return -ENOTSUP;
+@@ -913,7 +917,10 @@ static void ena_stats_get(struct rte_eth_dev *dev,
+ 		return;
+ 
+ 	memset(&ena_stats, 0, sizeof(ena_stats));
++
++	rte_spinlock_lock(&adapter->admin_lock);
+ 	rc = ena_com_get_dev_basic_stats(ena_dev, &ena_stats);
++	rte_spinlock_unlock(&adapter->admin_lock);
+ 	if (unlikely(rc)) {
+ 		RTE_LOG(ERR, PMD, "Could not retrieve statistics from ENA\n");
+ 		return;
+@@ -1808,6 +1815,8 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 		goto err_delete_debug_area;
+ 	}
+ 
++	rte_spinlock_init(&adapter->admin_lock);
++
+ 	rte_intr_callback_register(intr_handle,
+ 				   ena_interrupt_handler_rte,
+ 				   adapter);
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index a7e25bf24f..12e3f0c452 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -191,6 +191,13 @@ struct ena_adapter {
+ 	u32 max_num_io_queues;
+ 	u16 max_mtu;
+ 
++	/* The admin queue isn't protected by the lock and is used to
++	 * retrieve statistics from the device. As there is no guarantee that
++	 * application won't try to get statistics from multiple threads, it is
++	 * safer to lock the queue to avoid admin queue failure.
++	 */
++	rte_spinlock_t admin_lock;
++
+ 	int id_number;
+ 	char name[ENA_NAME_MAX_LEN];
+ 	u8 mac_addr[ETHER_ADDR_LEN];
+-- 
+2.25.1
+

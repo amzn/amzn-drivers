@@ -1,0 +1,29 @@
+From e7f2fd256e28efb7d1137963294b5d7bb556e68d Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:42:56 +0200
+Subject: [PATCH 021/177] net/ena: change version number to 1.1.0
+
+The upcoming patches for the ENA PMD are part of 1.1.0 update of the PMD
+and the version number is updated accordingly.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 502380108f..5cf73b2f90 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -52,7 +52,7 @@
+ #include <ena_eth_io_defs.h>
+ 
+ #define DRV_MODULE_VER_MAJOR	1
+-#define DRV_MODULE_VER_MINOR	0
++#define DRV_MODULE_VER_MINOR	1
+ #define DRV_MODULE_VER_SUBMINOR	0
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+-- 
+2.25.1
+

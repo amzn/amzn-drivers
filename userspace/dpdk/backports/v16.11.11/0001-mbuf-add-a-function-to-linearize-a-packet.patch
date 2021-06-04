@@ -1,0 +1,232 @@
+From 62982d825cfd911bc5a0ca7a77e48be4b9a377a3 Mon Sep 17 00:00:00 2001
+From: Tomasz Kulasek <tomaszx.kulasek@intel.com>
+Date: Thu, 12 Jan 2017 10:40:44 +0100
+Subject: [PATCH 001/177] mbuf: add a function to linearize a packet
+
+This patch adds function rte_pktmbuf_linearize to let crypto PMD coalesce
+chained mbuf before crypto operation and extend their capabilities to
+support segmented mbufs when device cannot handle them natively.
+
+Included unit tests for rte_pktmbuf_linearize functionality:
+
+ 1) Creates banch of segmented mbufs with different size and number of
+    segments.
+ 2) Fills noncontigouos mbuf with sequential values.
+ 3) Uses rte_pktmbuf_linearize to coalesce segmented buffer into one
+    contiguous.
+ 4) Verifies data in linearized buffer.
+
+Signed-off-by: Tomasz Kulasek <tomaszx.kulasek@intel.com>
+Acked-by: Olivier Matz <olivier.matz@6wind.com>
+Change-Id: I9618d37f2f6e4f544d7d226090e549e5e46b0cdd
+---
+ app/test/test_mbuf.c       | 123 +++++++++++++++++++++++++++++++++++++
+ lib/librte_mbuf/rte_mbuf.h |  51 +++++++++++++++
+ 2 files changed, 174 insertions(+)
+
+diff --git a/app/test/test_mbuf.c b/app/test/test_mbuf.c
+index c0823ea5a1..a2e9bc6cfb 100644
+--- a/app/test/test_mbuf.c
++++ b/app/test/test_mbuf.c
+@@ -930,6 +930,124 @@ test_failing_mbuf_sanity_check(void)
+ 	return 0;
+ }
+ 
++static int
++test_mbuf_linearize(int pkt_len, int nb_segs) {
++
++	struct rte_mbuf *m = NULL, *mbuf = NULL;
++	uint8_t *data;
++	int data_len = 0;
++	int remain;
++	int seg, seg_len;
++	int i;
++
++	if (pkt_len < 1) {
++		printf("Packet size must be 1 or more (is %d)\n", pkt_len);
++		return -1;
++	}
++
++	if (nb_segs < 1) {
++		printf("Number of segments must be 1 or more (is %d)\n",
++				nb_segs);
++		return -1;
++	}
++
++	seg_len = pkt_len / nb_segs;
++	if (seg_len == 0)
++		seg_len = 1;
++
++	remain = pkt_len;
++
++	/* Create chained mbuf_src and fill it generated data */
++	for (seg = 0; remain > 0; seg++) {
++
++		m = rte_pktmbuf_alloc(pktmbuf_pool);
++		if (m == NULL) {
++			printf("Cannot create segment for source mbuf");
++			goto fail;
++		}
++
++		/* Make sure if tailroom is zeroed */
++		memset(rte_pktmbuf_mtod(m, uint8_t *), 0,
++				rte_pktmbuf_tailroom(m));
++
++		data_len = remain;
++		if (data_len > seg_len)
++			data_len = seg_len;
++
++		data = (uint8_t *)rte_pktmbuf_append(m, data_len);
++		if (data == NULL) {
++			printf("Cannot append %d bytes to the mbuf\n",
++					data_len);
++			goto fail;
++		}
++
++		for (i = 0; i < data_len; i++)
++			data[i] = (seg * seg_len + i) % 0x0ff;
++
++		if (seg == 0)
++			mbuf = m;
++		else
++			rte_pktmbuf_chain(mbuf, m);
++
++		remain -= data_len;
++	}
++
++	/* Create destination buffer to store coalesced data */
++	if (rte_pktmbuf_linearize(mbuf)) {
++		printf("Mbuf linearization failed\n");
++		goto fail;
++	}
++
++	if (!rte_pktmbuf_is_contiguous(mbuf)) {
++		printf("Source buffer should be contiguous after "
++				"linearization\n");
++		goto fail;
++	}
++
++	data = rte_pktmbuf_mtod(mbuf, uint8_t *);
++
++	for (i = 0; i < pkt_len; i++)
++		if (data[i] != (i % 0x0ff)) {
++			printf("Incorrect data in linearized mbuf\n");
++			goto fail;
++		}
++
++	rte_pktmbuf_free(mbuf);
++	return 0;
++
++fail:
++	if (mbuf)
++		rte_pktmbuf_free(mbuf);
++	return -1;
++}
++
++static int
++test_mbuf_linearize_check(void)
++{
++	struct test_mbuf_array {
++		int size;
++		int nb_segs;
++	} mbuf_array[] = {
++			{ 128, 1 },
++			{ 64, 64 },
++			{ 512, 10 },
++			{ 250, 11 },
++			{ 123, 8 },
++	};
++	unsigned int i;
++
++	printf("Test mbuf linearize API\n");
++
++	for (i = 0; i < RTE_DIM(mbuf_array); i++)
++		if (test_mbuf_linearize(mbuf_array[i].size,
++				mbuf_array[i].nb_segs)) {
++			printf("Test failed for %d, %d\n", mbuf_array[i].size,
++					mbuf_array[i].nb_segs);
++			return -1;
++		}
++
++	return 0;
++}
+ 
+ static int
+ test_mbuf(void)
+@@ -1023,6 +1141,11 @@ test_mbuf(void)
+ 		printf("test_failing_mbuf_sanity_check() failed\n");
+ 		return -1;
+ 	}
++
++	if (test_mbuf_linearize_check() < 0) {
++		printf("test_mbuf_linearize_check() failed\n");
++		return -1;
++	}
+ 	return 0;
+ }
+ 
+diff --git a/lib/librte_mbuf/rte_mbuf.h b/lib/librte_mbuf/rte_mbuf.h
+index 5b75464565..be0271d462 100644
+--- a/lib/librte_mbuf/rte_mbuf.h
++++ b/lib/librte_mbuf/rte_mbuf.h
+@@ -1648,6 +1648,57 @@ static inline int rte_pktmbuf_chain(struct rte_mbuf *head, struct rte_mbuf *tail
+ 	return 0;
+ }
+ 
++/**
++ * Linearize data in mbuf.
++ *
++ * This function moves the mbuf data in the first segment if there is enough
++ * tailroom. The subsequent segments are unchained and freed.
++ *
++ * @param mbuf
++ *   mbuf to linearize
++ * @return
++ *   - 0, on success
++ *   - -1, on error
++ */
++static inline int
++rte_pktmbuf_linearize(struct rte_mbuf *mbuf)
++{
++	int seg_len, copy_len;
++	struct rte_mbuf *m;
++	struct rte_mbuf *m_next;
++	char *buffer;
++
++	if (rte_pktmbuf_is_contiguous(mbuf))
++		return 0;
++
++	/* Extend first segment to the total packet length */
++	copy_len = rte_pktmbuf_pkt_len(mbuf) - rte_pktmbuf_data_len(mbuf);
++
++	if (unlikely(copy_len > rte_pktmbuf_tailroom(mbuf)))
++		return -1;
++
++	buffer = rte_pktmbuf_mtod_offset(mbuf, char *, mbuf->data_len);
++	mbuf->data_len = (uint16_t)(mbuf->pkt_len);
++
++	/* Append data from next segments to the first one */
++	m = mbuf->next;
++	while (m != NULL) {
++		m_next = m->next;
++
++		seg_len = rte_pktmbuf_data_len(m);
++		rte_memcpy(buffer, rte_pktmbuf_mtod(m, char *), seg_len);
++		buffer += seg_len;
++
++		rte_pktmbuf_free_seg(m);
++		m = m_next;
++	}
++
++	mbuf->next = NULL;
++	mbuf->nb_segs = 1;
++
++	return 0;
++}
++
+ /**
+  * Dump an mbuf structure to a file.
+  *
+-- 
+2.25.1
+

@@ -1,0 +1,161 @@
+From ebd34a043afa2eefb3a15e684f1e52c85340fde9 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Jul 2020 14:56:59 +0200
+Subject: [PATCH 055/107] net/ena/base: make delay exponential in polling
+ functions
+
+Instead of the fixes, 5 ms delay in the polling functions, use
+values into given range (by default from 100 us 5000 us) and increase
+them exponentially each time, the operation isn't finished.
+
+This change can improve responsiveness of the driver for the fast
+operations.
+
+Change-Id: Ia8a7aecfe72945af971cb772c6511b0c44296e6d
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c       | 35 ++++++++++++++++++++--------
+ drivers/net/ena/base/ena_com.h       |  3 +++
+ drivers/net/ena/base/ena_plat_dpdk.h |  1 +
+ 3 files changed, 29 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index a1d2646c1c..ce239ab164 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -34,7 +34,9 @@
+ 
+ #define ENA_REGS_ADMIN_INTR_MASK 1
+ 
+-#define ENA_POLL_MS	5
++#define ENA_MIN_ADMIN_POLL_US 100
++
++#define ENA_MAX_ADMIN_POLL_US 5000
+ 
+ /*****************************************************************************/
+ /*****************************************************************************/
+@@ -524,12 +526,20 @@ static int ena_com_comp_status_to_errno(u8 comp_status)
+ 	return ENA_COM_INVAL;
+ }
+ 
++static void ena_delay_exponential_backoff_us(u32 exp, u32 delay_us)
++{
++	delay_us = ENA_MAX32(ENA_MIN_ADMIN_POLL_US, delay_us);
++	delay_us = ENA_MIN32(delay_us * (1U << exp), ENA_MAX_ADMIN_POLL_US);
++	ENA_USLEEP(delay_us);
++}
++
+ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_ctx,
+ 						     struct ena_com_admin_queue *admin_queue)
+ {
+ 	unsigned long flags = 0;
+ 	ena_time_t timeout;
+ 	int ret;
++	u32 exp = 0;
+ 
+ 	timeout = ENA_GET_SYSTEM_TIMEOUT(admin_queue->completion_timeout);
+ 
+@@ -553,7 +563,8 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
+ 			goto err;
+ 		}
+ 
+-		ENA_MSLEEP(ENA_POLL_MS);
++		ena_delay_exponential_backoff_us(exp++,
++						 admin_queue->ena_dev->ena_min_poll_delay_us);
+ 	}
+ 
+ 	if (unlikely(comp_ctx->status == ENA_CMD_ABORTED)) {
+@@ -947,12 +958,13 @@ static void ena_com_io_queue_free(struct ena_com_dev *ena_dev,
+ static int wait_for_reset_state(struct ena_com_dev *ena_dev, u32 timeout,
+ 				u16 exp_state)
+ {
+-	u32 val, i;
++	u32 val, exp = 0;
++	ena_time_t timeout_stamp;
+ 
+-	/* Convert timeout from resolution of 100ms to ENA_POLL_MS */
+-	timeout = (timeout * 100) / ENA_POLL_MS;
++	/* Convert timeout from resolution of 100ms to us resolution. */
++	timeout_stamp = ENA_GET_SYSTEM_TIMEOUT(100 * 1000 * timeout);
+ 
+-	for (i = 0; i < timeout; i++) {
++	while (1) {
+ 		val = ena_com_reg_bar_read32(ena_dev, ENA_REGS_DEV_STS_OFF);
+ 
+ 		if (unlikely(val == ENA_MMIO_READ_TIMEOUT)) {
+@@ -964,10 +976,11 @@ static int wait_for_reset_state(struct ena_com_dev *ena_dev, u32 timeout,
+ 			exp_state)
+ 			return 0;
+ 
+-		ENA_MSLEEP(ENA_POLL_MS);
+-	}
++		if (ENA_TIME_EXPIRE(timeout_stamp))
++			return ENA_COM_TIMER_EXPIRED;
+ 
+-	return ENA_COM_TIMER_EXPIRED;
++		ena_delay_exponential_backoff_us(exp++, ena_dev->ena_min_poll_delay_us);
++	}
+ }
+ 
+ static bool ena_com_check_supported_feature_id(struct ena_com_dev *ena_dev,
+@@ -1458,11 +1471,12 @@ void ena_com_wait_for_abort_completion(struct ena_com_dev *ena_dev)
+ {
+ 	struct ena_com_admin_queue *admin_queue = &ena_dev->admin_queue;
+ 	unsigned long flags = 0;
++	u32 exp = 0;
+ 
+ 	ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
+ 	while (ATOMIC32_READ(&admin_queue->outstanding_cmds) != 0) {
+ 		ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
+-		ENA_MSLEEP(ENA_POLL_MS);
++		ena_delay_exponential_backoff_us(exp++, ena_dev->ena_min_poll_delay_us);
+ 		ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
+ 	}
+ 	ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
+@@ -1829,6 +1843,7 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
+ 	if (ret)
+ 		goto error;
+ 
++	admin_queue->ena_dev = ena_dev;
+ 	admin_queue->running_state = true;
+ 
+ 	return 0;
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index 61074eaf63..2acf6d8ae5 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -202,6 +202,7 @@ struct ena_com_stats_admin {
+ struct ena_com_admin_queue {
+ 	void *q_dmadev;
+ 	void *bus;
++	struct ena_com_dev *ena_dev;
+ 	ena_spinlock_t q_lock; /* spinlock for the admin queue */
+ 
+ 	struct ena_comp_ctx *comp_ctx;
+@@ -322,6 +323,8 @@ struct ena_com_dev {
+ 	struct ena_intr_moder_entry *intr_moder_tbl;
+ 
+ 	struct ena_com_llq_info llq_info;
++
++	u32 ena_min_poll_delay_us;
+ };
+ 
+ struct ena_com_dev_get_features_ctx {
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 5ddd7f2715..a6782f3732 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -57,6 +57,7 @@ typedef uint64_t dma_addr_t;
+ #define ENA_ABORT() abort()
+ 
+ #define ENA_MSLEEP(x) rte_delay_us_sleep(x * 1000)
++#define ENA_USLEEP(x) rte_delay_us_sleep(x)
+ #define ENA_UDELAY(x) rte_delay_us_block(x)
+ 
+ #define ENA_TOUCH(x) ((void)(x))
+-- 
+2.25.1
+

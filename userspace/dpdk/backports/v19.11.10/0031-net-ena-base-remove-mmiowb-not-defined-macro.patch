@@ -1,0 +1,34 @@
+From d2fafe5fe1eeed2c94ba1bd0bab1b1c98c3ed719 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Jul 2020 16:09:02 +0200
+Subject: [PATCH 31/72] net/ena/base: remove mmiowb not defined macro
+
+As there is no replacment for mmiowb() and there is no need to use both
+versions in the DPDK, this ifdef was simply removed.
+
+Change-Id: Ifec5c25e1b1172f9b18dc87c4d9e3ce844176240
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index dcc6e55761..c1e3ecc0f5 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -2117,9 +2117,7 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
+ 	mb();
+ 	ENA_REG_WRITE32_RELAXED(dev->bus, (u32)aenq->head,
+ 				dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
+-#ifndef MMIOWB_NOT_DEFINED
+ 	mmiowb();
+-#endif
+ }
+ 
+ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
+-- 
+2.25.1
+

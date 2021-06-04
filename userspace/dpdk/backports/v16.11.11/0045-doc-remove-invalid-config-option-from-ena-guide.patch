@@ -1,0 +1,36 @@
+From 0ca81268c128e2d373bb6df84076d3b56dbe2f81 Mon Sep 17 00:00:00 2001
+From: Stephen Hemminger <stephen@networkplumber.org>
+Date: Fri, 12 Oct 2018 16:42:50 -0700
+Subject: [PATCH 045/177] doc: remove invalid config option from ena guide
+
+The ena driver has used dynamic log type to enable init debugging since
+18.05 but the documentation still has leftover mention of the config
+option.
+
+Fixes: 8bc0acae970d ("net/ena: implement dynamic logging")
+Cc: stable@dpdk.org
+
+Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+Reviewed-by: Ferruh Yigit <ferruh.yigit@intel.com>
+---
+ doc/guides/nics/ena.rst | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/doc/guides/nics/ena.rst b/doc/guides/nics/ena.rst
+index 9062d7bf03..0c212b3b91 100644
+--- a/doc/guides/nics/ena.rst
++++ b/doc/guides/nics/ena.rst
+@@ -113,10 +113,6 @@ Configuration information
+    * **CONFIG_RTE_LIBRTE_ENA_PMD** (default y): Enables or disables inclusion
+      of the ENA PMD driver in the DPDK compilation.
+ 
+-
+-   * **CONFIG_RTE_LIBRTE_ENA_DEBUG_INIT** (default y): Enables or disables debug
+-     logging of device initialization within the ENA PMD driver.
+-
+    * **CONFIG_RTE_LIBRTE_ENA_DEBUG_RX** (default n): Enables or disables debug
+      logging of RX logic within the ENA PMD driver.
+ 
+-- 
+2.25.1
+

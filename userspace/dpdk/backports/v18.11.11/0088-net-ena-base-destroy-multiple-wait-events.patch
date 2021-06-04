@@ -1,0 +1,82 @@
+From 9925c09de50c9887b767f60eb4184d9fc6363015 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 11 May 2021 08:45:41 +0200
+Subject: [PATCH 088/107] net/ena/base: destroy multiple wait events
+
+Although the ENA DPDK PMD doesn't have to perform any actions for
+destroying the wait event, some other platforms have to.
+
+The macro "ENA_WAIT_EVENT_DESTROY" was renamed to
+"ENA_WAIT_EVENTS_DESTROY" and also whole implementation responsible for
+that was moved to a separate function for better readability.
+
+Fixes: 3adcba9a8987 ("net/ena: update HAL to the newer version")
+Cc: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c       | 24 +++++++++++++++++-------
+ drivers/net/ena/base/ena_plat_dpdk.h |  2 +-
+ 2 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 0cdeb1a2d9..d025c9cee1 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1671,6 +1671,22 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev)
+ 	return 0;
+ }
+ 
++static void
++ena_com_free_ena_admin_queue_comp_ctx(struct ena_com_dev *ena_dev,
++				      struct ena_com_admin_queue *admin_queue)
++
++{
++	if (!admin_queue->comp_ctx)
++		return;
++
++	ENA_WAIT_EVENTS_DESTROY(admin_queue);
++	ENA_MEM_FREE(ena_dev->dmadev,
++		     admin_queue->comp_ctx,
++		     (admin_queue->q_depth * sizeof(struct ena_comp_ctx)));
++
++	admin_queue->comp_ctx = NULL;
++}
++
+ void ena_com_admin_destroy(struct ena_com_dev *ena_dev)
+ {
+ 	struct ena_com_admin_queue *admin_queue = &ena_dev->admin_queue;
+@@ -1679,14 +1695,8 @@ void ena_com_admin_destroy(struct ena_com_dev *ena_dev)
+ 	struct ena_com_aenq *aenq = &ena_dev->aenq;
+ 	u16 size;
+ 
+-	if (admin_queue->comp_ctx) {
+-		ENA_WAIT_EVENT_DESTROY(admin_queue->comp_ctx->wait_event);
+-		ENA_MEM_FREE(ena_dev->dmadev,
+-			     admin_queue->comp_ctx,
+-			     (admin_queue->q_depth * sizeof(struct ena_comp_ctx)));
+-	}
++	ena_com_free_ena_admin_queue_comp_ctx(ena_dev, admin_queue);
+ 
+-	admin_queue->comp_ctx = NULL;
+ 	size = ADMIN_SQ_SIZE(admin_queue->q_depth);
+ 	if (sq->entries)
+ 		ENA_MEM_FREE_COHERENT(ena_dev->dmadev, size, sq->entries,
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index df2fdd30f6..ddf54f0ad5 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -299,7 +299,7 @@ extern rte_atomic32_t ena_alloc_cnt;
+ #define ENA_TIME_EXPIRE(timeout)  (timeout < rte_get_timer_cycles())
+ #define ENA_GET_SYSTEM_TIMEOUT(timeout_us)				\
+     (timeout_us * rte_get_timer_hz() / 1000000 + rte_get_timer_cycles())
+-#define ENA_WAIT_EVENT_DESTROY(waitqueue) ((void)(waitqueue))
++#define ENA_WAIT_EVENTS_DESTROY(admin_queue) ((void)(admin_queue))
+ 
+ #ifndef READ_ONCE
+ #define READ_ONCE(var) (*((volatile typeof(var) *)(&(var))))
+-- 
+2.25.1
+

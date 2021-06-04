@@ -1,0 +1,39 @@
+From 40711f6aca5fabc36e25fefb23b0fba25f7bce86 Mon Sep 17 00:00:00 2001
+From: Bruce Richardson <bruce.richardson@intel.com>
+Date: Thu, 4 May 2017 16:38:16 +0100
+Subject: [PATCH 012/177] net/ixgbe: add switch fall-through comments
+
+Add a comment documenting explicitly that we are falling through the case
+statements to the next one.
+
+Fixes: f9072f8b90bb ("ixgbe: migrate flow director filtering to new API")
+
+Signed-off-by: Bruce Richardson <bruce.richardson@intel.com>
+Acked-by: Wenzhuo Lu <wenzhuo.lu@intel.com>
+---
+ drivers/net/ixgbe/ixgbe_fdir.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/ixgbe/ixgbe_fdir.c b/drivers/net/ixgbe/ixgbe_fdir.c
+index 2a6f754b33..1e7435a654 100644
+--- a/drivers/net/ixgbe/ixgbe_fdir.c
++++ b/drivers/net/ixgbe/ixgbe_fdir.c
+@@ -683,6 +683,7 @@ ixgbe_fdir_filter_to_atr_input(const struct rte_eth_fdir_filter *fdir_filter,
+ 			fdir_filter->input.flow.udp4_flow.src_port;
+ 		input->formatted.dst_port =
+ 			fdir_filter->input.flow.udp4_flow.dst_port;
++		/* fall-through */
+ 	/*for SCTP flow type, port and verify_tag are meaningless in ixgbe.*/
+ 	case RTE_ETH_FLOW_NONFRAG_IPV4_SCTP:
+ 	case RTE_ETH_FLOW_NONFRAG_IPV4_OTHER:
+@@ -698,6 +699,7 @@ ixgbe_fdir_filter_to_atr_input(const struct rte_eth_fdir_filter *fdir_filter,
+ 			fdir_filter->input.flow.udp6_flow.src_port;
+ 		input->formatted.dst_port =
+ 			fdir_filter->input.flow.udp6_flow.dst_port;
++		/* fall-through */
+ 	/*for SCTP flow type, port and verify_tag are meaningless in ixgbe.*/
+ 	case RTE_ETH_FLOW_NONFRAG_IPV6_SCTP:
+ 	case RTE_ETH_FLOW_NONFRAG_IPV6_OTHER:
+-- 
+2.25.1
+

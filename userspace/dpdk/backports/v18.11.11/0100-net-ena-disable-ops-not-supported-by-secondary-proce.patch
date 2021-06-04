@@ -1,0 +1,66 @@
+From 38a4a45cd64d03c37fbf241a76a2bd34ca286023 Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Wed, 12 May 2021 12:13:46 +0200
+Subject: [PATCH 100/107] net/ena: disable ops not supported by secondary
+ process
+
+For dev_ops not supported by the secondary process, either return -EPERM
+or return without doing anything. In both cases log a warning.
+
+It's still application's responsibility to avoid calls like that and
+those changes are for debugging/informational purposes.
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index aeec7d39de..de7e4077c2 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -546,6 +546,12 @@ ena_dev_reset(struct rte_eth_dev *dev)
+ {
+ 	int rc = 0;
+ 
++	/* Cannot release memory in secondary process */
++	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
++		PMD_DRV_LOG(WARNING, "dev_reset not supported in secondary.\n");
++		return -EPERM;
++	}
++
+ 	ena_destroy_device(dev);
+ 	rc = eth_ena_dev_init(dev);
+ 	if (rc)
+@@ -1070,6 +1076,12 @@ static int ena_start(struct rte_eth_dev *dev)
+ 	uint64_t ticks;
+ 	int rc = 0;
+ 
++	/* Cannot allocate memory in secondary process */
++	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
++		PMD_DRV_LOG(WARNING, "dev_start not supported in secondary.\n");
++		return -EPERM;
++	}
++
+ 	rc = ena_check_valid_conf(adapter);
+ 	if (rc)
+ 		return rc;
+@@ -1116,6 +1128,12 @@ static void ena_stop(struct rte_eth_dev *dev)
+ 	struct ena_com_dev *ena_dev = &adapter->ena_dev;
+ 	int rc;
+ 
++	/* Cannot free memory in secondary process */
++	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
++		PMD_DRV_LOG(WARNING, "dev_stop not supported in secondary.\n");
++		return;
++	}
++
+ 	rte_timer_stop_sync(&adapter->timer_wd);
+ 	ena_queue_stop_all(dev, ENA_RING_TYPE_TX);
+ 	ena_queue_stop_all(dev, ENA_RING_TYPE_RX);
+-- 
+2.25.1
+

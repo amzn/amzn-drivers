@@ -1,0 +1,45 @@
+From 59e79973b3cffe350875e81995dc3c651b0a73e4 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Jul 2020 13:19:49 +0200
+Subject: [PATCH 118/177] net/ena/base: specify delay operations
+
+ENA_MSLEEP() and ENA_UDELAY() were expecting different behavior - the
+first one is expecting driver to sleep, while the other, to busy wait.
+
+For both cases, the rte_delay_(u|m)s() function was used, which could
+be either sleep or block, depending on the configuration.
+
+To make the macros valid, the operations should be specified directly.
+Because of that, the rte_delay_us_sleep() and rte_delay_us_block() are
+now being used.
+
+Fixes: 9ba7981ec992 ("ena: add communication layer for DPDK")
+Cc: stable@dpdk.org
+
+Change-Id: I387b919f382d4db4afbd4276e435d5a9ffed8353
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index d57104a901..bff193f408 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -55,8 +55,8 @@ typedef uint64_t dma_addr_t;
+ 
+ #define ENA_ABORT() abort()
+ 
+-#define ENA_MSLEEP(x) rte_delay_ms(x)
+-#define ENA_UDELAY(x) rte_delay_us(x)
++#define ENA_MSLEEP(x) rte_delay_us(x * 1000)
++#define ENA_UDELAY(x) rte_delay_us_block(x)
+ 
+ #define ENA_TOUCH(x) ((void)(x))
+ #define memcpy_toio memcpy
+-- 
+2.25.1
+

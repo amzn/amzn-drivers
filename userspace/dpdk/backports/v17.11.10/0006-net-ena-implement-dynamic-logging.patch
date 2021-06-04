@@ -1,0 +1,107 @@
+From f45123b911218b6dcd7cd1f6143e73ec0acebb67 Mon Sep 17 00:00:00 2001
+From: Stephen Hemminger <stephen@networkplumber.org>
+Date: Mon, 18 Dec 2017 22:38:38 -0800
+Subject: [PATCH 006/166] net/ena: implement dynamic logging
+
+Use dynamic rather static configuration for logging.
+Also include ena_assert_msg.
+
+Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ config/common_base             |  1 -
+ drivers/net/ena/ena_ethdev.c   | 15 +++++++++++++++
+ drivers/net/ena/ena_logs.h     | 14 ++++++--------
+ drivers/net/ena/ena_platform.h |  2 +-
+ 4 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/config/common_base b/config/common_base
+index 4355cad3b4..980b9bcf1d 100644
+--- a/config/common_base
++++ b/config/common_base
+@@ -169,7 +169,6 @@ CONFIG_RTE_LIBRTE_ENA_PMD=y
+ CONFIG_RTE_LIBRTE_ENA_DEBUG_RX=n
+ CONFIG_RTE_LIBRTE_ENA_DEBUG_TX=n
+ CONFIG_RTE_LIBRTE_ENA_DEBUG_TX_FREE=n
+-CONFIG_RTE_LIBRTE_ENA_DEBUG_DRIVER=n
+ CONFIG_RTE_LIBRTE_ENA_COM_DEBUG=n
+ 
+ #
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index d8d643235a..9059e35222 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -180,6 +180,9 @@ static const struct ena_stats ena_stats_ena_com_strings[] = {
+ #define	ENA_TX_OFFLOAD_NOTSUP_MASK	\
+ 	(PKT_TX_OFFLOAD_MASK ^ ENA_TX_OFFLOAD_MASK)
+ 
++int ena_logtype_init;
++int ena_logtype_driver;
++
+ static const struct rte_pci_id pci_id_ena_map[] = {
+ 	{ RTE_PCI_DEVICE(PCI_VENDOR_ID_AMAZON, PCI_DEVICE_ID_ENA_VF) },
+ 	{ RTE_PCI_DEVICE(PCI_VENDOR_ID_AMAZON, PCI_DEVICE_ID_ENA_LLQ_VF) },
+@@ -1825,3 +1828,15 @@ static struct rte_pci_driver rte_ena_pmd = {
+ RTE_PMD_REGISTER_PCI(net_ena, rte_ena_pmd);
+ RTE_PMD_REGISTER_PCI_TABLE(net_ena, pci_id_ena_map);
+ RTE_PMD_REGISTER_KMOD_DEP(net_ena, "* igb_uio | uio_pci_generic | vfio-pci");
++
++RTE_INIT(ena_init_log);
++static void
++ena_init_log(void)
++{
++	ena_logtype_init = rte_log_register("pmd.ena.init");
++	if (ena_logtype_init >= 0)
++		rte_log_set_level(ena_logtype_init, RTE_LOG_NOTICE);
++	ena_logtype_driver = rte_log_register("pmd.ena.driver");
++	if (ena_logtype_driver >= 0)
++		rte_log_set_level(ena_logtype_driver, RTE_LOG_NOTICE);
++}
+diff --git a/drivers/net/ena/ena_logs.h b/drivers/net/ena/ena_logs.h
+index c6c8a41bd9..2c0e91b656 100644
+--- a/drivers/net/ena/ena_logs.h
++++ b/drivers/net/ena/ena_logs.h
+@@ -34,10 +34,10 @@
+ #ifndef _ENA_LOGS_H_
+ #define _ENA_LOGS_H_
+ 
+-#define RTE_LOGTYPE_ENA RTE_LOGTYPE_USER1
+-
++extern int ena_logtype_init;
+ #define PMD_INIT_LOG(level, fmt, args...) \
+-	RTE_LOG(level, PMD, "%s(): " fmt "\n", __func__, ## args)
++	rte_log(RTE_LOG_ ## level, ena_logtype_init, \
++		"%s(): " fmt "\n", __func__, ## args)
+ 
+ #ifdef RTE_LIBRTE_ENA_DEBUG_RX
+ #define PMD_RX_LOG(level, fmt, args...) \
+@@ -60,11 +60,9 @@
+ #define PMD_TX_FREE_LOG(level, fmt, args...) do { } while (0)
+ #endif
+ 
+-#ifdef RTE_LIBRTE_ENA_DEBUG_DRIVER
++extern int ena_logtype_driver;
+ #define PMD_DRV_LOG(level, fmt, args...) \
+-	RTE_LOG(level, PMD, "%s(): " fmt "\n", __func__, ## args)
+-#else
+-#define PMD_DRV_LOG(level, fmt, args...) do { } while (0)
+-#endif
++	rte_log(RTE_LOG_ ## level, ena_logtype_driver, \
++		"%s(): " fmt "\n", __func__, ## args)
+ 
+ #endif /* _ENA_LOGS_H_ */
+diff --git a/drivers/net/ena/ena_platform.h b/drivers/net/ena/ena_platform.h
+index 0df82d6fdb..a2239a92c4 100644
+--- a/drivers/net/ena/ena_platform.h
++++ b/drivers/net/ena/ena_platform.h
+@@ -49,7 +49,7 @@
+ #define ena_assert_msg(cond, msg)		\
+ 	do {					\
+ 		if (unlikely(!(cond))) {	\
+-			RTE_LOG(ERR, ENA,	\
++			rte_log(RTE_LOG_ERR, ena_logtype_driver, \
+ 				"Assert failed on %s:%s:%d: ",	\
+ 				__FILE__, __func__, __LINE__);	\
+ 			rte_panic(msg);		\
+-- 
+2.25.1
+

@@ -1,0 +1,40 @@
+From e66a83f583b96a865dc7ced6e4c0a28d37d6d383 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 19 Jun 2018 09:58:20 +0200
+Subject: [PATCH 043/177] net/ena: fix FreeBSD build
+
+The FreeBSD define was removed from platform file when HAL was upgraded
+to newer version.
+
+In file included from drivers/net/ena/ena_ethdev.c:45:
+	from drivers/net/ena/ena_ethdev.h:42:
+	from drivers/net/ena/base/ena_com.h:37:
+drivers/net/ena/base/ena_plat.h:48:2: error: "Invalid platform"
+
+Fixes: 3adcba9a8987 ("net/ena: update HAL to the newer version")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_plat.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/net/ena/base/ena_plat.h b/drivers/net/ena/base/ena_plat.h
+index 278175f393..f829936b2d 100644
+--- a/drivers/net/ena/base/ena_plat.h
++++ b/drivers/net/ena/base/ena_plat.h
+@@ -42,6 +42,12 @@
+ #else
+ #include "ena_plat_dpdk.h"
+ #endif
++#elif defined(__FreeBSD__)
++#if defined(_KERNEL)
++#include "ena_plat_fbsd.h"
++#else
++#include "ena_plat_dpdk.h"
++#endif
+ #elif defined(_WIN32)
+ #include "ena_plat_windows.h"
+ #else
+-- 
+2.25.1
+

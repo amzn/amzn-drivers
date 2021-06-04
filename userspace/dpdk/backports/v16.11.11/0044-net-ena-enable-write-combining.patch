@@ -1,0 +1,34 @@
+From e032512a5894b84ae2a6f4472dd1d3aff6623141 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 29 Jun 2018 15:54:08 +0200
+Subject: [PATCH 044/177] net/ena: enable write combining
+
+Write combining (WC) increases NIC performance by making better
+utilization of PCI bus. ENA PMD may make usage of this feature.
+
+To enable it load igb_uio driver with wc_activate set to 1.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Bruce Richardson <bruce.richardson@intel.com>
+Reviewed-by: Ferruh Yigit <ferruh.yigit@intel.com>
+---
+ drivers/net/ena/ena_ethdev.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 3d739acaa0..da7f018ba8 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2009,7 +2009,8 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ static struct eth_driver rte_ena_pmd = {
+ 	.pci_drv = {
+ 		.id_table = pci_id_ena_map,
+-		.drv_flags = RTE_PCI_DRV_NEED_MAPPING | RTE_PCI_DRV_INTR_LSC,
++		.drv_flags = RTE_PCI_DRV_NEED_MAPPING | RTE_PCI_DRV_INTR_LSC |
++				     RTE_PCI_DRV_WC_ACTIVATE,
+ 		.probe = rte_eth_dev_pci_probe,
+ 		.remove = rte_eth_dev_pci_remove,
+ 	},
+-- 
+2.25.1
+

@@ -1,0 +1,34 @@
+From a30e290f8d2634520a4cd6e54c15d8aa54f3f73b Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 12:10:05 +0200
+Subject: [PATCH 38/72] net/ena/base: add missing unlikely
+
+To align the error checking code with other parts of the ena_com,
+the conditional check is being tested for the error was wrapped inside
+unlikely().
+
+Change-Id: I9c043450cc2380c11288e5689bb18c5f04e53aa5
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index a130c70ad0..e94ad55e86 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -2975,7 +2975,7 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
+ 	ena_dev->tx_max_header_size = llq_info->desc_list_entry_size -
+ 		(llq_info->descs_num_before_header * sizeof(struct ena_eth_io_tx_desc));
+ 
+-	if (ena_dev->tx_max_header_size == 0) {
++	if (unlikely(ena_dev->tx_max_header_size == 0)) {
+ 		ena_trc_err("the size of the LLQ entry is smaller than needed\n");
+ 		return -EINVAL;
+ 	}
+-- 
+2.25.1
+

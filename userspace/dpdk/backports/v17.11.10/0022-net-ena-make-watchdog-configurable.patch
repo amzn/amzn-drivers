@@ -1,0 +1,120 @@
+From 944b89bfd78cd26e0fdb496f17f0af0eda976f59 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:08 +0200
+Subject: [PATCH 022/166] net/ena: make watchdog configurable
+
+Add variable wd_state to make driver functional without keep alive
+AENQ handler.
+The watchdog will be executed only if the aenq group has keep alive
+enabled.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 19 +++++++++++++++----
+ drivers/net/ena/ena_ethdev.h |  2 ++
+ 2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 7405820115..606411dcac 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -206,7 +206,8 @@ static const struct rte_pci_id pci_id_ena_map[] = {
+ static struct ena_aenq_handlers aenq_handlers;
+ 
+ static int ena_device_init(struct ena_com_dev *ena_dev,
+-			   struct ena_com_dev_get_features_ctx *get_feat_ctx);
++			   struct ena_com_dev_get_features_ctx *get_feat_ctx,
++			   bool *wd_state);
+ static int ena_dev_configure(struct rte_eth_dev *dev);
+ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 				  uint16_t nb_pkts);
+@@ -487,6 +488,7 @@ ena_dev_reset(struct rte_eth_dev *dev)
+ 	struct ena_adapter *adapter;
+ 	int nb_queues;
+ 	int rc, i;
++	bool wd_state;
+ 
+ 	adapter = (struct ena_adapter *)(dev->data->dev_private);
+ 	ena_dev = &adapter->ena_dev;
+@@ -512,11 +514,12 @@ ena_dev_reset(struct rte_eth_dev *dev)
+ 	ena_com_admin_destroy(ena_dev);
+ 	ena_com_mmio_reg_read_request_destroy(ena_dev);
+ 
+-	rc = ena_device_init(ena_dev, &get_feat_ctx);
++	rc = ena_device_init(ena_dev, &get_feat_ctx, &wd_state);
+ 	if (rc) {
+ 		PMD_INIT_LOG(CRIT, "Cannot initialize device\n");
+ 		return rc;
+ 	}
++	adapter->wd_state = wd_state;
+ 
+ 	rte_intr_enable(intr_handle);
+ 	ena_com_set_admin_polling_mode(ena_dev, false);
+@@ -1319,7 +1322,8 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ }
+ 
+ static int ena_device_init(struct ena_com_dev *ena_dev,
+-			   struct ena_com_dev_get_features_ctx *get_feat_ctx)
++			   struct ena_com_dev_get_features_ctx *get_feat_ctx,
++			   bool *wd_state)
+ {
+ 	uint32_t aenq_groups;
+ 	int rc;
+@@ -1391,6 +1395,8 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 		goto err_admin_init;
+ 	}
+ 
++	*wd_state = !!(aenq_groups & BIT(ENA_ADMIN_KEEP_ALIVE));
++
+ 	return 0;
+ 
+ err_admin_init:
+@@ -1414,6 +1420,9 @@ static void ena_interrupt_handler_rte(void *cb_arg)
+ 
+ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
+ {
++	if (!adapter->wd_state)
++		return;
++
+ 	if (adapter->keep_alive_timeout == ENA_HW_HINTS_NO_TIMEOUT)
+ 		return;
+ 
+@@ -1462,6 +1471,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	int queue_size, rc;
+ 
+ 	static int adapters_found;
++	bool wd_state;
+ 
+ 	eth_dev->dev_ops = &ena_dev_ops;
+ 	eth_dev->rx_pkt_burst = &eth_ena_recv_pkts;
+@@ -1506,11 +1516,12 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 		 adapter->id_number);
+ 
+ 	/* device specific initialization routine */
+-	rc = ena_device_init(ena_dev, &get_feat_ctx);
++	rc = ena_device_init(ena_dev, &get_feat_ctx, &wd_state);
+ 	if (rc) {
+ 		PMD_INIT_LOG(CRIT, "Failed to init ENA device");
+ 		return -1;
+ 	}
++	adapter->wd_state = wd_state;
+ 
+ 	ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+ 	adapter->num_queues = get_feat_ctx.max_queues.max_sq_num;
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 1f6a7062fa..594e643e25 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -196,6 +196,8 @@ struct ena_adapter {
+ 	uint64_t keep_alive_timeout;
+ 
+ 	bool trigger_reset;
++
++	bool wd_state;
+ };
+ 
+ #endif /* _ENA_ETHDEV_H_ */
+-- 
+2.25.1
+

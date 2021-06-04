@@ -1,0 +1,27 @@
+From e0fe98c2d086a3d807b23b5675011b8844e6f37d Mon Sep 17 00:00:00 2001
+From: Ferruh Yigit <ferruh.yigit@intel.com>
+Date: Thu, 12 Jan 2017 22:18:55 +0000
+Subject: [PATCH 004/177] net/ena: make ethdev functions struct const
+
+Reported-by: Stephen Hemminger <stephen@networkplumber.org>
+Signed-off-by: Ferruh Yigit <ferruh.yigit@intel.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index af09b0b3ff..502380108f 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -216,7 +216,7 @@ static int ena_rss_reta_query(struct rte_eth_dev *dev,
+ 			      uint16_t reta_size);
+ static int ena_get_sset_count(struct rte_eth_dev *dev, int sset);
+ 
+-static struct eth_dev_ops ena_dev_ops = {
++static const struct eth_dev_ops ena_dev_ops = {
+ 	.dev_configure        = ena_dev_configure,
+ 	.dev_infos_get        = ena_infos_get,
+ 	.rx_queue_setup       = ena_rx_queue_setup,
+-- 
+2.25.1
+

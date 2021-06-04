@@ -1,0 +1,77 @@
+From 60d87a3c6f176ee5096592f131b7ffc236d88214 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:28:52 +0200
+Subject: [PATCH 05/72] net/ena: ensure Rx buffer size is at least 1400B
+
+Some of the ENA devices can't handle buffers which are smaller than a
+1400B. Because of this limitation, size of the buffer is being checked
+and limited during the Rx queue setup.
+
+If it's below the allowed value, PMD won't finish it's configuration
+successfully..
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 12 +++++++++++-
+ drivers/net/ena/ena_ethdev.h |  3 ++-
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 9c62a15fff..c97ca62e60 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: BSD-3-Clause
+- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+ 
+@@ -1292,6 +1292,7 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ {
+ 	struct ena_adapter *adapter = dev->data->dev_private;
+ 	struct ena_ring *rxq = NULL;
++	size_t buffer_size;
+ 	int i;
+ 
+ 	rxq = &adapter->rx_ring[queue_idx];
+@@ -1319,6 +1320,15 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 		return -EINVAL;
+ 	}
+ 
++	/* ENA isn't supporting buffers smaller than 1400 bytes */
++	buffer_size = rte_pktmbuf_data_room_size(mp) - RTE_PKTMBUF_HEADROOM;
++	if (buffer_size < ENA_RX_BUF_MIN_SIZE) {
++		PMD_DRV_LOG(ERR,
++			"Unsupported size of RX buffer: %zu (min size: %d)\n",
++			buffer_size, ENA_RX_BUF_MIN_SIZE);
++		return -EINVAL;
++	}
++
+ 	rxq->port_id = dev->data->port_id;
+ 	rxq->next_to_clean = 0;
+ 	rxq->next_to_use = 0;
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index af5eeea280..e9b55dc029 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: BSD-3-Clause
+- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+ 
+@@ -20,6 +20,7 @@
+ #define ENA_MIN_FRAME_LEN	64
+ #define ENA_NAME_MAX_LEN	20
+ #define ENA_PKT_MAX_BUFS	17
++#define ENA_RX_BUF_MIN_SIZE	1400
+ 
+ #define ENA_MIN_MTU		128
+ 
+-- 
+2.25.1
+

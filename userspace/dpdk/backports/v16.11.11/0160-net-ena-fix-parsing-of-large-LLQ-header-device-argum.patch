@@ -1,0 +1,36 @@
+From 9b8dbe6f440769e1c9de3976ecc10fd61a095b4a Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Tue, 11 May 2021 08:45:46 +0200
+Subject: [PATCH 160/177] net/ena: fix parsing of large LLQ header device
+ argument
+
+The code incorrectly checked the return value of comparison when parsing
+the argument key name. The return value of strcmp should be compared
+to 0 to identify a match.
+
+Fixes: 8a7a73f26cc9 ("net/ena: support large LLQ headers")
+Cc: stable@dpdk.org
+
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 656f021f18..47890fd333 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2657,7 +2657,7 @@ static int ena_process_bool_devarg(const char *key,
+ 	}
+ 
+ 	/* Now, assign it to the proper adapter field. */
+-	if (strcmp(key, ENA_DEVARG_LARGE_LLQ_HDR))
++	if (strcmp(key, ENA_DEVARG_LARGE_LLQ_HDR) == 0)
+ 		adapter->use_large_llq_hdr = bool_value;
+ 
+ 	return 0;
+-- 
+2.25.1
+

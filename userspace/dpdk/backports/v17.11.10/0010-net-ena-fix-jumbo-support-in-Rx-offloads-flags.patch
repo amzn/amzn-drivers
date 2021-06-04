@@ -1,0 +1,32 @@
+From ca69eeecbe054d99cda59d0b39560cd5652ac21b Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 1 Feb 2018 14:06:36 +0100
+Subject: [PATCH 010/166] net/ena: fix jumbo support in Rx offloads flags
+
+ENA device supports Rx jumbo frames and such information needs to
+be provided in the offloads flags.
+
+Fixes: 7369f88f88c0 ("net/ena: convert to new Rx offloads API")
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index b6d454d7ad..9754248150 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1566,6 +1566,8 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 			DEV_RX_OFFLOAD_UDP_CKSUM  |
+ 			DEV_RX_OFFLOAD_TCP_CKSUM;
+ 
++	rx_feat |= DEV_RX_OFFLOAD_JUMBO_FRAME;
++
+ 	/* Inform framework about available features */
+ 	dev_info->rx_offload_capa = rx_feat;
+ 	dev_info->rx_queue_offload_capa = rx_feat;
+-- 
+2.25.1
+

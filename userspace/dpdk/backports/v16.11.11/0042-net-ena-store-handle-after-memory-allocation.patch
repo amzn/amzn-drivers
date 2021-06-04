@@ -1,0 +1,37 @@
+From 7e1b600cf61d918e76296b3cffef7e8667cea320 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:21 +0200
+Subject: [PATCH 042/177] net/ena: store handle after memory allocation
+
+The pointer received from rte_memzone_reserve from macro
+ENA_MEM_ALLOC_COHERENT_NODE was not stored anywhere, and as a result
+memory allocated by this macro could not been released.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 29ddfc2ded..c4194e70a4 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -234,6 +234,7 @@ extern uint32_t ena_alloc_cnt;
+ 		snprintf(z_name, sizeof(z_name),			\
+ 				"ena_alloc_%d", ena_alloc_cnt++);	\
+ 		mz = rte_memzone_reserve(z_name, size, node, 0); \
++		mem_handle = mz;					\
+ 		if (mz == NULL) {					\
+ 			virt = NULL;					\
+ 			phys = 0;					\
+@@ -242,7 +243,6 @@ extern uint32_t ena_alloc_cnt;
+ 			virt = mz->addr;				\
+ 			phys = mz->phys_addr;				\
+ 		}							\
+-		(void)mem_handle;					\
+ 	} while (0)
+ 
+ #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) \
+-- 
+2.25.1
+

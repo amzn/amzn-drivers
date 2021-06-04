@@ -1,0 +1,81 @@
+From 6c5206d928157451e212a0bff68d0f66e03c1faa Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Tue, 26 Jan 2021 19:32:26 +0100
+Subject: [PATCH 52/72] net/ena: prevent double doorbell
+
+Add per-tx-ring flag for packets that were pushed to HW but await
+doorbell. That is to prevent a situation when a doorbell is sent due to
+reaching Tx burst threshold and next send fails (e.g., due to queue
+full). In such case we shouldn't send another doorbell because there are
+no actual packets waiting for transmission.
+
+Fixes: c7519ea5eb8d ("net/ena: call additional doorbells if needed")
+Cc: stable@dpdk.org
+
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 7 +++++--
+ drivers/net/ena/ena_ethdev.h | 4 ++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 97591a877c..a39829fe7a 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1294,6 +1294,7 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 	txq->ring_size = nb_desc;
+ 	txq->size_mask = nb_desc - 1;
+ 	txq->numa_socket_id = socket_id;
++	txq->pkts_without_db = false;
+ 
+ 	txq->tx_buffer_info = rte_zmalloc("txq->tx_buffer_info",
+ 					  sizeof(struct ena_tx_buffer) *
+@@ -2545,6 +2546,7 @@ static int ena_xmit_mbuf(struct ena_ring *tx_ring, struct rte_mbuf *mbuf)
+ 			tx_ring->id);
+ 		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+ 		tx_ring->tx_stats.doorbells++;
++		tx_ring->pkts_without_db = false;
+ 	}
+ 
+ 	/* prepare the packet's descriptors to dma engine */
+@@ -2630,7 +2632,7 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 	for (sent_idx = 0; sent_idx < nb_pkts; sent_idx++) {
+ 		if (ena_xmit_mbuf(tx_ring, tx_pkts[sent_idx]))
+ 			break;
+-
++		tx_ring->pkts_without_db = true;
+ 		rte_prefetch0(tx_pkts[ENA_IDX_ADD_MASKED(sent_idx, 4,
+ 			tx_ring->size_mask)]);
+ 	}
+@@ -2639,10 +2641,11 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 		ena_com_free_q_entries(tx_ring->ena_com_io_sq);
+ 
+ 	/* If there are ready packets to be xmitted... */
+-	if (sent_idx > 0) {
++	if (likely(tx_ring->pkts_without_db)) {
+ 		/* ...let HW do its best :-) */
+ 		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+ 		tx_ring->tx_stats.doorbells++;
++		tx_ring->pkts_without_db = false;
+ 	}
+ 
+ 	ena_tx_cleanup(tx_ring);
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 7bb74a1d06..ae235897ee 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -100,6 +100,10 @@ struct ena_ring {
+ 
+ 	enum ena_ring_type type;
+ 	enum ena_admin_placement_policy_type tx_mem_queue_type;
++
++	/* Indicate there are Tx packets pushed to the device and wait for db */
++	bool pkts_without_db;
++
+ 	/* Holds the empty requests for TX/RX OOO completions */
+ 	union {
+ 		uint16_t *empty_tx_reqs;
+-- 
+2.25.1
+

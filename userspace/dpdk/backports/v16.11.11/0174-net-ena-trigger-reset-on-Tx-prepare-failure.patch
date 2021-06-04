@@ -1,0 +1,45 @@
+From 6766f31a5c8e3146d202dad8b38bd996291472be Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 23 Jul 2021 12:24:51 +0200
+Subject: [PATCH 174/177] net/ena: trigger reset on Tx prepare failure
+
+If the prepare function failed, then it means the descriptors are in the
+invalid state.
+
+This condition now triggers the reset, which should be further handled
+by the application.
+
+To notify the application about prepare function failure, the error log
+was added. In general, it should never fail in normal conditions, as the
+Tx function checks for the available space in the Tx ring before the
+preparation even starts.
+
+Fixes: 2081d5e2e92d ("net/ena: add reset routine")
+Cc: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Shai Brandes <shaibran@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index a849b7d1ec..bdb8c4c681 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2417,7 +2417,11 @@ static int ena_xmit_mbuf(struct ena_ring *tx_ring, struct rte_mbuf *mbuf)
+ 	rc = ena_com_prepare_tx(tx_ring->ena_com_io_sq,	&ena_tx_ctx,
+ 		&nb_hw_desc);
+ 	if (unlikely(rc)) {
++		PMD_DRV_LOG(ERR, "Failed to prepare Tx buffers, rc: %d\n", rc);
+ 		++tx_ring->tx_stats.prepare_ctx_err;
++		tx_ring->adapter->reset_reason =
++		    ENA_REGS_RESET_DRIVER_INVALID_STATE;
++		tx_ring->adapter->trigger_reset = true;
+ 		return rc;
+ 	}
+ 
+-- 
+2.25.1
+

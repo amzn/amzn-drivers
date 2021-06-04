@@ -1,0 +1,990 @@
+From 26ed89a6daa2d81b083a594e27cd8c344de2d365 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 23 Jul 2021 12:24:53 +0200
+Subject: [PATCH 164/166] net/ena: rework RSS configuration
+
+Allow user to specify his own hash key and hash ctrl if the
+device is supporting that. HW interprets the key in reverse byte order,
+so the PMD reorders the key before passing it to the ena_com layer.
+
+Default key is being set in random matter each time the device is being
+initialized.
+
+Moreover, make minor adjustments for reta size setting in terms
+of returning error values.
+
+RSS code was moved to ena_rss.c file to improve readability.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Shai Brandes <shaibran@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+Reviewed-by: Amit Bernstein <amitbern@amazon.com>
+---
+ doc/guides/nics/features/ena.ini |   1 +
+ drivers/net/ena/Makefile         |   1 +
+ drivers/net/ena/ena_ethdev.c     | 215 ++-----------
+ drivers/net/ena/ena_ethdev.h     |  33 ++
+ drivers/net/ena/ena_rss.c        | 536 +++++++++++++++++++++++++++++++
+ 5 files changed, 596 insertions(+), 190 deletions(-)
+ create mode 100644 drivers/net/ena/ena_rss.c
+
+diff --git a/doc/guides/nics/features/ena.ini b/doc/guides/nics/features/ena.ini
+index 6d31fee5ce..32919543b0 100644
+--- a/doc/guides/nics/features/ena.ini
++++ b/doc/guides/nics/features/ena.ini
+@@ -12,6 +12,7 @@ Jumbo frame          = Y
+ Scattered Rx         = Y
+ TSO                  = Y
+ RSS hash             = Y
++RSS key update       = Y
+ RSS reta update      = Y
+ L3 checksum offload  = Y
+ L4 checksum offload  = Y
+diff --git a/drivers/net/ena/Makefile b/drivers/net/ena/Makefile
+index 26acf6e67c..8b3a80cdad 100644
+--- a/drivers/net/ena/Makefile
++++ b/drivers/net/ena/Makefile
+@@ -19,6 +19,7 @@ VPATH += $(SRCDIR)/base
+ # all source are stored in SRCS-y
+ #
+ SRCS-$(CONFIG_RTE_LIBRTE_ENA_PMD) += ena_ethdev.c
++SRCS-$(CONFIG_RTE_LIBRTE_ENA_PMD) += ena_rss.c
+ SRCS-$(CONFIG_RTE_LIBRTE_ENA_PMD) += ena_com.c
+ SRCS-$(CONFIG_RTE_LIBRTE_ENA_PMD) += ena_eth_com.c
+ 
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 7279828e12..a251a3c1d7 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -3,12 +3,7 @@
+  * All rights reserved.
+  */
+ 
+-#include <rte_ether.h>
+-#include <rte_ethdev.h>
+-#include <rte_ethdev_pci.h>
+-#include <rte_tcp.h>
+-#include <rte_atomic.h>
+-#include <rte_dev.h>
++#include <rte_string_fns.h>
+ #include <rte_errno.h>
+ #include <rte_version.h>
+ #include <rte_net.h>
+@@ -29,21 +24,12 @@
+ #define DRV_MODULE_VER_MINOR	3
+ #define DRV_MODULE_VER_SUBMINOR	0
+ 
+-#define ENA_IO_TXQ_IDX(q)	(2 * (q))
+-#define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+-/*reverse version of ENA_IO_RXQ_IDX*/
+-#define ENA_IO_RXQ_IDX_REV(q)	((q - 1) / 2)
+-
+ #define __MERGE_64B_H_L(h, l) (((uint64_t)h << 32) | l)
+-#define TEST_BIT(val, bit_shift) (val & (1UL << bit_shift))
+ 
+ #define GET_L4_HDR_LEN(mbuf)					\
+ 	((rte_pktmbuf_mtod_offset(mbuf,	struct tcp_hdr *,	\
+ 		mbuf->l3_len + mbuf->l2_len)->data_off) >> 4)
+ 
+-#define ENA_RX_RSS_TABLE_LOG_SIZE  7
+-#define ENA_RX_RSS_TABLE_SIZE	(1 << ENA_RX_RSS_TABLE_LOG_SIZE)
+-#define ENA_HASH_KEY_SIZE	40
+ #define ETH_GSTRING_LEN	32
+ 
+ #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+@@ -233,12 +219,6 @@ static int ena_queue_start_all(struct rte_eth_dev *dev,
+ static void ena_stats_restart(struct rte_eth_dev *dev);
+ static void ena_infos_get(struct rte_eth_dev *dev,
+ 			  struct rte_eth_dev_info *dev_info);
+-static int ena_rss_reta_update(struct rte_eth_dev *dev,
+-			       struct rte_eth_rss_reta_entry64 *reta_conf,
+-			       uint16_t reta_size);
+-static int ena_rss_reta_query(struct rte_eth_dev *dev,
+-			      struct rte_eth_rss_reta_entry64 *reta_conf,
+-			      uint16_t reta_size);
+ static bool ena_are_tx_queue_offloads_allowed(struct ena_adapter *adapter,
+ 					      uint64_t offloads);
+ static bool ena_are_rx_queue_offloads_allowed(struct ena_adapter *adapter,
+@@ -290,25 +270,10 @@ static const struct eth_dev_ops ena_dev_ops = {
+ 	.reta_query           = ena_rss_reta_query,
+ 	.rx_queue_intr_enable = ena_rx_queue_intr_enable,
+ 	.rx_queue_intr_disable = ena_rx_queue_intr_disable,
++	.rss_hash_update      = ena_rss_hash_update,
++	.rss_hash_conf_get    = ena_rss_hash_conf_get,
+ };
+ 
+-void ena_rss_key_fill(void *key, size_t size)
+-{
+-	static bool key_generated;
+-	static uint8_t default_key[ENA_HASH_KEY_SIZE];
+-	size_t i;
+-
+-	RTE_ASSERT(size <= ENA_HASH_KEY_SIZE);
+-
+-	if (!key_generated) {
+-		for (i = 0; i < ENA_HASH_KEY_SIZE; ++i)
+-			default_key[i] = rte_rand() & 0xff;
+-		key_generated = true;
+-	}
+-
+-	rte_memcpy(key, default_key, size);
+-}
+-
+ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 				       struct ena_com_rx_ctx *ena_rx_ctx)
+ {
+@@ -462,7 +427,8 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev)
+ 	host_info->num_cpus = rte_lcore_count();
+ 
+ 	host_info->driver_supported_features =
+-		ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK;
++		ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK |
++		ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK;
+ 
+ 	rc = ena_com_set_host_attributes(ena_dev);
+ 	if (rc) {
+@@ -566,151 +532,6 @@ ena_dev_reset(struct rte_eth_dev *dev)
+ 	return rc;
+ }
+ 
+-static int ena_rss_reta_update(struct rte_eth_dev *dev,
+-			       struct rte_eth_rss_reta_entry64 *reta_conf,
+-			       uint16_t reta_size)
+-{
+-	struct ena_adapter *adapter = dev->data->dev_private;
+-	struct ena_com_dev *ena_dev = &adapter->ena_dev;
+-	int rc, i;
+-	u16 entry_value;
+-	int conf_idx;
+-	int idx;
+-
+-	if ((reta_size == 0) || (reta_conf == NULL))
+-		return -EINVAL;
+-
+-	if (reta_size > ENA_RX_RSS_TABLE_SIZE) {
+-		PMD_DRV_LOG(WARNING,
+-			"Requested indirection table size (%d) is bigger than supported: %d\n",
+-			reta_size, ENA_RX_RSS_TABLE_SIZE);
+-		return -EINVAL;
+-	}
+-
+-	for (i = 0 ; i < reta_size ; i++) {
+-		/* each reta_conf is for 64 entries.
+-		 * to support 128 we use 2 conf of 64
+-		 */
+-		conf_idx = i / RTE_RETA_GROUP_SIZE;
+-		idx = i % RTE_RETA_GROUP_SIZE;
+-		if (TEST_BIT(reta_conf[conf_idx].mask, idx)) {
+-			entry_value =
+-				ENA_IO_RXQ_IDX(reta_conf[conf_idx].reta[idx]);
+-
+-			rc = ena_com_indirect_table_fill_entry(ena_dev,
+-							       i,
+-							       entry_value);
+-			if (unlikely(rc && rc != ENA_COM_UNSUPPORTED)) {
+-				PMD_DRV_LOG(ERR,
+-					"Cannot fill indirect table\n");
+-				return rc;
+-			}
+-		}
+-	}
+-
+-	rte_spinlock_lock(&adapter->admin_lock);
+-	rc = ena_com_indirect_table_set(ena_dev);
+-	rte_spinlock_unlock(&adapter->admin_lock);
+-	if (unlikely(rc && rc != ENA_COM_UNSUPPORTED)) {
+-		PMD_DRV_LOG(ERR, "Cannot flush the indirect table\n");
+-		return rc;
+-	}
+-
+-	PMD_DRV_LOG(DEBUG, "RSS configured %d entries for port %d\n",
+-		reta_size, dev->data->port_id);
+-
+-	return 0;
+-}
+-
+-/* Query redirection table. */
+-static int ena_rss_reta_query(struct rte_eth_dev *dev,
+-			      struct rte_eth_rss_reta_entry64 *reta_conf,
+-			      uint16_t reta_size)
+-{
+-	struct ena_adapter *adapter = dev->data->dev_private;
+-	struct ena_com_dev *ena_dev = &adapter->ena_dev;
+-	int rc;
+-	int i;
+-	u32 indirect_table[ENA_RX_RSS_TABLE_SIZE] = {0};
+-	int reta_conf_idx;
+-	int reta_idx;
+-
+-	if (reta_size == 0 || reta_conf == NULL ||
+-	    (reta_size > RTE_RETA_GROUP_SIZE && ((reta_conf + 1) == NULL)))
+-		return -EINVAL;
+-
+-	rte_spinlock_lock(&adapter->admin_lock);
+-	rc = ena_com_indirect_table_get(ena_dev, indirect_table);
+-	rte_spinlock_unlock(&adapter->admin_lock);
+-	if (unlikely(rc && rc != ENA_COM_UNSUPPORTED)) {
+-		PMD_DRV_LOG(ERR, "Cannot get indirection table\n");
+-		return -ENOTSUP;
+-	}
+-
+-	for (i = 0 ; i < reta_size ; i++) {
+-		reta_conf_idx = i / RTE_RETA_GROUP_SIZE;
+-		reta_idx = i % RTE_RETA_GROUP_SIZE;
+-		if (TEST_BIT(reta_conf[reta_conf_idx].mask, reta_idx))
+-			reta_conf[reta_conf_idx].reta[reta_idx] =
+-				ENA_IO_RXQ_IDX_REV(indirect_table[i]);
+-	}
+-
+-	return 0;
+-}
+-
+-static int ena_rss_init_default(struct ena_adapter *adapter)
+-{
+-	struct ena_com_dev *ena_dev = &adapter->ena_dev;
+-	uint16_t nb_rx_queues = adapter->edev_data->nb_rx_queues;
+-	int rc, i;
+-	u32 val;
+-
+-	rc = ena_com_rss_init(ena_dev, ENA_RX_RSS_TABLE_LOG_SIZE);
+-	if (unlikely(rc)) {
+-		PMD_DRV_LOG(ERR, "Cannot init indirection table\n");
+-		goto err_rss_init;
+-	}
+-
+-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
+-		val = i % nb_rx_queues;
+-		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
+-						       ENA_IO_RXQ_IDX(val));
+-		if (unlikely(rc && (rc != ENA_COM_UNSUPPORTED))) {
+-			PMD_DRV_LOG(ERR, "Cannot fill indirection table\n");
+-			goto err_fill_indir;
+-		}
+-	}
+-
+-	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_CRC32, NULL,
+-					ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
+-	if (unlikely(rc && (rc != ENA_COM_UNSUPPORTED))) {
+-		PMD_DRV_LOG(INFO, "Cannot fill hash function\n");
+-		goto err_fill_indir;
+-	}
+-
+-	rc = ena_com_set_default_hash_ctrl(ena_dev);
+-	if (unlikely(rc && (rc != ENA_COM_UNSUPPORTED))) {
+-		PMD_DRV_LOG(INFO, "Cannot fill hash control\n");
+-		goto err_fill_indir;
+-	}
+-
+-	rc = ena_com_indirect_table_set(ena_dev);
+-	if (unlikely(rc && (rc != ENA_COM_UNSUPPORTED))) {
+-		PMD_DRV_LOG(ERR, "Cannot flush indirection table\n");
+-		goto err_fill_indir;
+-	}
+-	PMD_DRV_LOG(DEBUG, "RSS configured for port %d\n",
+-		adapter->edev_data->port_id);
+-
+-	return 0;
+-
+-err_fill_indir:
+-	ena_com_rss_destroy(ena_dev);
+-err_rss_init:
+-
+-	return rc;
+-}
+-
+ static void ena_rx_queue_release_all(struct rte_eth_dev *dev)
+ {
+ 	struct ena_ring **queues = (struct ena_ring **)dev->data->rx_queues;
+@@ -1103,9 +924,8 @@ static int ena_start(struct rte_eth_dev *dev)
+ 	if (rc)
+ 		goto err_start_tx;
+ 
+-	if (adapter->edev_data->dev_conf.rxmode.mq_mode &
+-	    ETH_MQ_RX_RSS_FLAG && adapter->edev_data->nb_rx_queues > 0) {
+-		rc = ena_rss_init_default(adapter);
++	if (adapter->edev_data->dev_conf.rxmode.mq_mode & ETH_MQ_RX_RSS_FLAG) {
++		rc = ena_rss_configure(adapter);
+ 		if (rc)
+ 			goto err_rss_init;
+ 	}
+@@ -1487,6 +1307,8 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 	for (i = 0; i < nb_desc; i++)
+ 		rxq->empty_rx_reqs[i] = i;
+ 
++	rxq->offloads = rx_conf->offloads | dev->data->dev_conf.rxmode.offloads;
++
+ 	/* Store pointer to this queue in upper layer */
+ 	rxq->configured = 1;
+ 	dev->data->rx_queues[queue_idx] = rxq;
+@@ -1949,12 +1771,21 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	adapter->offloads.rx_csum_supported =
+ 		(get_feat_ctx.offload.rx_supported &
+ 		ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_L4_IPV4_CSUM_MASK) != 0;
++	adapter->offloads.rss_hash_supported =
++		(get_feat_ctx.offload.rx_supported &
++		ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_HASH_MASK) != 0;
+ 
+ 	/* Copy MAC address and point DPDK to it */
+ 	eth_dev->data->mac_addrs = (struct ether_addr *)adapter->mac_addr;
+ 	ether_addr_copy((struct ether_addr *)get_feat_ctx.dev_attr.mac_addr,
+ 			(struct ether_addr *)adapter->mac_addr);
+ 
++	rc = ena_com_rss_init(ena_dev, ENA_RX_RSS_TABLE_LOG_SIZE);
++	if (unlikely(rc != 0)) {
++		PMD_DRV_LOG(ERR, "Failed to initialize RSS in ENA device\n");
++		goto err_delete_debug_area;
++	}
++
+ 	adapter->drv_stats = rte_zmalloc("adapter stats",
+ 					 sizeof(*adapter->drv_stats),
+ 					 RTE_CACHE_LINE_SIZE);
+@@ -1962,7 +1793,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 		PMD_DRV_LOG(ERR,
+ 			"Failed to allocate memory for adapter statistics\n");
+ 		rc = -ENOMEM;
+-		goto err_delete_debug_area;
++		goto err_rss_destroy;
+ 	}
+ 
+ 	rte_spinlock_init(&adapter->admin_lock);
+@@ -1983,6 +1814,8 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 
+ 	return 0;
+ 
++err_rss_destroy:
++	ena_com_rss_destroy(ena_dev);
+ err_delete_debug_area:
+ 	ena_com_delete_debug_area(ena_dev);
+ 
+@@ -2007,6 +1840,8 @@ static void ena_destroy_device(struct rte_eth_dev *eth_dev)
+ 	if (adapter->state != ENA_ADAPTER_STATE_CLOSED)
+ 		ena_close(eth_dev);
+ 
++	ena_com_rss_destroy(ena_dev);
++
+ 	ena_com_delete_debug_area(ena_dev);
+ 	ena_com_delete_host_info(ena_dev);
+ 
+@@ -2165,8 +2000,8 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 	dev_info->tx_offload_capa = tx_feat;
+ 	dev_info->tx_queue_offload_capa = tx_feat;
+ 
+-	dev_info->flow_type_rss_offloads = ETH_RSS_IP | ETH_RSS_TCP |
+-					   ETH_RSS_UDP;
++	dev_info->flow_type_rss_offloads = ENA_ALL_RSS_HF;
++	dev_info->hash_key_size = ENA_HASH_KEY_SIZE;
+ 
+ 	dev_info->min_rx_bufsize = ENA_MIN_FRAME_LEN;
+ 	dev_info->max_rx_pktlen  = adapter->max_mtu;
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index c2db9687e3..e2260bce86 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -6,10 +6,15 @@
+ #ifndef _ENA_ETHDEV_H_
+ #define _ENA_ETHDEV_H_
+ 
++#include <rte_atomic.h>
++#include <rte_ether.h>
++#include <rte_ethdev_pci.h>
+ #include <rte_cycles.h>
+ #include <rte_pci.h>
+ #include <rte_bus_pci.h>
+ #include <rte_timer.h>
++#include <rte_dev.h>
++#include <rte_net.h>
+ 
+ #include "ena_com.h"
+ 
+@@ -43,6 +48,21 @@
+ #define ENA_IDX_NEXT_MASKED(idx, mask) (((idx) + 1) & (mask))
+ #define ENA_IDX_ADD_MASKED(idx, n, mask) (((idx) + (n)) & (mask))
+ 
++#define ENA_RX_RSS_TABLE_LOG_SIZE	7
++#define ENA_RX_RSS_TABLE_SIZE		(1 << ENA_RX_RSS_TABLE_LOG_SIZE)
++
++#define ENA_HASH_KEY_SIZE		40
++
++#define ENA_ALL_RSS_HF (ETH_RSS_NONFRAG_IPV4_TCP | ETH_RSS_NONFRAG_IPV4_UDP | \
++			ETH_RSS_NONFRAG_IPV6_TCP | ETH_RSS_NONFRAG_IPV6_UDP)
++
++#define ENA_IO_TXQ_IDX(q)		(2 * (q))
++#define ENA_IO_RXQ_IDX(q)		(2 * (q) + 1)
++/* Reversed version of ENA_IO_RXQ_IDX */
++#define ENA_IO_RXQ_IDX_REV(q)		(((q) - 1) / 2)
++
++extern struct ena_shared_data *ena_shared_data;
++
+ struct ena_adapter;
+ 
+ enum ena_ring_type {
+@@ -205,6 +225,7 @@ struct ena_offloads {
+ 	bool tso4_supported;
+ 	bool tx_csum_supported;
+ 	bool rx_csum_supported;
++	bool rss_hash_supported;
+ };
+ 
+ /* board specific private data structure */
+@@ -268,4 +289,16 @@ struct ena_adapter {
+ 	bool use_large_llq_hdr;
+ };
+ 
++int ena_rss_reta_update(struct rte_eth_dev *dev,
++			struct rte_eth_rss_reta_entry64 *reta_conf,
++			uint16_t reta_size);
++int ena_rss_reta_query(struct rte_eth_dev *dev,
++		       struct rte_eth_rss_reta_entry64 *reta_conf,
++		       uint16_t reta_size);
++int ena_rss_hash_update(struct rte_eth_dev *dev,
++			struct rte_eth_rss_conf *rss_conf);
++int ena_rss_hash_conf_get(struct rte_eth_dev *dev,
++			  struct rte_eth_rss_conf *rss_conf);
++int ena_rss_configure(struct ena_adapter *adapter);
++
+ #endif /* _ENA_ETHDEV_H_ */
+diff --git a/drivers/net/ena/ena_rss.c b/drivers/net/ena/ena_rss.c
+new file mode 100644
+index 0000000000..a464a8989d
+--- /dev/null
++++ b/drivers/net/ena/ena_rss.c
+@@ -0,0 +1,536 @@
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2020 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
++
++#include "ena_ethdev.h"
++#include "ena_logs.h"
++
++#include <ena_admin_defs.h>
++
++#define TEST_BIT(val, bit_shift) ((val) & (1UL << (bit_shift)))
++
++#define ENA_HF_RSS_ALL_L2	(ENA_ADMIN_RSS_L3_SA | ENA_ADMIN_RSS_L3_DA)
++#define ENA_HF_RSS_ALL_L3	(ENA_ADMIN_RSS_L3_SA | ENA_ADMIN_RSS_L3_DA)
++#define ENA_HF_RSS_ALL_L4	(ENA_ADMIN_RSS_L4_SP | ENA_ADMIN_RSS_L4_DP)
++#define ENA_HF_RSS_ALL_L3_L4	(ENA_HF_RSS_ALL_L3 | ENA_HF_RSS_ALL_L4)
++#define ENA_HF_RSS_ALL_L2_L3_L4	(ENA_HF_RSS_ALL_L2 | ENA_HF_RSS_ALL_L3_L4)
++
++enum ena_rss_hash_fields {
++	ENA_HF_RSS_TCP4		= ENA_HF_RSS_ALL_L3_L4,
++	ENA_HF_RSS_UDP4		= ENA_HF_RSS_ALL_L3_L4,
++	ENA_HF_RSS_TCP6		= ENA_HF_RSS_ALL_L3_L4,
++	ENA_HF_RSS_UDP6		= ENA_HF_RSS_ALL_L3_L4,
++	ENA_HF_RSS_IP4		= ENA_HF_RSS_ALL_L3,
++	ENA_HF_RSS_IP6		= ENA_HF_RSS_ALL_L3,
++	ENA_HF_RSS_IP4_FRAG	= ENA_HF_RSS_ALL_L3,
++	ENA_HF_RSS_NOT_IP	= ENA_HF_RSS_ALL_L2,
++	ENA_HF_RSS_TCP6_EX	= ENA_HF_RSS_ALL_L3_L4,
++	ENA_HF_RSS_IP6_EX	= ENA_HF_RSS_ALL_L3,
++};
++
++static int ena_fill_indirect_table_default(struct ena_com_dev *ena_dev,
++					   size_t tbl_size,
++					   size_t queue_num);
++static uint64_t ena_admin_hf_to_eth_hf(enum ena_admin_flow_hash_proto proto,
++				       uint16_t field);
++static uint16_t ena_eth_hf_to_admin_hf(enum ena_admin_flow_hash_proto proto);
++static int ena_set_hash_fields(struct ena_com_dev *ena_dev, uint64_t rss_hf);
++static int ena_rss_hash_set(struct ena_com_dev *ena_dev,
++			    struct rte_eth_rss_conf *rss_conf,
++			    bool default_allowed);
++static void ena_reorder_rss_hash_key(uint8_t *reordered_key,
++				     uint8_t *key,
++				     size_t key_size);
++static int ena_get_rss_hash_key(struct ena_com_dev *ena_dev, uint8_t *rss_key);
++
++void ena_rss_key_fill(void *key, size_t size)
++{
++	static bool key_generated;
++	static uint8_t default_key[ENA_HASH_KEY_SIZE];
++	size_t i;
++
++	RTE_ASSERT(size <= ENA_HASH_KEY_SIZE);
++
++	if (!key_generated) {
++		for (i = 0; i < ENA_HASH_KEY_SIZE; ++i)
++			default_key[i] = rte_rand() & 0xff;
++		key_generated = true;
++	}
++
++	rte_memcpy(key, default_key, size);
++}
++
++int ena_rss_reta_update(struct rte_eth_dev *dev,
++			struct rte_eth_rss_reta_entry64 *reta_conf,
++			uint16_t reta_size)
++{
++	struct ena_adapter *adapter = dev->data->dev_private;
++	struct ena_com_dev *ena_dev = &adapter->ena_dev;
++	int rc, i;
++	u16 entry_value;
++	int conf_idx;
++	int idx;
++
++	if (reta_size == 0 || reta_conf == NULL)
++		return -EINVAL;
++
++	if (!(dev->data->dev_conf.rxmode.mq_mode & ETH_MQ_RX_RSS_FLAG)) {
++		PMD_DRV_LOG(ERR,
++			"RSS was not configured for the PMD\n");
++		return -ENOTSUP;
++	}
++
++	if (reta_size > ENA_RX_RSS_TABLE_SIZE) {
++		PMD_DRV_LOG(WARNING,
++			"Requested indirection table size (%d) is bigger than supported: %d\n",
++			reta_size, ENA_RX_RSS_TABLE_SIZE);
++		return -EINVAL;
++	}
++
++	for (i = 0 ; i < reta_size ; i++) {
++		/* Each reta_conf is for 64 entries.
++		 * To support 128 we use 2 conf of 64.
++		 */
++		conf_idx = i / RTE_RETA_GROUP_SIZE;
++		idx = i % RTE_RETA_GROUP_SIZE;
++		if (TEST_BIT(reta_conf[conf_idx].mask, idx)) {
++			entry_value =
++				ENA_IO_RXQ_IDX(reta_conf[conf_idx].reta[idx]);
++
++			rc = ena_com_indirect_table_fill_entry(ena_dev, i,
++				entry_value);
++			if (unlikely(rc != 0)) {
++				PMD_DRV_LOG(ERR,
++					"Cannot fill indirection table\n");
++				return rc;
++			}
++		}
++	}
++
++	rte_spinlock_lock(&adapter->admin_lock);
++	rc = ena_com_indirect_table_set(ena_dev);
++	rte_spinlock_unlock(&adapter->admin_lock);
++	if (unlikely(rc != 0)) {
++		PMD_DRV_LOG(ERR, "Cannot set the indirection table\n");
++		return rc;
++	}
++
++	PMD_DRV_LOG(DEBUG, "RSS configured %d entries for port %d\n",
++		reta_size, dev->data->port_id);
++
++	return 0;
++}
++
++/* Query redirection table. */
++int ena_rss_reta_query(struct rte_eth_dev *dev,
++		       struct rte_eth_rss_reta_entry64 *reta_conf,
++		       uint16_t reta_size)
++{
++	uint32_t indirect_table[ENA_RX_RSS_TABLE_SIZE] = { 0 };
++	struct ena_adapter *adapter = dev->data->dev_private;
++	struct ena_com_dev *ena_dev = &adapter->ena_dev;
++	int rc;
++	int i;
++	int reta_conf_idx;
++	int reta_idx;
++
++	if (reta_size == 0 || reta_conf == NULL ||
++	    (reta_size > RTE_RETA_GROUP_SIZE && ((reta_conf + 1) == NULL)))
++		return -EINVAL;
++
++	if (!(dev->data->dev_conf.rxmode.mq_mode & ETH_MQ_RX_RSS_FLAG)) {
++		PMD_DRV_LOG(ERR,
++			"RSS was not configured for the PMD\n");
++		return -ENOTSUP;
++	}
++
++	rte_spinlock_lock(&adapter->admin_lock);
++	rc = ena_com_indirect_table_get(ena_dev, indirect_table);
++	rte_spinlock_unlock(&adapter->admin_lock);
++	if (unlikely(rc != 0)) {
++		PMD_DRV_LOG(ERR, "Cannot get indirection table\n");
++		return rc;
++	}
++
++	for (i = 0 ; i < reta_size ; i++) {
++		reta_conf_idx = i / RTE_RETA_GROUP_SIZE;
++		reta_idx = i % RTE_RETA_GROUP_SIZE;
++		if (TEST_BIT(reta_conf[reta_conf_idx].mask, reta_idx))
++			reta_conf[reta_conf_idx].reta[reta_idx] =
++				ENA_IO_RXQ_IDX_REV(indirect_table[i]);
++	}
++
++	return 0;
++}
++
++static int ena_fill_indirect_table_default(struct ena_com_dev *ena_dev,
++					   size_t tbl_size,
++					   size_t queue_num)
++{
++	size_t i;
++	int rc;
++	uint16_t val;
++
++	for (i = 0; i < tbl_size; ++i) {
++		val = i % queue_num;
++		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
++			ENA_IO_RXQ_IDX(val));
++		if (unlikely(rc != 0)) {
++			PMD_DRV_LOG(DEBUG,
++				"Failed to set %zu indirection table entry with val %" PRIu16 "\n",
++				i, val);
++			return rc;
++		}
++	}
++
++	return 0;
++}
++
++static uint64_t ena_admin_hf_to_eth_hf(enum ena_admin_flow_hash_proto proto,
++				       uint16_t fields)
++{
++	uint64_t rss_hf = 0;
++
++	/* If no fields are activated, then RSS is disabled for this proto */
++	if ((fields & ENA_HF_RSS_ALL_L2_L3_L4) == 0)
++		return 0;
++
++	/* Convert proto to ETH flag */
++	switch (proto) {
++	case ENA_ADMIN_RSS_TCP4:
++		rss_hf |= ETH_RSS_NONFRAG_IPV4_TCP;
++		break;
++	case ENA_ADMIN_RSS_UDP4:
++		rss_hf |= ETH_RSS_NONFRAG_IPV4_UDP;
++		break;
++	case ENA_ADMIN_RSS_TCP6:
++		rss_hf |= ETH_RSS_NONFRAG_IPV6_TCP;
++		break;
++	case ENA_ADMIN_RSS_UDP6:
++		rss_hf |= ETH_RSS_NONFRAG_IPV6_UDP;
++		break;
++	case ENA_ADMIN_RSS_IP4:
++		rss_hf |= ETH_RSS_IPV4;
++		break;
++	case ENA_ADMIN_RSS_IP6:
++		rss_hf |= ETH_RSS_IPV6;
++		break;
++	case ENA_ADMIN_RSS_IP4_FRAG:
++		rss_hf |= ETH_RSS_FRAG_IPV4;
++		break;
++	case ENA_ADMIN_RSS_NOT_IP:
++		rss_hf |= ETH_RSS_L2_PAYLOAD;
++		break;
++	case ENA_ADMIN_RSS_TCP6_EX:
++		rss_hf |= ETH_RSS_IPV6_TCP_EX;
++		break;
++	case ENA_ADMIN_RSS_IP6_EX:
++		rss_hf |= ETH_RSS_IPV6_EX;
++		break;
++	default:
++		break;
++	};
++
++	return rss_hf;
++}
++
++static uint16_t ena_eth_hf_to_admin_hf(enum ena_admin_flow_hash_proto proto)
++{
++	uint16_t fields_mask = 0;
++
++	/* L2 always uses source and destination addresses. */
++	fields_mask = ENA_ADMIN_RSS_L2_DA |
++		ENA_ADMIN_RSS_L2_SA |
++		ENA_HF_RSS_ALL_L3 |
++		ENA_HF_RSS_ALL_L4;
++
++	/* Return appropriate hash fields. */
++	switch (proto) {
++	case ENA_ADMIN_RSS_TCP4:
++		return ENA_HF_RSS_TCP4 & fields_mask;
++	case ENA_ADMIN_RSS_UDP4:
++		return ENA_HF_RSS_UDP4 & fields_mask;
++	case ENA_ADMIN_RSS_TCP6:
++		return ENA_HF_RSS_TCP6 & fields_mask;
++	case ENA_ADMIN_RSS_UDP6:
++		return ENA_HF_RSS_UDP6 & fields_mask;
++	case ENA_ADMIN_RSS_IP4:
++		return ENA_HF_RSS_IP4 & fields_mask;
++	case ENA_ADMIN_RSS_IP6:
++		return ENA_HF_RSS_IP6 & fields_mask;
++	case ENA_ADMIN_RSS_IP4_FRAG:
++		return ENA_HF_RSS_IP4_FRAG & fields_mask;
++	case ENA_ADMIN_RSS_NOT_IP:
++		return ENA_HF_RSS_NOT_IP & fields_mask;
++	case ENA_ADMIN_RSS_TCP6_EX:
++		return ENA_HF_RSS_TCP6_EX & fields_mask;
++	case ENA_ADMIN_RSS_IP6_EX:
++		return ENA_HF_RSS_IP6_EX & fields_mask;
++	default:
++		break;
++	}
++
++	return 0;
++}
++
++static int ena_set_hash_fields(struct ena_com_dev *ena_dev, uint64_t rss_hf)
++{
++	struct ena_admin_proto_input selected_fields[ENA_ADMIN_RSS_PROTO_NUM] = {};
++	int rc, i;
++
++	/* Turn on appropriate fields for each requested packet type */
++	if ((rss_hf & ETH_RSS_NONFRAG_IPV4_TCP) != 0)
++		selected_fields[ENA_ADMIN_RSS_TCP4].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_TCP4);
++
++	if ((rss_hf & ETH_RSS_NONFRAG_IPV4_UDP) != 0)
++		selected_fields[ENA_ADMIN_RSS_UDP4].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_UDP4);
++
++	if ((rss_hf & ETH_RSS_NONFRAG_IPV6_TCP) != 0)
++		selected_fields[ENA_ADMIN_RSS_TCP6].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_TCP6);
++
++	if ((rss_hf & ETH_RSS_NONFRAG_IPV6_UDP) != 0)
++		selected_fields[ENA_ADMIN_RSS_UDP6].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_UDP6);
++
++	if ((rss_hf & ETH_RSS_IPV4) != 0)
++		selected_fields[ENA_ADMIN_RSS_IP4].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_IP4);
++
++	if ((rss_hf & ETH_RSS_IPV6) != 0)
++		selected_fields[ENA_ADMIN_RSS_IP6].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_IP6);
++
++	if ((rss_hf & ETH_RSS_FRAG_IPV4) != 0)
++		selected_fields[ENA_ADMIN_RSS_IP4_FRAG].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_IP4_FRAG);
++
++	if ((rss_hf & ETH_RSS_L2_PAYLOAD) != 0)
++		selected_fields[ENA_ADMIN_RSS_NOT_IP].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_NOT_IP);
++
++	if ((rss_hf & ETH_RSS_IPV6_TCP_EX) != 0)
++		selected_fields[ENA_ADMIN_RSS_TCP6_EX].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_TCP6_EX);
++
++	if ((rss_hf & ETH_RSS_IPV6_EX) != 0)
++		selected_fields[ENA_ADMIN_RSS_IP6_EX].fields =
++			ena_eth_hf_to_admin_hf(ENA_ADMIN_RSS_IP6_EX);
++
++	/* Try to write them to the device */
++	for (i = 0; i < ENA_ADMIN_RSS_PROTO_NUM; i++) {
++		rc = ena_com_fill_hash_ctrl(ena_dev,
++			(enum ena_admin_flow_hash_proto)i,
++			selected_fields[i].fields);
++		if (unlikely(rc != 0)) {
++			PMD_DRV_LOG(DEBUG,
++				"Failed to set ENA HF %d with fields %" PRIu16 "\n",
++				i, selected_fields[i].fields);
++			return rc;
++		}
++	}
++
++	return 0;
++}
++
++static int ena_rss_hash_set(struct ena_com_dev *ena_dev,
++			    struct rte_eth_rss_conf *rss_conf,
++			    bool default_allowed)
++{
++	uint8_t hw_rss_key[ENA_HASH_KEY_SIZE];
++	uint8_t *rss_key;
++	int rc;
++
++	if (rss_conf->rss_key != NULL) {
++		/* Reorder the RSS key bytes for the hardware requirements. */
++		ena_reorder_rss_hash_key(hw_rss_key, rss_conf->rss_key,
++			ENA_HASH_KEY_SIZE);
++		rss_key = hw_rss_key;
++	} else {
++		rss_key = NULL;
++	}
++
++	/* If the rss_key is NULL, then the randomized key will be used. */
++	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ,
++		rss_key, ENA_HASH_KEY_SIZE, 0);
++	if (rc != 0 && !(default_allowed && rc == ENA_COM_UNSUPPORTED)) {
++		PMD_DRV_LOG(ERR,
++			"Failed to set RSS hash function in the device\n");
++		return rc;
++	}
++
++	rc = ena_set_hash_fields(ena_dev, rss_conf->rss_hf);
++	if (rc == ENA_COM_UNSUPPORTED) {
++		if (rss_conf->rss_key == NULL && !default_allowed) {
++			PMD_DRV_LOG(ERR,
++				"Setting RSS hash fields is not supported\n");
++			return -ENOTSUP;
++		}
++		PMD_DRV_LOG(WARNING,
++			"Setting RSS hash fields is not supported. Using default values: 0x%" PRIx64 "\n",
++			(uint64_t)(ENA_ALL_RSS_HF));
++	} else if (rc != 0)  {
++		PMD_DRV_LOG(ERR, "Failed to set RSS hash fields\n");
++		return rc;
++	}
++
++	return 0;
++}
++
++/* ENA HW interprets the RSS key in reverse bytes order. Because of that, the
++ * key must be processed upon interaction with ena_com layer.
++ */
++static void ena_reorder_rss_hash_key(uint8_t *reordered_key,
++				     uint8_t *key,
++				     size_t key_size)
++{
++	size_t i, rev_i;
++
++	for (i = 0, rev_i = key_size - 1; i < key_size; ++i, --rev_i)
++		reordered_key[i] = key[rev_i];
++}
++
++static int ena_get_rss_hash_key(struct ena_com_dev *ena_dev, uint8_t *rss_key)
++{
++	uint8_t hw_rss_key[ENA_HASH_KEY_SIZE];
++	int rc;
++
++	/* The default RSS hash key cannot be retrieved from the HW. Unless it's
++	 * explicitly set, this operation shouldn't be supported.
++	 */
++	if (ena_dev->rss.hash_key == NULL) {
++		PMD_DRV_LOG(WARNING,
++			"Retrieving default RSS hash key is not supported\n");
++		return -ENOTSUP;
++	}
++
++	rc = ena_com_get_hash_key(ena_dev, hw_rss_key);
++	if (rc != 0)
++		return rc;
++
++	ena_reorder_rss_hash_key(rss_key, hw_rss_key, ENA_HASH_KEY_SIZE);
++
++	return 0;
++}
++
++int ena_rss_configure(struct ena_adapter *adapter)
++{
++	struct rte_eth_rss_conf *rss_conf;
++	struct ena_com_dev *ena_dev;
++	int rc;
++
++	ena_dev = &adapter->ena_dev;
++	rss_conf = &adapter->edev_data->dev_conf.rx_adv_conf.rss_conf;
++
++	if (adapter->edev_data->nb_rx_queues == 0)
++		return 0;
++
++	/* Restart the indirection table. The number of queues could change
++	 * between start/stop calls, so it must be reinitialized with default
++	 * values.
++	 */
++	rc = ena_fill_indirect_table_default(ena_dev, ENA_RX_RSS_TABLE_SIZE,
++		adapter->edev_data->nb_rx_queues);
++	if (unlikely(rc != 0)) {
++		PMD_DRV_LOG(ERR,
++			"Failed to fill indirection table with default values\n");
++		return rc;
++	}
++
++	rc = ena_com_indirect_table_set(ena_dev);
++	if (unlikely(rc != 0 && rc != ENA_COM_UNSUPPORTED)) {
++		PMD_DRV_LOG(ERR,
++			"Failed to set indirection table in the device\n");
++		return rc;
++	}
++
++	rc = ena_rss_hash_set(ena_dev, rss_conf, true);
++	if (unlikely(rc != 0)) {
++		PMD_DRV_LOG(ERR, "Failed to set RSS hash\n");
++		return rc;
++	}
++
++	PMD_DRV_LOG(DEBUG, "RSS configured for port %d\n",
++		adapter->edev_data->port_id);
++
++	return 0;
++}
++
++int ena_rss_hash_update(struct rte_eth_dev *dev,
++			struct rte_eth_rss_conf *rss_conf)
++{
++	struct ena_adapter *adapter = dev->data->dev_private;
++	int rc;
++
++	rte_spinlock_lock(&adapter->admin_lock);
++	rc = ena_rss_hash_set(&adapter->ena_dev, rss_conf, false);
++	rte_spinlock_unlock(&adapter->admin_lock);
++	if (unlikely(rc != 0)) {
++		PMD_DRV_LOG(ERR, "Failed to set RSS hash\n");
++		return rc;
++	}
++
++	return 0;
++}
++
++int ena_rss_hash_conf_get(struct rte_eth_dev *dev,
++			  struct rte_eth_rss_conf *rss_conf)
++{
++	struct ena_adapter *adapter = dev->data->dev_private;
++	struct ena_com_dev *ena_dev = &adapter->ena_dev;
++	enum ena_admin_flow_hash_proto proto;
++	uint64_t rss_hf = 0;
++	int rc, i;
++	uint16_t admin_hf;
++	static bool warn_once;
++
++	if (!(dev->data->dev_conf.rxmode.mq_mode & ETH_MQ_RX_RSS_FLAG)) {
++		PMD_DRV_LOG(ERR, "RSS was not configured for the PMD\n");
++		return -ENOTSUP;
++	}
++
++	if (rss_conf->rss_key != NULL) {
++		rc = ena_get_rss_hash_key(ena_dev, rss_conf->rss_key);
++		if (unlikely(rc != 0)) {
++			PMD_DRV_LOG(ERR,
++				"Cannot retrieve RSS hash key, err: %d\n",
++				rc);
++			return rc;
++		}
++	}
++
++	for (i = 0; i < ENA_ADMIN_RSS_PROTO_NUM; ++i) {
++		proto = (enum ena_admin_flow_hash_proto)i;
++		rte_spinlock_lock(&adapter->admin_lock);
++		rc = ena_com_get_hash_ctrl(ena_dev, proto, &admin_hf);
++		rte_spinlock_unlock(&adapter->admin_lock);
++		if (rc == ENA_COM_UNSUPPORTED) {
++			/* As some devices may support only reading rss hash
++			 * key and not the hash ctrl, we want to notify the
++			 * caller that this feature is only partially supported
++			 * and do not return an error - the caller could be
++			 * interested only in the key value.
++			 */
++			if (!warn_once) {
++				PMD_DRV_LOG(WARNING,
++					"Reading hash control from the device is not supported. .rss_hf will contain a default value.\n");
++				warn_once = true;
++			}
++			rss_hf = ENA_ALL_RSS_HF;
++			break;
++		} else if (rc != 0) {
++			PMD_DRV_LOG(ERR,
++				"Failed to retrieve hash ctrl for proto: %d with err: %d\n",
++				i, rc);
++			return rc;
++		}
++
++		rss_hf |= ena_admin_hf_to_eth_hf(proto, admin_hf);
++	}
++
++	rss_conf->rss_hf = rss_hf;
++	return 0;
++}
+-- 
+2.25.1
+

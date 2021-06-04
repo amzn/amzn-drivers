@@ -1,0 +1,96 @@
+From 483fa2b260584d8909055c8dcb4b0220055daa23 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 12:07:03 +0200
+Subject: [PATCH 061/107] net/ena/base: check for RSS key configuration support
+
+Setting RSS hash function could not be supported by the device. In that
+situation there is no need to fill in default hash key or even allocate
+hash key.
+
+Change-Id: I6867422cc5c7a6170ae35076dbaa63558c6429d5
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c                 | 13 ++++++++++---
+ drivers/net/ena/base/ena_defs/ena_admin_defs.h | 15 ++++++++++++++-
+ 2 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index ea7d6788c9..9764bd2f48 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1083,6 +1083,9 @@ static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
+ {
+ 	struct ena_rss *rss = &ena_dev->rss;
+ 
++	if (!ena_com_check_supported_feature_id(ena_dev, ENA_ADMIN_RSS_HASH_FUNCTION))
++		return ENA_COM_UNSUPPORTED;
++
+ 	ENA_MEM_ALLOC_COHERENT(ena_dev->dmadev,
+ 			       sizeof(*rss->hash_key),
+ 			       rss->hash_key,
+@@ -2719,12 +2722,16 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 indr_tbl_log_size)
+ 	if (unlikely(rc))
+ 		goto err_indr_tbl;
+ 
++	/* The following function might return unsupported in case the
++	 * device doesn't support setting the key / hash function. We can safely
++	 * ignore this error and have indirection table support only.
++	 */
+ 	rc = ena_com_hash_key_allocate(ena_dev);
+-	if (unlikely(rc))
++	if (likely(!rc))
++		ena_com_hash_key_fill_default_key(ena_dev);
++	else if (rc != ENA_COM_UNSUPPORTED)
+ 		goto err_hash_key;
+ 
+-	ena_com_hash_key_fill_default_key(ena_dev);
+-
+ 	rc = ena_com_hash_ctrl_init(ena_dev);
+ 	if (unlikely(rc))
+ 		goto err_hash_ctrl;
+diff --git a/drivers/net/ena/base/ena_defs/ena_admin_defs.h b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+index 9cea1c3905..30e5eead71 100644
+--- a/drivers/net/ena/base/ena_defs/ena_admin_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+@@ -873,7 +873,8 @@ struct ena_admin_host_info {
+ 	 * 1 : rx_offset
+ 	 * 2 : interrupt_moderation
+ 	 * 3 : map_rx_buf_bidirectional
+-	 * 31:4 : reserved
++	 * 4 : rss_configurable_function_key
++	 * 31:5 : reserved
+ 	 */
+ 	uint32_t driver_supported_features;
+ };
+@@ -1198,6 +1199,8 @@ struct ena_admin_ena_mmio_req_read_less_resp {
+ #define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK       BIT(2)
+ #define ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_SHIFT  3
+ #define ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_MASK   BIT(3)
++#define ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_SHIFT 4
++#define ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK BIT(4)
+ 
+ /* feature_rss_ind_table */
+ #define ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK BIT(0)
+@@ -1659,6 +1662,16 @@ static inline void set_ena_admin_host_info_map_rx_buf_bidirectional(struct ena_a
+ 	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_SHIFT) & ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_MASK;
+ }
+ 
++static inline uint32_t get_ena_admin_host_info_rss_configurable_function_key(const struct ena_admin_host_info *p)
++{
++	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK) >> ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_SHIFT;
++}
++
++static inline void set_ena_admin_host_info_rss_configurable_function_key(struct ena_admin_host_info *p, uint32_t val)
++{
++	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_SHIFT) & ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK;
++}
++
+ static inline uint8_t get_ena_admin_feature_rss_ind_table_one_entry_update(const struct ena_admin_feature_rss_ind_table *p)
+ {
+ 	return p->flags & ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK;
+-- 
+2.25.1
+

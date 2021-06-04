@@ -1,0 +1,54 @@
+From 605da6fae36fbf75273e5c4338ddc8eda54163da Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Mon, 28 Oct 2019 11:23:33 +0100
+Subject: [PATCH 072/166] net/ena: fix indication of bad L4 Rx checksums
+
+Add checking of l4_csum_checked and frag flags before checking the
+l4_csum_error flag.
+
+In case of IP fragment/unchecked L4 csum - add PKT_RX_L4_CKSUM_UNKNOWN
+flag to the indicated mbuf.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Maciej Bielski <mba@semihalf.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index b0c08de25a..ec3eec776c 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -26,7 +26,7 @@
+ 
+ #define DRV_MODULE_VER_MAJOR	2
+ #define DRV_MODULE_VER_MINOR	0
+-#define DRV_MODULE_VER_SUBMINOR	1
++#define DRV_MODULE_VER_SUBMINOR	2
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+ #define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+@@ -262,8 +262,14 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 	else if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV6)
+ 		packet_type |= RTE_PTYPE_L3_IPV6;
+ 
+-	if (unlikely(ena_rx_ctx->l4_csum_err))
+-		ol_flags |= PKT_RX_L4_CKSUM_BAD;
++	if (!ena_rx_ctx->l4_csum_checked)
++		ol_flags |= PKT_RX_L4_CKSUM_UNKNOWN;
++	else
++		if (unlikely(ena_rx_ctx->l4_csum_err) && !ena_rx_ctx->frag)
++			ol_flags |= PKT_RX_L4_CKSUM_BAD;
++		else
++			ol_flags |= PKT_RX_L4_CKSUM_UNKNOWN;
++
+ 	if (unlikely(ena_rx_ctx->l3_csum_err))
+ 		ol_flags |= PKT_RX_IP_CKSUM_BAD;
+ 
+-- 
+2.25.1
+

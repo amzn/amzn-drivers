@@ -1,0 +1,64 @@
+From 31d2cc651e8e63be89a6999d29298578acfc9e3e Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:29:04 +0200
+Subject: [PATCH 12/72] net/ena/base: use 48-bit memory addresses
+
+ENA device is using 48-bit memory for IO. Because of that, the upper
+limit had to be updated.
+
+From the driver perspective, it's just a cosmetic change to make
+definition of the structure 'ena_common_mem_addr' more descriptive and
+the address value was verified anyway for the valid range in the
+function 'ena_com_mem_addr_set()'.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c                  | 2 +-
+ drivers/net/ena/base/ena_defs/ena_common_defs.h | 8 ++++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 89ec6dcfab..21e25cfe2b 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -73,7 +73,7 @@ static int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
+ 	}
+ 
+ 	ena_addr->mem_addr_low = lower_32_bits(addr);
+-	ena_addr->mem_addr_high = upper_32_bits(addr);
++	ena_addr->mem_addr_high = (u16)upper_32_bits(addr);
+ 
+ 	return 0;
+ }
+diff --git a/drivers/net/ena/base/ena_defs/ena_common_defs.h b/drivers/net/ena/base/ena_defs/ena_common_defs.h
+index 1818c29a87..d1ee40de32 100644
+--- a/drivers/net/ena/base/ena_defs/ena_common_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_common_defs.h
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: BSD-3-Clause
+- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+ 
+@@ -9,10 +9,14 @@
+ #define ENA_COMMON_SPEC_VERSION_MAJOR        2
+ #define ENA_COMMON_SPEC_VERSION_MINOR        0
+ 
++/* ENA operates with 48-bit memory addresses. ena_mem_addr_t */
+ struct ena_common_mem_addr {
+ 	uint32_t mem_addr_low;
+ 
+-	uint32_t mem_addr_high;
++	uint16_t mem_addr_high;
++
++	/* MBZ */
++	uint16_t reserved16;
+ };
+ 
+ #endif /* _ENA_COMMON_H_ */
+-- 
+2.25.1
+

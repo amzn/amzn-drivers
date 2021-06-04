@@ -1,52 +1,129 @@
 # DPDK driver for Elastic Network Adapter (ENA)
 
-- [1. Overview](#1-overview)
-- [2. Applying the fixes](#2-applying-the-fixes)
-- [3. PMD configuration options](#3-pmd-configuration-options)
-  - [3.1. Runtime options (devargs)](#31-runtime-options-devargs)
-  - [3.2. Makefile (deprecated starting from v20.11)](#32-makefile-deprecated-starting-from-v2011)
-- [4. ENAv2 (>= v2.0.0) and WriteCombining](#4-enav2--v200-and-writecombining)
-- [5. Instructions for using `igb_uio` and `vfio-pci`](#5-instructions-for-using-igb_uio-and-vfio-pci)
-  - [5.1. igb_uio](#51-igb_uio)
-  - [5.2. vfio-pci](#52-vfio-pci)
-- [6. Note about usage on *.metal instances](#6-note-about-usage-on-metal-instances)
-  - [6.1. x86_64 (e.g. c5.metal, i3.metal)](#61-x86_64-eg-c5metal-i3metal)
-  - [6.2. arm64 (a1.metal)](#62-arm64-a1metal)
+- [DPDK driver for Elastic Network Adapter (ENA)](#dpdk-driver-for-elastic-network-adapter-ena)
+  - [1. Overview](#1-overview)
+  - [2. ENA PMD Backports](#2-ena-pmd-backports)
+    - [2.1. Manual patching](#21-manual-patching)
+    - [2.1. Patching using script](#21-patching-using-script)
+  - [3. PMD configuration options](#3-pmd-configuration-options)
+    - [3.1. Runtime options (devargs)](#31-runtime-options-devargs)
+    - [3.2. Makefile (deprecated starting from v20.11)](#32-makefile-deprecated-starting-from-v2011)
+  - [4. ENAv2 (>= v2.0.0) and WriteCombining](#4-enav2--v200-and-writecombining)
+  - [5. Instructions for using `igb_uio` and `vfio-pci`](#5-instructions-for-using-igb_uio-and-vfio-pci)
+    - [5.1. igb_uio](#51-igb_uio)
+    - [5.2. vfio-pci](#52-vfio-pci)
+  - [6. Note about usage on *.metal instances](#6-note-about-usage-on-metal-instances)
+    - [6.1. x86_64 (e.g. c5.metal, i3.metal)](#61-x86_64-eg-c5metal-i3metal)
+    - [6.2. arm64 (a1.metal)](#62-arm64-a1metal)
 
 ## 1. Overview
 
-This folder includes critical bug fixes for previously released ENA PMDs
-(Poll Mode Drivers) for the [DPDK framework](https://www.dpdk.org/).
+This folder includes resources and utilities for the ENA PMD (Poll Mode Driver)
+which can be found in the [DPDK framework](https://www.dpdk.org/):
 
-## 2. Applying the fixes
+1. The latest [ENA PMD driver backports](backports) based on the supported LTS
+   branches.
+2. Detailed [ENA PMD release notes](RELEASENOTES.md) for all the DPDK releases
+   including ENA PMD changes.
+3. [Patch for the `vfio-pci` module](enav2-vfio-patch) which may be used by the
+   ENA PMD instead of the `igb_uio`. Details can be found
+   [below](#5-instructions-for-using-igb_uio-and-vfio-pci).
 
-In order to apply the fixes, please follow below steps:
+## 2. ENA PMD Backports
 
-1. Clone the DPDK repostitory from the [DPDK source tree](http://git.dpdk.org/dpdk/):
+ENA PMD v2.4.0 from DPDK v21.08 was backported to the all LTS DPDK versions,
+since it was released.
+
+- v16.11.11
+- v17.11.10
+- v18.11.11
+- v19.11.10
+- v20.11.3
+
+ENA PMD backports are skipping DPDK features which aren't supported by the given
+DPDK version - for example v16.11.11 backport won't contain the reset device
+feature or the Tx prepare function. In order to use those features, the
+application should migrate to the newer DPDK version.
+
+The backported ENA version for all branches requires Write Combining support. To
+satisfy that, the `igb_uio` included within the DPDK source tree needs to be
+loaded with `wc_activate` option if it's being used instead of `vfio-pci`. This
+feature was backported together with ENA PMD to all the LTS releases listed in
+this chapter, which didn't had this feature available.
+Please refer to the [appropriate chapter](#4-enav2--v200-and-writecombining)
+for more details.
+
+The backport is based on the latest available LTS branch for each supported DPDK
+version at a time when it is created.
+
+Already existing ENA backports may be rebased on the latests LTS release if the
+LTS branch is still supported by the DPDK community. Previous LTS releases for
+the same branch will no longer be supported (e.g. when ENA backport will be
+targeted for the new LTS release v20.11.4, the v20.11.3 will be no longer
+supported).
+
+The DPDK application is advised to rebase as well in order to be sure that all
+ENA PMD patches are applied.
+
+The patches can be either applied manually, or by using the helper script. Full
+instruction can be found below.
+
+### 2.1. Manual patching
+
+1. Clone the stable DPDK repository from the
+   [stable DPDK source tree](https://git.dpdk.org/dpdk-stable/):
 
    ```sh
-   git clone git://dpdk.org/dpdk
+   git clone git://dpdk.org/dpdk-stable
    ```
 
-1. Clone repository with patches:
+2. Clone repository with patches:
 
    ```sh
    git clone https://github.com/amzn/amzn-drivers.git
    ```
 
-1. Checkout DPDK to the tag which is one of the supported versions:
+3. Checkout DPDK to the LTS tag which is one of the supported versions:
 
    ```sh
-   cd dpdk
-   # <DPDK_VERSION> is one of the versions support by ENA, like v17.11
+   cd dpdk-stable
+   # <DPDK_VERSION> is one of the versions support by ENA, like v17.11.10
    git checkout <DPDK_VERSION>
    ```
 
-1. Apply all required patches:
+4. Apply all required patches:
 
    ```sh
    git am ../amzn-drivers/userspace/dpdk/<DPDK_VERSION>/*.patch
    ```
+
+### 2.1. Patching using script
+
+Patching using the script can be used instead of applying the patches manually.
+The script can detect DPDK version automatically and choose the right backports
+which should be applied.
+
+The DPDK source code which should be patched can be either passed directly, or
+implicitly, using the RTE_SDK environment variable:
+
+```sh
+# Read the RTE_SDK environmental variable value and apply appropriate ENA patches
+./backports/apply-patches.sh
+
+# Patch the repository, which can be found under the 'dpdk_src' location
+./backports/apply-patches.sh -d dpdk_src
+```
+
+If the script will reject to apply the patches to the given DPDK source code,
+it can be forced to do so. This options should be used with caution! It can
+result in merge conflicts or the final source code can be missing some ENA
+patches.
+
+```sh
+# Use the patches from the 'backports/v18.11.11' directory and apply them to the
+# repository, which can be found under the 'dpdk_src' location
+./backports/apply-patches.sh -p backports/v18.11.11 -d dpdk_src
+```
 
 ## 3. PMD configuration options
 

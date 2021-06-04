@@ -1,0 +1,64 @@
+From 7047efc412ebd12ff4960717d5dce86c360f67bb Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 12:01:18 +0200
+Subject: [PATCH 126/177] net/ena/base: do not use hardcoded RSS key buffer
+ size
+
+It's well defined how the RSS key buffer looks from the device
+perspective, so the constant calue should be used instead of magic
+number. Also it doesn't has to be calculated dynamically.
+
+Change-Id: I57341998f4456552706ff29c689ede7b4bc9284c
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c                 | 7 +++----
+ drivers/net/ena/base/ena_defs/ena_admin_defs.h | 4 +++-
+ 2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index bf1de09c5c..ea7d6788c9 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1073,11 +1073,10 @@ static void ena_com_hash_key_fill_default_key(struct ena_com_dev *ena_dev)
+ 		(ena_dev->rss).hash_key;
+ 
+ 	ENA_RSS_FILL_KEY(&hash_key->key, sizeof(hash_key->key));
+-	/* The key is stored in the device in uint32_t array
+-	 * as well as the API requires the key to be passed in this
+-	 * format. Thus the size of our array should be divided by 4
++	/* The key buffer is stored in the device in an array of
++	 * uint32 elements.
+ 	 */
+-	hash_key->keys_num = sizeof(hash_key->key) / sizeof(uint32_t);
++	hash_key->keys_num = ENA_ADMIN_RSS_KEY_PARTS;
+ }
+ 
+ static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
+diff --git a/drivers/net/ena/base/ena_defs/ena_admin_defs.h b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+index be1747cd9f..9cea1c3905 100644
+--- a/drivers/net/ena/base/ena_defs/ena_admin_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+@@ -9,6 +9,8 @@
+ #define ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN 32
+ #define ENA_ADMIN_EXTRA_PROPERTIES_COUNT     32
+ 
++#define ENA_ADMIN_RSS_KEY_PARTS              10
++
+ enum ena_admin_aq_opcode {
+ 	ENA_ADMIN_CREATE_SQ                         = 1,
+ 	ENA_ADMIN_DESTROY_SQ                        = 2,
+@@ -732,7 +734,7 @@ struct ena_admin_feature_rss_flow_hash_control {
+ 
+ 	uint32_t reserved;
+ 
+-	uint32_t key[10];
++	uint32_t key[ENA_ADMIN_RSS_KEY_PARTS];
+ };
+ 
+ struct ena_admin_feature_rss_flow_hash_function {
+-- 
+2.25.1
+

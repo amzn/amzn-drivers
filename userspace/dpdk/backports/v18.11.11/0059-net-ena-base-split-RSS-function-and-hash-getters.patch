@@ -1,0 +1,145 @@
+From 312c914b75c31ea4a93988c82ab734e3152888c6 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 11:57:56 +0200
+Subject: [PATCH 059/107] net/ena/base: split RSS function and hash getters
+
+There is no need to keep single function for both hash function and
+the key. If the caller want's to get only single value, then it had to
+pass NULL as one of the values, making the API harder to use.
+
+Except reading functions from the device, one can also use function
+ena_com_get_current_hash_function() to get the integer value, which
+is represeting current hash function stored in the ena_com layer.
+
+Change-Id: Idaefe0974912c476fba35db03ad52661182ee914
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c | 26 +++++++++++++++++++-------
+ drivers/net/ena/base/ena_com.h | 31 ++++++++++++++++++++++++-------
+ 2 files changed, 43 insertions(+), 14 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 1463f5f1d4..bf1de09c5c 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1062,6 +1062,11 @@ static int ena_com_get_feature(struct ena_com_dev *ena_dev,
+ 				      feature_ver);
+ }
+ 
++int ena_com_get_current_hash_function(struct ena_com_dev *ena_dev)
++{
++	return ena_dev->rss.hash_func;
++}
++
+ static void ena_com_hash_key_fill_default_key(struct ena_com_dev *ena_dev)
+ {
+ 	struct ena_admin_feature_rss_flow_hash_control *hash_key =
+@@ -2408,15 +2413,15 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
+ }
+ 
+ int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
+-			      enum ena_admin_hash_functions *func,
+-			      u8 *key)
++			      enum ena_admin_hash_functions *func)
+ {
+ 	struct ena_rss *rss = &ena_dev->rss;
+ 	struct ena_admin_get_feat_resp get_resp;
+-	struct ena_admin_feature_rss_flow_hash_control *hash_key =
+-		rss->hash_key;
+ 	int rc;
+ 
++	if (unlikely(!func))
++		return ENA_COM_INVAL;
++
+ 	rc = ena_com_get_feature_ex(ena_dev, &get_resp,
+ 				    ENA_ADMIN_RSS_HASH_FUNCTION,
+ 				    rss->hash_key_dma_addr,
+@@ -2424,13 +2429,20 @@ int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
+ 	if (unlikely(rc))
+ 		return rc;
+ 
+-	/* ENA_FFS returns 1 in case the lsb is set */
++	/* ENA_FFS() returns 1 in case the lsb is set */
+ 	rss->hash_func = ENA_FFS(get_resp.u.flow_hash_func.selected_func);
+ 	if (rss->hash_func)
+ 		rss->hash_func--;
+ 
+-	if (func)
+-		*func = rss->hash_func;
++	*func = rss->hash_func;
++
++	return 0;
++}
++
++int ena_com_get_hash_key(struct ena_com_dev *ena_dev, u8 *key)
++{
++	struct ena_admin_feature_rss_flow_hash_control *hash_key =
++		ena_dev->rss.hash_key;
+ 
+ 	if (key)
+ 		memcpy(key, hash_key->key, (size_t)(hash_key->keys_num) << 2);
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index 751bfcdd7e..ba367b4ca0 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -645,6 +645,14 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 log_size);
+  */
+ void ena_com_rss_destroy(struct ena_com_dev *ena_dev);
+ 
++/* ena_com_get_current_hash_function - Get RSS hash function
++ * @ena_dev: ENA communication layer struct
++ *
++ * Return the current hash function.
++ * @return: 0 or one of the ena_admin_hash_functions values.
++ */
++int ena_com_get_current_hash_function(struct ena_com_dev *ena_dev);
++
+ /* ena_com_fill_hash_function - Fill RSS hash function
+  * @ena_dev: ENA communication layer struct
+  * @func: The hash function (Toeplitz or crc)
+@@ -676,23 +684,32 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
+  */
+ int ena_com_set_hash_function(struct ena_com_dev *ena_dev);
+ 
+-/* ena_com_get_hash_function - Retrieve the hash function and the hash key
+- * from the device.
++/* ena_com_get_hash_function - Retrieve the hash function from the device.
+  * @ena_dev: ENA communication layer struct
+  * @func: hash function
+- * @key: hash key
+  *
+- * Retrieve the hash function and the hash key from the device.
++ * Retrieve the hash function from the device.
+  *
+- * @note: If the caller called ena_com_fill_hash_function but didn't flash
++ * @note: If the caller called ena_com_fill_hash_function but didn't flush
+  * it to the device, the new configuration will be lost.
+  *
+  * @return: 0 on Success and negative value otherwise.
+  */
+ int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
+-			      enum ena_admin_hash_functions *func,
+-			      u8 *key);
++			      enum ena_admin_hash_functions *func);
+ 
++/* ena_com_get_hash_key - Retrieve the hash key
++ * @ena_dev: ENA communication layer struct
++ * @key: hash key
++ *
++ * Retrieve the hash key.
++ *
++ * @note: If the caller called ena_com_fill_hash_key but didn't flush
++ * it to the device, the new configuration will be lost.
++ *
++ * @return: 0 on Success and negative value otherwise.
++ */
++int ena_com_get_hash_key(struct ena_com_dev *ena_dev, u8 *key);
+ /* ena_com_fill_hash_ctrl - Fill RSS hash control
+  * @ena_dev: ENA communication layer struct.
+  * @proto: The protocol to configure.
+-- 
+2.25.1
+

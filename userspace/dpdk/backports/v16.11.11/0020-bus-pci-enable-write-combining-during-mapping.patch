@@ -1,0 +1,113 @@
+From 9582e2693d934d99b3a132a2d1cfb2f6d531e599 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 29 Jun 2018 15:54:07 +0200
+Subject: [PATCH 020/177] bus/pci: enable write combining during mapping
+
+Write combining (WC) increases NIC performance by making better
+utilization of PCI bus, but cannot be used by all PMDs.
+
+It will be enabled only if RTE_PCI_DRV_WC_ACTIVATE will be set in
+drivers flags. For proper work also igb_uio driver must be loaded with
+wc_activate set to 1.
+
+When mapping PCI resources, firstly check if it support WC
+and then try to use it.
+In case of failure, it will fallback to normal mode.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Bruce Richardson <bruce.richardson@intel.com>
+---
+ lib/librte_eal/common/include/rte_pci.h   |  2 +
+ lib/librte_eal/linuxapp/eal/eal_pci_uio.c | 47 +++++++++++++++++------
+ 2 files changed, 37 insertions(+), 12 deletions(-)
+
+diff --git a/lib/librte_eal/common/include/rte_pci.h b/lib/librte_eal/common/include/rte_pci.h
+index 10fa856400..c84e1283a4 100644
+--- a/lib/librte_eal/common/include/rte_pci.h
++++ b/lib/librte_eal/common/include/rte_pci.h
+@@ -208,6 +208,8 @@ struct rte_pci_driver {
+ 
+ /** Device needs PCI BAR mapping (done with either IGB_UIO or VFIO) */
+ #define RTE_PCI_DRV_NEED_MAPPING 0x0001
++/** Device needs PCI BAR mapping with enabled write combining (wc) */
++#define RTE_PCI_DRV_WC_ACTIVATE 0x0002
+ /** Device needs to be unbound even if no module is provided */
+ #define RTE_PCI_DRV_FORCE_UNBIND 0x0004
+ /** Device driver supports link state interrupt */
+diff --git a/lib/librte_eal/linuxapp/eal/eal_pci_uio.c b/lib/librte_eal/linuxapp/eal/eal_pci_uio.c
+index 3ca217f49d..71d9fc3032 100644
+--- a/lib/librte_eal/linuxapp/eal/eal_pci_uio.c
++++ b/lib/librte_eal/linuxapp/eal/eal_pci_uio.c
+@@ -310,22 +310,19 @@ int
+ pci_uio_map_resource_by_index(struct rte_pci_device *dev, int res_idx,
+ 		struct mapped_pci_resource *uio_res, int map_idx)
+ {
+-	int fd;
++	int fd = -1;
+ 	char devname[PATH_MAX];
+ 	void *mapaddr;
+ 	struct rte_pci_addr *loc;
+ 	struct pci_map *maps;
++	int wc_activate = 0;
++
++	if (dev->driver != NULL)
++		wc_activate = dev->driver->drv_flags & RTE_PCI_DRV_WC_ACTIVATE;
+ 
+ 	loc = &dev->addr;
+ 	maps = uio_res->maps;
+ 
+-	/* update devname for mmap  */
+-	snprintf(devname, sizeof(devname),
+-			"%s/" PCI_PRI_FMT "/resource%d",
+-			pci_get_sysfs_path(),
+-			loc->domain, loc->bus, loc->devid,
+-			loc->function, res_idx);
+-
+ 	/* allocate memory to keep path */
+ 	maps[map_idx].path = rte_malloc(NULL, sizeof(devname), 0);
+ 	if (maps[map_idx].path == NULL) {
+@@ -337,11 +334,37 @@ pci_uio_map_resource_by_index(struct rte_pci_device *dev, int res_idx,
+ 	/*
+ 	 * open resource file, to mmap it
+ 	 */
+-	fd = open(devname, O_RDWR);
+-	if (fd < 0) {
+-		RTE_LOG(ERR, EAL, "Cannot open %s: %s\n",
++	if (wc_activate) {
++		/* update devname for mmap  */
++		snprintf(devname, sizeof(devname),
++			"%s/" PCI_PRI_FMT "/resource%d_wc",
++			pci_get_sysfs_path(),
++			loc->domain, loc->bus, loc->devid,
++			loc->function, res_idx);
++
++		if (access(devname, R_OK|W_OK) != -1) {
++			fd = open(devname, O_RDWR);
++			if (fd < 0)
++				RTE_LOG(INFO, EAL, "%s cannot be mapped. "
++					"Fall-back to non prefetchable mode.\n",
++					devname);
++		}
++	}
++
++	if (!wc_activate || fd < 0) {
++		snprintf(devname, sizeof(devname),
++			"%s/" PCI_PRI_FMT "/resource%d",
++			pci_get_sysfs_path(),
++			loc->domain, loc->bus, loc->devid,
++			loc->function, res_idx);
++
++		/* then try to map resource file */
++		fd = open(devname, O_RDWR);
++		if (fd < 0) {
++			RTE_LOG(ERR, EAL, "Cannot open %s: %s\n",
+ 				devname, strerror(errno));
+-		goto error;
++			goto error;
++		}
+ 	}
+ 
+ 	/* try mapping somewhere close to the end of hugepages */
+-- 
+2.25.1
+

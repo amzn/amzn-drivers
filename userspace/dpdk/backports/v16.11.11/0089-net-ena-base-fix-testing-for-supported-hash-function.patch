@@ -1,0 +1,97 @@
+From e1752081732d8516bb290ff7d1e987beaec7184f Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:28:56 +0200
+Subject: [PATCH 089/177] net/ena/base: fix testing for supported hash function
+
+There was a bug in ena_com_fill_hash_function(), which was causing bit to
+be shifted left one bit too much.
+
+To fix that, the ENA_FFS macro is being used (returning the location of
+the first bit set), hash_function value is being subtracted by 1 if any
+hash function is supported by the device and BIT macro is used for
+shifting for better verbosity.
+
+Fixes: 99ecfbf845b3 ("ena: import communication layer")
+Cc: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_com.c       | 19 +++++++++++++------
+ drivers/net/ena/base/ena_plat_dpdk.h |  2 ++
+ 2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 38a474b1bd..04f5d21d6f 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -2394,12 +2394,14 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
+ 			       enum ena_admin_hash_functions func,
+ 			       const u8 *key, u16 key_len, u32 init_val)
+ {
+-	struct ena_rss *rss = &ena_dev->rss;
++	struct ena_admin_feature_rss_flow_hash_control *hash_key;
+ 	struct ena_admin_get_feat_resp get_resp;
+-	struct ena_admin_feature_rss_flow_hash_control *hash_key =
+-		rss->hash_key;
++	enum ena_admin_hash_functions old_func;
++	struct ena_rss *rss = &ena_dev->rss;
+ 	int rc;
+ 
++	hash_key = rss->hash_key;
++
+ 	/* Make sure size is a mult of DWs */
+ 	if (unlikely(key_len & 0x3))
+ 		return ENA_COM_INVAL;
+@@ -2411,7 +2413,7 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
+ 	if (unlikely(rc))
+ 		return rc;
+ 
+-	if (!((1 << func) & get_resp.u.flow_hash_func.supported_func)) {
++	if (!(BIT(func) & get_resp.u.flow_hash_func.supported_func)) {
+ 		ena_trc_err("Flow hash function %d isn't supported\n", func);
+ 		return ENA_COM_UNSUPPORTED;
+ 	}
+@@ -2437,12 +2439,13 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
+ 		return ENA_COM_INVAL;
+ 	}
+ 
++	old_func = rss->hash_func;
+ 	rss->hash_func = func;
+ 	rc = ena_com_set_hash_function(ena_dev);
+ 
+ 	/* Restore the old function */
+ 	if (unlikely(rc))
+-		ena_com_get_hash_function(ena_dev, NULL, NULL);
++		rss->hash_func = old_func;
+ 
+ 	return rc;
+ }
+@@ -2464,7 +2467,11 @@ int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
+ 	if (unlikely(rc))
+ 		return rc;
+ 
+-	rss->hash_func = get_resp.u.flow_hash_func.selected_func;
++	/* ENA_FFS returns 1 in case the lsb is set */
++	rss->hash_func = ENA_FFS(get_resp.u.flow_hash_func.selected_func);
++	if (rss->hash_func)
++		rss->hash_func--;
++
+ 	if (func)
+ 		*func = rss->hash_func;
+ 
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 8832d0062b..25337c4b09 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -329,6 +329,8 @@ static inline u32 readl(const volatile void *addr)
+ 
+ #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+ 
++#define ENA_FFS(x) ffs(x)
++
+ void ena_rss_key_fill(void *key, size_t size);
+ 
+ #define ENA_RSS_FILL_KEY(key, size) ena_rss_key_fill(key, size)
+-- 
+2.25.1
+

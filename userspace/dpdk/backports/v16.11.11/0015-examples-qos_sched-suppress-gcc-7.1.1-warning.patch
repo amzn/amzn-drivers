@@ -1,0 +1,41 @@
+From 5ee231a1ef57d8b477252b6214b43edd4e437270 Mon Sep 17 00:00:00 2001
+From: Jerin Jacob <jerin.jacob@caviumnetworks.com>
+Date: Fri, 2 Jun 2017 16:50:30 +0530
+Subject: [PATCH 015/177] examples/qos_sched: suppress gcc 7.1.1 warning
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This one is more of a compiler issue as application
+checks the app_parse_opt_vals() return value.
+
+Since this code is in slow path, adding a memset
+to fix following "maybe-uninitialized" warning.
+
+qos_sched/args.c: In function ‘app_parse_args’:
+examples/qos_sched/args.c:254:32: error: ‘vals[0]’ may be
+used uninitialized in this function [-Werror=maybe-uninitialized]
+pconf->rx_port = (uint8_t)vals[0];
+                            ~~~~^~~
+
+Signed-off-by: Jerin Jacob <jerin.jacob@caviumnetworks.com>
+Acked-by: Cristian Dumitrescu <cristian.dumitrescu@intel.com>
+---
+ examples/qos_sched/args.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/examples/qos_sched/args.c b/examples/qos_sched/args.c
+index 476a0ee1c0..2350d64f4a 100644
+--- a/examples/qos_sched/args.c
++++ b/examples/qos_sched/args.c
+@@ -245,6 +245,7 @@ app_parse_flow_conf(const char *conf_str)
+ 	struct flow_conf *pconf;
+ 	uint64_t mask;
+ 
++	memset(vals, 0, sizeof(vals));
+ 	ret = app_parse_opt_vals(conf_str, ',', 6, vals);
+ 	if (ret < 4 || ret > 5)
+ 		return ret;
+-- 
+2.25.1
+

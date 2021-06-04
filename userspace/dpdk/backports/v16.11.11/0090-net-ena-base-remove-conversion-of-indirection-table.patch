@@ -1,0 +1,66 @@
+From af1b68c4f70f23697a99095df3dd29b8f4c41f96 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:28:57 +0200
+Subject: [PATCH 090/177] net/ena/base: remove conversion of indirection table
+
+After the indirection table is being saved in the device, there is no
+need to convert it back, as it's already saved in host_rss_ind_tbl
+array.
+
+As a result, the call to the ena_com_ind_tbl_convert_from_device() is
+not needed.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_com.c | 28 ----------------------------
+ 1 file changed, 28 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 04f5d21d6f..d500e1ddfb 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1279,30 +1279,6 @@ static int ena_com_ind_tbl_convert_to_device(struct ena_com_dev *ena_dev)
+ 	return 0;
+ }
+ 
+-static int ena_com_ind_tbl_convert_from_device(struct ena_com_dev *ena_dev)
+-{
+-	u16 dev_idx_to_host_tbl[ENA_TOTAL_NUM_QUEUES] = { (u16)-1 };
+-	struct ena_rss *rss = &ena_dev->rss;
+-	u8 idx;
+-	u16 i;
+-
+-	for (i = 0; i < ENA_TOTAL_NUM_QUEUES; i++)
+-		dev_idx_to_host_tbl[ena_dev->io_sq_queues[i].idx] = i;
+-
+-	for (i = 0; i < 1 << rss->tbl_log_size; i++) {
+-		if (rss->rss_ind_tbl[i].cq_idx > ENA_TOTAL_NUM_QUEUES)
+-			return ENA_COM_INVAL;
+-		idx = (u8)rss->rss_ind_tbl[i].cq_idx;
+-
+-		if (dev_idx_to_host_tbl[idx] > ENA_TOTAL_NUM_QUEUES)
+-			return ENA_COM_INVAL;
+-
+-		rss->host_rss_ind_tbl[i] = dev_idx_to_host_tbl[idx];
+-	}
+-
+-	return 0;
+-}
+-
+ static int ena_com_init_interrupt_moderation_table(struct ena_com_dev *ena_dev)
+ {
+ 	size_t size;
+@@ -2735,10 +2711,6 @@ int ena_com_indirect_table_get(struct ena_com_dev *ena_dev, u32 *ind_tbl)
+ 	if (!ind_tbl)
+ 		return 0;
+ 
+-	rc = ena_com_ind_tbl_convert_from_device(ena_dev);
+-	if (unlikely(rc))
+-		return rc;
+-
+ 	for (i = 0; i < (1 << rss->tbl_log_size); i++)
+ 		ind_tbl[i] = rss->host_rss_ind_tbl[i];
+ 
+-- 
+2.25.1
+

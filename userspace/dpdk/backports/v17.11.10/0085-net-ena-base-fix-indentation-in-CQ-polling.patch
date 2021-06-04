@@ -1,0 +1,39 @@
+From 295c1672fc7f31131d72ca6c70b310eb9ef82411 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:29:02 +0200
+Subject: [PATCH 085/166] net/ena/base: fix indentation in CQ polling
+
+The spaces instead of tabs were used for the indent.
+
+Fixes: 3adcba9a8987 ("net/ena: update HAL to the newer version")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 962baf6024..f128d3c4f3 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -532,11 +532,11 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
+ 	timeout = ENA_GET_SYSTEM_TIMEOUT(admin_queue->completion_timeout);
+ 
+ 	while (1) {
+-                ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
+-                ena_com_handle_admin_completion(admin_queue);
+-                ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
++		ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
++		ena_com_handle_admin_completion(admin_queue);
++		ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
+ 
+-                if (comp_ctx->status != ENA_CMD_SUBMITTED)
++		if (comp_ctx->status != ENA_CMD_SUBMITTED)
+ 			break;
+ 
+ 		if (ENA_TIME_EXPIRE(timeout)) {
+-- 
+2.25.1
+

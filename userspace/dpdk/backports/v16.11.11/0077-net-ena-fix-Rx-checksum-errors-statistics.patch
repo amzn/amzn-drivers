@@ -1,0 +1,49 @@
+From 4fdb14cb01886a5834793ed6bbfd5858c72675f7 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 28 May 2019 10:28:34 +0200
+Subject: [PATCH 077/177] net/ena: fix Rx checksum errors statistics
+
+Rx checksum flags and input errors shouldn't be updated on Tx, as it
+would work only for packets forwarding.
+
+The ierrors statistic should be updated on Rx, right after checking
+Rx checksum flags if the Rx checksum offload is enabled.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index f78402b747..3fb59bb1e9 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2008,8 +2008,10 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 		ena_rx_mbuf_prepare(mbuf_head, &ena_rx_ctx);
+ 
+ 		if (unlikely(mbuf_head->ol_flags &
+-			(PKT_RX_IP_CKSUM_BAD | PKT_RX_L4_CKSUM_BAD)))
++				(PKT_RX_IP_CKSUM_BAD | PKT_RX_L4_CKSUM_BAD))) {
++			rte_atomic64_inc(&rx_ring->adapter->drv_stats->ierrors);
+ 			++rx_ring->rx_stats.bad_csum;
++		}
+ 
+ 		mbuf_head->hash.rss = ena_rx_ctx.hash;
+ 
+@@ -2167,10 +2169,6 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 		/* Set TX offloads flags, if applicable */
+ 		ena_tx_mbuf_prepare(mbuf, &ena_tx_ctx);
+ 
+-		if (unlikely(mbuf->ol_flags &
+-			     (PKT_RX_L4_CKSUM_BAD | PKT_RX_IP_CKSUM_BAD)))
+-			rte_atomic64_inc(&tx_ring->adapter->drv_stats->ierrors);
+-
+ 		rte_prefetch0(tx_pkts[(sent_idx + 4) & ring_mask]);
+ 
+ 		/* Process first segment taking into
+-- 
+2.25.1
+

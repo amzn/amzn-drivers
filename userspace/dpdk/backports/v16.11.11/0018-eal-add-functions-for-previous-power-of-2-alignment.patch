@@ -1,0 +1,201 @@
+From 4a7d620961ad6beeab85016bebddb973804128f2 Mon Sep 17 00:00:00 2001
+From: Pavan Nikhilesh <pbhagavatula@caviumnetworks.com>
+Date: Wed, 4 Apr 2018 18:50:16 +0530
+Subject: [PATCH 018/177] eal: add functions for previous power of 2 alignment
+
+Add 32b and 64b API's to align the given integer to the previous power
+of 2. Update common auto test to include test for previous power of 2 for
+both 32 and 64bit integers.
+
+Signed-off-by: Pavan Nikhilesh <pbhagavatula@caviumnetworks.com>
+---
+ app/test/test_common.c                     | 26 ++++++
+ lib/librte_eal/common/include/rte_common.h | 92 +++++++++++++++++++---
+ 2 files changed, 107 insertions(+), 11 deletions(-)
+
+diff --git a/app/test/test_common.c b/app/test/test_common.c
+index afd2b99f95..51d652fdf9 100644
+--- a/app/test/test_common.c
++++ b/app/test/test_common.c
+@@ -32,6 +32,7 @@
+  */
+ 
+ #include <stdio.h>
++#include <inttypes.h>
+ #include <string.h>
+ #include <rte_common.h>
+ #include <rte_hexdump.h>
+@@ -97,6 +98,9 @@ test_align(void)
+ #define FAIL_ALIGN(x, i, p)\
+ 	{printf(x "() test failed: %u %u\n", i, p);\
+ 	return -1;}
++#define FAIL_ALIGN64(x, j, q)\
++	{printf(x "() test failed: %"PRIu64" %"PRIu64"\n", j, q);\
++	return -1; }
+ #define ERROR_FLOOR(res, i, pow) \
+ 		(res % pow) || 						/* check if not aligned */ \
+ 		((res / pow) != (i / pow))  		/* check if correct alignment */
+@@ -107,6 +111,7 @@ test_align(void)
+ 			val / pow != (i / pow) + 1)		/* if not aligned, hence +1 */
+ 
+ 	uint32_t i, p, val;
++	uint64_t j, q;
+ 
+ 	for (i = 1, p = 1; i <= MAX_NUM; i ++) {
+ 		if (rte_align32pow2(i) != p)
+@@ -115,6 +120,27 @@ test_align(void)
+ 			p <<= 1;
+ 	}
+ 
++	for (i = 1, p = 1; i <= MAX_NUM; i++) {
++		if (rte_align32prevpow2(i) != p)
++			FAIL_ALIGN("rte_align32prevpow2", i, p);
++		if (rte_is_power_of_2(i + 1))
++			p = i + 1;
++	}
++
++	for (j = 1, q = 1; j <= MAX_NUM ; j++) {
++		if (rte_align64pow2(j) != q)
++			FAIL_ALIGN64("rte_align64pow2", j, q);
++		if (j == q)
++			q <<= 1;
++	}
++
++	for (j = 1, q = 1; j <= MAX_NUM ; j++) {
++		if (rte_align64prevpow2(j) != q)
++			FAIL_ALIGN64("rte_align64prevpow2", j, q);
++		if (rte_is_power_of_2(j + 1))
++			q = j + 1;
++	}
++
+ 	for (p = 2; p <= MAX_NUM; p <<= 1) {
+ 
+ 		if (!rte_is_power_of_2(p))
+diff --git a/lib/librte_eal/common/include/rte_common.h b/lib/librte_eal/common/include/rte_common.h
+index f17926f3da..531e3d0344 100644
+--- a/lib/librte_eal/common/include/rte_common.h
++++ b/lib/librte_eal/common/include/rte_common.h
+@@ -202,6 +202,51 @@ rte_is_aligned(void *ptr, unsigned align)
+  */
+ #define RTE_BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+ 
++/**
++ * Combines 32b inputs most significant set bits into the least
++ * significant bits to construct a value with the same MSBs as x
++ * but all 1's under it.
++ *
++ * @param x
++ *    The integer whose MSBs need to be combined with its LSBs
++ * @return
++ *    The combined value.
++ */
++static inline uint32_t
++rte_combine32ms1b(register uint32_t x)
++{
++	x |= x >> 1;
++	x |= x >> 2;
++	x |= x >> 4;
++	x |= x >> 8;
++	x |= x >> 16;
++
++	return x;
++}
++
++/**
++ * Combines 64b inputs most significant set bits into the least
++ * significant bits to construct a value with the same MSBs as x
++ * but all 1's under it.
++ *
++ * @param v
++ *    The integer whose MSBs need to be combined with its LSBs
++ * @return
++ *    The combined value.
++ */
++static inline uint64_t
++rte_combine64ms1b(register uint64_t v)
++{
++	v |= v >> 1;
++	v |= v >> 2;
++	v |= v >> 4;
++	v |= v >> 8;
++	v |= v >> 16;
++	v |= v >> 32;
++
++	return v;
++}
++
+ /*********** Macros to work with powers of 2 ********/
+ 
+ /**
+@@ -229,15 +274,28 @@ static inline uint32_t
+ rte_align32pow2(uint32_t x)
+ {
+ 	x--;
+-	x |= x >> 1;
+-	x |= x >> 2;
+-	x |= x >> 4;
+-	x |= x >> 8;
+-	x |= x >> 16;
++	x = rte_combine32ms1b(x);
+ 
+ 	return x + 1;
+ }
+ 
++/**
++ * Aligns input parameter to the previous power of 2
++ *
++ * @param x
++ *   The integer value to algin
++ *
++ * @return
++ *   Input parameter aligned to the previous power of 2
++ */
++static inline uint32_t
++rte_align32prevpow2(uint32_t x)
++{
++	x = rte_combine32ms1b(x);
++
++	return x - (x >> 1);
++}
++
+ /**
+  * Aligns 64b input parameter to the next power of 2
+  *
+@@ -251,16 +309,28 @@ static inline uint64_t
+ rte_align64pow2(uint64_t v)
+ {
+ 	v--;
+-	v |= v >> 1;
+-	v |= v >> 2;
+-	v |= v >> 4;
+-	v |= v >> 8;
+-	v |= v >> 16;
+-	v |= v >> 32;
++	v = rte_combine64ms1b(v);
+ 
+ 	return v + 1;
+ }
+ 
++/**
++ * Aligns 64b input parameter to the previous power of 2
++ *
++ * @param v
++ *   The 64b value to align
++ *
++ * @return
++ *   Input parameter aligned to the previous power of 2
++ */
++static inline uint64_t
++rte_align64prevpow2(uint64_t v)
++{
++	v = rte_combine64ms1b(v);
++
++	return v - (v >> 1);
++}
++
+ /*********** Macros for calculating min and max **********/
+ 
+ /**
+-- 
+2.25.1
+

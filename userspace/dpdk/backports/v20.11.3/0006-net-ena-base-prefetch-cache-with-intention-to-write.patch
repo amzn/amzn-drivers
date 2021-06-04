@@ -1,0 +1,32 @@
+From 872a179c57e498013b831bf6a483c51a4feaea09 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 11 May 2021 08:45:44 +0200
+Subject: [PATCH 06/16] net/ena/base: prefetch cache with intention to write
+
+As in the v20.11 rte_prefetch0_write API was added, it should be used
+in the platform file for the definition of the macro prefetchw, instead
+of using simply prefetch0.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Amit Bernstein <amitbern@amazon.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index ddf54f0ad5..9d1426da0b 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -291,7 +291,7 @@ extern rte_atomic32_t ena_alloc_cnt;
+ #define might_sleep()
+ 
+ #define prefetch(x) rte_prefetch0(x)
+-#define prefetchw(x) prefetch(x)
++#define prefetchw(x) rte_prefetch0_write(x)
+ 
+ #define lower_32_bits(x) ((uint32_t)(x))
+ #define upper_32_bits(x) ((uint32_t)(((x) >> 16) >> 16))
+-- 
+2.25.1
+

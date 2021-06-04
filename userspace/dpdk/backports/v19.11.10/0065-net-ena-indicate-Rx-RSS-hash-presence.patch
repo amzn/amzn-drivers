@@ -1,0 +1,79 @@
+From 5ac13fc9f2876fbbdc4874be443260d58e5cebc9 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 12 May 2021 12:13:44 +0200
+Subject: [PATCH 65/72] net/ena: indicate Rx RSS hash presence
+
+To make it possible to the app to determine if the hash was calculated
+for the packet or not, the PKT_RX_RSS_HASH should be set in the mbuf's
+ol_flags.
+
+As the PMD wasn't setting that, the application couldn't check if there
+is a hash in a proper way.
+
+The hash is valid only if it's UDP or TCP and the IP packet wasn't
+fragmented.
+
+Fixes: e5df9f33db00 ("net/ena: fix passing RSS hash to mbuf")
+Cc: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Amit Bernstein <amitbern@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 88e85effc4..7acde04af3 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -51,6 +51,8 @@
+ 
+ #define ENA_MIN_RING_DESC	128
+ 
++#define ENA_PTYPE_HAS_HASH	(RTE_PTYPE_L4_TCP | RTE_PTYPE_L4_UDP)
++
+ enum ethtool_stringset {
+ 	ETH_SS_TEST             = 0,
+ 	ETH_SS_STATS,
+@@ -330,6 +332,11 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 		else
+ 			ol_flags |= PKT_RX_L4_CKSUM_GOOD;
+ 
++	if (likely((packet_type & ENA_PTYPE_HAS_HASH) && !ena_rx_ctx->frag)) {
++		ol_flags |= PKT_RX_RSS_HASH;
++		mbuf->hash.rss = ena_rx_ctx->hash;
++	}
++
+ 	mbuf->ol_flags = ol_flags;
+ 	mbuf->packet_type = packet_type;
+ }
+@@ -1973,6 +1980,8 @@ static int ena_dev_configure(struct rte_eth_dev *dev)
+ 
+ 	adapter->state = ENA_ADAPTER_STATE_CONFIG;
+ 
++	if (dev->data->dev_conf.rxmode.mq_mode & ETH_MQ_RX_RSS_FLAG)
++		dev->data->dev_conf.rxmode.offloads |= DEV_RX_OFFLOAD_RSS_HASH;
+ 	dev->data->dev_conf.txmode.offloads |= DEV_TX_OFFLOAD_MULTI_SEGS;
+ 
+ 	adapter->tx_selected_offloads = dev->data->dev_conf.txmode.offloads;
+@@ -2052,6 +2061,7 @@ static int ena_infos_get(struct rte_eth_dev *dev,
+ 
+ 	/* Inform framework about available features */
+ 	dev_info->rx_offload_capa = rx_feat;
++	dev_info->rx_offload_capa |= DEV_RX_OFFLOAD_RSS_HASH;
+ 	dev_info->rx_queue_offload_capa = rx_feat;
+ 	dev_info->tx_offload_capa = tx_feat;
+ 	dev_info->tx_queue_offload_capa = tx_feat;
+@@ -2264,8 +2274,6 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 			++rx_ring->rx_stats.bad_csum;
+ 		}
+ 
+-		mbuf->hash.rss = ena_rx_ctx.hash;
+-
+ 		rx_pkts[completed] = mbuf;
+ 		rx_ring->rx_stats.bytes += mbuf->pkt_len;
+ 	}
+-- 
+2.25.1
+

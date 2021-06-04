@@ -1,0 +1,34 @@
+From 8cc9e7cca29b8085a43c624936c19b8d16253173 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 14 Dec 2018 14:18:29 +0100
+Subject: [PATCH 043/166] net/ena: add reset reason in Rx error
+
+Whenever the driver will receive too many descriptors from the device,
+it should trigger the device reset with reset reason set to
+ENA_REGS_RESET_TOO_MANY_RX_DESCS.
+
+Fixes: 241da076b1f7 ("net/ena: adjust error checking and cleaning")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index d0f66a8048..c6d5cbca51 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1960,6 +1960,8 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 				    &ena_rx_ctx);
+ 		if (unlikely(rc)) {
+ 			RTE_LOG(ERR, PMD, "ena_com_rx_pkt error %d\n", rc);
++			rx_ring->adapter->reset_reason =
++				ENA_REGS_RESET_TOO_MANY_RX_DESCS;
+ 			rx_ring->adapter->trigger_reset = true;
+ 			return 0;
+ 		}
+-- 
+2.25.1
+

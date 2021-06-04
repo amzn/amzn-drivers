@@ -1,0 +1,38 @@
+From e1001a4ec4ea37ef00899578cbeb0ff2ac145663 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 14 Dec 2018 14:18:34 +0100
+Subject: [PATCH 048/166] net/ena: call additional doorbells if needed
+
+Before sending next packet, check if calling doorbell is needed.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index cd1a8403f6..806b9d51f1 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2409,7 +2409,16 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 
+ 		ena_tx_ctx.num_bufs = tx_info->num_of_bufs;
+ 
+-		/* Write data to device */
++		if (ena_com_is_doorbell_needed(tx_ring->ena_com_io_sq,
++					       &ena_tx_ctx)) {
++			RTE_LOG(DEBUG, PMD, "llq tx max burst size of queue %d"
++				" achieved, writing doorbell to send burst\n",
++				tx_ring->id);
++			rte_wmb();
++			ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
++		}
++
++		/* prepare the packet's descriptors to dma engine */
+ 		rc = ena_com_prepare_tx(tx_ring->ena_com_io_sq,
+ 					&ena_tx_ctx, &nb_hw_desc);
+ 		if (unlikely(rc))
+-- 
+2.25.1
+

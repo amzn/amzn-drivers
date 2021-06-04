@@ -1,0 +1,111 @@
+From 2527fcbc953b860735302187af53cb25738cf2ff Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Tue, 26 Jan 2021 19:32:25 +0100
+Subject: [PATCH 51/72] net/ena: fix Tx SQ free space assessment
+
+Before starting transmission of Tx burst, the driver checked the
+available space in the sq and limited the number of packets for
+transmission accordingly.
+The calculation was incorrect for fragmented packets and potentially had
+significantly limited the length of Tx bursts.
+
+This patch removes the assessment and pushes packets to the sq as long
+as the burst is not exhausted and space is available in the sq.
+
+Correct evaluation of the required space isn't possible before the burst
+because it depends on the number of segments of each packet.
+This patch adds per-packet space evaluation for each packet before
+attempting to process it. In case there is not enough queue space, the
+burst will just stop without error.
+
+Fixes: 2061fe41f212 ("net/ena: linearize Tx mbuf")
+Cc: stable@dpdk.org
+
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 35 ++++++++++++++++++++++++++---------
+ 1 file changed, 26 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 9cf0f96b86..97591a877c 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2382,8 +2382,8 @@ static void ena_update_hints(struct ena_adapter *adapter,
+ 	}
+ }
+ 
+-static int ena_check_and_linearize_mbuf(struct ena_ring *tx_ring,
+-					struct rte_mbuf *mbuf)
++static int ena_check_space_and_linearize_mbuf(struct ena_ring *tx_ring,
++					      struct rte_mbuf *mbuf)
+ {
+ 	struct ena_com_dev *ena_dev;
+ 	int num_segments, header_len, rc;
+@@ -2393,13 +2393,21 @@ static int ena_check_and_linearize_mbuf(struct ena_ring *tx_ring,
+ 	header_len = mbuf->data_len;
+ 
+ 	if (likely(num_segments < tx_ring->sgl_size))
+-		return 0;
++		goto checkspace;
+ 
+ 	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV &&
+ 	    (num_segments == tx_ring->sgl_size) &&
+ 	    (header_len < tx_ring->tx_max_header_size))
+-		return 0;
++		goto checkspace;
+ 
++	/* Checking for space for 2 additional metadata descriptors due to
++	 * possible header split and metadata descriptor. Linearization will
++	 * be needed so we reduce the segments number from num_segments to 1
++	 */
++	if (!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq, 3)) {
++		PMD_DRV_LOG(DEBUG, "Not enough space in the tx queue\n");
++		return ENA_COM_NO_MEM;
++	}
+ 	++tx_ring->tx_stats.linearize;
+ 	rc = rte_pktmbuf_linearize(mbuf);
+ 	if (unlikely(rc)) {
+@@ -2409,7 +2417,19 @@ static int ena_check_and_linearize_mbuf(struct ena_ring *tx_ring,
+ 		return rc;
+ 	}
+ 
+-	return rc;
++	return 0;
++
++checkspace:
++	/* Checking for space for 2 additional metadata descriptors due to
++	 * possible header split and metadata descriptor
++	 */
++	if (!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
++					  num_segments + 2)) {
++		PMD_DRV_LOG(DEBUG, "Not enough space in the tx queue\n");
++		return ENA_COM_NO_MEM;
++	}
++
++	return 0;
+ }
+ 
+ static void ena_tx_map_mbuf(struct ena_ring *tx_ring,
+@@ -2496,7 +2516,7 @@ static int ena_xmit_mbuf(struct ena_ring *tx_ring, struct rte_mbuf *mbuf)
+ 	int nb_hw_desc;
+ 	int rc;
+ 
+-	rc = ena_check_and_linearize_mbuf(tx_ring, mbuf);
++	rc = ena_check_space_and_linearize_mbuf(tx_ring, mbuf);
+ 	if (unlikely(rc))
+ 		return rc;
+ 
+@@ -2607,9 +2627,6 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 		return 0;
+ 	}
+ 
+-	nb_pkts = RTE_MIN(ena_com_free_q_entries(tx_ring->ena_com_io_sq),
+-		nb_pkts);
+-
+ 	for (sent_idx = 0; sent_idx < nb_pkts; sent_idx++) {
+ 		if (ena_xmit_mbuf(tx_ring, tx_pkts[sent_idx]))
+ 			break;
+-- 
+2.25.1
+

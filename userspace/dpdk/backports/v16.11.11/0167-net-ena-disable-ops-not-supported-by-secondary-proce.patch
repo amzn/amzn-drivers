@@ -1,0 +1,53 @@
+From 85cb44d5f3d118982b947261a05a60427f410673 Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Wed, 12 May 2021 12:13:46 +0200
+Subject: [PATCH 167/177] net/ena: disable ops not supported by secondary
+ process
+
+For dev_ops not supported by the secondary process, either return -EPERM
+or return without doing anything. In both cases log a warning.
+
+It's still application's responsibility to avoid calls like that and
+those changes are for debugging/informational purposes.
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 7b11227ae4..44a22fd209 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1010,6 +1010,12 @@ static int ena_start(struct rte_eth_dev *dev)
+ 	uint64_t ticks;
+ 	int rc = 0;
+ 
++	/* Cannot allocate memory in secondary process */
++	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
++		PMD_DRV_LOG(WARNING, "dev_start not supported in secondary.\n");
++		return -EPERM;
++	}
++
+ 	rc = ena_check_valid_conf(adapter);
+ 	if (rc)
+ 		return rc;
+@@ -1056,6 +1062,12 @@ static void ena_stop(struct rte_eth_dev *dev)
+ 	struct ena_com_dev *ena_dev = &adapter->ena_dev;
+ 	int rc;
+ 
++	/* Cannot free memory in secondary process */
++	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
++		PMD_DRV_LOG(WARNING, "dev_stop not supported in secondary.\n");
++		return;
++	}
++
+ 	rte_timer_stop_sync(&adapter->timer_wd);
+ 	ena_queue_stop_all(dev, ENA_RING_TYPE_TX);
+ 	ena_queue_stop_all(dev, ENA_RING_TYPE_RX);
+-- 
+2.25.1
+
