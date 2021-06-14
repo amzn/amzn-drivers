@@ -726,7 +726,6 @@ int efa_com_dealloc_uar(struct efa_com_dev *edev,
 	return 0;
 }
 
-#ifdef HAVE_HW_STATS
 int efa_com_get_stats(struct efa_com_dev *edev,
 		      struct efa_com_get_stats_params *params,
 		      union efa_com_get_stats_result *result)
@@ -778,4 +777,3 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 
 	return 0;
 }
-#endif

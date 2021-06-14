@@ -118,46 +118,4 @@ struct efa_ibv_ex_query_device_resp {
 	__u32 device_caps;
 };
 
-#ifdef HAVE_CUSTOM_COMMANDS
-/******************************************************************************/
-/*                            EFA CUSTOM COMMANDS                             */
-/******************************************************************************/
-#include <rdma/ib_user_verbs.h>
-
-enum efa_everbs_commands {
-	EFA_EVERBS_CMD_GET_AH = 1,
-	EFA_EVERBS_CMD_GET_EX_DEV_ATTRS,
-	EFA_EVERBS_CMD_MAX,
-};
-
-struct efa_everbs_get_ah {
-	__u32 comp_mask;
-	__u16 pdn;
-	__u8 reserved_30[2];
-	__aligned_u64 response;
-	__aligned_u64 user_handle;
-	__u8 gid[16];
-};
-
-struct efa_everbs_get_ah_resp {
-	__u32 comp_mask;
-	__u16 efa_address_handle;
-	__u8 reserved_30[2];
-};
-
-struct efa_everbs_get_ex_dev_attrs {
-	__u32 comp_mask;
-	__u8 reserved_20[4];
-	__aligned_u64 response;
-};
-
-struct efa_everbs_get_ex_dev_attrs_resp {
-	__u32 comp_mask;
-	__u32 max_sq_wr;
-	__u32 max_rq_wr;
-	__u16 max_sq_sge;
-	__u16 max_rq_sge;
-};
-#endif /* HAVE_CUSTOM_COMMANDS */
-
 #endif /* EFA_ABI_USER_H */

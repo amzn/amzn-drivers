@@ -89,23 +89,7 @@ try_compile_prog_test()
 
 try_compile("#include <rdma/ib_umem.h>" "struct ib_umem_chunk chunk;" "" "HAVE_UMEM_SCATTERLIST_IF")
 
-try_compile_dev_or_ops(get_port_immutable efa_get_port_immutable
-  "int efa_get_port_immutable(struct ib_device *ibdev, u8 port_num, struct ib_port_immutable *immutable) { return 0; }"
-  HAVE_GET_PORT_IMMUTABLE "")
-
-try_compile_dev_or_ops(create_ah efa_kzalloc_ah
-  "struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd, struct ib_ah_attr *ah_attr, struct ib_udata *udata) { return NULL; }"
-  HAVE_CREATE_AH_UDATA "")
-
-try_compile_dev_or_ops(query_device efa_query_device
-  "int efa_query_device(struct ib_device *ibdev, struct ib_device_attr *props, struct ib_udata *udata) { return 0; }"
-  HAVE_IB_QUERY_DEVICE_UDATA "")
-
 try_compile("" "struct ib_cq_init_attr attr;" HAVE_CREATE_CQ_ATTR "")
-
-try_compile_dev_or_ops(alloc_hw_stats efa_alloc_hw_stats
-  "struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num) { return NULL; }"
-  HAVE_HW_STATS "")
 
 try_compile("" "struct rdma_ah_attr attr;" HAVE_CREATE_AH_RDMA_ATTR "")
 
@@ -320,10 +304,6 @@ try_compile("" "int a = IB_QPT_DRIVER;" HAVE_IB_QPT_DRIVER "")
 
 try_compile("" "ib_is_udata_cleared(NULL, 0, 0);" HAVE_IB_IS_UDATA_CLEARED "")
 
-try_compile_dev_or_ops(create_ah efa_kzalloc_ah
-  "struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd, struct ib_ah_attr *ah_attr) { return NULL; }"
-  HAVE_CREATE_AH_NO_UDATA "")
-
 try_compile(""
   "
 struct ib_device dev = {
@@ -340,21 +320,8 @@ struct ib_mr mr = {
   "
   HAVE_IB_MR_LENGTH "")
 
-try_compile("" "ib_mtu_int_to_enum(0);" HAVE_IB_MTU_INT_TO_ENUM "")
-
-try_compile(""
-  "
-struct ib_device dev = {
-  .specs_root = NULL,
-};
-  "
-  HAVE_UVERBS_CMD_HDR_FIX "")
-
 try_compile("#include <linux/pci_ids.h>" "int a = PCI_VENDOR_ID_AMAZON;"
   HAVE_PCI_VENDOR_ID_AMAZON "")
-
-try_compile("#include <linux/pci.h>" "pci_irq_vector(NULL, 0);"
-  HAVE_PCI_IRQ_VECTOR "")
 
 try_compile("#include <rdma/ib_umem.h>" "ib_umem_get(NULL, 0, 0, 0);"
   HAVE_IB_UMEM_GET_NO_DMASYNC "")

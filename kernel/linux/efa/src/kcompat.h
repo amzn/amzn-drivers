@@ -8,14 +8,6 @@
 
 #include "config.h"
 
-#if defined(HAVE_CREATE_AH_NO_UDATA) || !defined(HAVE_IB_QUERY_DEVICE_UDATA)
-#define HAVE_CUSTOM_COMMANDS
-#endif
-
-#ifndef ALIGN_DOWN
-#define ALIGN_DOWN(x, a)	__ALIGN_KERNEL((x) - ((a) - 1), (a))
-#endif
-
 #ifndef HAVE_IB_IS_UDATA_CLEARED
 #include <linux/string.h>
 #include <linux/slab.h>
