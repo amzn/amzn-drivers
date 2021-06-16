@@ -27,6 +27,10 @@ The driver was tested on the following distributions:
 * SUSE Linux Enterprise 15 SP2
 * openSUSE Leap 15.2
 
+## r1.12.2 release notes
+* Fix mmap flow for applications compiled with EXEC permissions
+* Couple of packaging fixes
+
 ## r1.12.1 release notes
 * Limit number of CMake processes to prevent exhaustion of system resources
 

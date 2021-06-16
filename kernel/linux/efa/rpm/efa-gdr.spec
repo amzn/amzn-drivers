@@ -92,6 +92,10 @@ install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Jun 16 2021 Gal Pressman <galpress@amazon.com> - 1.12.2
+- Fix mmap flow for applications compiled with EXEC permissions
+- Couple of packaging fixes
+
 * Mon May 10 2021 Gal Pressman <galpress@amazon.com> - 1.12.1
 - Limit number of CMake processes to prevent exhaustion of system resources
 
