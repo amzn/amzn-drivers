@@ -15,6 +15,13 @@ URL:		https://github.com/amzn/amzn-drivers/
 Source0:	%{name}-%{version}.tar
 
 Requires:	dkms %kernel_module_package_buildreqs cmake
+# RHEL 8.4 has a broken dependency between cmake and libarchive which
+# causes libarchive to not be updated properly in the update case. Express the
+# dependency so that our install does not break.
+%if 0%{?rhel} >= 8
+Requires: libarchive >= 3.3.3
+%endif
+
 Conflicts:	efa
 
 %define install_path /usr/src/%{driver_name}-%{version}
