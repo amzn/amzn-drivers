@@ -29,8 +29,10 @@ Conflicts:	efa
 cd %{install_path}
 dkms add -m %{driver_name} -v %{driver_version}
 for kernel in $(/bin/ls /lib/modules); do
-	dkms build -m %{driver_name} -v %{driver_version} -k $kernel
-	dkms install --force -m %{driver_name} -v %{driver_version} -k $kernel
+	if [ -e /lib/modules/$kernel/build/include ]; then
+		dkms build -m %{driver_name} -v %{driver_version} -k $kernel
+		dkms install --force -m %{driver_name} -v %{driver_version} -k $kernel
+	fi
 done
 
 %preun
