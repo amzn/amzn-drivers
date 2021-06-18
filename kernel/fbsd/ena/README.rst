@@ -4,7 +4,7 @@ FreeBSD kernel driver for Elastic Network Adapter (ENA) family
 Version
 -------
 
-``2.3.1``
+``2.4.0``
 
 Supported FreeBSD Versions
 --------------------------
@@ -684,8 +684,7 @@ RSS
 * The driver configures RSS settings using the AQ SetFeature command
   (``ENA_ADMIN_RSS_HASH_FUNCTION``, ``ENA_ADMIN_RSS_HASH_INPUT`` and
   ``ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG`` properties).
-* The driver sets default CRC32 function and in ``2.3.1`` it cannot be
-  configured manually.
+* The driver sets default CRC32 function and it cannot be configured manually.
 
 DATA PATH
 ---------

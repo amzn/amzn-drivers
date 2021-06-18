@@ -9,17 +9,34 @@ The driver was verified on the following distributions:
 **Releases:**
 * FreeBSD 11.4
 * FreeBSD 12.2
-* FreeBSD 13.0-BETA3
+* FreeBSD 13.0
 
 **Development:**
-+-----------+---------+--------------+
-| Branch    | ID      | hash         |
-+-----------+---------+--------------+
-| stable/11 | n215703 | a069809d907d |
-| stable/12 | n232729 | 2b1f87a83c1c |
-| stable/13 | n244573 | bef16fad3bd2 |
-| HEAD      | n244897 | fae028dd97d8 |
-+-----------+---------+--------------+
++-----------+-------------+
+| Branch    | SHA         |
++-----------+-------------+
+| stable/11 | 3a5f854f458 |
+| stable/12 | 63312dd6d12 |
+| stable/13 | ad2c95130b4 |
+| HEAD      | 8fa5c577de3 |
++-----------+--------------+
+
+## r2.4.0 release notes
+**New Features**
+* Large LLQ headers support. In order to use LLQ with packet headers
+  greater than 96B, the large LLQ headers should be enabled by modyfing
+  the sysctl node: hw.ena.force_large_llq_header.
+* Rework logging system, to be able to compile out logs on the IO path
+  and simplify the logging levels.
+
+**Bug Fixes**
+* Hide sysctl nodes for the unused queues.
+
+**Minor Changes**
+* Style adjustments.
+* Convert README document into reStructuredText format and update the
+  installation section regarding git.
+* Remove surplus NULL checks when freeing resources.
 
 ## r2.3.1 release notes
 **Bug Fixes**
