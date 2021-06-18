@@ -68,34 +68,89 @@ corresponding to currently installed OS version are required.
 
 Depending on user configuration the sources retrieval process may vary,
 however, on a fresh installation on EC2 instance, the necessary steps
-may look like shown below (some may require super user privileges):
+may look like shown below (some may require super user privileges).
+
+When using the latest kernel, the git tool should be used instead of the
+subversion tool, as the svn support has been dropped by the FreeBSD project.
+Still, some AWS AMIs could be relying on subversion kernel, so sometimes it's
+more convenient to use it in order to get the right kernel. In that situation,
+please refer to the "Subversion - legacy" section in this file. In all other
+cases, please go to the "Git" section.
+
+Git
+"""
+
+.. code-block:: sh
+
+  pkg install git
+
+  # ---- Get the sources for the current installation. ----
+  # Getting sources may vary between system versions. The resources need
+  # to be adjusted accordingly. Some of the examples can be found below.
+
+  # For stable 11:
+  git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch stable/11
+
+  # For release (FreeBSD 11.4)
+  git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch releng/11.4
+
+  # For CURRENT (unstable)
+  git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch main
+
+  # To get the version of the running kernel, the command below should be used:
+  uname -a
+  # Sample output:
+  #   FreeBSD <host> 14.0-CURRENT FreeBSD 14.0-CURRENT #0 main-n246975-8d5c7813061: <current_date>
+  # Where:
+  #   - 'main' stands for the branch name (this should be used as argument to
+  #     the '--branch' parameter in the git clone command
+  #   - 'n246975' stands for the sequential commit number in the branch
+  #   - '8d5c7813061' stands for the explicit commit ID from which the kernel
+  #     was built. After cloning the development branch, one should checkout to
+  #     this commit to be fully aligned with the running kernel.
+
+  # In this example, we need to pull kernel tree on the 'main' branch and
+  # checkout the commit with ID '8d5c7813061'. It can be achieved with the
+  # commands below:
+  git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch main
+  cd /usr/src
+  git checkout 8d5c7813061
+
+  # If the command output is lacking the commit and branch information, then
+  # just the releng branch with the visible FreeBDS version should be used -
+  # like releng/13.0, releng/12.2 etc.
+
+Subversion - legacy
+"""""""""""""""""""
 
 .. code-block:: sh
 
   pkg install subversion
   mkdir /usr/src
 
-  # Get sources for current installation. This step may require
-  # accepting certificate.
+  # ---- Get sources for the current installation. ----
+  # This step may require accepting certificate.
   # Getting sources may vary between system versions. The resources need
-  # to be adjusted accordingly.
+  # to be adjusted accordingly. Some of the examples can be found below.
+
   # For stable:
-  svn checkout https://svn0.us-east.FreeBSD.org/base/stable/11/ /usr/src
+  svn checkout https://svn.freebsd.org/base/stable/11/ /usr/src
 
   # For release (FreeBSD 11.1)
-  svn checkout https://svn0.us-east.FreeBSD.org/base/releng/11.1/ /usr/src
+  svn checkout https://svn.freebsd.org/base/releng/11.1/ /usr/src
 
   # For -CURRENT (unstable)
-  svn checkout https://svn0.us-east.freebsd.org/base/head /usr/src
+  svn checkout https://svn.freebsd.org/base/head /usr/src
 
-  # For kernel version currently running in the system
-  uname -a # provides revision of running kernel
+  # To get the version of the running kernel, the command below should be used:
+  uname -a
   # Sample output:
-  # FreeBSD host 12.0-CURRENT FreeBSD 12.0-CURRENT #0 r316750: current_date
+  # FreeBSD <host> 12.0-CURRENT FreeBSD 12.0-CURRENT #0 r316750: <current_date>
   # r316750 is indicating revision of current kernel
 
-  # In this example, we have to pull kernel tree with revision r316750 from head:
-  svn checkout -r316750 https://svn0.us-east.freebsd.org/base/head /usr/src
+  # In this example, we have to pull kernel tree with revision r316750 from the
+  # head:
+  svn checkout -r316750 https://svn.freebsd.org/base/head /usr/src
   # r316750 must be changed to the revision number from the 'uname -a' output
 
 Compilation
