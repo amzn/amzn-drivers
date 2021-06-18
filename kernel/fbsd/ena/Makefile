@@ -49,6 +49,10 @@ CFLAGS  += -I${.CURDIR}/ena_com
 # Enable debug messages and sysctls
 # CFLAGS  += -DENA_DEBUG
 
+# Enable logging on Tx/Rx data path.
+# When disabled, ena_log_io calls remain compiled out for performance purposes.
+# CFLAGS += -DENA_LOG_IO_ENABLE
+
 # Add netmap support in the driver.
 # Uncomment this only if the netmap is enabled in the kernel.
 # CFLAGS += -DDEV_NETMAP
