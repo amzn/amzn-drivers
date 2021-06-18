@@ -222,47 +222,33 @@ Scope:
 Input values:
   ``int``
 Default value:
-  ``3``
+  ``2``
 Description:
-  Bitmap field describing logs which should be enabled in the driver.
-  Default value (``3``) is the bitmap combination of two log levels:
-  ``ALERT`` and ``WARNING``. The input value for the sysctl an int number,
-  but it should be converted from the appropriate bitmap (please
-  see below).
+  The higher the logging level, the more logs will be printed out.
+  Default value (``2``) reports errors, warnings and is verbose about driver
+  operation.
 
-  0 means all extra logs are disabled and only error logs will be
-  printed out.
+  Value of ``0`` means that only errors essential to the driver operation will
+  be printed out.
 
-  The possible flags are:
+  The possible values are:
 
-  * ``0x001`` - ``ENA_ALERT`` - Enable ena_com error logs and extra error
-    messages.
-  * ``0x002`` - ``ENA_WARNING`` - Enable logs for non critical errors.
-  * ``0x004`` - ``ENA_INFO`` - Makes the driver more verbose about its
-    action.
-  * ``0x008`` - ``ENA_DBG`` - Enable general debug logs.
-  * ``0x010`` - ``ENA_TXPTH`` - Enables Tx path tracing - requires
-    ``ENA_DBG`` flag.
-  * ``0x020`` - ``ENA_RXPTH`` - Enables Rx path tracing - requires
-    ``ENA_DBG`` flag.
-  * ``0x040`` - ``ENA_RSC`` - Enables Tx/Rx resources tracing -
-    requires ``ENA_RXPTH`` or ``ENA_TXPTH`` flags and ``ENA_DBG`` flag.
-  * ``0x080`` - ``ENA_IOQ`` - Enables detailed information regarding
-    the IO queues - requires ``ENA_INFO`` flag.
-  * ``0x100`` - ``ENA_ADMQ`` - Enables detailed information about admin
-    queue actions - requires ``ENA_INFO`` flag.
-  * ``0x200`` - ``ENA_NETMAP`` - Enables extra logs for driver working in
-    the netmap mode.
+  * ``0`` - ``ENA_ERR`` - Enable driver error messages and ena_com error logs.
+  * ``1`` - ``ENA_WARN`` - Enable logs for non-critical errors.
+  * ``2`` - ``ENA_INFO`` - Make the driver more verbose about its action.
+  * ``3`` - ``ENA_DBG`` - Enable debug logs.
+
+  NOTE:
+    In order to enable logging on the Tx/Rx data path, see the
+    `Compilation flags`_ section of this document.
+
 Example:
-  To enable extra alerts, warnings, and to trace ENA Tx path, the
-  combination of ``ENA_ALERT | ENA_WARNING | ENA_DBG | ENA_TXPTH`` is
-  needed. It gives hex mask: ``0x01b``, which when converted to decimal
-  value, will give ``27``. To update the logging level, the below command
+  To enable logs for both essential and non-critical errors, the below command
   should be used:
 
   .. code-block:: sh
 
-    sysctl hw.ena.log_level=27
+    sysctl hw.ena.log_level=1
 
 Number of the currently allocated and used IO queues
 """"""""""""""""""""""""""""""""""""""""""""""""""""
@@ -442,6 +428,18 @@ The supplied Makefile provides multiple optional compilation flags, allowing
 for customization of the driver operation. All of those flags are by default
 disabled and require the user to manually uncomment relevant lines. Those
 include:
+
+* ``ENA_LOG_IO_ENABLE``
+
+  The driver provides an ability to control log verbosity at runtime, through
+  the sysctl interface. However, by default, the Tx/Rx data path logs remain
+  compiled out, even when matching log verbosity is set. This is dictated by
+  performance reasons. In order to enable logging on the data path,
+  the following line should be uncommented:
+
+  .. code-block:: Makefile
+
+    # CFLAGS += -DENA_LOG_IO_ENABLE
 
 * ``DEV_NETMAP``
 
