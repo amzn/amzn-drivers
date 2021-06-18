@@ -435,20 +435,38 @@ ENA Source Code Directory Structure
   * ``ena_plat.h``
       Platform dependent code for FreeBSD.
 
-Netmap
-------
+Compilation flags
+-----------------
 
-The driver supports the `netmap <https://github.com/luigirizzo/netmap/>`_
-framework. In order to use it, the ``Makefile`` of the module should be modified
-and it needs uncomment of the line:
+The supplied Makefile provides multiple optional compilation flags, allowing
+for customization of the driver operation. All of those flags are by default
+disabled and require the user to manually uncomment relevant lines. Those
+include:
 
-.. code-block:: Makefile
+* ``DEV_NETMAP``
 
-  # CFLAGS += -DDEV_NETMAP
+  The driver supports the `netmap <https://github.com/luigirizzo/netmap/>`_
+  framework. In order to use this feature, the following line should be
+  uncommented:
 
-The kernel must be also built with ``DEV_NETMAP`` option in order to be able to
-use the driver with the netmap support, which is default for the ``amd64`` but
-not for the ``aarch64``.
+  .. code-block:: Makefile
+
+    # CFLAGS += -DDEV_NETMAP
+
+  The kernel must also be built with ``DEV_NETMAP`` option in order to be able
+  to use the driver with the netmap support, which is default for ``amd64``, but
+  not for ``aarch64``.
+
+* ``RSS``
+
+  The driver is able to work with kernel side Receive Side Scaling support. In
+  order to use this feature, the following line should be uncommented:
+
+  .. code-block:: Makefile
+
+    # CFLAGS += -DRSS
+
+  This flag should only be used if ``option RSS`` is enabled in the kernel.
 
 Management Interface
 --------------------
