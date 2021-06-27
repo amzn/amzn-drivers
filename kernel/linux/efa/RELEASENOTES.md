@@ -1,31 +1,7 @@
 # EFA Linux Kernel Driver Release Notes
 
 ## Supported Kernel Versions and Distributions
-The driver was tested on the following distributions:
-
-**Amazon Linux:**
-* Amazon Linux
-* Amazon Linux 2
-
-**CentOS:**
-* CentOS 7
-* CentOS 8
-
-**Red Hat Enterprise Linux:**
-* Red Hat Enterprise Linux 7.6
-* Red Hat Enterprise Linux 7.7
-* Red Hat Enterprise Linux 7.8
-* Red Hat Enterprise Linux 8.2
-* Red Hat Enterprise Linux 8.3
-
-**Ubuntu:**
-* Ubuntu 16.04
-* Ubuntu 18.04
-* Ubuntu 20.04
-
-**SuSE:**
-* SUSE Linux Enterprise 15 SP2
-* openSUSE Leap 15.2
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
 ## r1.12.3 release notes
 * Fix potential NULL pointer dereference when using GDR on newer kernel version
