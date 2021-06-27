@@ -92,6 +92,9 @@ install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Sun Jun 27 2021 Gal Pressman <galpress@amazon.com> - 1.12.3
+- Fix potential NULL pointer dereference when using GDR on newer kernel version
+
 * Wed Jun 16 2021 Gal Pressman <galpress@amazon.com> - 1.12.2
 - Fix mmap flow for applications compiled with EXEC permissions
 - Couple of packaging fixes

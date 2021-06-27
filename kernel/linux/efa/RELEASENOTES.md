@@ -27,6 +27,9 @@ The driver was tested on the following distributions:
 * SUSE Linux Enterprise 15 SP2
 * openSUSE Leap 15.2
 
+## r1.12.3 release notes
+* Fix potential NULL pointer dereference when using GDR on newer kernel version
+
 ## r1.12.2 release notes
 * Fix mmap flow for applications compiled with EXEC permissions
 * Couple of packaging fixes
