@@ -10,7 +10,7 @@ while true; do
 	if [[ $err -ne 0 ]]; then
 		break
 	else
-		# Docker doesn't reap zombies by default, handle them explictly
+		# Docker doesn't reap zombies by default, handle them explicitly
 		if [[ $(cat /proc/$pid/stat 2>/dev/null | awk '{ print $3 }') == "Z" ]]; then
 			break
 		fi
