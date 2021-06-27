@@ -2243,7 +2243,16 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 	params.page_shift = order_base_2(pg_sz);
 #ifdef HAVE_IB_UMEM_NUM_DMA_BLOCKS
+#ifdef HAVE_EFA_GDR
+	if (mr->umem)
+		params.page_num = ib_umem_num_dma_blocks(mr->umem, pg_sz);
+	else
+		params.page_num = DIV_ROUND_UP(length +
+					       (virt_addr & (pg_sz - 1)),
+					       pg_sz);
+#else
 	params.page_num = ib_umem_num_dma_blocks(mr->umem, pg_sz);
+#endif
 #else
 	params.page_num = DIV_ROUND_UP(length + (virt_addr & (pg_sz - 1)),
 				       pg_sz);
