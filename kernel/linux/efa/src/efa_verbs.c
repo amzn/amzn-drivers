@@ -2164,7 +2164,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 err_unmap:
 #ifdef HAVE_EFA_GDR
 	if (mr->nvmem)
-		nvmem_release(dev, mr->nvmem, false);
+		nvmem_put(mr->nvmem->ticket, false);
 	else
 		ib_umem_release(mr->umem);
 #else
