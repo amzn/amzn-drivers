@@ -6,6 +6,8 @@
 #ifndef _KCOMPAT_H_
 #define _KCOMPAT_H_
 
+#include <linux/types.h>
+
 #include "config.h"
 
 #ifndef HAVE_IB_IS_UDATA_CLEARED
@@ -176,6 +178,12 @@ static inline void __rdma_umem_block_iter_start(struct ib_block_iter *biter,
 #define rdma_umem_for_each_dma_block(umem, biter, pgsz)                        \
 	for (__rdma_umem_block_iter_start(biter, umem, pgsz);                  \
 	     __rdma_block_iter_next(biter);)
+#endif
+
+#ifdef HAVE_U32_PORT
+typedef u32 port_t;
+#else
+typedef u8 port_t;
 #endif
 
 #endif /* _KCOMPAT_H_ */

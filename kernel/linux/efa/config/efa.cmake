@@ -394,5 +394,9 @@ try_compile_dev_or_ops(create_user_ah efa_create_ah
   "int efa_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr, struct ib_udata *udata) { return 0; }"
   HAVE_UVERBS_CMD_MASK_NOT_NEEDED "")
 
+try_compile_dev_or_ops(query_port efa_query_port
+  "int efa_query_port(struct ib_device *ibdev, u32 port, struct ib_port_attr *props) { return 0; }"
+  HAVE_U32_PORT "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")

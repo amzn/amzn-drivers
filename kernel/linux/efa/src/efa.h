@@ -132,14 +132,14 @@ struct efa_ah {
 int efa_query_device(struct ib_device *ibdev,
 		     struct ib_device_attr *props,
 		     struct ib_udata *udata);
-int efa_query_port(struct ib_device *ibdev, u8 port,
+int efa_query_port(struct ib_device *ibdev, port_t port,
 		   struct ib_port_attr *props);
 int efa_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask,
 		 struct ib_qp_init_attr *qp_init_attr);
-int efa_query_gid(struct ib_device *ibdev, u8 port, int index,
+int efa_query_gid(struct ib_device *ibdev, port_t port, int index,
 		  union ib_gid *gid);
-int efa_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+int efa_query_pkey(struct ib_device *ibdev, port_t port, u16 index,
 		   u16 *pkey);
 #ifdef HAVE_ALLOC_PD_NO_UCONTEXT
 int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
@@ -199,7 +199,7 @@ int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 #else
 int efa_dereg_mr(struct ib_mr *ibmr);
 #endif
-int efa_get_port_immutable(struct ib_device *ibdev, u8 port_num,
+int efa_get_port_immutable(struct ib_device *ibdev, port_t port_num,
 			   struct ib_port_immutable *immutable);
 int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata);
 #ifdef HAVE_UCONTEXT_CORE_ALLOCATION
@@ -271,9 +271,9 @@ struct ib_mr *efa_get_dma_mr(struct ib_pd *ibpd, int acc);
 int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_udata *udata);
 enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
-					 u8 port_num);
-struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num);
+					 port_t port_num);
+struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, port_t port_num);
 int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
-		     u8 port_num, int index);
+		     port_t port_num, int index);
 
 #endif /* _EFA_H_ */
