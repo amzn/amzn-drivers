@@ -277,7 +277,12 @@ static const struct ib_device_ops efa_dev_ops = {
 	.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION,
 #endif
 
+#ifdef HAVE_SPLIT_STATS_ALLOC
+	.alloc_hw_port_stats = efa_alloc_hw_port_stats,
+	.alloc_hw_device_stats = efa_alloc_hw_device_stats,
+#else
 	.alloc_hw_stats = efa_alloc_hw_stats,
+#endif
 #ifdef HAVE_PD_CORE_ALLOCATION
 	.alloc_pd = efa_alloc_pd,
 #else

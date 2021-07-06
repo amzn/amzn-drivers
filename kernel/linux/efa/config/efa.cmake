@@ -398,5 +398,9 @@ try_compile_dev_or_ops(query_port efa_query_port
   "int efa_query_port(struct ib_device *ibdev, u32 port, struct ib_port_attr *props) { return 0; }"
   HAVE_U32_PORT "")
 
+try_compile_dev_or_ops(alloc_hw_port_stats efa_alloc_hw_port_stats
+  "struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num) { return 0; }"
+  HAVE_SPLIT_STATS_ALLOC "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")

@@ -2652,12 +2652,27 @@ int efa_destroy_ah(struct ib_ah *ibah)
 #endif
 }
 
+#ifdef HAVE_SPLIT_STATS_ALLOC
+struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev, port_t port_num)
+#else
 struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, port_t port_num)
+#endif
 {
 	return rdma_alloc_hw_stats_struct(efa_stats_names,
 					  ARRAY_SIZE(efa_stats_names),
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
+
+#ifdef HAVE_SPLIT_STATS_ALLOC
+struct rdma_hw_stats *efa_alloc_hw_device_stats(struct ib_device *ibdev)
+{
+	/*
+	 * It is probably a bug that efa reports its port stats as device
+	 * stats
+	 */
+	return efa_alloc_hw_port_stats(ibdev, 0);
+}
+#endif
 
 int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 		     port_t port_num, int index)
