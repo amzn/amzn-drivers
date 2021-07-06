@@ -61,8 +61,6 @@ the .ko file and making sure the following line is present:
 gdr:            Y
 ...
 
-And the depends line contains the nvidia module.
-
 For more information regarding GPUDirect RDMA, visit:
 https://docs.nvidia.com/cuda/gpudirect-rdma/index.html
 

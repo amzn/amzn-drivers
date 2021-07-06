@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2019-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2019-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
+
+#include <linux/module.h>
 
 #include "efa_gdr.h"
 
@@ -50,6 +52,58 @@ static struct efa_nvmem *ticket_to_nvmem(u64 ticket)
 	return NULL;
 }
 
+static int nvmem_get_fp(struct efa_nvmem *nvmem)
+{
+	nvmem->ops.get_pages = symbol_get(nvidia_p2p_get_pages);
+	if (!nvmem->ops.get_pages)
+		goto err_out;
+
+	nvmem->ops.put_pages = symbol_get(nvidia_p2p_put_pages);
+	if (!nvmem->ops.put_pages)
+		goto err_put_get_pages;
+
+	nvmem->ops.dma_map_pages = symbol_get(nvidia_p2p_dma_map_pages);
+	if (!nvmem->ops.dma_map_pages)
+		goto err_put_put_pages;
+
+	nvmem->ops.dma_unmap_pages = symbol_get(nvidia_p2p_dma_unmap_pages);
+	if (!nvmem->ops.dma_unmap_pages)
+		goto err_put_dma_map_pages;
+
+	nvmem->ops.free_dma_mapping = symbol_get(nvidia_p2p_free_dma_mapping);
+	if (!nvmem->ops.free_dma_mapping)
+		goto err_put_dma_unmap_pages;
+
+	nvmem->ops.free_page_table = symbol_get(nvidia_p2p_free_page_table);
+	if (!nvmem->ops.free_page_table)
+		goto err_put_free_dma_mapping;
+
+	return 0;
+
+err_put_free_dma_mapping:
+	symbol_put(nvidia_p2p_free_dma_mapping);
+err_put_dma_unmap_pages:
+	symbol_put(nvidia_p2p_dma_unmap_pages);
+err_put_dma_map_pages:
+	symbol_put(nvidia_p2p_dma_map_pages);
+err_put_put_pages:
+	symbol_put(nvidia_p2p_put_pages);
+err_put_get_pages:
+	symbol_put(nvidia_p2p_get_pages);
+err_out:
+	return -EINVAL;
+}
+
+static void nvmem_put_fp(void)
+{
+	symbol_put(nvidia_p2p_free_page_table);
+	symbol_put(nvidia_p2p_free_dma_mapping);
+	symbol_put(nvidia_p2p_dma_unmap_pages);
+	symbol_put(nvidia_p2p_dma_map_pages);
+	symbol_put(nvidia_p2p_put_pages);
+	symbol_put(nvidia_p2p_get_pages);
+}
+
 int nvmem_put(u64 ticket, bool in_cb)
 {
 	struct efa_com_dereg_mr_params params = {};
@@ -81,6 +135,7 @@ int nvmem_put(u64 ticket, bool in_cb)
 	/* Dereg is the last nvmem consumer, delete the ticket */
 	if (!in_cb) {
 		list_del(&nvmem->list);
+		nvmem_put_fp();
 		kfree(nvmem);
 	}
 	mutex_unlock(&nvmem_list_lock);
@@ -99,7 +154,7 @@ static int nvmem_get_pages(struct efa_dev *dev, struct efa_nvmem *nvmem,
 {
 	int err;
 
-	err = nvidia_p2p_get_pages(0, 0, addr, size, &nvmem->pgtbl,
+	err = nvmem->ops.get_pages(0, 0, addr, size, &nvmem->pgtbl,
 				   nvmem_free_cb, (void *)nvmem->ticket);
 	if (err) {
 		ibdev_dbg(&dev->ibdev, "nvidia_p2p_get_pages failed %d\n", err);
@@ -109,7 +164,7 @@ static int nvmem_get_pages(struct efa_dev *dev, struct efa_nvmem *nvmem,
 	if (!NVIDIA_P2P_PAGE_TABLE_VERSION_COMPATIBLE(nvmem->pgtbl)) {
 		ibdev_dbg(&dev->ibdev, "Incompatible page table version %#08x\n",
 			  nvmem->pgtbl->version);
-		nvidia_p2p_put_pages(0, 0, addr, nvmem->pgtbl);
+		nvmem->ops.put_pages(0, 0, addr, nvmem->pgtbl);
 		nvmem->pgtbl = NULL;
 		return -EINVAL;
 	}
@@ -121,7 +176,7 @@ static int nvmem_dma_map(struct efa_dev *dev, struct efa_nvmem *nvmem)
 {
 	int err;
 
-	err = nvidia_p2p_dma_map_pages(dev->pdev, nvmem->pgtbl,
+	err = nvmem->ops.dma_map_pages(dev->pdev, nvmem->pgtbl,
 				       &nvmem->dma_mapping);
 	if (err) {
 		ibdev_dbg(&dev->ibdev, "nvidia_p2p_dma_map_pages failed %d\n",
@@ -132,7 +187,7 @@ static int nvmem_dma_map(struct efa_dev *dev, struct efa_nvmem *nvmem)
 	if (!NVIDIA_P2P_DMA_MAPPING_VERSION_COMPATIBLE(nvmem->dma_mapping)) {
 		ibdev_dbg(&dev->ibdev, "Incompatible DMA mapping version %#08x\n",
 			  nvmem->dma_mapping->version);
-		nvidia_p2p_dma_unmap_pages(dev->pdev, nvmem->pgtbl,
+		nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl,
 					   nvmem->dma_mapping);
 		nvmem->dma_mapping = NULL;
 		return -EINVAL;
@@ -160,10 +215,15 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 	pinsz = start + length - virt_start;
 	nvmem->virt_start = virt_start;
 
+	err = nvmem_get_fp(nvmem);
+	if (err)
+		/* Nvidia module is not loaded */
+		goto err_free;
+
 	err = nvmem_get_pages(dev, nvmem, virt_start, pinsz);
 	if (err) {
 		/* Most likely cpu pages */
-		goto err_free;
+		goto err_put_fp;
 	}
 
 	err = nvmem_dma_map(dev, nvmem);
@@ -181,9 +241,11 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 	return nvmem;
 
 err_unmap:
-	nvidia_p2p_dma_unmap_pages(dev->pdev, nvmem->pgtbl, nvmem->dma_mapping);
+	nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl, nvmem->dma_mapping);
 err_put:
-	nvidia_p2p_put_pages(0, 0, start, nvmem->pgtbl);
+	nvmem->ops.put_pages(0, 0, start, nvmem->pgtbl);
+err_put_fp:
+	nvmem_put_fp();
 err_free:
 	kfree(nvmem);
 	return NULL;
@@ -205,21 +267,21 @@ void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem, bool in_cb)
 {
 	if (in_cb) {
 		if (nvmem->dma_mapping) {
-			nvidia_p2p_free_dma_mapping(nvmem->dma_mapping);
+			nvmem->ops.free_dma_mapping(nvmem->dma_mapping);
 			nvmem->dma_mapping = NULL;
 		}
 
 		if (nvmem->pgtbl) {
-			nvidia_p2p_free_page_table(nvmem->pgtbl);
+			nvmem->ops.free_page_table(nvmem->pgtbl);
 			nvmem->pgtbl = NULL;
 		}
 	} else {
 		if (nvmem->dma_mapping)
-			nvidia_p2p_dma_unmap_pages(dev->pdev, nvmem->pgtbl,
+			nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl,
 						   nvmem->dma_mapping);
 
 		if (nvmem->pgtbl)
-			nvidia_p2p_put_pages(0, 0, nvmem->virt_start,
+			nvmem->ops.put_pages(0, 0, nvmem->virt_start,
 					     nvmem->pgtbl);
 	}
 }
