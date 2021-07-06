@@ -92,6 +92,12 @@ install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Tue Jul 06 2021 Gal Pressman <galpress@amazon.com> - 1.13.0
+- Remove static dependency of nvidia module in GDR driver
+- Fix potential memory leak in GDR memory registration error flow
+- Upstream kernel alignments
+- Remove old kernel APIs
+
 * Sun Jun 27 2021 Gal Pressman <galpress@amazon.com> - 1.12.3
 - Fix potential NULL pointer dereference when using GDR on newer kernel version
 

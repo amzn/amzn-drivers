@@ -1,3 +1,11 @@
+efa (1.13.0-1.amzn1) unstable; urgency=medium
+  * Remove static dependency of nvidia module in GDR driver
+  * Fix potential memory leak in GDR memory registration error flow
+  * Upstream kernel alignments
+  * Remove old kernel APIs
+
+ -- Gal Pressman <galpress@amazon.com>  Tue, 06 Jul 2021 14:31:39 +0000
+
 efa (1.12.3-1.amzn1) unstable; urgency=medium
   * Fix potential NULL pointer dereference when using GDR on newer kernel version
 

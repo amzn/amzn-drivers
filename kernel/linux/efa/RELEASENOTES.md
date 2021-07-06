@@ -3,6 +3,12 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r1.13.0 release notes
+* Remove static dependency of nvidia module in GDR driver
+* Fix potential memory leak in GDR memory registration error flow
+* Upstream kernel alignments
+* Remove old kernel APIs
+
 ## r1.12.3 release notes
 * Fix potential NULL pointer dereference when using GDR on newer kernel version
 
