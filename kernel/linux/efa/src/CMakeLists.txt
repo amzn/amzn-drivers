@@ -15,8 +15,7 @@ configure_file(Kbuild.in Kbuild @ONLY)
 
 if(NVIDIA_DIR)
   file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/Kbuild
-"KBUILD_CPPFLAGS += -I${NVIDIA_DIR}/nvidia
-KBUILD_EXTRA_SYMBOLS = ${NVIDIA_MODULE_SYMVERS}")
+"KBUILD_CPPFLAGS += -I${NVIDIA_DIR}/nvidia")
 endif()
 
 foreach(src ${efa_sources})

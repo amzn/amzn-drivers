@@ -12,12 +12,6 @@ fi
 
 echo "== Using NVIDIA driver path $nvidia_path"
 
-echo "== Building Module.symvers"
-pushd $nvidia_path
-make KERNEL_UNAME="${kernelver}" clean || exit 1
-make KERNEL_UNAME="${kernelver}" -j$(nproc) || exit 1
-popd
-
 mkdir -p build
 pushd build
 cmake -DKERNEL_VER=${kernelver} -DNVIDIA_DIR=${nvidia_path} ..

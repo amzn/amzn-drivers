@@ -51,9 +51,8 @@ the following parameter:
 cmake -DNVIDIA_DIR=<path_to_nvidia_dir> ..
 
 Where the <path_to_nvidia_dir> points to the directory of the nvidia driver
-(usually under /usr/src/nvidia*). The directory must contain:
-* Module.symvers
-* nv-p2p.h (inside the nvidia directory)
+(usually under /usr/src/nvidia*). The directory must contain nv-p2p.h inside
+the nvidia directory.
 
 You can verify the driver was compiled with GDR support by running modinfo on
 the .ko file and making sure the following line is present:
