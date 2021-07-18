@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "kcompat.h"
@@ -40,20 +40,7 @@ struct efa_user_mmap_entry {
 	u8 mmap_flag;
 };
 
-#define EFA_DEFINE_STATS(op) \
-	op(EFA_TX_BYTES, "tx_bytes") \
-	op(EFA_TX_PKTS, "tx_pkts") \
-	op(EFA_RX_BYTES, "rx_bytes") \
-	op(EFA_RX_PKTS, "rx_pkts") \
-	op(EFA_RX_DROPS, "rx_drops") \
-	op(EFA_SEND_BYTES, "send_bytes") \
-	op(EFA_SEND_WRS, "send_wrs") \
-	op(EFA_RECV_BYTES, "recv_bytes") \
-	op(EFA_RECV_WRS, "recv_wrs") \
-	op(EFA_RDMA_READ_WRS, "rdma_read_wrs") \
-	op(EFA_RDMA_READ_BYTES, "rdma_read_bytes") \
-	op(EFA_RDMA_READ_WR_ERR, "rdma_read_wr_err") \
-	op(EFA_RDMA_READ_RESP_BYTES, "rdma_read_resp_bytes") \
+#define EFA_DEFINE_DEVICE_STATS(op) \
 	op(EFA_SUBMITTED_CMDS, "submitted_cmds") \
 	op(EFA_COMPLETED_CMDS, "completed_cmds") \
 	op(EFA_CMDS_ERR, "cmds_err") \
@@ -67,15 +54,38 @@ struct efa_user_mmap_entry {
 	op(EFA_CREATE_AH_ERR, "create_ah_err") \
 	op(EFA_MMAP_ERR, "mmap_err")
 
+#define EFA_DEFINE_PORT_STATS(op) \
+	op(EFA_TX_BYTES, "tx_bytes") \
+	op(EFA_TX_PKTS, "tx_pkts") \
+	op(EFA_RX_BYTES, "rx_bytes") \
+	op(EFA_RX_PKTS, "rx_pkts") \
+	op(EFA_RX_DROPS, "rx_drops") \
+	op(EFA_SEND_BYTES, "send_bytes") \
+	op(EFA_SEND_WRS, "send_wrs") \
+	op(EFA_RECV_BYTES, "recv_bytes") \
+	op(EFA_RECV_WRS, "recv_wrs") \
+	op(EFA_RDMA_READ_WRS, "rdma_read_wrs") \
+	op(EFA_RDMA_READ_BYTES, "rdma_read_bytes") \
+	op(EFA_RDMA_READ_WR_ERR, "rdma_read_wr_err") \
+	op(EFA_RDMA_READ_RESP_BYTES, "rdma_read_resp_bytes") \
+
 #define EFA_STATS_ENUM(ename, name) ename,
 #define EFA_STATS_STR(ename, name) [ename] = name,
 
-enum efa_hw_stats {
-	EFA_DEFINE_STATS(EFA_STATS_ENUM)
+enum efa_hw_device_stats {
+	EFA_DEFINE_DEVICE_STATS(EFA_STATS_ENUM)
 };
 
-static const char *const efa_stats_names[] = {
-	EFA_DEFINE_STATS(EFA_STATS_STR)
+static const char *const efa_device_stats_names[] = {
+	EFA_DEFINE_DEVICE_STATS(EFA_STATS_STR)
+};
+
+enum efa_hw_port_stats {
+	EFA_DEFINE_PORT_STATS(EFA_STATS_ENUM)
+};
+
+static const char *const efa_port_stats_names[] = {
+	EFA_DEFINE_PORT_STATS(EFA_STATS_STR)
 };
 
 #define EFA_CHUNK_PAYLOAD_SHIFT       12
@@ -2653,38 +2663,66 @@ int efa_destroy_ah(struct ib_ah *ibah)
 }
 
 #ifdef HAVE_SPLIT_STATS_ALLOC
-struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev, port_t port_num)
-#else
-struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, port_t port_num)
-#endif
+struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev,
+					      port_t port_num)
 {
-	return rdma_alloc_hw_stats_struct(efa_stats_names,
-					  ARRAY_SIZE(efa_stats_names),
+	return rdma_alloc_hw_stats_struct(efa_port_stats_names,
+					  ARRAY_SIZE(efa_port_stats_names),
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
-#ifdef HAVE_SPLIT_STATS_ALLOC
 struct rdma_hw_stats *efa_alloc_hw_device_stats(struct ib_device *ibdev)
 {
-	/*
-	 * It is probably a bug that efa reports its port stats as device
-	 * stats
-	 */
-	return efa_alloc_hw_port_stats(ibdev, 0);
+	return rdma_alloc_hw_stats_struct(efa_device_stats_names,
+					  ARRAY_SIZE(efa_device_stats_names),
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+#else
+struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, port_t port_num)
+{
+	if (port_num)
+		return rdma_alloc_hw_stats_struct(efa_port_stats_names,
+						  ARRAY_SIZE(efa_port_stats_names),
+						  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+	else
+		return rdma_alloc_hw_stats_struct(efa_device_stats_names,
+						  ARRAY_SIZE(efa_device_stats_names),
+						  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 #endif
 
-int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
-		     port_t port_num, int index)
+static int efa_fill_device_stats(struct efa_dev *dev,
+				 struct rdma_hw_stats *stats)
+{
+	struct efa_com_stats_admin *as = &dev->edev.aq.stats;
+	struct efa_stats *s = &dev->stats;
+
+	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);
+	stats->value[EFA_COMPLETED_CMDS] = atomic64_read(&as->completed_cmd);
+	stats->value[EFA_CMDS_ERR] = atomic64_read(&as->cmd_err);
+	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->no_completion);
+
+	stats->value[EFA_KEEP_ALIVE_RCVD] = atomic64_read(&s->keep_alive_rcvd);
+	stats->value[EFA_ALLOC_PD_ERR] = atomic64_read(&s->alloc_pd_err);
+	stats->value[EFA_CREATE_QP_ERR] = atomic64_read(&s->create_qp_err);
+	stats->value[EFA_CREATE_CQ_ERR] = atomic64_read(&s->create_cq_err);
+	stats->value[EFA_REG_MR_ERR] = atomic64_read(&s->reg_mr_err);
+	stats->value[EFA_ALLOC_UCONTEXT_ERR] =
+		atomic64_read(&s->alloc_ucontext_err);
+	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->create_ah_err);
+	stats->value[EFA_MMAP_ERR] = atomic64_read(&s->mmap_err);
+
+	return ARRAY_SIZE(efa_device_stats_names);
+}
+
+static int efa_fill_port_stats(struct efa_dev *dev, struct rdma_hw_stats *stats,
+			       port_t port_num)
 {
 	struct efa_com_get_stats_params params = {};
 	union efa_com_get_stats_result result;
-	struct efa_dev *dev = to_edev(ibdev);
 	struct efa_com_rdma_read_stats *rrs;
 	struct efa_com_messages_stats *ms;
 	struct efa_com_basic_stats *bs;
-	struct efa_com_stats_admin *as;
-	struct efa_stats *s;
 	int err;
 
 	params.scope = EFA_ADMIN_GET_STATS_SCOPE_ALL;
@@ -2723,24 +2761,16 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	stats->value[EFA_RDMA_READ_WR_ERR] = rrs->read_wr_err;
 	stats->value[EFA_RDMA_READ_RESP_BYTES] = rrs->read_resp_bytes;
 
-	as = &dev->edev.aq.stats;
-	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);
-	stats->value[EFA_COMPLETED_CMDS] = atomic64_read(&as->completed_cmd);
-	stats->value[EFA_CMDS_ERR] = atomic64_read(&as->cmd_err);
-	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->no_completion);
+	return ARRAY_SIZE(efa_port_stats_names);
+}
 
-	s = &dev->stats;
-	stats->value[EFA_KEEP_ALIVE_RCVD] = atomic64_read(&s->keep_alive_rcvd);
-	stats->value[EFA_ALLOC_PD_ERR] = atomic64_read(&s->alloc_pd_err);
-	stats->value[EFA_CREATE_QP_ERR] = atomic64_read(&s->create_qp_err);
-	stats->value[EFA_CREATE_CQ_ERR] = atomic64_read(&s->create_cq_err);
-	stats->value[EFA_REG_MR_ERR] = atomic64_read(&s->reg_mr_err);
-	stats->value[EFA_ALLOC_UCONTEXT_ERR] =
-		atomic64_read(&s->alloc_ucontext_err);
-	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->create_ah_err);
-	stats->value[EFA_MMAP_ERR] = atomic64_read(&s->mmap_err);
-
-	return ARRAY_SIZE(efa_stats_names);
+int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+		     port_t port_num, int index)
+{
+	if (port_num)
+		return efa_fill_port_stats(to_edev(ibdev), stats, port_num);
+	else
+		return efa_fill_device_stats(to_edev(ibdev), stats);
 }
 
 #ifndef HAVE_NO_KVERBS_DRIVERS
