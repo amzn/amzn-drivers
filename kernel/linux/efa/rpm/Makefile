@@ -1,10 +1,6 @@
 # Makefile for creating rpm of the Amazon EFA driver
 
-ifdef GDR
-NAME = efa-gdr
-else
 NAME = efa
-endif
 SPEC = $(NAME).spec
 VERSION	= 1.13.0
 

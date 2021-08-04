@@ -20,17 +20,7 @@ if(NOT KERNEL_MAKEFILE)
 endif()
 message("-- Kernel directory - ${KERNEL_DIR}")
 
-set(NVIDIA_DIR "" CACHE PATH "Path to NVIDIA directory")
-if(NVIDIA_DIR)
-  unset(NVIDIA_P2P_H CACHE)
-  find_file(NVIDIA_P2P_H nv-p2p.h PATHS ${NVIDIA_DIR}/nvidia REQUIRED NO_DEFAULT_PATH)
-  if(NOT NVIDIA_P2P_H)
-    message(FATAL_ERROR "No NVIDIA nv-p2p.h")
-  else()
-    message("-- NVIDIA directory - ${NVIDIA_DIR}")
-  endif()
-endif()
-
 set(GCOV_PROFILE OFF CACHE BOOL "Enable GCOV profiling")
+set(ENABLE_GDR ON CACHE BOOL "Enable GPUDirectRDMA")
 
 add_subdirectory(src)
