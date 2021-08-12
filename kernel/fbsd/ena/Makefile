@@ -41,7 +41,7 @@ KMOD    = if_ena
 # Shared source
 SRCS    = device_if.h bus_if.h pci_if.h
 SRCS	+= ena_com.c ena_eth_com.c
-SRCS	+= ena.c ena_sysctl.c ena_datapath.c ena_netmap.c
+SRCS	+= ena.c ena_sysctl.c ena_datapath.c ena_netmap.c ena_rss.c
 
 CFLAGS  += -DSMP -O2
 CFLAGS  += -I${.CURDIR}/ena_com
