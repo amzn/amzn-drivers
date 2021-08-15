@@ -22,7 +22,8 @@ Requires:	dkms %kernel_module_package_buildreqs cmake
 Requires: libarchive >= 3.3.3
 %endif
 
-Conflicts:	efa-gdr
+# Replace the compile time dependency efa-gdr package
+Obsoletes:	efa-gdr
 
 %define install_path /usr/src/%{driver_name}-%{version}
 

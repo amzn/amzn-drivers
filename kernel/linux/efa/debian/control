@@ -6,7 +6,10 @@ Homepage: https://github.com/amzn/amzn-drivers
 
 Package: efa
 Architecture: any
+# Replace the compile time dependency efa-gdr package
+Provides: efa-gdr
 Conflicts: efa-gdr
+Replaces: efa-gdr
 Depends: ${shlibs:Depends}, ${misc:Depends}, dkms, cmake
 Description: Linux kernel driver for Elastic Fabric Adapter (EFA)
  Elastic Fabric Adapter (EFA), a new network device that provides reliable
