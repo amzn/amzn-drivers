@@ -839,4 +839,8 @@ xdp_prepare_buff(struct xdp_buff *xdp, unsigned char *hard_start,
 	} while(0)
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+#define ENA_XDP_XMIT_FREES_FAILED_DESCS_INTERNALLY
+#endif
+
 #endif /* _KCOMPAT_H_ */
