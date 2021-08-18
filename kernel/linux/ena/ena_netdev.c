@@ -4654,17 +4654,18 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 }
 
 
-static int ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
+static int ena_calc_io_queue_size(struct ena_adapter *adapter,
+				  struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
-	struct ena_admin_feature_llq_desc *llq = &ctx->get_feat_ctx->llq;
-	struct ena_com_dev *ena_dev = ctx->ena_dev;
+	struct ena_admin_feature_llq_desc *llq = &get_feat_ctx->llq;
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	u32 tx_queue_size = ENA_DEFAULT_RING_SIZE;
 	u32 max_tx_queue_size;
 	u32 max_rx_queue_size;
 
 	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
 		struct ena_admin_queue_ext_feature_fields *max_queue_ext =
-			&ctx->get_feat_ctx->max_queue_ext.max_queue_ext;
+			&get_feat_ctx->max_queue_ext.max_queue_ext;
 		max_rx_queue_size = min_t(u32, max_queue_ext->max_rx_cq_depth,
 					  max_queue_ext->max_rx_sq_depth);
 		max_tx_queue_size = max_queue_ext->max_tx_cq_depth;
@@ -4676,13 +4677,13 @@ static int ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
 			max_tx_queue_size = min_t(u32, max_tx_queue_size,
 						  max_queue_ext->max_tx_sq_depth);
 
-		ctx->max_tx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
+		adapter->max_tx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
 					     max_queue_ext->max_per_packet_tx_descs);
-		ctx->max_rx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
+		adapter->max_rx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
 					     max_queue_ext->max_per_packet_rx_descs);
 	} else {
 		struct ena_admin_queue_feature_desc *max_queues =
-			&ctx->get_feat_ctx->max_queues;
+			&get_feat_ctx->max_queues;
 		max_rx_queue_size = min_t(u32, max_queues->max_cq_depth,
 					  max_queues->max_sq_depth);
 		max_tx_queue_size = max_queues->max_cq_depth;
@@ -4694,9 +4695,9 @@ static int ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
 			max_tx_queue_size = min_t(u32, max_tx_queue_size,
 						  max_queues->max_sq_depth);
 
-		ctx->max_tx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
+		adapter->max_tx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
 					     max_queues->max_packet_tx_descs);
-		ctx->max_rx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
+		adapter->max_rx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
 					     max_queues->max_packet_rx_descs);
 	}
 
@@ -4711,10 +4712,10 @@ static int ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
 		if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) &&
 		    (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
 			max_tx_queue_size /= 2;
-			dev_info(&ctx->pdev->dev, "Forcing large headers and decreasing maximum TX queue size to %d\n",
+			dev_info(&adapter->pdev->dev, "Forcing large headers and decreasing maximum TX queue size to %d\n",
 				 max_tx_queue_size);
 		} else {
-			dev_err(&ctx->pdev->dev, "Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
+			dev_err(&adapter->pdev->dev, "Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
 		}
 	}
 
@@ -4726,10 +4727,10 @@ static int ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
 	tx_queue_size = rounddown_pow_of_two(tx_queue_size);
 	rx_queue_size = rounddown_pow_of_two(rx_queue_size);
 
-	ctx->max_tx_queue_size = max_tx_queue_size;
-	ctx->max_rx_queue_size = max_rx_queue_size;
-	ctx->tx_queue_size = tx_queue_size;
-	ctx->rx_queue_size = rx_queue_size;
+	adapter->max_tx_ring_size  = max_tx_queue_size;
+	adapter->max_rx_ring_size = max_rx_queue_size;
+	adapter->requested_tx_ring_size = tx_queue_size;
+	adapter->requested_rx_ring_size = rx_queue_size;
 
 	return 0;
 }
@@ -4746,7 +4747,6 @@ static int ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
  */
 static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct ena_calc_queue_size_ctx calc_queue_ctx = {};
 	struct ena_com_dev_get_features_ctx get_feat_ctx;
 	struct ena_com_dev *ena_dev = NULL;
 	struct ena_adapter *adapter;
@@ -4848,10 +4848,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_device_destroy;
 	}
 
-	calc_queue_ctx.ena_dev = ena_dev;
-	calc_queue_ctx.get_feat_ctx = &get_feat_ctx;
-	calc_queue_ctx.pdev = pdev;
-
 	/* Initial TX and RX interrupt delay. Assumes 1 usec granularity.
 	 * Updated during device initialization with the real granularity
 	 */
@@ -4859,7 +4855,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ena_dev->intr_moder_rx_interval = ENA_INTR_INITIAL_RX_INTERVAL_USECS;
 	ena_dev->intr_delay_resolution = ENA_DEFAULT_INTR_DELAY_RESOLUTION;
 	max_num_io_queues = ena_calc_max_io_queue_num(pdev, ena_dev, &get_feat_ctx);
-	rc = ena_calc_io_queue_size(&calc_queue_ctx);
+	rc = ena_calc_io_queue_size(adapter, &get_feat_ctx);
 	if (rc || !max_num_io_queues) {
 		rc = -EFAULT;
 		goto err_device_destroy;
@@ -4868,13 +4864,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ena_set_conf_feat_params(adapter, &get_feat_ctx);
 
 	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
-
-	adapter->requested_tx_ring_size = calc_queue_ctx.tx_queue_size;
-	adapter->requested_rx_ring_size = calc_queue_ctx.rx_queue_size;
-	adapter->max_tx_ring_size = calc_queue_ctx.max_tx_queue_size;
-	adapter->max_rx_ring_size = calc_queue_ctx.max_rx_queue_size;
-	adapter->max_tx_sgl_size = calc_queue_ctx.max_tx_sgl_size;
-	adapter->max_rx_sgl_size = calc_queue_ctx.max_rx_sgl_size;
 
 	adapter->num_io_queues = clamp_val(num_io_queues, ENA_MIN_NUM_IO_QUEUES,
 					   max_num_io_queues);
