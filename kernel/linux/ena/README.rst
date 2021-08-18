@@ -11,12 +11,12 @@ ENA is a networking interface designed to make good use of modern CPU
 features and system architectures.
 
 The ENA device exposes a lightweight management interface with a
-minimal set of memory mapped registers and extendable command set
+minimal set of memory mapped registers and extendible command set
 through an Admin Queue.
 
 The driver supports a range of ENA devices, is link-speed independent
-(i.e., the same driver is used for 10GbE, 25GbE, 40GbE, etc.), and has
-a negotiated and extendable feature set.
+(i.e., the same driver is used for 10GbE, 25GbE, 40GbE, etc), and has
+a negotiated and extendible feature set.
 
 Some ENA devices support SR-IOV. This driver is used for both the
 SR-IOV Physical Function (PF) and Virtual Function (VF) devices.
@@ -192,7 +192,7 @@ ena_eth_io_defs.h   Definition of ENA data path interface.
 ena_common_defs.h   Common definitions for ena_com layer.
 ena_regs_defs.h     Definition of ENA PCI memory-mapped (MMIO) registers.
 ena_netdev.[ch]     Main Linux kernel driver.
-ena_syfsfs.[ch]     Sysfs files.
+ena_sysfs.[ch]      Sysfs files.
 ena_ethtool.c       ethtool callbacks.
 ena_pci_id_tbl.h    Supported device IDs.
 =================   ======================================================
@@ -442,7 +442,7 @@ Tx
 
 - Maps data buffers (``skb->data`` and frags).
 - Populates ``ena_buf`` for the push buffer (if the driver and device are
-  in push mode.)
+  in push mode).
 - Prepares ENA bufs for the remaining frags.
 - Allocates a new request ID from the empty ``req_id`` ring. The request
   ID is the index of the packet in the Tx info. This is used for
@@ -453,7 +453,7 @@ Tx
   needed).
 
   * This function also copies the ENA descriptors and the push buffer
-    to the Device memory space (if in push mode.)
+    to the Device memory space (if in push mode).
 
 - Writes a doorbell to the ENA device.
 - When the ENA device finishes sending the packet, a completion
@@ -492,5 +492,5 @@ Rx
     `skb`'s frags.
 
 - The new SKB is updated with the necessary information (protocol,
-  checksum hw verify result, etc.), and then passed to the network
+  checksum hw verify result, etc), and then passed to the network
   stack, using the NAPI interface function :code:`napi_gro_receive()`.
