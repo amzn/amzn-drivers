@@ -565,11 +565,6 @@ enum ena_xdp_errors_t {
 	ENA_XDP_NO_ENOUGH_QUEUES,
 };
 
-static inline bool ena_xdp_queues_present(struct ena_adapter *adapter)
-{
-	return adapter->xdp_first_ring != 0;
-}
-
 static inline bool ena_xdp_present(struct ena_adapter *adapter)
 {
 	return !!adapter->xdp_bpf_prog;

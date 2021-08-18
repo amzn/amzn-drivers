@@ -49,6 +49,7 @@ MODULE_VERSION(DRV_MODULE_GENERATION);
 
 #define ENA_SKB_PULL_MIN_LEN 64
 #endif
+
 static int debug = -1;
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Debug level (-1=default,0=none,...,16=all)");
@@ -373,6 +374,7 @@ static int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
 			     xdpf->len);
 	if (rc)
 		goto error_unmap_dma;
+
 	/* trigger the dma engine. ena_ring_tx_doorbell()
 	 * calls a memory barrier inside it.
 	 */
@@ -5187,6 +5189,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			"Failed to query interrupt moderation feature\n");
 		goto err_device_destroy;
 	}
+
 	ena_init_io_rings(adapter,
 			  0,
 			  adapter->xdp_num_queues +
@@ -5329,6 +5332,7 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	rtnl_lock(); /* lock released inside the below if-else block */
 	adapter->reset_reason = ENA_REGS_RESET_SHUTDOWN;
 	ena_destroy_device(adapter, true);
+
 	if (shutdown) {
 		netif_device_detach(netdev);
 		dev_close(netdev);
