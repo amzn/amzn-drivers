@@ -3882,11 +3882,11 @@ err:
 
 int ena_update_hw_stats(struct ena_adapter *adapter)
 {
-	int rc = 0;
+	int rc;
 
 	rc = ena_com_get_eni_stats(adapter->ena_dev, &adapter->eni_stats);
 	if (rc) {
-		dev_info_once(&adapter->pdev->dev, "Failed to get ENI stats\n");
+		netdev_err(adapter->netdev, "Failed to get ENI stats\n");
 		return rc;
 	}
 
@@ -5226,11 +5226,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	ena_config_debug_area(adapter);
-
-	if (!ena_update_hw_stats(adapter))
-		adapter->eni_stats_supported = true;
-	else
-		adapter->eni_stats_supported = false;
 
 	memcpy(adapter->netdev->perm_addr, adapter->mac_addr, netdev->addr_len);
 

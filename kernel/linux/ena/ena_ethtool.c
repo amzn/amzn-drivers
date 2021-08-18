@@ -120,8 +120,7 @@ static const struct ena_stats ena_stats_ena_com_strings[] = {
 #define ENA_STATS_ARRAY_TX		ARRAY_SIZE(ena_stats_tx_strings)
 #define ENA_STATS_ARRAY_RX		ARRAY_SIZE(ena_stats_rx_strings)
 #define ENA_STATS_ARRAY_ENA_COM		ARRAY_SIZE(ena_stats_ena_com_strings)
-#define ENA_STATS_ARRAY_ENI(adapter)	\
-	(ARRAY_SIZE(ena_stats_eni_strings) * (adapter)->eni_stats_supported)
+#define ENA_STATS_ARRAY_ENI(adapter)	ARRAY_SIZE(ena_stats_eni_strings)
 
 static const char ena_priv_flags_strings[][ETH_GSTRING_LEN] = {
 #define ENA_PRIV_FLAGS_LPC	BIT(0)
@@ -230,8 +229,9 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 				  u64 *data)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_com_dev *dev = adapter->ena_dev;
 
-	ena_get_stats(adapter, data, adapter->eni_stats_supported);
+	ena_get_stats(adapter, data, ena_com_get_cap(dev, ENA_ADMIN_ENI_STATS));
 }
 
 static int ena_get_sw_stats_count(struct ena_adapter *adapter)
@@ -243,7 +243,9 @@ static int ena_get_sw_stats_count(struct ena_adapter *adapter)
 
 static int ena_get_hw_stats_count(struct ena_adapter *adapter)
 {
-	return ENA_STATS_ARRAY_ENI(adapter);
+	bool supported = ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENI_STATS);
+
+	return ENA_STATS_ARRAY_ENI(adapter) * supported;
 }
 
 int ena_get_sset_count(struct net_device *netdev, int sset)
@@ -338,10 +340,11 @@ static void ena_get_ethtool_strings(struct net_device *netdev,
 				    u8 *data)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_com_dev *dev = adapter->ena_dev;
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		ena_get_strings(adapter, data, adapter->eni_stats_supported);
+		ena_get_strings(adapter, data, ena_com_get_cap(dev, ENA_ADMIN_ENI_STATS));
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		memcpy(data, ena_priv_flags_strings, sizeof(ena_priv_flags_strings));
