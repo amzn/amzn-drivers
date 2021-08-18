@@ -390,6 +390,8 @@ struct ena_adapter {
 
 	u32 msg_enable;
 
+	bool large_llq_header;
+
 	u16 max_tx_sgl_size;
 	u16 max_rx_sgl_size;
 
