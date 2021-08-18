@@ -831,4 +831,12 @@ xdp_prepare_buff(struct xdp_buff *xdp, unsigned char *hard_start,
 
 #endif /* defined(ENA_XDP_SUPPORT) && LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0) */
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
+#define ethtool_sprintf(data, fmt, args...)			\
+	do {							\
+		snprintf(*data, ETH_GSTRING_LEN, fmt, ##args);	\
+		(*data) += ETH_GSTRING_LEN;			\
+	} while(0)
+#endif
+
 #endif /* _KCOMPAT_H_ */
