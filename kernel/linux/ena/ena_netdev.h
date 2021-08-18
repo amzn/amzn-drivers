@@ -140,6 +140,8 @@
 #define ENA_IS_XDP_INDEX(adapter, index) (false)
 #endif /* ENA_XDP_SUPPORT */
 
+struct ena_page_cache;
+
 struct ena_irq {
 	irq_handler_t handler;
 	void *data;
@@ -211,9 +213,10 @@ struct ena_tx_buffer {
 struct ena_rx_buffer {
 	struct sk_buff *skb;
 	struct page *page;
+	dma_addr_t dma_addr;
 	u32 page_offset;
-	bool is_lpc_page;
 	struct ena_com_buf ena_buf;
+	bool is_lpc_page;
 } ____cacheline_aligned;
 
 struct ena_stats_tx {
@@ -266,29 +269,6 @@ struct ena_stats_rx {
 	u64 lpc_full;
 	u64 lpc_wrong_numa;
 };
-
-/* LPC definitions */
-#define ENA_LPC_DEFAULT_MULTIPLIER 2
-#define ENA_LPC_MAX_MULTIPLIER 32
-#define ENA_LPC_MULTIPLIER_UNIT 1024
-#define ENA_LPC_MIN_NUM_OF_CHANNELS 16
-
-/* Store DMA address along with the page */
-struct ena_page {
-	struct page *page;
-	dma_addr_t dma_addr;
-};
-
-struct ena_page_cache {
-	/* How many pages are produced */
-	u32 head;
-	/* How many of the entries were initialized */
-	u32 current_size;
-	/* Maximum number of pages the cache can hold */
-	u32 max_size;
-
-	struct ena_page cache[0];
-} ____cacheline_aligned;
 
 struct ena_ring {
 	/* Holds the empty requests for TX/RX
@@ -403,10 +383,10 @@ struct ena_adapter {
 
 	u32 num_io_queues;
 	u32 max_num_io_queues;
-
-	/* Local page cache size */
-	u32 lpc_size;
-
+	/* Local page cache size when it's enabled */
+	u32 configured_lpc_size;
+	/* Current Local page cache size */
+	u32 used_lpc_size;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
 	struct msix_entry *msix_entries;
 #endif
@@ -592,5 +572,13 @@ static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
 	return rc;
 }
 #endif /* ENA_XDP_SUPPORT */
+
+/* Allocate a page and DMA map it
+ * @rx_ring: The IO queue pair which requests the allocation
+ *
+ * @return: address of the mapped page in DMA and allocated page address is
+ * succeeded, or NULL
+ */
+struct page *ena_alloc_map_page(struct ena_ring *rx_ring, dma_addr_t *dma);
 
 #endif /* !(ENA_H) */
