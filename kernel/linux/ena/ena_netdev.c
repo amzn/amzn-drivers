@@ -82,6 +82,8 @@ static int ena_rss_init_default(struct ena_adapter *adapter);
 static void check_for_admin_com_state(struct ena_adapter *adapter);
 static void ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 static int ena_restore_device(struct ena_adapter *adapter);
+static void ena_calc_io_queue_size(struct ena_adapter *adapter,
+				   struct ena_com_dev_get_features_ctx *get_feat_ctx);
 
 #ifdef ENA_XDP_SUPPORT
 static void ena_init_io_rings(struct ena_adapter *adapter,
@@ -3994,6 +3996,8 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 		goto err_admin_init;
 	}
 
+	ena_calc_io_queue_size(adapter, get_feat_ctx);
+
 	return 0;
 
 err_admin_init:
@@ -4654,14 +4658,24 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 }
 
 
-static int ena_calc_io_queue_size(struct ena_adapter *adapter,
-				  struct ena_com_dev_get_features_ctx *get_feat_ctx)
+static void ena_calc_io_queue_size(struct ena_adapter *adapter,
+				   struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
 	struct ena_admin_feature_llq_desc *llq = &get_feat_ctx->llq;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	u32 tx_queue_size = ENA_DEFAULT_RING_SIZE;
+	bool tx_configured, rx_configured;
 	u32 max_tx_queue_size;
 	u32 max_rx_queue_size;
+
+	/* If this function is called after driver load, the ring sizes have
+	 * already been configured. Take it into account when recalculating ring
+	 * size.
+	 */
+	tx_configured = !!adapter->tx_ring[0].ring_size;
+	rx_configured = !!adapter->rx_ring[0].ring_size;
+	tx_queue_size = tx_configured ? adapter->tx_ring[0].ring_size : tx_queue_size;
+	rx_queue_size = rx_configured ? adapter->rx_ring[0].ring_size : rx_queue_size;
 
 	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
 		struct ena_admin_queue_ext_feature_fields *max_queue_ext =
@@ -4731,8 +4745,6 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 	adapter->max_rx_ring_size = max_rx_queue_size;
 	adapter->requested_tx_ring_size = tx_queue_size;
 	adapter->requested_rx_ring_size = rx_queue_size;
-
-	return 0;
 }
 
 /* ena_probe - Device Initialization Routine
@@ -4855,9 +4867,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ena_dev->intr_moder_rx_interval = ENA_INTR_INITIAL_RX_INTERVAL_USECS;
 	ena_dev->intr_delay_resolution = ENA_DEFAULT_INTR_DELAY_RESOLUTION;
 	max_num_io_queues = ena_calc_max_io_queue_num(pdev, ena_dev, &get_feat_ctx);
-	rc = ena_calc_io_queue_size(adapter, &get_feat_ctx);
-	if (rc || !max_num_io_queues) {
-		rc = -EFAULT;
+	if (max_num_io_queues < 0) {
+		rc = max_num_io_queues;
 		goto err_device_destroy;
 	}
 
