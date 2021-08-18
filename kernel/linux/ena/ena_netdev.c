@@ -290,11 +290,11 @@ static int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 static int ena_xdp_tx_map_frame(struct ena_ring *xdp_ring,
 				struct ena_tx_buffer *tx_info,
 				struct xdp_frame *xdpf,
-				void **push_hdr,
-				u32 *push_len)
+				struct ena_com_tx_ctx *ena_tx_ctx)
 {
 	struct ena_adapter *adapter = xdp_ring->adapter;
 	struct ena_com_buf *ena_buf;
+	int push_len = 0;
 	dma_addr_t dma;
 	void *data;
 	u32 size;
@@ -303,31 +303,34 @@ static int ena_xdp_tx_map_frame(struct ena_ring *xdp_ring,
 	data = tx_info->xdpf->data;
 	size = tx_info->xdpf->len;
 
-	*push_len = 0;
-
 	if (xdp_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-		/* LLQ push buffer */
-		*push_len = min_t(u32, size, xdp_ring->tx_max_header_size);
-		*push_hdr = data;
+		/* Designate part of the packet for LLQ */
+		push_len = min_t(u32, size, xdp_ring->tx_max_header_size);
 
-		size -= *push_len;
-	} else {
-		*push_hdr = NULL;
+		ena_tx_ctx->push_header = data;
+
+		size -= push_len;
+		data += push_len;
 	}
+
+	ena_tx_ctx->header_len = push_len;
 
 	if (size > 0) {
 		dma = dma_map_single(xdp_ring->dev,
-				     data + *push_len,
+				     data,
 				     size,
 				     DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(xdp_ring->dev, dma)))
 			goto error_report_dma_error;
 
 		tx_info->map_linear_data = 0;
-		tx_info->num_of_bufs = 1;
+
 		ena_buf = tx_info->bufs;
 		ena_buf->paddr = dma;
 		ena_buf->len = size;
+
+		ena_tx_ctx->ena_bufs = ena_buf;
+		ena_tx_ctx->num_bufs = tx_info->num_of_bufs = 1;
 	}
 
 	return 0;
@@ -348,8 +351,6 @@ static int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
 	struct ena_com_tx_ctx ena_tx_ctx = {};
 	struct ena_tx_buffer *tx_info;
 	u16 next_to_use, req_id;
-	void *push_hdr;
-	u32 push_len;
 	int rc;
 
 	next_to_use = xdp_ring->next_to_use;
@@ -357,15 +358,11 @@ static int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
 	tx_info = &xdp_ring->tx_buffer_info[req_id];
 	tx_info->num_of_bufs = 0;
 
-	rc = ena_xdp_tx_map_frame(xdp_ring, tx_info, xdpf, &push_hdr, &push_len);
+	rc = ena_xdp_tx_map_frame(xdp_ring, tx_info, xdpf, &ena_tx_ctx);
 	if (unlikely(rc))
 		return rc;
 
-	ena_tx_ctx.ena_bufs = tx_info->bufs;
-	ena_tx_ctx.push_header = push_hdr;
-	ena_tx_ctx.num_bufs = tx_info->num_of_bufs;
 	ena_tx_ctx.req_id = req_id;
-	ena_tx_ctx.header_len = push_len;
 
 	rc = ena_xmit_common(dev,
 			     xdp_ring,
