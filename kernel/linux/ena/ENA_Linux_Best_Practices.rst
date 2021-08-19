@@ -298,7 +298,7 @@ actions is recommended if network performance degrades:
 
 2. Sometimes CPU utilization has a spiky nature resulting in short-lasting
    peaks.
-   This might be enough to cause egress packet drops for network
+   This might be enough to cause ingress packet drops for network
    intensive workloads. In this case we recommend to increase the size of the Rx
    ring in order to compensate for temporary vCPU unavailability. This would
    compensate for vCPU short-lasting unavailability.

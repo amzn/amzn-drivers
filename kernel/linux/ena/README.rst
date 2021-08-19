@@ -139,9 +139,11 @@ Module Parameters
   Controls the number of requested entries in the Rx
   Queue. Increasing the Rx queue size can be useful in situations
   where rx drops are observed in loaded systems with NAPI not scheduled
-  fast enough. Must be power of 2. Default value 1024. Max value
-  is 8K (8192) and the Min value is 256. The actual number of entries
-  in the queues will be negotiated with the device.
+  fast enough. The value provided will be rounded down to a power of 2.
+  Default value 1024. Max value is up to 16K (16384), depending on the
+  instance type, and the actual value can be seen by running ethtool -g.
+  The Min value is 256. The actual number of entries in the queues is
+  negotiated with the device.
 
 :force_large_llq_header:
   Controls the maximum supported packet header
