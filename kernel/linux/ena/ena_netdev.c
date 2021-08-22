@@ -4485,6 +4485,17 @@ static void ena_timer_service(unsigned long data)
 		ena_update_host_info(host_info, adapter->netdev);
 
 	if (unlikely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		/* We don't destroy driver resources if we're not able to
+		 * communicate with the device. Failure in validating the
+		 * version implies unresponsive device.
+		 */
+		if (ena_com_validate_version(adapter->ena_dev) == -ETIME) {
+			netif_err(adapter, drv, adapter->netdev,
+				  "FW isn't responsive, skipping reset routine\n");
+			mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
+			return;
+		}
+
 		netif_err(adapter, drv, adapter->netdev,
 			  "Trigger reset is on\n");
 		ena_dump_stats_to_dmesg(adapter);
