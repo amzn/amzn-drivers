@@ -1069,7 +1069,8 @@ enum ena_admin_aenq_group {
 	ENA_ADMIN_WARNING                           = 2,
 	ENA_ADMIN_NOTIFICATION                      = 3,
 	ENA_ADMIN_KEEP_ALIVE                        = 4,
-	ENA_ADMIN_AENQ_GROUPS_NUM                   = 5,
+	ENA_ADMIN_REFRESH_CAPABILITIES              = 5,
+	ENA_ADMIN_AENQ_GROUPS_NUM                   = 6,
 };
 
 enum ena_admin_aenq_notification_syndrome {

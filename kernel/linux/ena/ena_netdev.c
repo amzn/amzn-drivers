@@ -84,6 +84,8 @@ static void ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 static int ena_restore_device(struct ena_adapter *adapter);
 static void ena_calc_io_queue_size(struct ena_adapter *adapter,
 				   struct ena_com_dev_get_features_ctx *get_feat_ctx);
+static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
+				 struct net_device *netdev);
 
 #ifdef ENA_XDP_SUPPORT
 static void ena_init_io_rings(struct ena_adapter *adapter,
@@ -3897,6 +3899,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 {
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	struct ena_llq_configurations llq_config;
+	netdev_features_t prev_netdev_features;
 	struct device *dev = &pdev->dev;
 	bool readless_supported;
 	u32 aenq_groups;
@@ -4006,6 +4009,10 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 
 	ena_calc_io_queue_size(adapter, get_feat_ctx);
 
+	/* Turned on features shouldn't change due to reset. */
+	prev_netdev_features = adapter->netdev->features;
+	ena_set_dev_offloads(get_feat_ctx, adapter->netdev);
+	adapter->netdev->features = prev_netdev_features;
 	return 0;
 
 err_admin_init:
@@ -5289,6 +5296,16 @@ static void ena_notification(void *adapter_data,
 	}
 }
 
+static void ena_refresh_fw_capabilites(void *adapter_data,
+				       struct ena_admin_aenq_entry *aenq_e)
+{
+	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
+
+	netdev_info(adapter->netdev, "Received requet to refresh capabilities\n");
+
+	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+}
+
 /* This handler will called for unknown event group or unimplemented handlers*/
 static void unimplemented_aenq_handler(void *data,
 				       struct ena_admin_aenq_entry *aenq_e)
@@ -5304,6 +5321,7 @@ static struct ena_aenq_handlers aenq_handlers = {
 		[ENA_ADMIN_LINK_CHANGE] = ena_update_on_link_change,
 		[ENA_ADMIN_NOTIFICATION] = ena_notification,
 		[ENA_ADMIN_KEEP_ALIVE] = ena_keep_alive_wd,
+		[ENA_ADMIN_REFRESH_CAPABILITIES] = ena_refresh_fw_capabilites,
 	},
 	.unimplemented_handler = unimplemented_aenq_handler
 };
