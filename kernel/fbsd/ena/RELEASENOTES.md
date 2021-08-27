@@ -16,15 +16,39 @@ The driver was verified on the following distributions:
 | Branch    | SHA         |
 +-----------+-------------+
 | stable/11 | 3a5f854f458 |
-| stable/12 | 63312dd6d12 |
-| stable/13 | ad2c95130b4 |
-| HEAD      | 8fa5c577de3 |
-+-----------+--------------+
+| stable/12 | 62bee146aa4 |
+| stable/13 | 704d90845ce |
+| HEAD      | 0e92585cde5 |
++-----------+-------------+
+
+## r2.4.1 release notes
+**New Features**
+* Add full kernel RSS option support.
+* Add RSS hash key reconfiguration feature.
+* Add RSS indirection table reconfiguration feature.
+
+**Bug Fixes**
+* Fix building with gcc9.
+* Trigger device reset whenever ena_com_prepare_tx fails.
+* Prevent potential race condition between reset routine and ena_destroy_device.
+* Add global lock for all driver instances. This fixes a race between sysctl
+  procedures and driver reconfiguration routines.
+* Disable meta descriptor caching when LLQ is being used. This fixes netmap
+  support on ENAv3 hardware.
+
+**Minor Changes**
+* Avoid unnecessary mbuf collapse for fragmented mbufs when driver is working in
+  the LLQ mode.
+* Add extra log messages.
+* Add locking assertions for critical sections.
+* Restructure code, by moving RSS related logic to separate source files.
+* Add extra statistics counters - csum_good for properly calculated checksum and
+  unmask_interrupt_num for the number of interrupt unmasking events.
 
 ## r2.4.0 release notes
 **New Features**
 * Large LLQ headers support. In order to use LLQ with packet headers
-  greater than 96B, the large LLQ headers should be enabled by modyfing
+  greater than 96B, the large LLQ headers should be enabled by modifying
   the sysctl node: hw.ena.force_large_llq_header.
 * Rework logging system, to be able to compile out logs on the IO path
   and simplify the logging levels.

@@ -4,7 +4,7 @@ FreeBSD kernel driver for Elastic Network Adapter (ENA) family
 Version
 -------
 
-``2.4.0``
+``2.4.1``
 
 Supported FreeBSD Versions
 --------------------------
@@ -435,6 +435,85 @@ Example:
   .. code-block:: sh
 
     sysctl dev.ena.1.eni_metrics.sample_interval=10
+
+RSS indirection table size
+""""""""""""""""""""""""""
+Scope:
+  Local for the interface ``X`` (``X`` is the interface number)
+Node:
+  ``dev.ena.X.rss.indir_table_size``
+Input values:
+  read only
+Default value:
+  ``128``
+Description:
+  Returns the number of entries in the RSS indirection table.
+Example:
+  To read the RSS indirection table size:
+
+  .. code-block:: sh
+
+    sysctl dev.ena.0.rss.indir_table_size
+
+RSS indirection table mapping
+"""""""""""""""""""""""""""""
+
+Scope:
+  Local for the interface ``X`` (``X`` is the interface number)
+Node:
+  ``dev.ena.X.rss.indir_table``
+Input values:
+  string of one or more space separated key-pairs
+Default value:
+  ``x:y`` key-pairs of ``indir_table_size`` length
+Description:
+  Updates selected indices of the RSS indirection table.
+  The entry string consists of one or more ``x:y`` keypairs, where
+  ``x`` stands for the table index and ``y`` for its new value.
+  Table indices that don't need to be updated can be omitted from
+  the string and will retain their existing values.
+
+  If an index is entered more than once, the last value is used.
+Example:
+  To update two selected indices in the RSS indirection table, e.g.
+  setting index ``0`` to queue ``5`` and then index ``5`` to queue ``0``,
+  the below command should be used:
+
+  .. code-block:: sh
+
+    sysctl dev.ena.0.rss.indir_table="0:5 5:0"
+
+RSS hash key
+""""""""""""
+
+Scope:
+  Local for the interface X (X is the interface number)
+Node:
+  ``dev.ena.X.rss.key``
+Input values:
+  string of hexadecimal values
+Default value:
+  40 bytes long randomly generated hash key
+Description:
+  Controls the RSS Toeplitz hash algorithm key value.
+
+  Only available when driver compiled without the kernel side RSS support.
+Example:
+  To change the RSS hash key value to
+
+  .. code-block:: sh
+
+    0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+    0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
+    0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
+    0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
+    0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
+
+  the below command should be used:
+
+  .. code-block:: sh
+
+    sysctl dev.ena.0.rss.key=6d5a56da255b0ec24167253d43a38fb0d0ca2bcbae7b30b477cb2da38030f20c6a42b73bbeac01fa
 
 Supported PCI vendor ID/device IDs
 ----------------------------------
