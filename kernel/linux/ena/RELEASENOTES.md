@@ -39,6 +39,23 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.6.0 release notes
+**New Features**
+* Add "capabilities" field to negotiate device capabilities
+* Add support for kernel 5.14
+* Allow the device to signal the driver if features renogotiation is required
+
+**Bug Fixes**
+* Fix XDP packet fowarding on 6th generaion instances
+* Prevent device reset when device isn't responsive
+
+**Minor Changes**
+* Move Local Page Cache (LPC) code to a separate file
+* Reset device when receiving wrong request id on RX
+* Cosmetic changes and code restructuring
+* Fix typo in README
+* Remove redundant code
+
 ## r2.5.0 release notes
 **New Features**
 * Unify skb allocation path and use build_skb()

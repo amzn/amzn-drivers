@@ -25,7 +25,7 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_GEN_MAJOR	2
-#define DRV_MODULE_GEN_MINOR	5
+#define DRV_MODULE_GEN_MINOR	6
 #define DRV_MODULE_GEN_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
