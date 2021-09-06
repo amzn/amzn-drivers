@@ -21,8 +21,6 @@ struct efa_nvmem_ops {
 	int (*dma_unmap_pages)(struct pci_dev *peer,
 			       struct nvidia_p2p_page_table *page_table,
 			       struct nvidia_p2p_dma_mapping *dma_mapping);
-	int (*free_dma_mapping)(struct nvidia_p2p_dma_mapping *dma_mapping);
-	int (*free_page_table)(struct nvidia_p2p_page_table *page_table);
 };
 
 struct efa_nvmem {
@@ -43,6 +41,5 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 int nvmem_to_page_list(struct efa_dev *dev, struct efa_nvmem *nvmem,
 		       u64 *page_list);
 int nvmem_put(u64 ticket, bool in_cb);
-void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem, bool in_cb);
 
 #endif /* _EFA_GDR_H_ */

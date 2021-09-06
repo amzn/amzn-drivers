@@ -70,20 +70,8 @@ static int nvmem_get_fp(struct efa_nvmem *nvmem)
 	if (!nvmem->ops.dma_unmap_pages)
 		goto err_put_dma_map_pages;
 
-	nvmem->ops.free_dma_mapping = symbol_get(nvidia_p2p_free_dma_mapping);
-	if (!nvmem->ops.free_dma_mapping)
-		goto err_put_dma_unmap_pages;
-
-	nvmem->ops.free_page_table = symbol_get(nvidia_p2p_free_page_table);
-	if (!nvmem->ops.free_page_table)
-		goto err_put_free_dma_mapping;
-
 	return 0;
 
-err_put_free_dma_mapping:
-	symbol_put(nvidia_p2p_free_dma_mapping);
-err_put_dma_unmap_pages:
-	symbol_put(nvidia_p2p_dma_unmap_pages);
 err_put_dma_map_pages:
 	symbol_put(nvidia_p2p_dma_map_pages);
 err_put_put_pages:
@@ -96,12 +84,20 @@ err_out:
 
 static void nvmem_put_fp(void)
 {
-	symbol_put(nvidia_p2p_free_page_table);
-	symbol_put(nvidia_p2p_free_dma_mapping);
 	symbol_put(nvidia_p2p_dma_unmap_pages);
 	symbol_put(nvidia_p2p_dma_map_pages);
 	symbol_put(nvidia_p2p_put_pages);
 	symbol_put(nvidia_p2p_get_pages);
+}
+
+static void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem)
+{
+	if (nvmem->dma_mapping)
+		nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl,
+					   nvmem->dma_mapping);
+
+	if (nvmem->pgtbl)
+		nvmem->ops.put_pages(0, 0, nvmem->virt_start, nvmem->pgtbl);
 }
 
 int nvmem_put(u64 ticket, bool in_cb)
@@ -130,15 +126,16 @@ int nvmem_put(u64 ticket, bool in_cb)
 		nvmem->needs_dereg = false;
 	}
 
-	nvmem_release(dev, nvmem, in_cb);
-
-	/* Dereg is the last nvmem consumer, delete the ticket */
-	if (!in_cb) {
-		list_del(&nvmem->list);
-		nvmem_put_fp();
-		kfree(nvmem);
+	if (in_cb) {
+		mutex_unlock(&nvmem_list_lock);
+		return 0;
 	}
+
+	list_del(&nvmem->list);
 	mutex_unlock(&nvmem_list_lock);
+	nvmem_release(dev, nvmem);
+	nvmem_put_fp();
+	kfree(nvmem);
 
 	return 0;
 }
@@ -261,27 +258,4 @@ int nvmem_to_page_list(struct efa_dev *dev, struct efa_nvmem *nvmem,
 		page_list[i] = dma_mapping->dma_addresses[i];
 
 	return 0;
-}
-
-void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem, bool in_cb)
-{
-	if (in_cb) {
-		if (nvmem->dma_mapping) {
-			nvmem->ops.free_dma_mapping(nvmem->dma_mapping);
-			nvmem->dma_mapping = NULL;
-		}
-
-		if (nvmem->pgtbl) {
-			nvmem->ops.free_page_table(nvmem->pgtbl);
-			nvmem->pgtbl = NULL;
-		}
-	} else {
-		if (nvmem->dma_mapping)
-			nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl,
-						   nvmem->dma_mapping);
-
-		if (nvmem->pgtbl)
-			nvmem->ops.put_pages(0, 0, nvmem->virt_start,
-					     nvmem->pgtbl);
-	}
 }
