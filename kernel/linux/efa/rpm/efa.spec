@@ -94,6 +94,12 @@ install -m 644 nv-p2p.h			%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Tue Sep 14 2021 Gal Pressman <galpress@amazon.com> - 1.14.0
+- Unify the standard and GDR packages
+- Split hardware stats to device and port stats
+- Fix unfree'd IRQ vectors on error flow
+- Fix potential deadlock in GDR flow
+
 * Tue Jul 06 2021 Gal Pressman <galpress@amazon.com> - 1.13.0
 - Remove static dependency of nvidia module in GDR driver
 - Fix potential memory leak in GDR memory registration error flow

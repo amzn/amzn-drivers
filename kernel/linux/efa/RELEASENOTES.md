@@ -3,6 +3,12 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r1.14.0 release notes
+* Unify the standard and GDR packages
+* Split hardware stats to device and port stats
+* Fix unfree'd IRQ vectors on error flow
+* Fix potential deadlock in GDR flow
+
 ## r1.13.0 release notes
 * Remove static dependency of nvidia module in GDR driver
 * Fix potential memory leak in GDR memory registration error flow
