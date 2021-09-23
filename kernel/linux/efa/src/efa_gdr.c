@@ -52,7 +52,7 @@ static struct efa_nvmem *ticket_to_nvmem(u64 ticket)
 	return NULL;
 }
 
-static int nvmem_get_fp(struct efa_nvmem *nvmem)
+int nvmem_get_fp(struct efa_nvmem *nvmem)
 {
 	nvmem->ops.get_pages = symbol_get(nvidia_p2p_get_pages);
 	if (!nvmem->ops.get_pages)
@@ -82,7 +82,7 @@ err_out:
 	return -EINVAL;
 }
 
-static void nvmem_put_fp(void)
+void nvmem_put_fp(void)
 {
 	symbol_put(nvidia_p2p_dma_unmap_pages);
 	symbol_put(nvidia_p2p_dma_map_pages);
