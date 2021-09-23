@@ -1,3 +1,8 @@
+efa (1.14.1-1.amzn1) unstable; urgency=medium
+  * Make gdr sysfs return zero in case nvidia symbols are not available
+
+ -- Firas Jahjah <firasj@amazon.com>  Thu, 23 Sep 2021 15:27:31 +0000
+
 efa (1.14.0-1.amzn1) unstable; urgency=medium
   * Unify the standard and GDR packages
   * Split hardware stats to device and port stats
