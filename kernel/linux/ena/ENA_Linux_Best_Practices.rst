@@ -506,11 +506,13 @@ C-states`_.
 Configuring RSS
 ===============
 
+.. _toeplitz_calc.py: https://github.com/amzn/amzn-ec2-ena-utilities/tree/main/ena-toeplitz
+
 The ENA device supports RSS, and depending on the instance type, allows
 to configure the hash function, hash key and indirection table.
 Please note that hash function/key configuration is supported by the 5th
 generation network accelerated instances (c5n, m5n, r5n etc) and all 6th
-generation instances.
+generation instances (c6gn, m6i etc).
 Also Linux kernel 5.9 or newer is required for hash function/key configuration
 support but the major Linux distributions ported the driver support to kernels
 older than v5.9 (For example Amazon Linux 2 supports it since kernel 4.14.209).
@@ -520,44 +522,31 @@ support if your instance doesn't come with it.
 The device supports Toeplitz and CRC32 hash functions and ``ethtool -X`` command
 can be used to modify hash function/key and indirection table.
 
-The Toeplitz hash implementation of the ENA device differs from the standard
-implementation.
+To calculate the Toeplitz hash value for a given flow (identified by a
+4-tuple: source/destination ip and source/destination port) one can use
+`toeplitz_calc.py`_ script which simulates the hash calculation that is done in HW.
+Example usage (more information can be found by running
+:code:`python3 toeplitz_calc.py --help`):
 
-An example for the standard Toeplitz hash implementation can be found in:
-https://gist.github.com/joongh/16867705b03b49e393cbf91da3cb42a7
+.. code::
 
-In order to get the the same hash result as the one calculated by the ENA
-device, the following 2 changes need to be made to the standard implementation:
+  $ python3 toeplitz_calc.py -t 1.2.3.4 -T 7000 -r 1.2.3.5 -R 7000 -k 77:d1:c9:34:a4:c9:bd:87:6e:35:dd:17:b2:e3:23:9e:39:6d:8a:93:2a:95:b4:72:3a:b3:7f:56:8e:de:b6:01:97:af:3b:2f:3a:70:e7:04
+  Sending traffic from 1.2.3.4:7000 to 1.2.3.5:7000
+  to an instance which supports changing the key
 
-* The hash key bytes need to be reversed in order.
-* Initial result value needs to be changed from 0 to 0xffffffff.
+  Should result in the following hash for each driver:
+  DPDK                                                    0xa9828bd4 (RSS table entry: 84)
+  FreeBSD                                                 0xa9828bd4 (RSS table entry: 84)
+  Linux (before setting the key with ethtool)             0xa4a1471a (RSS table entry: 26)
+  Linux (after setting the key with ethtool)              0x5b5eb8e5 (RSS table entry: 101)
+  Windows                                                 0x5b5eb8e5 (RSS table entry: 101)
 
-In the provided Toeplitz implementation these changes translate to the
-following code changes:
+Please note the Linux driver contains a bug in versions v2.2.11g-v2.6.0g which
+makes the hash calculated with initial value of 0x0 before setting Toepltiz key
+manually, and 0xffffffff afterwards. Both cases are printed in the provided
+script's output.
 
-.. code-block:: diff
-
-  @@ -9,11 +9,11 @@ KEY=[]
-   def reset_key():
-       global KEY
-       KEY = [
-  -        0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
-  -        0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
-  -        0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
-  -        0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
-  -        0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa,
-  +        0xfa, 0x01, 0xac, 0xbe, 0x3b, 0xb7, 0x42, 0x6a,
-  +        0x0c, 0xf2, 0x30, 0x80, 0xa3, 0x2d, 0xcb, 0x77,
-  +        0xb4, 0x30, 0x7b, 0xae, 0xcb, 0x2b, 0xca, 0xd0,
-  +        0xb0, 0x8f, 0xa3, 0x43, 0x3d, 0x25, 0x67, 0x41,
-  +        0xc2, 0x0e, 0x5b, 0x25, 0xda, 0x56, 0x5a, 0x6d,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00
-       ]
-
-  @@ -38,7 +38,7 @@ def shift_key():
-
-   def compute_hash(input_bytes, N):
-       reset_key()
-  -    result = 0;
-  +    result = 0xffffffff;
+The script provides the hash value and the RSS table entry for an incoming
+packet. To retrive the RX queue number on which the packet is received please
+use ``ethtool -x [interface number]`` to find out what queue number each RSS
+table entry points to.
