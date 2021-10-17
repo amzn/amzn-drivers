@@ -200,6 +200,7 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 {
 	struct efa_nvmem *nvmem;
 	u64 virt_start;
+	u64 virt_end;
 	u64 pinsz;
 	int err;
 
@@ -210,8 +211,10 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 	nvmem->ticket = atomic64_fetch_inc(&next_nvmem_ticket);
 	mr->nvmem_ticket = nvmem->ticket;
 	nvmem->dev = dev;
+
 	virt_start = ALIGN_DOWN(start, GPU_PAGE_SIZE);
-	pinsz = start + length - virt_start;
+	virt_end = ALIGN(start + length, GPU_PAGE_SIZE);
+	pinsz = virt_end - virt_start;
 	nvmem->virt_start = virt_start;
 
 	err = nvmem_get_fp(nvmem);
