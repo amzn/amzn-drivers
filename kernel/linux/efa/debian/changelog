@@ -1,3 +1,8 @@
+efa (1.14.2-1.amzn1) unstable; urgency=medium
+  * Various GDR fixes
+
+ -- Firas Jahjah <firasj@amazon.com>  Sun, 17 Oct 2021 22:16:33 +0000
+
 efa (1.14.1-1.amzn1) unstable; urgency=medium
   * Make gdr sysfs return zero in case nvidia symbols are not available
 

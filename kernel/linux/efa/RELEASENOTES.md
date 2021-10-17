@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r1.14.2 release notes
+* Various GDR fixes
+
 ## r1.14.1 release notes
 * Make gdr sysfs return zero in case nvidia symbols are not available
 

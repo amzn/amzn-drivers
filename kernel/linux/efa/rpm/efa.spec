@@ -94,6 +94,9 @@ install -m 644 nv-p2p.h			%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Sun Oct 17 2021 Firas Jahjah <firasj@amazon.com> - 1.14.2
+- Various GDR fixes
+
 * Thu Sep 23 2021 Firas Jahjah <firasj@amazon.com> - 1.14.1
 - Make gdr sysfs return zero in case nvidia symbols are not available
 
