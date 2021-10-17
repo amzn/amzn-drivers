@@ -245,7 +245,7 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 err_unmap:
 	nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl, nvmem->dma_mapping);
 err_put:
-	nvmem->ops.put_pages(0, 0, start, nvmem->pgtbl);
+	nvmem->ops.put_pages(0, 0, virt_start, nvmem->pgtbl);
 err_put_fp:
 	nvmem_put_fp();
 err_free:
