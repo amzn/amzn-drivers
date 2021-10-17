@@ -127,6 +127,8 @@ int nvmem_put(u64 ticket, bool in_cb)
 	}
 
 	if (in_cb) {
+		nvmem->pgtbl = NULL;
+		nvmem->dma_mapping = NULL;
 		mutex_unlock(&nvmem_list_lock);
 		return 0;
 	}
