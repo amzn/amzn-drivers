@@ -9,6 +9,26 @@
 #include <linux/device.h>
 #include <linux/sysfs.h>
 
+#ifndef HAVE_SYSFS_EMIT
+#include <linux/mm.h>
+
+static int sysfs_emit(char *buf, const char *fmt, ...)
+{
+	va_list args;
+	int len;
+
+	if (WARN(!buf || offset_in_page(buf),
+		 "invalid sysfs_emit: buf:%p\n", buf))
+		return 0;
+
+	va_start(args, fmt);
+	len = vscnprintf(buf, PAGE_SIZE, fmt, args);
+	va_end(args);
+
+	return len;
+}
+#endif
+
 #ifdef HAVE_EFA_GDR
 #include "efa_gdr.h"
 
@@ -18,10 +38,10 @@ static ssize_t gdr_show(struct device *dev, struct device_attribute *attr,
 	struct efa_nvmem dummynv = {};
 
 	if (nvmem_get_fp(&dummynv))
-		return sprintf(buf, "0\n");
+		return sysfs_emit(buf, "0\n");
 	nvmem_put_fp();
 
-	return sprintf(buf, "1\n");
+	return sysfs_emit(buf, "1\n");
 }
 
 static DEVICE_ATTR_RO(gdr);

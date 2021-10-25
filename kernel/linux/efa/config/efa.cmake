@@ -402,5 +402,11 @@ try_compile_dev_or_ops(alloc_hw_port_stats efa_alloc_hw_port_stats
   "struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num) { return 0; }"
   HAVE_SPLIT_STATS_ALLOC "")
 
+try_compile("#include <linux/sysfs.h>"
+  "
+sysfs_emit(NULL, \"Test\");
+  "
+  HAVE_SYSFS_EMIT "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")
