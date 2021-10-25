@@ -46,12 +46,6 @@ make
 
 efa.ko is created inside the src/ folder.
 
-GPUDirectRDMA support can be verified by running modinfo on the .ko file and
-making sure the following line is present:
-...
-gdr:            Y
-...
-
 GDR support can be disabled by running cmake with the following parameter:
 cmake -DENABLE_GDR=0 ..
 

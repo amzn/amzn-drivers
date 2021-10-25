@@ -49,9 +49,6 @@ MODULE_AUTHOR("Amazon.com, Inc. or its affiliates");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION(DEVICE_NAME);
 MODULE_DEVICE_TABLE(pci, efa_pci_tbl);
-#ifdef HAVE_EFA_GDR
-MODULE_INFO(gdr, "Y");
-#endif
 
 #define EFA_REG_BAR 0
 #define EFA_MEM_BAR 2
