@@ -418,5 +418,7 @@ struct ib_device_ops ops = {
   "
   HAVE_QP_CORE_ALLOCATION "")
 
+try_compile("" "struct rdma_stat_desc desc;" "HAVE_STAT_DESC_STRUCT" "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")
