@@ -419,7 +419,11 @@ static const struct ib_device_ops efa_dev_ops = {
 #else
 	.create_cq = efa_kzalloc_cq,
 #endif
+#ifdef HAVE_QP_CORE_ALLOCATION
 	.create_qp = efa_create_qp,
+#else
+	.create_qp = efa_kzalloc_qp,
+#endif
 #ifdef HAVE_UVERBS_CMD_MASK_NOT_NEEDED
 	.create_user_ah = efa_create_ah,
 #endif
@@ -463,6 +467,9 @@ static const struct ib_device_ops efa_dev_ops = {
 #endif
 #ifdef HAVE_PD_CORE_ALLOCATION
 	INIT_RDMA_OBJ_SIZE(ib_pd, efa_pd, ibpd),
+#endif
+#ifdef HAVE_QP_CORE_ALLOCATION
+	INIT_RDMA_OBJ_SIZE(ib_qp, efa_qp, ibqp),
 #endif
 #ifdef HAVE_UCONTEXT_CORE_ALLOCATION
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, efa_ucontext, ibucontext),
@@ -553,7 +560,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.alloc_ucontext = efa_kzalloc_ucontext;
 	dev->ibdev.create_ah = efa_kzalloc_ah;
 	dev->ibdev.create_cq = efa_kzalloc_cq;
-	dev->ibdev.create_qp = efa_create_qp;
+	dev->ibdev.create_qp = efa_kzalloc_qp;
 	dev->ibdev.dealloc_pd = efa_dealloc_pd;
 	dev->ibdev.dealloc_ucontext = efa_dealloc_ucontext;
 	dev->ibdev.dereg_mr = efa_dereg_mr;

@@ -604,7 +604,9 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 				qp->rq_size, DMA_TO_DEVICE);
 	}
 
+#ifndef HAVE_QP_CORE_ALLOCATION
 	kfree(qp);
+#endif
 	return 0;
 }
 
@@ -805,17 +807,16 @@ static int efa_qp_validate_attr(struct efa_dev *dev,
 	return 0;
 }
 
-struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
-			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata)
+int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
+		  struct ib_udata *udata)
 {
 	struct efa_com_create_qp_params create_qp_params = {};
 	struct efa_com_create_qp_result create_qp_resp;
-	struct efa_dev *dev = to_edev(ibpd->device);
+	struct efa_dev *dev = to_edev(ibqp->device);
 	struct efa_ibv_create_qp_resp resp = {};
 	struct efa_ibv_create_qp cmd = {};
+	struct efa_qp *qp = to_eqp(ibqp);
 	struct efa_ucontext *ucontext;
-	struct efa_qp *qp;
 	int err;
 
 #ifndef HAVE_NO_KVERBS_DRIVERS
@@ -830,8 +831,8 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext,
 					     ibucontext);
 #else
-	ucontext = ibpd->uobject ? to_eucontext(ibpd->uobject->context) :
-				   NULL;
+	ucontext = ibqp->pd->uobject ? to_eucontext(ibqp->pd->uobject->context) :
+				       NULL;
 #endif
 
 	err = efa_qp_validate_cap(dev, init_attr);
@@ -873,14 +874,8 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 		goto err_out;
 	}
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
 	create_qp_params.uarn = ucontext->uarn;
-	create_qp_params.pd = to_epd(ibpd)->pdn;
+	create_qp_params.pd = to_epd(ibqp->pd)->pdn;
 
 	if (init_attr->qp_type == IB_QPT_UD) {
 		create_qp_params.qp_type = EFA_ADMIN_QP_TYPE_UD;
@@ -891,7 +886,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			  "Unsupported qp type %d driver qp type %d\n",
 			  init_attr->qp_type, cmd.driver_qp_type);
 		err = -EOPNOTSUPP;
-		goto err_free_qp;
+		goto err_out;
 	}
 
 	ibdev_dbg(&dev->ibdev, "Create QP: qp type %d driver qp type %#x\n",
@@ -909,7 +904,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 						    qp->rq_size, DMA_TO_DEVICE);
 		if (!qp->rq_cpu_addr) {
 			err = -ENOMEM;
-			goto err_free_qp;
+			goto err_out;
 		}
 
 		ibdev_dbg(&dev->ibdev,
@@ -956,7 +951,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 
 	ibdev_dbg(&dev->ibdev, "Created qp[%d]\n", qp->ibqp.qp_num);
 
-	return &qp->ibqp;
+	return 0;
 
 err_remove_mmap_entries:
 	efa_qp_user_mmap_entries_remove(qp);
@@ -966,12 +961,42 @@ err_free_mapped:
 	if (qp->rq_size)
 		efa_free_mapped(dev, qp->rq_cpu_addr, qp->rq_dma_addr,
 				qp->rq_size, DMA_TO_DEVICE);
+err_out:
+	atomic64_inc(&dev->stats.create_qp_err);
+	return err;
+}
+
+#ifndef HAVE_QP_CORE_ALLOCATION
+struct ib_qp *efa_kzalloc_qp(struct ib_pd *ibpd,
+			     struct ib_qp_init_attr *init_attr,
+			     struct ib_udata *udata)
+{
+	struct efa_dev *dev = to_edev(ibpd->device);
+	struct efa_qp *qp;
+	int err;
+
+	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
+	if (!qp) {
+		atomic64_inc(&dev->stats.create_qp_err);
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	qp->ibqp.device = ibpd->device;
+	qp->ibqp.pd = ibpd;
+	qp->ibqp.qp_type = init_attr->qp_type;
+	err = efa_create_qp(&qp->ibqp, init_attr, udata);
+	if (err)
+		goto err_free_qp;
+
+	return &qp->ibqp;
+
 err_free_qp:
 	kfree(qp);
 err_out:
-	atomic64_inc(&dev->stats.create_qp_err);
 	return ERR_PTR(err);
 }
+#endif
 
 static const struct {
 	int			valid;

@@ -410,5 +410,13 @@ sysfs_emit(NULL, \"Test\");
 
 try_compile("#include <linux/xarray.h>" "xa_load(NULL, 0);" HAVE_XARRAY "")
 
+try_compile(""
+  "
+struct ib_device_ops ops = {
+  .size_ib_qp = 0,
+};
+  "
+  HAVE_QP_CORE_ALLOCATION "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")
