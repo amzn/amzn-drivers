@@ -408,5 +408,7 @@ sysfs_emit(NULL, \"Test\");
   "
   HAVE_SYSFS_EMIT "")
 
+try_compile("#include <linux/xarray.h>" "xa_load(NULL, 0);" HAVE_XARRAY "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")
