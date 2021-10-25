@@ -36,12 +36,11 @@ struct efa_nvmem {
 };
 
 void nvmem_init(void);
-int nvmem_get_fp(struct efa_nvmem *nvmem);
-void nvmem_put_fp(void);
 struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 			    u64 length, unsigned int *pgsz);
 int nvmem_to_page_list(struct efa_dev *dev, struct efa_nvmem *nvmem,
 		       u64 *page_list);
 int nvmem_put(u64 ticket, bool in_cb);
+bool nvmem_is_supported(void);
 
 #endif /* _EFA_GDR_H_ */

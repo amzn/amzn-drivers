@@ -52,7 +52,7 @@ static struct efa_nvmem *ticket_to_nvmem(u64 ticket)
 	return NULL;
 }
 
-int nvmem_get_fp(struct efa_nvmem *nvmem)
+static int nvmem_get_fp(struct efa_nvmem *nvmem)
 {
 	nvmem->ops.get_pages = symbol_get(nvidia_p2p_get_pages);
 	if (!nvmem->ops.get_pages)
@@ -82,7 +82,7 @@ err_out:
 	return -EINVAL;
 }
 
-void nvmem_put_fp(void)
+static void nvmem_put_fp(void)
 {
 	symbol_put(nvidia_p2p_dma_unmap_pages);
 	symbol_put(nvidia_p2p_dma_map_pages);
@@ -263,4 +263,15 @@ int nvmem_to_page_list(struct efa_dev *dev, struct efa_nvmem *nvmem,
 		page_list[i] = dma_mapping->dma_addresses[i];
 
 	return 0;
+}
+
+bool nvmem_is_supported(void)
+{
+	struct efa_nvmem dummynv = {};
+
+	if (nvmem_get_fp(&dummynv))
+		return false;
+	nvmem_put_fp();
+
+	return true;
 }

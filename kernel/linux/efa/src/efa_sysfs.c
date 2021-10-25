@@ -35,13 +35,10 @@ static int sysfs_emit(char *buf, const char *fmt, ...)
 static ssize_t gdr_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	struct efa_nvmem dummynv = {};
+	if (nvmem_is_supported())
+		return sysfs_emit(buf, "1\n");
 
-	if (nvmem_get_fp(&dummynv))
-		return sysfs_emit(buf, "0\n");
-	nvmem_put_fp();
-
-	return sysfs_emit(buf, "1\n");
+	return sysfs_emit(buf, "0\n");
 }
 
 static DEVICE_ATTR_RO(gdr);
