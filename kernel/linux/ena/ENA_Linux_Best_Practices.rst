@@ -418,23 +418,23 @@ packet buffer allocations (the default value may be too small).
   system memory, and adjust this value up or down to meet the needs of your
   application.
 
-  alternatively one can use
-
-  .. code-block:: bash
-
-    $ sudo vm.min_free_kbytes = 1048576
-
 - Apply this configuration with the following command:
 
   .. code-block:: bash
 
     $ sudo sysctl -p
 
+- Alternatively one can use the below command, but it will not persist after reboot:
+
+  .. code-block:: bash
+
+    $ sudo sysctl -w vm.min_free_kbytes=1048576
+
 - Verify that the setting was applied with the following command:
 
   .. code-block:: bash
 
-    $ sudo sysctl -a | grep min_free_kbytes
+    $ sudo sysctl -n vm.min_free_kbytes
 
 Local Page Cache (LPC)
 ======================
