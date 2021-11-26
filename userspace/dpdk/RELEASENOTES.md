@@ -4,6 +4,26 @@ ___
 
 ### Normal releases
 
+#### v21.11
+_Release of the new version of the driver - r2.5.0_
+
+New Features:
+* Support tx_free_thresh and rx_free_thresh configuration parameters.
+* Add NUMA aware allocations for the queue helper structures.
+* Add checking for the missing Tx completions to avoid Tx queue stalls.
+
+Bug Fixes:
+* Fix offloads capabilities verification. Take into consideration capabilities
+  provided by the hardware instead of assuming that they're always supported,
+  add IPv6 checksum offload support, add extra verifications in the Tx prepare
+  function
+* Fix per-queue offload capabilities.
+* Expose scattered Rx capability, which was already supported by the PMD.
+
+Minor Changes:
+* Remove unused and invalid pointer validation in the redirection table
+  setup code.
+
 #### v21.08
 _Release of the new version of the driver - r2.4.0_
 
@@ -347,6 +367,15 @@ _Release of the driver (unversioned)_
 
 There comes only backported patches.
 
+#### v20.11.3
+Bug fixes:
+* Provide multi-segment Tx offload capability. ENA driver was already
+  supporting this feature, but it wasn't being announced to the application as
+  a capability. (v21.08)
+* Trigger reset on Tx prepare failure. As Tx prepare should never fail in the
+  normal conditions, the upper layer should be notified about the invalid driver
+  state and trigger the reset routine. (v21.08)
+
 #### v20.11.2
 Bug fixes:
 * Hal fixes (v21.05):
@@ -385,6 +414,15 @@ Bug fixes:
 * Validate Rx requested ID upon acquiring descriptor instead of doing that each
   time it's being used in the driver code. As a result this value is validated
   only once and a driver code could be simplified. (v21.02)
+
+#### v19.11.10
+Bug fixes:
+* Provide multi-segment Tx offload capability. ENA driver was already
+  supporting this feature, but it wasn't being announced to the application as
+  a capability. (v21.08)
+* Trigger reset on Tx prepare failure. As Tx prepare should never fail in the
+  normal conditions, the upper layer should be notified about the invalid driver
+  state and trigger the reset routine. (v21.08)
 
 #### v19.11.9
 Bug fixes:
