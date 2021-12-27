@@ -83,6 +83,7 @@ struct ib_device ibdev = {
 endfunction()
 
 file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/../output.log)
 
 message("-- Inspecting kernel")
 try_compile_prog_test()

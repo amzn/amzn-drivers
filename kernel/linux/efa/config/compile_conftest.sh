@@ -18,5 +18,5 @@ if [[ "$err" -ne 0 ]] && [[ -n "$fail" ]]; then
 	echo "#define $fail 1" >> config.h
 fi
 
-cat $tmpdir/output.log >> ../config/output.log
+cat $tmpdir/output.log >> ../output.log
 rm -fr $tmpdir
