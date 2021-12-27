@@ -90,14 +90,17 @@ static void nvmem_put_fp(void)
 	symbol_put(nvidia_p2p_get_pages);
 }
 
-static void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem)
+static void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem,
+			  bool in_cb)
 {
-	if (nvmem->dma_mapping)
+	if (!in_cb) {
 		nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl,
 					   nvmem->dma_mapping);
-
-	if (nvmem->pgtbl)
 		nvmem->ops.put_pages(0, 0, nvmem->virt_start, nvmem->pgtbl);
+	}
+
+	nvmem_put_fp();
+	kfree(nvmem);
 }
 
 int nvmem_put(u64 ticket, bool in_cb)
@@ -126,18 +129,9 @@ int nvmem_put(u64 ticket, bool in_cb)
 		nvmem->needs_dereg = false;
 	}
 
-	if (in_cb) {
-		nvmem->pgtbl = NULL;
-		nvmem->dma_mapping = NULL;
-		mutex_unlock(&nvmem_list_lock);
-		return 0;
-	}
-
 	list_del(&nvmem->list);
 	mutex_unlock(&nvmem_list_lock);
-	nvmem_release(dev, nvmem);
-	nvmem_put_fp();
-	kfree(nvmem);
+	nvmem_release(dev, nvmem, in_cb);
 
 	return 0;
 }
