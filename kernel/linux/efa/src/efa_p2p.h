@@ -10,11 +10,13 @@
 
 struct efa_p2p_ops {
 	struct efa_p2pmem *(*try_get)(struct efa_dev *dev, u64 ticket, u64 start,
-				      u64 length, unsigned int *pgsz);
+				      u64 length);
 	int (*to_page_list)(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
 			    u64 *page_list);
 	void (*release)(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
 			bool in_cb);
+	unsigned int (*get_page_size)(struct efa_dev *dev,
+				      struct efa_p2pmem *p2pmem);
 };
 
 enum efa_p2p_prov {
@@ -38,7 +40,9 @@ struct efa_p2pmem {
 
 void efa_p2p_init(void);
 struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
-			       u64 length, unsigned int *pgsz);
+			       u64 length);
+unsigned int efa_p2p_get_page_size(struct efa_dev *dev,
+				   struct efa_p2pmem *p2pmem);
 int efa_p2p_to_page_list(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
 			 u64 *page_list);
 int efa_p2p_put(u64 ticket, bool in_cb);

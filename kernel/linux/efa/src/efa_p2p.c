@@ -77,7 +77,7 @@ int efa_p2p_put(u64 ticket, bool in_cb)
 }
 
 struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
-			       u64 length, unsigned int *pgsz)
+			       u64 length)
 {
 	const struct efa_p2p_provider *prov;
 	struct efa_p2pmem *p2pmem;
@@ -87,7 +87,7 @@ struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start
 	ticket = atomic64_fetch_inc(&next_p2p_ticket);
 	for (i = 0; i < EFA_P2P_PROVIDER_MAX; i++) {
 		prov = prov_arr[i];
-		p2pmem = prov->ops.try_get(dev, ticket, start, length, pgsz);
+		p2pmem = prov->ops.try_get(dev, ticket, start, length);
 		if (p2pmem)
 			break;
 	}
@@ -111,4 +111,10 @@ int efa_p2p_to_page_list(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
 			 u64 *page_list)
 {
 	return p2pmem->prov->ops.to_page_list(dev, p2pmem, page_list);
+}
+
+unsigned int efa_p2p_get_page_size(struct efa_dev *dev,
+				   struct efa_p2pmem *p2pmem)
+{
+	return p2pmem->prov->ops.get_page_size(dev, p2pmem);
 }

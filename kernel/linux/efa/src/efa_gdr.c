@@ -33,9 +33,13 @@ struct efa_nvmem {
 	u64 virt_start;
 };
 
-static int nvmem_pgsz(enum nvidia_p2p_page_size_type pgszt)
+static unsigned int nvmem_pgsz(struct efa_dev *dev, struct efa_p2pmem *p2pmem)
 {
-	switch (pgszt) {
+	struct efa_nvmem *nvmem;
+
+	nvmem = container_of(p2pmem, struct efa_nvmem, p2pmem);
+
+	switch (nvmem->pgtbl->page_size) {
 	case NVIDIA_P2P_PAGE_SIZE_4KB:
 		return SZ_4K;
 	case NVIDIA_P2P_PAGE_SIZE_64KB:
@@ -139,7 +143,7 @@ static int nvmem_dma_map(struct efa_dev *dev, struct efa_nvmem *nvmem)
 }
 
 static struct efa_p2pmem *nvmem_get(struct efa_dev *dev, u64 ticket, u64 start,
-				    u64 length, unsigned int *pgsz)
+				    u64 length)
 {
 	struct efa_nvmem *nvmem;
 	u64 virt_start;
@@ -170,14 +174,8 @@ static struct efa_p2pmem *nvmem_get(struct efa_dev *dev, u64 ticket, u64 start,
 	if (err)
 		goto err_put;
 
-	*pgsz = nvmem_pgsz(nvmem->pgtbl->page_size);
-	if (!*pgsz)
-		goto err_unmap;
-
 	return &nvmem->p2pmem;
 
-err_unmap:
-	nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl, nvmem->dma_mapping);
 err_put:
 	nvmem->ops.put_pages(0, 0, virt_start, nvmem->pgtbl);
 err_put_fp:
@@ -241,6 +239,7 @@ static const struct nvmem_provider prov = {
 			.try_get = nvmem_get,
 			.to_page_list = nvmem_to_page_list,
 			.release = nvmem_release,
+			.get_page_size = nvmem_pgsz,
 		},
 		.type = EFA_P2P_PROVIDER_NVMEM,
 	},

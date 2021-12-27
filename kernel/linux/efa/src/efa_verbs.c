@@ -2148,9 +2148,11 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	}
 
 #ifdef HAVE_EFA_P2P
-	mr->p2pmem = efa_p2p_get(dev, mr, start, length, &pg_sz);
-	if (mr->p2pmem)
+	mr->p2pmem = efa_p2p_get(dev, mr, start, length);
+	if (mr->p2pmem) {
+		pg_sz = efa_p2p_get_page_size(dev, mr->p2pmem);
 		goto skip_umem_get;
+	}
 #endif
 
 #ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
