@@ -14,7 +14,7 @@
 #include "efa_sysfs.h"
 
 #ifdef HAVE_EFA_GDR
-#include "efa_gdr.h"
+#include "efa_p2p.h"
 #endif
 
 #ifndef HAVE_PCI_VENDOR_ID_AMAZON

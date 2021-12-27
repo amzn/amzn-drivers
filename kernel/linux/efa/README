@@ -93,7 +93,7 @@ efa_admin_defs.h, efa_admin_cmd_defs.h - Definition of EFA management interface.
 efa_regs_defs.h   - Definition of EFA PCI memory-mapped (MMIO) registers.
 efa_sysfs.[ch]    - Sysfs files.
 efa-abi.h         - Kernel driver <-> Userspace provider ABI.
-efa_gdr.[ch]      - GPUDirect RDMA implementation.
+efa_p2p.[ch]      - Peer-to-peer memory layer implementation.
 nv-p2p.h          - NVIDIA GDR API
 
 Management Interface

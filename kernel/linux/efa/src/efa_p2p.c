@@ -5,7 +5,7 @@
 
 #include <linux/module.h>
 
-#include "efa_gdr.h"
+#include "efa_p2p.h"
 #include "nv-p2p.h"
 
 #define GPU_PAGE_SHIFT 16

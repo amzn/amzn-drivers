@@ -30,7 +30,7 @@ static int sysfs_emit(char *buf, const char *fmt, ...)
 #endif
 
 #ifdef HAVE_EFA_GDR
-#include "efa_gdr.h"
+#include "efa_p2p.h"
 
 static ssize_t gdr_show(struct device *dev, struct device_attribute *attr,
 			char *buf)

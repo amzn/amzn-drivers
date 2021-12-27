@@ -3,8 +3,8 @@
  * Copyright 2019-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
-#ifndef _EFA_GDR_H_
-#define _EFA_GDR_H_
+#ifndef _EFA_P2P_H_
+#define _EFA_P2P_H_
 
 #include "efa.h"
 
@@ -25,4 +25,4 @@ int efa_p2p_put(u64 ticket, bool in_cb);
 
 bool nvmem_is_supported(void);
 
-#endif /* _EFA_GDR_H_ */
+#endif /* _EFA_P2P_H_ */

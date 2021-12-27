@@ -18,7 +18,7 @@
 #include "efa.h"
 
 #ifdef HAVE_EFA_GDR
-#include "efa_gdr.h"
+#include "efa_p2p.h"
 #endif
 
 enum {

@@ -1,4 +1,4 @@
-# Copyright 2019-2020 Amazon.com, Inc. or its affiliates. All rights reserved
+# Copyright 2019-2021 Amazon.com, Inc. or its affiliates. All rights reserved
 
 %define name			efa
 %define driver_name		efa
@@ -84,8 +84,8 @@ install -m 644 efa_sysfs.h		%{buildroot}%{install_path}/src
 install -m 644 kcompat.h		%{buildroot}%{install_path}/src
 install -m 644 CMakeLists.txt		%{buildroot}%{install_path}/src
 install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
-install -m 644 efa_gdr.c		%{buildroot}%{install_path}/src
-install -m 644 efa_gdr.h		%{buildroot}%{install_path}/src
+install -m 644 efa_p2p.c		%{buildroot}%{install_path}/src
+install -m 644 efa_p2p.h		%{buildroot}%{install_path}/src
 install -m 644 nv-p2p.h			%{buildroot}%{install_path}/src
 
 %files

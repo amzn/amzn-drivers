@@ -7,7 +7,7 @@ list(APPEND efa_sources
   efa_common_defs.h efa_regs_defs.h efa_sysfs.h
   efa-abi.h efa.h kcompat.h)
 if(ENABLE_GDR)
-  list(APPEND efa_sources efa_gdr.c efa_gdr.h nv-p2p.h)
+  list(APPEND efa_sources efa_p2p.c efa_p2p.h nv-p2p.h)
 endif()
 
 string(REPLACE ";" " " efa_sources_string "${efa_sources}")
