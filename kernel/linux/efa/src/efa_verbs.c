@@ -1930,7 +1930,7 @@ static int pbl_create(struct efa_dev *dev,
 			err = umem_to_page_list(dev, mr->umem, pbl->pbl_buf, hp_cnt,
 						hp_shift);
 		else
-			err = nvmem_to_page_list(dev, mr->nvmem, pbl->pbl_buf);
+			err = efa_p2p_to_page_list(dev, mr->p2pmem, pbl->pbl_buf);
 #else
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
@@ -1948,7 +1948,7 @@ static int pbl_create(struct efa_dev *dev,
 			err = umem_to_page_list(dev, mr->umem, pbl->pbl_buf, hp_cnt,
 						hp_shift);
 		else
-			err = nvmem_to_page_list(dev, mr->nvmem, pbl->pbl_buf);
+			err = efa_p2p_to_page_list(dev, mr->p2pmem, pbl->pbl_buf);
 #else
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
@@ -1994,8 +1994,8 @@ static int efa_create_inline_pbl(struct efa_dev *dev, struct efa_mr *mr,
 		err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
 					params->page_num, params->page_shift);
 	else
-		err = nvmem_to_page_list(dev, mr->nvmem,
-					 params->pbl.inline_pbl_array);
+		err = efa_p2p_to_page_list(dev, mr->p2pmem,
+					   params->pbl.inline_pbl_array);
 #else
 	err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
 				params->page_num, params->page_shift);
@@ -2148,8 +2148,8 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	}
 
 #ifdef HAVE_EFA_GDR
-	mr->nvmem = nvmem_get(dev, mr, start, length, &pg_sz);
-	if (!mr->nvmem) {
+	mr->p2pmem = efa_p2p_get(dev, mr, start, length, &pg_sz);
+	if (!mr->p2pmem) {
 #ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
 		mr->umem = ib_umem_get(ibpd->device, start, length,
 				       access_flags);
@@ -2273,9 +2273,9 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	mr->ibmr.length = length;
 #endif
 #ifdef HAVE_EFA_GDR
-	if (mr->nvmem) {
-		mr->nvmem->lkey = result.l_key;
-		mr->nvmem->needs_dereg = true;
+	if (mr->p2pmem) {
+		mr->p2pmem->lkey = result.l_key;
+		mr->p2pmem->needs_dereg = true;
 	}
 #endif
 	ibdev_dbg(&dev->ibdev, "Registered mr[%d]\n", mr->ibmr.lkey);
@@ -2284,8 +2284,8 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 err_unmap:
 #ifdef HAVE_EFA_GDR
-	if (mr->nvmem)
-		nvmem_put(mr->nvmem->ticket, false);
+	if (mr->p2pmem)
+		efa_p2p_put(mr->p2pmem->ticket, false);
 	else
 		ib_umem_release(mr->umem);
 #else
@@ -2312,8 +2312,8 @@ int efa_dereg_mr(struct ib_mr *ibmr)
 	ibdev_dbg(&dev->ibdev, "Deregister mr[%d]\n", ibmr->lkey);
 
 #ifdef HAVE_EFA_GDR
-	if (mr->nvmem){
-		err = nvmem_put(mr->nvmem_ticket, false);
+	if (mr->p2pmem) {
+		err = efa_p2p_put(mr->p2p_ticket, false);
 		if (err)
 			return err;
 

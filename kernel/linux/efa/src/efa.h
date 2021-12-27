@@ -98,8 +98,8 @@ struct efa_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
 #ifdef HAVE_EFA_GDR
-	struct efa_nvmem *nvmem;
-	u64 nvmem_ticket;
+	struct efa_p2pmem *p2pmem;
+	u64 p2p_ticket;
 #endif
 };
 

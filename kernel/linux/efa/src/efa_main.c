@@ -868,7 +868,7 @@ static int __init efa_init(void)
 	}
 
 #ifdef HAVE_EFA_GDR
-	nvmem_init();
+	efa_p2p_init();
 #endif
 
 	return 0;

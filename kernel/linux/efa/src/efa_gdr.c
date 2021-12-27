@@ -6,23 +6,46 @@
 #include <linux/module.h>
 
 #include "efa_gdr.h"
+#include "nv-p2p.h"
 
 #define GPU_PAGE_SHIFT 16
 #define GPU_PAGE_SIZE BIT_ULL(GPU_PAGE_SHIFT)
 
-static struct mutex nvmem_list_lock;
-static struct list_head nvmem_list;
-static atomic64_t next_nvmem_ticket;
+static struct mutex p2p_list_lock;
+static struct list_head p2p_list;
+static atomic64_t next_p2p_ticket;
 
-void nvmem_init(void)
+struct efa_nvmem_ops {
+	int (*get_pages)(u64 p2p_token, u32 va_space, u64 virtual_address,
+			 u64 length, struct nvidia_p2p_page_table **page_table,
+			 void (*free_callback)(void *data), void *data);
+	int (*dma_map_pages)(struct pci_dev *peer,
+			     struct nvidia_p2p_page_table *page_table,
+			     struct nvidia_p2p_dma_mapping **dma_mapping);
+	int (*put_pages)(u64 p2p_token, u32 va_space, u64 virtual_address,
+			 struct nvidia_p2p_page_table *page_table);
+	int (*dma_unmap_pages)(struct pci_dev *peer,
+			       struct nvidia_p2p_page_table *page_table,
+			       struct nvidia_p2p_dma_mapping *dma_mapping);
+};
+
+struct efa_nvmem {
+	struct efa_p2pmem p2pmem;
+	struct efa_nvmem_ops ops;
+	struct nvidia_p2p_page_table *pgtbl;
+	struct nvidia_p2p_dma_mapping *dma_mapping;
+	u64 virt_start;
+};
+
+void efa_p2p_init(void)
 {
-	mutex_init(&nvmem_list_lock);
-	INIT_LIST_HEAD(&nvmem_list);
+	mutex_init(&p2p_list_lock);
+	INIT_LIST_HEAD(&p2p_list);
 	/*
 	 * Ideally, first ticket would be zero, but that would make callback
 	 * data NULL which is invalid.
 	 */
-	atomic64_set(&next_nvmem_ticket, 1);
+	atomic64_set(&next_p2p_ticket, 1);
 }
 
 static int nvmem_pgsz(enum nvidia_p2p_page_size_type pgszt)
@@ -39,14 +62,14 @@ static int nvmem_pgsz(enum nvidia_p2p_page_size_type pgszt)
 	}
 }
 
-static struct efa_nvmem *ticket_to_nvmem(u64 ticket)
+static struct efa_p2pmem *ticket_to_p2p(u64 ticket)
 {
-	struct efa_nvmem *nvmem;
+	struct efa_p2pmem *p2pmem;
 
-	lockdep_assert_held(&nvmem_list_lock);
-	list_for_each_entry(nvmem, &nvmem_list, list) {
-		if (nvmem->ticket == ticket)
-			return nvmem;
+	lockdep_assert_held(&p2p_list_lock);
+	list_for_each_entry(p2pmem, &p2p_list, list) {
+		if (p2pmem->ticket == ticket)
+			return p2pmem;
 	}
 
 	return NULL;
@@ -90,9 +113,13 @@ static void nvmem_put_fp(void)
 	symbol_put(nvidia_p2p_get_pages);
 }
 
-static void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem,
-			  bool in_cb)
+static void efa_p2p_release(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
+			    bool in_cb)
 {
+	struct efa_nvmem *nvmem;
+
+	nvmem = container_of(p2pmem, struct efa_nvmem, p2pmem);
+
 	if (!in_cb) {
 		nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl,
 					   nvmem->dma_mapping);
@@ -103,35 +130,35 @@ static void nvmem_release(struct efa_dev *dev, struct efa_nvmem *nvmem,
 	kfree(nvmem);
 }
 
-int nvmem_put(u64 ticket, bool in_cb)
+int efa_p2p_put(u64 ticket, bool in_cb)
 {
 	struct efa_com_dereg_mr_params params = {};
-	struct efa_nvmem *nvmem;
+	struct efa_p2pmem *p2pmem;
 	struct efa_dev *dev;
 	int err;
 
-	mutex_lock(&nvmem_list_lock);
-	nvmem = ticket_to_nvmem(ticket);
-	if (!nvmem) {
-		pr_debug("Ticket %llu not found in the nvmem list\n", ticket);
-		mutex_unlock(&nvmem_list_lock);
+	mutex_lock(&p2p_list_lock);
+	p2pmem = ticket_to_p2p(ticket);
+	if (!p2pmem) {
+		pr_debug("Ticket %llu not found in the p2pmem list\n", ticket);
+		mutex_unlock(&p2p_list_lock);
 		return 0;
 	}
 
-	dev = nvmem->dev;
-	if (nvmem->needs_dereg) {
-		params.l_key = nvmem->lkey;
+	dev = p2pmem->dev;
+	if (p2pmem->needs_dereg) {
+		params.l_key = p2pmem->lkey;
 		err = efa_com_dereg_mr(&dev->edev, &params);
 		if (err) {
-			mutex_unlock(&nvmem_list_lock);
+			mutex_unlock(&p2p_list_lock);
 			return err;
 		}
-		nvmem->needs_dereg = false;
+		p2pmem->needs_dereg = false;
 	}
 
-	list_del(&nvmem->list);
-	mutex_unlock(&nvmem_list_lock);
-	nvmem_release(dev, nvmem, in_cb);
+	list_del(&p2pmem->list);
+	mutex_unlock(&p2p_list_lock);
+	efa_p2p_release(dev, p2pmem, in_cb);
 
 	return 0;
 }
@@ -139,7 +166,7 @@ int nvmem_put(u64 ticket, bool in_cb)
 static void nvmem_free_cb(void *data)
 {
 	pr_debug("Free callback ticket %llu\n", (u64)data);
-	nvmem_put((u64)data, true);
+	efa_p2p_put((u64)data, true);
 }
 
 static int nvmem_get_pages(struct efa_dev *dev, struct efa_nvmem *nvmem,
@@ -148,7 +175,7 @@ static int nvmem_get_pages(struct efa_dev *dev, struct efa_nvmem *nvmem,
 	int err;
 
 	err = nvmem->ops.get_pages(0, 0, addr, size, &nvmem->pgtbl,
-				   nvmem_free_cb, (void *)nvmem->ticket);
+				   nvmem_free_cb, (void *)nvmem->p2pmem.ticket);
 	if (err) {
 		ibdev_dbg(&dev->ibdev, "nvidia_p2p_get_pages failed %d\n", err);
 		return err;
@@ -189,8 +216,8 @@ static int nvmem_dma_map(struct efa_dev *dev, struct efa_nvmem *nvmem)
 	return 0;
 }
 
-struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
-			    u64 length, unsigned int *pgsz)
+struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
+			       u64 length, unsigned int *pgsz)
 {
 	struct efa_nvmem *nvmem;
 	u64 virt_start;
@@ -202,9 +229,9 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 	if (!nvmem)
 		return NULL;
 
-	nvmem->ticket = atomic64_fetch_inc(&next_nvmem_ticket);
-	mr->nvmem_ticket = nvmem->ticket;
-	nvmem->dev = dev;
+	nvmem->p2pmem.ticket = atomic64_fetch_inc(&next_p2p_ticket);
+	mr->p2p_ticket = nvmem->p2pmem.ticket;
+	nvmem->p2pmem.dev = dev;
 
 	virt_start = ALIGN_DOWN(start, GPU_PAGE_SIZE);
 	virt_end = ALIGN(start + length, GPU_PAGE_SIZE);
@@ -230,11 +257,11 @@ struct efa_nvmem *nvmem_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 	if (!*pgsz)
 		goto err_unmap;
 
-	mutex_lock(&nvmem_list_lock);
-	list_add(&nvmem->list, &nvmem_list);
-	mutex_unlock(&nvmem_list_lock);
+	mutex_lock(&p2p_list_lock);
+	list_add(&nvmem->p2pmem.list, &p2p_list);
+	mutex_unlock(&p2p_list_lock);
 
-	return nvmem;
+	return &nvmem->p2pmem;
 
 err_unmap:
 	nvmem->ops.dma_unmap_pages(dev->pdev, nvmem->pgtbl, nvmem->dma_mapping);
@@ -247,11 +274,15 @@ err_free:
 	return NULL;
 }
 
-int nvmem_to_page_list(struct efa_dev *dev, struct efa_nvmem *nvmem,
-		       u64 *page_list)
+int efa_p2p_to_page_list(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
+			 u64 *page_list)
 {
-	struct nvidia_p2p_dma_mapping *dma_mapping = nvmem->dma_mapping;
+	struct nvidia_p2p_dma_mapping *dma_mapping;
+	struct efa_nvmem *nvmem;
 	int i;
+
+	nvmem = container_of(p2pmem, struct efa_nvmem, p2pmem);
+	dma_mapping = nvmem->dma_mapping;
 
 	for (i = 0; i < dma_mapping->entries; i++)
 		page_list[i] = dma_mapping->dma_addresses[i];
