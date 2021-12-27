@@ -13,7 +13,7 @@
 #include "efa.h"
 #include "efa_sysfs.h"
 
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 #include "efa_p2p.h"
 #endif
 
@@ -307,7 +307,7 @@ static void efa_set_host_info(struct efa_dev *dev)
 		EFA_COMMON_SPEC_VERSION_MAJOR);
 	EFA_SET(&hinf->spec_ver, EFA_ADMIN_HOST_INFO_SPEC_MINOR,
 		EFA_COMMON_SPEC_VERSION_MINOR);
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	EFA_SET(&hinf->flags, EFA_ADMIN_HOST_INFO_GDR, 1);
 #endif
 
@@ -867,7 +867,7 @@ static int __init efa_init(void)
 		return err;
 	}
 
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	efa_p2p_init();
 #endif
 

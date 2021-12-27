@@ -6,8 +6,8 @@ list(APPEND efa_sources
   efa_admin_cmds_defs.h efa_admin_defs.h efa_com_cmd.h efa_com.h
   efa_common_defs.h efa_regs_defs.h efa_sysfs.h
   efa-abi.h efa.h kcompat.h)
-if(ENABLE_GDR)
-  list(APPEND efa_sources efa_p2p.c efa_p2p.h nv-p2p.h)
+if(ENABLE_P2P)
+  list(APPEND efa_sources efa_p2p.c efa_p2p.h efa_gdr.c nv-p2p.h)
 endif()
 
 string(REPLACE ";" " " efa_sources_string "${efa_sources}")
@@ -19,9 +19,9 @@ endforeach()
 
 # Generate config.h
 include(${CMAKE_SOURCE_DIR}/config/efa.cmake)
-if(ENABLE_GDR)
-  config_define(HAVE_EFA_GDR)
-  message("-- GPUDirectRDMA enabled")
+if(ENABLE_P2P)
+  config_define(HAVE_EFA_P2P)
+  message("-- Peer-to-peer memory enabled")
 endif()
 
 set(module_cmd make -C ${KERNEL_DIR} M=${CMAKE_CURRENT_BINARY_DIR})

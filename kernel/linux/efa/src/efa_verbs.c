@@ -17,7 +17,7 @@
 
 #include "efa.h"
 
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 #include "efa_p2p.h"
 #endif
 
@@ -1908,7 +1908,7 @@ static void pbl_indirect_terminate(struct efa_dev *dev, struct pbl_context *pbl)
 /* create a page buffer list from a mapped user memory region */
 static int pbl_create(struct efa_dev *dev,
 		      struct pbl_context *pbl,
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 		      struct efa_mr *mr,
 #else
 		      struct ib_umem *umem,
@@ -1925,7 +1925,7 @@ static int pbl_create(struct efa_dev *dev,
 
 	if (is_vmalloc_addr(pbl->pbl_buf)) {
 		pbl->physically_continuous = 0;
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 		if (mr->umem)
 			err = umem_to_page_list(dev, mr->umem, pbl->pbl_buf, hp_cnt,
 						hp_shift);
@@ -1943,7 +1943,7 @@ static int pbl_create(struct efa_dev *dev,
 			goto err_free;
 	} else {
 		pbl->physically_continuous = 1;
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 		if (mr->umem)
 			err = umem_to_page_list(dev, mr->umem, pbl->pbl_buf, hp_cnt,
 						hp_shift);
@@ -1989,7 +1989,7 @@ static int efa_create_inline_pbl(struct efa_dev *dev, struct efa_mr *mr,
 	int err;
 
 	params->inline_pbl = 1;
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	if (mr->umem)
 		err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
 					params->page_num, params->page_shift);
@@ -2016,7 +2016,7 @@ static int efa_create_pbl(struct efa_dev *dev,
 {
 	int err;
 
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	err = pbl_create(dev, pbl, mr, params->page_num,
 			 params->page_shift);
 #else
@@ -2147,7 +2147,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_out;
 	}
 
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	mr->p2pmem = efa_p2p_get(dev, mr, start, length, &pg_sz);
 	if (!mr->p2pmem) {
 #ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
@@ -2184,7 +2184,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 				       virt_addr);
 #endif
 	}
-#else /* !defined(HAVE_EFA_GDR) */
+#else /* !defined(HAVE_EFA_P2P) */
 #ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
 	mr->umem = ib_umem_get(ibpd->device, start, length, access_flags);
 #elif defined(HAVE_IB_UMEM_GET_NO_DMASYNC)
@@ -2201,14 +2201,14 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			  "Failed to pin and map user space memory[%d]\n", err);
 		goto err_free;
 	}
-#endif /* defined(HAVE_EFA_GDR) */
+#endif /* defined(HAVE_EFA_P2P) */
 
 	params.pd = to_epd(ibpd)->pdn;
 	params.iova = virt_addr;
 	params.mr_length_in_bytes = length;
 	params.permissions = access_flags;
 
-#ifndef HAVE_EFA_GDR
+#ifndef HAVE_EFA_P2P
 #ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 	pg_sz = ib_umem_find_best_pgsz(mr->umem,
 				       dev->dev_attr.page_size_cap,
@@ -2223,11 +2223,11 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	pg_sz = efa_cont_pages(mr->umem, dev->dev_attr.page_size_cap,
 			       virt_addr);
 #endif /* defined(HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE) */
-#endif /* !defined(HAVE_EFA_GDR) */
+#endif /* !defined(HAVE_EFA_P2P) */
 
 	params.page_shift = order_base_2(pg_sz);
 #ifdef HAVE_IB_UMEM_NUM_DMA_BLOCKS
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	if (mr->umem)
 		params.page_num = ib_umem_num_dma_blocks(mr->umem, pg_sz);
 	else
@@ -2272,7 +2272,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #ifdef HAVE_IB_MR_LENGTH
 	mr->ibmr.length = length;
 #endif
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	if (mr->p2pmem) {
 		mr->p2pmem->lkey = result.l_key;
 		mr->p2pmem->needs_dereg = true;
@@ -2283,7 +2283,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	return &mr->ibmr;
 
 err_unmap:
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	if (mr->p2pmem)
 		efa_p2p_put(mr->p2pmem->ticket, false);
 	else
@@ -2311,7 +2311,7 @@ int efa_dereg_mr(struct ib_mr *ibmr)
 
 	ibdev_dbg(&dev->ibdev, "Deregister mr[%d]\n", ibmr->lkey);
 
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	if (mr->p2pmem) {
 		err = efa_p2p_put(mr->p2p_ticket, false);
 		if (err)

@@ -46,8 +46,9 @@ make
 
 efa.ko is created inside the src/ folder.
 
-GDR support can be disabled by running cmake with the following parameter:
-cmake -DENABLE_GDR=0 ..
+Peer-to-peer memory support provides GDR support and can be disabled by running
+cmake with the following parameter:
+cmake -DENABLE_P2P=0 ..
 
 For more information regarding GPUDirect RDMA, visit:
 https://docs.nvidia.com/cuda/gpudirect-rdma/index.html
@@ -94,6 +95,7 @@ efa_regs_defs.h   - Definition of EFA PCI memory-mapped (MMIO) registers.
 efa_sysfs.[ch]    - Sysfs files.
 efa-abi.h         - Kernel driver <-> Userspace provider ABI.
 efa_p2p.[ch]      - Peer-to-peer memory layer implementation.
+efa_gdr.c         - GPUDirect RDMA implementation.
 nv-p2p.h          - NVIDIA GDR API
 
 Management Interface

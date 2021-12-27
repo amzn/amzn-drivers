@@ -97,7 +97,7 @@ struct efa_pd {
 struct efa_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
-#ifdef HAVE_EFA_GDR
+#ifdef HAVE_EFA_P2P
 	struct efa_p2pmem *p2pmem;
 	u64 p2p_ticket;
 #endif

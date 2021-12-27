@@ -21,6 +21,6 @@ endif()
 message("-- Kernel directory - ${KERNEL_DIR}")
 
 set(GCOV_PROFILE OFF CACHE BOOL "Enable GCOV profiling")
-set(ENABLE_GDR ON CACHE BOOL "Enable GPUDirectRDMA")
+set(ENABLE_P2P ON CACHE BOOL "Enable Peer-to-peer memory")
 
 add_subdirectory(src)
