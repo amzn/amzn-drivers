@@ -2149,42 +2149,10 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 #ifdef HAVE_EFA_P2P
 	mr->p2pmem = efa_p2p_get(dev, mr, start, length, &pg_sz);
-	if (!mr->p2pmem) {
-#ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
-		mr->umem = ib_umem_get(ibpd->device, start, length,
-				       access_flags);
-#elif defined(HAVE_IB_UMEM_GET_NO_DMASYNC)
-		mr->umem = ib_umem_get(udata, start, length, access_flags);
-#elif defined(HAVE_IB_UMEM_GET_UDATA)
-		mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
-#else
-		mr->umem = ib_umem_get(ibpd->uobject->context, start, length,
-				       access_flags, 0);
+	if (mr->p2pmem)
+		goto skip_umem_get;
 #endif
-		if (IS_ERR(mr->umem)) {
-			err = PTR_ERR(mr->umem);
-			ibdev_dbg(&dev->ibdev,
-				  "Failed to pin and map user space memory[%d]\n",
-				  err);
-			goto err_free;
-		}
 
-#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
-		pg_sz = ib_umem_find_best_pgsz(mr->umem,
-					       dev->dev_attr.page_size_cap,
-					       virt_addr);
-		if (!pg_sz) {
-			err = -EOPNOTSUPP;
-			ibdev_dbg(&dev->ibdev, "Failed to find a suitable page size in page_size_cap %#llx\n",
-				  dev->dev_attr.page_size_cap);
-			goto err_unmap;
-		}
-#else
-		pg_sz = efa_cont_pages(mr->umem, dev->dev_attr.page_size_cap,
-				       virt_addr);
-#endif
-	}
-#else /* !defined(HAVE_EFA_P2P) */
 #ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
 	mr->umem = ib_umem_get(ibpd->device, start, length, access_flags);
 #elif defined(HAVE_IB_UMEM_GET_NO_DMASYNC)
@@ -2201,14 +2169,20 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			  "Failed to pin and map user space memory[%d]\n", err);
 		goto err_free;
 	}
-#endif /* defined(HAVE_EFA_P2P) */
 
+#ifdef HAVE_EFA_P2P
+skip_umem_get:
+#endif
 	params.pd = to_epd(ibpd)->pdn;
 	params.iova = virt_addr;
 	params.mr_length_in_bytes = length;
 	params.permissions = access_flags;
 
-#ifndef HAVE_EFA_P2P
+#ifdef HAVE_EFA_P2P
+	if (mr->p2pmem)
+		goto skip_umem_pg_sz;
+#endif
+
 #ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 	pg_sz = ib_umem_find_best_pgsz(mr->umem,
 				       dev->dev_attr.page_size_cap,
@@ -2223,8 +2197,10 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	pg_sz = efa_cont_pages(mr->umem, dev->dev_attr.page_size_cap,
 			       virt_addr);
 #endif /* defined(HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE) */
-#endif /* !defined(HAVE_EFA_P2P) */
 
+#ifdef HAVE_EFA_P2P
+skip_umem_pg_sz:
+#endif
 	params.page_shift = order_base_2(pg_sz);
 #ifdef HAVE_IB_UMEM_NUM_DMA_BLOCKS
 #ifdef HAVE_EFA_P2P
