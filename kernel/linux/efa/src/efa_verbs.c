@@ -2301,12 +2301,6 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_out;
 	}
 
-#ifdef HAVE_EFA_P2P
-	mr->p2pmem = efa_p2p_get(dev, mr, start, length);
-	if (mr->p2pmem)
-		goto skip_umem_get;
-#endif
-
 #ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
 	mr->umem = ib_umem_get(ibpd->device, start, length, access_flags);
 #elif defined(HAVE_IB_UMEM_GET_NO_DMASYNC)
@@ -2318,6 +2312,14 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			       access_flags, 0);
 #endif
 	if (IS_ERR(mr->umem)) {
+#ifdef HAVE_EFA_P2P
+		mr->p2pmem = efa_p2p_get(dev, mr, start, length);
+		if (mr->p2pmem) {
+			/* Avoid referencing an error-pointer later on */
+			mr->umem = NULL;
+			goto reg_mr;
+		}
+#endif
 		err = PTR_ERR(mr->umem);
 		ibdev_dbg(&dev->ibdev,
 			  "Failed to pin and map user space memory[%d]\n", err);
@@ -2325,7 +2327,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	}
 
 #ifdef HAVE_EFA_P2P
-skip_umem_get:
+reg_mr:
 #endif
 	err = efa_register_mr(ibpd, mr, start, length, virt_addr, access_flags);
 	if (err)
