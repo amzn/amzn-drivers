@@ -2741,7 +2741,7 @@ int efa_destroy_ah(struct ib_ah *ibah)
 {
 	struct efa_dev *dev = to_edev(ibah->pd->device);
 	struct efa_ah *ah = to_eah(ibah);
-#ifndef HAVE_AH_CORE_ALLOCATION
+#if !defined(HAVE_AH_CORE_ALLOCATION) && !defined(HAVE_AH_CORE_ALLOCATION_DESTROY_RC)
 	int err;
 #endif
 
