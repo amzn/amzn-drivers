@@ -2273,6 +2273,11 @@ struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 	return &mr->ibmr;
 
 err_release:
+#ifndef HAVE_IB_UMEM_DMABUF_PINNED
+	dma_resv_lock(umem_dmabuf->attach->dmabuf->resv, NULL);
+	dma_buf_unpin(umem_dmabuf->attach);
+	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
+#endif
 	ib_umem_release(mr->umem);
 err_free:
 	kfree(mr);
@@ -2371,6 +2376,17 @@ int efa_dereg_mr(struct ib_mr *ibmr)
 	err = efa_com_dereg_mr(&dev->edev, &params);
 	if (err)
 		return err;
+
+#if defined(HAVE_MR_DMABUF) && !defined(HAVE_IB_UMEM_DMABUF_PINNED)
+	if (mr->umem->is_dmabuf) {
+		struct ib_umem_dmabuf *umem_dmabuf;
+
+		umem_dmabuf = to_ib_umem_dmabuf(mr->umem);
+		dma_resv_lock(umem_dmabuf->attach->dmabuf->resv, NULL);
+		dma_buf_unpin(umem_dmabuf->attach);
+		dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
+	}
+#endif
 
 	ib_umem_release(mr->umem);
 	kfree(mr);

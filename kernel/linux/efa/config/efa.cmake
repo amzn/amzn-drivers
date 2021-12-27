@@ -421,7 +421,16 @@ struct ib_device_ops ops = {
 
 try_compile("" "struct rdma_stat_desc desc;" HAVE_STAT_DESC_STRUCT "")
 
-try_compile("#include <rdma/ib_umem.h>" "ib_umem_dmabuf_get_pinned(NULL, 0, 0, 0, 0);" HAVE_MR_DMABUF "")
+# dynamic DMA-buf handling and ibcore device method are required.
+try_compile_dev_or_ops(reg_user_mr_dmabuf efa_reg_user_mr_dmabuf "
+#include <linux/dma-resv.h>
+#include <linux/dma-buf.h>
+static struct dma_buf_attachment a = { .importer_priv = NULL };
+struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length, u64 virt_addr,
+                                     int fd, int access_flags, struct ib_udata *udata) { return 0; }"
+  HAVE_MR_DMABUF "")
+
+try_compile("#include <rdma/ib_umem.h>" "ib_umem_dmabuf_get_pinned(NULL, 0, 0, 0, 0);" HAVE_IB_UMEM_DMABUF_PINNED "")
 
 wait_for_pids()
 message("-- Inspecting kernel - done")
