@@ -219,6 +219,12 @@ struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev,
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
 			 struct ib_udata *udata);
+#ifdef HAVE_MR_DMABUF
+struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
+				     u64 length, u64 virt_addr,
+				     int fd, int access_flags,
+				     struct ib_udata *udata);
+#endif
 #ifdef HAVE_DEREG_MR_UDATA
 int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 #else

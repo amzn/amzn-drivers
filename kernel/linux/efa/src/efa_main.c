@@ -455,6 +455,9 @@ static const struct ib_device_ops efa_dev_ops = {
 	.query_port = efa_query_port,
 	.query_qp = efa_query_qp,
 	.reg_user_mr = efa_reg_mr,
+#ifdef HAVE_MR_DMABUF
+	.reg_user_mr_dmabuf = efa_reg_user_mr_dmabuf,
+#endif
 #ifndef HAVE_NO_KVERBS_DRIVERS
 	.req_notify_cq = efa_req_notify_cq,
 #endif
@@ -683,6 +686,7 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 		dev_err(&pdev->dev, "dma_set_mask_and_coherent failed %d\n", err);
 		return err;
 	}
+
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 	return 0;
 }

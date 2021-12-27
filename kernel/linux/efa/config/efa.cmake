@@ -419,7 +419,9 @@ struct ib_device_ops ops = {
   "
   HAVE_QP_CORE_ALLOCATION "")
 
-try_compile("" "struct rdma_stat_desc desc;" "HAVE_STAT_DESC_STRUCT" "")
+try_compile("" "struct rdma_stat_desc desc;" HAVE_STAT_DESC_STRUCT "")
+
+try_compile("#include <rdma/ib_umem.h>" "ib_umem_dmabuf_get_pinned(NULL, 0, 0, 0, 0);" HAVE_MR_DMABUF "")
 
 wait_for_pids()
 message("-- Inspecting kernel - done")

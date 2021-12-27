@@ -4,6 +4,10 @@
  */
 
 #include "kcompat.h"
+#ifdef HAVE_MR_DMABUF
+#include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
+#endif
 #include <linux/vmalloc.h>
 #include <linux/log2.h>
 
@@ -2096,25 +2100,17 @@ static unsigned long efa_cont_pages(struct ib_umem *umem,
 }
 #endif
 
-struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
-			 u64 virt_addr, int access_flags,
-			 struct ib_udata *udata)
+static struct efa_mr *efa_alloc_mr(struct ib_pd *ibpd, int access_flags,
+				   struct ib_udata *udata)
 {
 	struct efa_dev *dev = to_edev(ibpd->device);
-	struct efa_com_reg_mr_params params = {};
-	struct efa_com_reg_mr_result result = {};
-	struct pbl_context pbl;
 	int supp_access_flags;
-	unsigned int pg_sz;
 	struct efa_mr *mr;
-	int inline_size;
-	int err;
 
 #ifndef HAVE_NO_KVERBS_DRIVERS
 	if (!udata) {
 		ibdev_dbg(&dev->ibdev, "udata is NULL\n");
-		err = -EOPNOTSUPP;
-		goto err_out;
+		return ERR_PTR(-EINVAL);
 	}
 #endif
 
@@ -2122,8 +2118,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	    !ib_is_udata_cleared(udata, 0, sizeof(udata->inlen))) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, udata not cleared\n");
-		err = -EINVAL;
-		goto err_out;
+		return ERR_PTR(-EINVAL);
 	}
 
 	supp_access_flags =
@@ -2137,52 +2132,37 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		ibdev_dbg(&dev->ibdev,
 			  "Unsupported access flags[%#x], supported[%#x]\n",
 			  access_flags, supp_access_flags);
-		err = -EOPNOTSUPP;
-		goto err_out;
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
 
-#ifdef HAVE_EFA_P2P
-	mr->p2pmem = efa_p2p_get(dev, mr, start, length);
-	if (mr->p2pmem) {
-		pg_sz = efa_p2p_get_page_size(dev, mr->p2pmem);
-		goto skip_umem_get;
-	}
-#endif
+	return mr;
+}
 
-#ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
-	mr->umem = ib_umem_get(ibpd->device, start, length, access_flags);
-#elif defined(HAVE_IB_UMEM_GET_NO_DMASYNC)
-	mr->umem = ib_umem_get(udata, start, length, access_flags);
-#elif defined(HAVE_IB_UMEM_GET_UDATA)
-	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
-#else
-	mr->umem = ib_umem_get(ibpd->uobject->context, start, length,
-			       access_flags, 0);
-#endif
-	if (IS_ERR(mr->umem)) {
-		err = PTR_ERR(mr->umem);
-		ibdev_dbg(&dev->ibdev,
-			  "Failed to pin and map user space memory[%d]\n", err);
-		goto err_free;
-	}
+static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
+			   u64 length, u64 virt_addr, int access_flags)
+{
+	struct efa_dev *dev = to_edev(ibpd->device);
+	struct efa_com_reg_mr_params params = {};
+	struct efa_com_reg_mr_result result = {};
+	struct pbl_context pbl;
+	unsigned int pg_sz;
+	int inline_size;
+	int err;
 
-#ifdef HAVE_EFA_P2P
-skip_umem_get:
-#endif
 	params.pd = to_epd(ibpd)->pdn;
 	params.iova = virt_addr;
 	params.mr_length_in_bytes = length;
 	params.permissions = access_flags;
 
 #ifdef HAVE_EFA_P2P
-	if (mr->p2pmem)
+	if (mr->p2pmem) {
+		pg_sz = efa_p2p_get_page_size(dev, mr->p2pmem);
 		goto skip_umem_pg_sz;
+	}
 #endif
 
 #ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
@@ -2190,10 +2170,9 @@ skip_umem_get:
 				       dev->dev_attr.page_size_cap,
 				       virt_addr);
 	if (!pg_sz) {
-		err = -EOPNOTSUPP;
 		ibdev_dbg(&dev->ibdev, "Failed to find a suitable page size in page_size_cap %#llx\n",
 			  dev->dev_attr.page_size_cap);
-		goto err_unmap;
+		return -EOPNOTSUPP;
 	}
 #else
 	pg_sz = efa_cont_pages(mr->umem, dev->dev_attr.page_size_cap,
@@ -2228,21 +2207,21 @@ skip_umem_pg_sz:
 	if (params.page_num <= inline_size) {
 		err = efa_create_inline_pbl(dev, mr, &params);
 		if (err)
-			goto err_unmap;
+			return err;
 
 		err = efa_com_register_mr(&dev->edev, &params, &result);
 		if (err)
-			goto err_unmap;
+			return err;
 	} else {
 		err = efa_create_pbl(dev, &pbl, mr, &params);
 		if (err)
-			goto err_unmap;
+			return err;
 
 		err = efa_com_register_mr(&dev->edev, &params, &result);
 		pbl_destroy(dev, &pbl);
 
 		if (err)
-			goto err_unmap;
+			return err;
 	}
 
 	mr->ibmr.lkey = result.l_key;
@@ -2258,9 +2237,98 @@ skip_umem_pg_sz:
 #endif
 	ibdev_dbg(&dev->ibdev, "Registered mr[%d]\n", mr->ibmr.lkey);
 
+	return 0;
+}
+
+#ifdef HAVE_MR_DMABUF
+struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
+				     u64 length, u64 virt_addr,
+				     int fd, int access_flags,
+				     struct ib_udata *udata)
+{
+	struct efa_dev *dev = to_edev(ibpd->device);
+	struct ib_umem_dmabuf *umem_dmabuf;
+	struct efa_mr *mr;
+	int err;
+
+	mr = efa_alloc_mr(ibpd, access_flags, udata);
+	if (IS_ERR(mr)) {
+		err = PTR_ERR(mr);
+		goto err_out;
+	}
+
+	umem_dmabuf = ib_umem_dmabuf_get_pinned(ibpd->device, start, length, fd,
+						access_flags);
+	if (IS_ERR(umem_dmabuf)) {
+		err = PTR_ERR(umem_dmabuf);
+		ibdev_dbg(&dev->ibdev, "Failed to get dmabuf umem[%d]\n", err);
+		goto err_free;
+	}
+
+	mr->umem = &umem_dmabuf->umem;
+	err = efa_register_mr(ibpd, mr, start, length, virt_addr, access_flags);
+	if (err)
+		goto err_release;
+
 	return &mr->ibmr;
 
-err_unmap:
+err_release:
+	ib_umem_release(mr->umem);
+err_free:
+	kfree(mr);
+err_out:
+	atomic64_inc(&dev->stats.reg_mr_err);
+	return ERR_PTR(err);
+}
+#endif
+
+struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
+			 u64 virt_addr, int access_flags,
+			 struct ib_udata *udata)
+{
+	struct efa_dev *dev = to_edev(ibpd->device);
+	struct efa_mr *mr;
+	int err;
+
+	mr = efa_alloc_mr(ibpd, access_flags, udata);
+	if (IS_ERR(mr)) {
+		err = PTR_ERR(mr);
+		goto err_out;
+	}
+
+#ifdef HAVE_EFA_P2P
+	mr->p2pmem = efa_p2p_get(dev, mr, start, length);
+	if (mr->p2pmem)
+		goto skip_umem_get;
+#endif
+
+#ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
+	mr->umem = ib_umem_get(ibpd->device, start, length, access_flags);
+#elif defined(HAVE_IB_UMEM_GET_NO_DMASYNC)
+	mr->umem = ib_umem_get(udata, start, length, access_flags);
+#elif defined(HAVE_IB_UMEM_GET_UDATA)
+	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
+#else
+	mr->umem = ib_umem_get(ibpd->uobject->context, start, length,
+			       access_flags, 0);
+#endif
+	if (IS_ERR(mr->umem)) {
+		err = PTR_ERR(mr->umem);
+		ibdev_dbg(&dev->ibdev,
+			  "Failed to pin and map user space memory[%d]\n", err);
+		goto err_free;
+	}
+
+#ifdef HAVE_EFA_P2P
+skip_umem_get:
+#endif
+	err = efa_register_mr(ibpd, mr, start, length, virt_addr, access_flags);
+	if (err)
+		goto err_release;
+
+	return &mr->ibmr;
+
+err_release:
 #ifdef HAVE_EFA_P2P
 	if (mr->p2pmem)
 		efa_p2p_put(mr->p2pmem->ticket, false);
