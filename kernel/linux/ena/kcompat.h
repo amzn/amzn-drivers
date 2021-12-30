@@ -893,6 +893,10 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0) */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+#define ENA_EXTENDED_COALESCE_UAPI_WITH_CQE_SUPPORTED
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 #define ENA_ETHTOOL_RX_BUFF_SIZE_CHANGE
 #endif
