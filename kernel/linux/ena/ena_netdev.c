@@ -1918,19 +1918,26 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 				   int first_index, int count)
 {
 	int i;
+	int (*napi_handler)(struct napi_struct *napi, int budget);
 
 	for (i = first_index; i < first_index + count; i++) {
 		struct ena_napi *napi = &adapter->ena_napi[i];
+		struct ena_ring *rx_ring, *tx_ring;
 
 		memset(napi, 0, sizeof(*napi));
 
+		rx_ring = &adapter->rx_ring[i];
+		tx_ring = &adapter->tx_ring[i];
+
+		napi_handler = ena_io_poll;
+#ifdef ENA_XDP_SUPPORT
+		if (ENA_IS_XDP_INDEX(adapter, i) || ENA_IS_XSK_RING(rx_ring))
+			napi_handler = ena_xdp_io_poll;
+#endif /* ENA_XDP_SUPPORT */
+
 		netif_napi_add(adapter->netdev,
 			       &napi->napi,
-#ifdef ENA_XDP_SUPPORT
-			       ENA_IS_XDP_INDEX(adapter, i) ? ena_xdp_io_poll : ena_io_poll,
-#else
-			       ena_io_poll,
-#endif /* ENA_XDP_SUPPORT */
+			       napi_handler,
 			       ENA_NAPI_BUDGET);
 
 #ifdef ENA_BUSY_POLL_SUPPORT
@@ -1938,9 +1945,9 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 
 #endif /* ENA_BUSY_POLL_SUPPORT */
 		if (!ENA_IS_XDP_INDEX(adapter, i))
-			napi->rx_ring = &adapter->rx_ring[i];
+			napi->rx_ring = rx_ring;
 
-		napi->tx_ring = &adapter->tx_ring[i];
+		napi->tx_ring = tx_ring;
 		napi->qid = i;
 	}
 }

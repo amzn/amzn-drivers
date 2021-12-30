@@ -10,6 +10,10 @@
 #ifdef ENA_XDP_SUPPORT
 #include <linux/bpf_trace.h>
 
+#ifdef ENA_AF_XDP_SUPPORT
+#define ENA_IS_XSK_RING(ring) (!!(ring)->xsk_pool)
+#endif /* ENA_AF_XDP_SUPPORT */
+
 /* The max MTU size is configured to be the ethernet frame size without
  * the overhead of the ethernet header, which can have a VLAN header, and
  * a frame check sequence (FCS).
@@ -165,4 +169,7 @@ static inline bool ena_xdp_present_ring(struct ena_ring *ring)
 }
 
 #endif /* ENA_XDP_SUPPORT */
+#ifndef ENA_AF_XDP_SUPPORT /* stabs for AF XDP code */
+#define ENA_IS_XSK_RING(ring) false
+#endif /* ENA_AF_XDP_SUPPORT */
 #endif /* ENA_XDP_H */
