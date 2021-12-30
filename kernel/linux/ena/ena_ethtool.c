@@ -522,7 +522,13 @@ static void ena_get_drvinfo(struct net_device *dev,
 }
 
 static void ena_get_ringparam(struct net_device *netdev,
+#ifdef ENA_ETHTOOL_RX_BUFF_SIZE_CHANGE
+			      struct ethtool_ringparam *ring,
+			      struct kernel_ethtool_ringparam *kernel_ring,
+			      struct netlink_ext_ack *extack)
+#else
 			      struct ethtool_ringparam *ring)
+#endif
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
@@ -533,7 +539,13 @@ static void ena_get_ringparam(struct net_device *netdev,
 }
 
 static int ena_set_ringparam(struct net_device *netdev,
+#ifdef ENA_ETHTOOL_RX_BUFF_SIZE_CHANGE
+			     struct ethtool_ringparam *ring,
+			     struct kernel_ethtool_ringparam *kernel_ring,
+			     struct netlink_ext_ack *extack)
+#else
 			     struct ethtool_ringparam *ring)
+#endif
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	u32 new_tx_size, new_rx_size;
