@@ -668,9 +668,10 @@ int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 
 		rc = ena_alloc_rx_buffer(rx_ring, rx_info);
 		if (unlikely(rc < 0)) {
-			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
-				   "Failed to allocate buffer for rx queue %d\n",
-				   rx_ring->qid);
+			if (!ENA_IS_XSK_RING(rx_ring))
+				netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
+					   "Failed to allocate buffer for rx queue %d\n",
+					   rx_ring->qid);
 			break;
 		}
 		rc = ena_com_add_single_rx_desc(rx_ring->ena_com_io_sq,
@@ -689,9 +690,10 @@ int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 	if (unlikely(i < num)) {
 		ena_increase_stat(&rx_ring->rx_stats.refil_partial, 1,
 				  &rx_ring->syncp);
-		netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
-			   "Refilled rx qid %d with only %d buffers (from %d)\n",
-			   rx_ring->qid, i, num);
+		if (!ENA_IS_XSK_RING(rx_ring))
+			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
+				   "Refilled rx qid %d with only %d buffers (from %d)\n",
+				   rx_ring->qid, i, num);
 	}
 
 	/* ena_com_write_sq_doorbell issues a wmb() */
@@ -3843,6 +3845,12 @@ static void check_for_empty_rx_ring(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_io_queues; i++) {
 		rx_ring = &adapter->rx_ring[i];
+
+		/* If using UMEM, app might not provide RX buffers and the ring
+		 * can be empty
+		 */
+		if (ENA_IS_XSK_RING(rx_ring))
+			continue;
 
 		refill_required = ena_com_free_q_entries(rx_ring->ena_com_io_sq);
 		if (unlikely(refill_required == (rx_ring->ring_size - 1))) {
