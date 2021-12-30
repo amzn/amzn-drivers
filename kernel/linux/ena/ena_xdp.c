@@ -354,12 +354,17 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 			}
 			ena_xdp_exchange_program(adapter, prog);
 
+			netif_dbg(adapter, drv, adapter->netdev, "Set a new XDP program\n");
+
 			if (is_up && !old_bpf_prog) {
 				rc = ena_up(adapter);
 				if (rc)
 					return rc;
 			}
 		} else if (old_bpf_prog) {
+			netif_dbg(adapter, drv, adapter->netdev,
+				  "Removing XDP program\n");
+
 			rc = ena_destroy_and_free_all_xdp_queues(adapter);
 			if (rc)
 				return rc;
@@ -585,7 +590,7 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		}
 
 		netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
-			  "tx_poll: q %d pkt #%d\n", tx_ring->qid, tx_pkts);
+			  "tx_poll: q %d pkt #%d req_id %d\n", tx_ring->qid, tx_pkts, req_id);
 
 		tx_bytes += tx_info->total_tx_size;
 		tx_pkts++;
@@ -682,6 +687,10 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 
 xmit_desc:
 		ena_tx_ctx.req_id = req_id;
+
+		netif_dbg(tx_ring->adapter, tx_queued, tx_ring->netdev,
+			  "Queueing zc packet on q %d, %s DMA part (req-id %d)\n",
+			  tx_ring->qid, ena_tx_ctx.num_bufs ? "with" : "without", req_id);
 
 		rc = ena_xmit_common(tx_ring->adapter,
 				     tx_ring,
