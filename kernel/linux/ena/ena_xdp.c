@@ -232,6 +232,26 @@ err:
 	return rc;
 }
 
+#ifdef ENA_AF_XDP_SUPPORT
+void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring)
+{
+	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
+	int i, xsk_frames = 0;
+
+	for (i = 0; i < tx_ring->ring_size; i++) {
+		struct ena_tx_buffer *tx_info = &tx_ring->tx_buffer_info[i];
+
+		if (tx_info->last_jiffies)
+			xsk_frames++;
+
+		tx_info->last_jiffies = 0;
+	}
+
+	if (xsk_frames)
+		xsk_tx_completed(xsk_pool, xsk_frames);
+}
+
+#endif /* ENA_AF_XDP_SUPPORT */
 static void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
 {
 	xdp_rxq_info_unreg_mem_model(&rx_ring->xdp_rxq);
@@ -559,6 +579,90 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 	return needs_wakeup;
 }
 
+#ifdef ENA_AF_XDP_SUPPORT
+static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
+				struct napi_struct *napi,
+				int budget)
+{
+	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
+	int size, rc, push_len = 0, work_done = 0;
+	struct ena_tx_buffer *tx_info;
+	struct ena_com_buf *ena_buf;
+	u16 next_to_use, req_id;
+	bool need_wakeup = true;
+	struct xdp_desc desc;
+	dma_addr_t dma;
+
+	while (likely(work_done < budget)) {
+		struct ena_com_tx_ctx ena_tx_ctx = {};
+
+		/* We assume the maximum number of descriptors, which is two
+		 * (meta data included)
+		 */
+		if (unlikely(!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq, 2)))
+			break;
+
+		if (!xsk_tx_peek_desc(xsk_pool, &desc))
+			break;
+
+		next_to_use = tx_ring->next_to_use;
+		req_id = tx_ring->free_ids[next_to_use];
+		tx_info = &tx_ring->tx_buffer_info[req_id];
+
+		size = desc.len;
+
+		if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+			/* Designate part of the packet for LLQ */
+			push_len = min_t(u32, size, tx_ring->tx_max_header_size);
+			ena_tx_ctx.push_header = xsk_buff_raw_get_data(xsk_pool, desc.addr);
+			ena_tx_ctx.header_len = push_len;
+
+			size -= push_len;
+			if (!size)
+				goto xmit_desc;
+		}
+
+		/* Pass the rest of the descriptor as a DMA address. Assuming
+		 * single page descriptor.
+		 */
+		dma  = xsk_buff_raw_get_dma(xsk_pool, desc.addr);
+		ena_buf = tx_info->bufs;
+		ena_buf->paddr = dma + push_len;
+		ena_buf->len = size;
+
+		ena_tx_ctx.ena_bufs = ena_buf;
+		ena_tx_ctx.num_bufs = 1;
+
+xmit_desc:
+		ena_tx_ctx.req_id = req_id;
+
+		rc = ena_xmit_common(tx_ring->adapter,
+				     tx_ring,
+				     tx_info,
+				     &ena_tx_ctx,
+				     next_to_use,
+				     desc.len);
+		if (rc)
+			break;
+
+		work_done++;
+	}
+
+	if (work_done) {
+		xsk_tx_release(xsk_pool);
+		ena_ring_tx_doorbell(tx_ring);
+	}
+
+	if (work_done == budget) {
+		need_wakeup = false;
+		if (xsk_uses_need_wakeup(xsk_pool))
+			xsk_clear_tx_need_wakeup(xsk_pool);
+	}
+
+	return need_wakeup;
+}
+
+#endif /* ENA_AF_XDP_SUPPORT */
 /* This is the XDP napi callback. XDP queues use a separate napi callback
  * than Rx/Tx queues.
  */
@@ -580,6 +684,14 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 
 	needs_wakeup &= ena_clean_xdp_irq(tx_ring, budget);
 
+#ifdef ENA_AF_XDP_SUPPORT
+	if (!ENA_IS_XSK_RING(tx_ring))
+		goto polling_done;
+
+	needs_wakeup &= ena_xdp_xmit_irq_zc(tx_ring, napi, budget);
+
+polling_done:
+#endif /* ENA_AF_XDP_SUPPORT */
 	/* If the device is about to reset or down, avoid unmask
 	 * the interrupt and return 0 so NAPI won't reschedule
 	 */

@@ -798,6 +798,10 @@ static void ena_free_all_tx_bufs(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
 		tx_ring = &adapter->tx_ring[i];
+		if (ENA_IS_XSK_RING(tx_ring)) {
+			ena_xdp_free_tx_bufs_zc(tx_ring);
+			continue;
+		}
 		ena_free_tx_bufs(tx_ring);
 	}
 }
