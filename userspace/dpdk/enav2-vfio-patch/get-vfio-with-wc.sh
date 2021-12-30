@@ -50,7 +50,7 @@ function download_kernel_src_yum {
 
 	bold "\nInstall required applications and kernel headers"
 	yum install -y gcc "kernel-$(uname -r)" "kernel-devel-$(uname -r)" \
-	    git make elfutils-libelf-devel patch
+	    git make elfutils-libelf-devel patch yum-utils
 	green Done
 
 	# Download kernel source
