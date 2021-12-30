@@ -539,6 +539,9 @@ int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags)
 	if (!ENA_IS_XSK_RING(tx_ring))
 		return -ENXIO;
 
+	ena_increase_stat(&tx_ring->tx_stats.xsk_wakeup_request, 1,
+			  &tx_ring->syncp);
+
 	napi = tx_ring->napi;
 
 	napi_schedule(napi);
@@ -756,7 +759,7 @@ static int ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 				   struct napi_struct *napi,
 				   int budget)
 {
-	int i, refill_required, work_done, refill_threshold;
+	int i, refill_required, work_done, refill_threshold, pkt_copy;
 	u16 next_to_clean = rx_ring->next_to_clean;
 	int xdp_verdict, req_id, rc, total_len;
 	struct ena_com_rx_ctx ena_rx_ctx;
@@ -776,6 +779,7 @@ static int ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 
 	work_done = 0;
 	total_len = 0;
+	pkt_copy = 0;
 
 	do {
 		xdp_verdict = ENA_XDP_PASS;
@@ -846,6 +850,7 @@ skip_xdp_prog:
 			break;
 		}
 
+		pkt_copy++;
 		work_done++;
 		total_len += ena_rx_ctx.ena_bufs[0].len;
 		ena_rx_checksum(rx_ring, &ena_rx_ctx, skb);
@@ -859,6 +864,7 @@ skip_xdp_prog:
 	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->rx_stats.bytes += total_len;
 	rx_ring->rx_stats.cnt += work_done;
+	rx_ring->rx_stats.zc_queue_pkt_copy += pkt_copy;
 	u64_stats_update_end(&rx_ring->syncp);
 
 	rx_ring->next_to_clean = next_to_clean;
@@ -877,10 +883,13 @@ skip_xdp_prog:
 	}
 
 	if (xsk_uses_need_wakeup(rx_ring->xsk_pool)) {
-		if (likely(rc || work_done < budget))
+		if (likely(rc || work_done < budget)) {
 			xsk_set_rx_need_wakeup(rx_ring->xsk_pool);
-		else
+			ena_increase_stat(&rx_ring->rx_stats.xsk_need_wakeup_set, 1,
+					  &rx_ring->syncp);
+		} else {
 			xsk_clear_rx_need_wakeup(rx_ring->xsk_pool);
+		}
 	}
 
 	if (unlikely(rc)) {

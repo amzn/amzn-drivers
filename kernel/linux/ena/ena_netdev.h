@@ -214,6 +214,10 @@ struct ena_stats_tx {
 	u64 missed_tx;
 	u64 unmask_interrupt;
 	u64 last_napi_jiffies;
+#ifdef ENA_AF_XDP_SUPPORT
+	u64 xsk_need_wakeup_set;
+	u64 xsk_wakeup_request;
+#endif /* ENA_AF_XDP_SUPPORT */
 };
 
 struct ena_stats_rx {
@@ -246,6 +250,10 @@ struct ena_stats_rx {
 	u64 lpc_warm_up;
 	u64 lpc_full;
 	u64 lpc_wrong_numa;
+#ifdef ENA_AF_XDP_SUPPORT
+	u64 xsk_need_wakeup_set;
+	u64 zc_queue_pkt_copy;
+#endif /* ENA_AF_XDP_SUPPORT */
 };
 
 struct ena_ring {
