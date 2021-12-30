@@ -45,26 +45,37 @@ Driver compilation
 Prerequisites:
 --------------
 
+Amazon Linux
+````````````
+.. code-block:: shell
+
+  sudo yum update
+  sudo reboot
+  sudo yum install kernel-devel-$(uname -r) git
+
 RHEL
 ````
 .. code-block:: shell
 
   sudo yum update
-  sudo yum install gcc kernel-devel-$(uname -r)
+  sudo reboot
+  sudo yum install gcc kernel-devel-$(uname -r) git
 
 Ubuntu
 ``````
 .. code-block:: shell
 
   sudo apt-get update
+  sudo apt install linux-headers-$(uname -r)
   sudo apt-get install make gcc
 
-Open Suse
-`````````
+CentOS
+```````
 .. code-block:: shell
 
-  sudo zypper update
-  sudo zypper install make gcc kernel-devel-$(uname -r)
+  sudo yum update
+  sudo reboot
+  sudo yum install kernel-devel-$(uname -r) git
 
 Compilation:
 ------------
@@ -92,36 +103,11 @@ The exceptions are:
    if :code:`uname -r` yields the output `3.13.0-29-generic`, then the ABI is 29,
    and the compilation command is :code:`make UBUNTU_ABI=29`.
 
-Driver installation
-====================
-.. _`supported instances`: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking-ena.html#ena-requirements
-.. _`test-enhanced-networking-ena`: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking-ena.html#test-enhanced-networking-ena
-
-Please refer to `supported instances`_ for the list of instance types supporting ENA.
-
-Please also make sure Enhanced Networking is enabled on your instance as specified in `test-enhanced-networking-ena`_.
-
 Loading driver:
 ---------------
 .. code-block:: shell
 
-  sudo modprobe -r ena && insmod ena.ko
-
-To load driver upon the OS boot:
---------------------------------
-
-RHEL / Open Suse / Ubuntu:
-``````````````````````````
-
-1. Run :code:`sudo vi /etc/modules-load.d/ena.conf` and add `ena` to the file
-2. From the same folder you compiled run
-
-   ``sudo make -C /lib/modules/`uname -r`/build M=`pwd` modules_install``
-3. Run :code:`sudo depmod`
-
-4. if previous driver was loaded from initramfs - it will have to be updated as well (i.e. dracut).
-
-5. Restart the OS (:code:`sudo reboot` and reconnect)
+  sudo modprobe -r ena && sudo insmod ena.ko
 
 
 Please note, the following messages might appear during OS boot::
@@ -131,6 +117,70 @@ Please note, the following messages might appear during OS boot::
 
 These messages are informational and indicate that out-of-tree driver is being
 used, and do not affect driver operation.
+
+
+Driver installation using dkms
+==============================
+.. _`supported instances`: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking-ena.html#ena-requirements
+.. _`test-enhanced-networking-ena`: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking-ena.html#test-enhanced-networking-ena
+
+Please refer to `supported instances`_ for the list of instance types supporting ENA.
+
+Please also make sure Enhanced Networking is enabled on your instance as specified in `test-enhanced-networking-ena`_.
+
+Installing dkms:
+----------------
+
+Amazon Linux
+````````````
+.. code-block:: shell
+
+  sudo yum install dkms
+
+RHEL
+````
+.. code-block:: shell
+
+  sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+  sudo yum install dkms
+
+Ubuntu
+``````
+.. code-block:: shell
+
+  sudo apt-get install dkms
+
+CentOS
+```````
+.. code-block:: shell
+
+  sudo yum install --enablerepo=extras epel-release
+  sudo yum install dkms
+
+Installing Driver with dkms:
+----------------------------
+.. code-block:: shell
+
+  git clone https://github.com/amzn/amzn-drivers.git
+  sudo mv amzn-drivers /usr/src/amzn-drivers-X.Y.Z (X.Y.Z = driver version)
+  sudo vi /usr/src/amzn-drivers-X.Y.Z/dkms.conf
+
+  # paste this
+
+  PACKAGE_NAME="ena"
+  PACKAGE_VERSION="1.0.0"
+  CLEAN="make -C kernel/linux/ena clean"
+  MAKE="make -C kernel/linux/ena/ BUILD_KERNEL=${kernelver}"
+  BUILT_MODULE_NAME[0]="ena"
+  BUILT_MODULE_LOCATION="kernel/linux/ena"
+  DEST_MODULE_LOCATION[0]="/updates"
+  DEST_MODULE_NAME[0]="ena"
+  AUTOINSTALL="yes"
+
+  sudo dkms add -m amzn-drivers -v X.Y.Z
+  sudo dkms build -m amzn-drivers -v X.Y.Z
+  sudo dkms install -m amzn-drivers -v X.Y.Z
+  sudo reboot
 
 Module Parameters
 =================
