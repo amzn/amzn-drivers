@@ -248,6 +248,7 @@ ena_sysfs.[ch]      Sysfs files.
 ena_lpc.[ch]        Local Page Cache files (see `LPC`_ for more info)
 ena_ethtool.c       ethtool callbacks.
 ena_devlink.[ch]    devlink files (see `devlink support`_ for more info)
+ena_xdp.[ch]        XDP files
 ena_pci_id_tbl.h    Supported device IDs.
 =================   ======================================================
 

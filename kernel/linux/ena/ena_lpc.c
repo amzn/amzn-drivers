@@ -3,17 +3,9 @@
  * Copyright 2015-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 #include "ena_lpc.h"
+#include "ena_xdp.h"
 
 static void ena_free_ring_page_cache(struct ena_ring *rx_ring);
-
-/* Increase a stat by cnt while holding syncp seqlock on 32bit machines */
-static void ena_increase_stat(u64 *statp, u64 cnt,
-			      struct u64_stats_sync *syncp)
-{
-	u64_stats_update_begin(syncp);
-	(*statp) += cnt;
-	u64_stats_update_end(syncp);
-}
 
 static void ena_put_unmap_cache_page(struct ena_ring *rx_ring, struct ena_page *ena_page)
 {
