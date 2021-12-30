@@ -34,6 +34,18 @@ ifneq ($(strip $(GENERATED_EXISTS)),)
   endif
 endif
 
+ifneq ("$(wildcard /etc/os-release)","")
+  IS_DEBIAN=$(shell grep Debian /etc/os-release)
+
+  ifneq ($(strip $(IS_DEBIAN)),)
+    DEBIAN_VERSION_LINE=$(shell grep VERSION_ID /etc/os-release)
+    REMOVE_QUOTES = $(subst $\",,$(DEBIAN_VERSION_LINE))
+    REMOVE_EQUAL_SIGN = $(subst $\=,,$(REMOVE_QUOTES))
+    DEBIAN_VERSION = $(subst VERSION_ID,,$(REMOVE_EQUAL_SIGN))
+    ccflags-y += -DDEBIAN_VERSION=$(DEBIAN_VERSION)
+  endif
+endif
+
 ifdef UBUNTU_ABI
 	ccflags-y += -DUTS_UBUNTU_RELEASE_ABI=$(UBUNTU_ABI)
 endif

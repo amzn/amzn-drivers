@@ -741,7 +741,7 @@ do {									\
     !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1)) && \
                             (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6, 6)))) && \
                             !defined(UBUNTU_VERSION_CODE) && \
-                            !defined(UEK3_RELEASE)
+			    !defined(UEK3_RELEASE) && (!defined(DEBIAN_VERSION) || DEBIAN_VERSION != 8)
 
 #define DO_ONCE(func, ...)						     \
 	({								     \
