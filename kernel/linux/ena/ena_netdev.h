@@ -539,6 +539,15 @@ static inline bool ena_bp_disable(struct ena_ring *rx_ring)
 }
 #endif /* ENA_BUSY_POLL_SUPPORT */
 
+static inline void ena_reset_device(struct ena_adapter *adapter,
+				    enum ena_regs_reset_reason_types reset_reason)
+{
+	adapter->reset_reason = reset_reason;
+	/* Make sure reset reason is set before triggering the reset */
+	smp_mb__before_atomic();
+	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+}
+
 #ifdef ENA_XDP_SUPPORT
 enum ena_xdp_errors_t {
 	ENA_XDP_ALLOWED = 0,
