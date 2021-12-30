@@ -57,8 +57,8 @@ int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf);
 #ifdef ENA_AF_XDP_SUPPORT
 void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);
 void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid);
+int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags);
 #endif
-
 
 enum ena_xdp_errors_t {
 	ENA_XDP_ALLOWED = 0,

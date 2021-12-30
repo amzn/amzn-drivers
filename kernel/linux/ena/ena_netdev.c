@@ -3268,6 +3268,9 @@ static const struct net_device_ops ena_netdev_ops = {
 #ifdef ENA_XDP_SUPPORT
 	.ndo_bpf		= ena_xdp,
 	.ndo_xdp_xmit		= ena_xdp_xmit,
+#ifdef ENA_AF_XDP_SUPPORT
+	.ndo_xsk_wakeup         = ena_xdp_xsk_wakeup,
+#endif /* ENA_AF_XDP_SUPPORT */
 #endif /* ENA_XDP_SUPPORT */
 };
 

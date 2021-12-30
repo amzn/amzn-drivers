@@ -510,6 +510,35 @@ int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 	return 0;
 }
 
+#ifdef ENA_AF_XDP_SUPPORT
+int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_ring *tx_ring;
+	struct napi_struct *napi;
+
+	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+		return -ENETDOWN;
+
+	if (qid >= adapter->num_io_queues)
+		return -EINVAL;
+
+	if (!adapter->xdp_bpf_prog)
+		return -ENXIO;
+
+	tx_ring = &adapter->tx_ring[qid];
+
+	if (!ENA_IS_XSK_RING(tx_ring))
+		return -ENXIO;
+
+	napi = tx_ring->napi;
+
+	napi_schedule(napi);
+
+	return 0;
+}
+
+#endif /* ENA_AF_XDP_SUPPORT */
 static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 {
 
@@ -905,8 +934,12 @@ polling_done:
 	} else if (needs_wakeup) {
 		ena_increase_stat(&tx_ring->tx_stats.napi_comp, 1,
 				  &tx_ring->syncp);
-		if (napi_complete_done(napi, rx_work_done))
+		if (napi_complete_done(napi, rx_work_done) &&
+		    READ_ONCE(ena_napi->interrupts_masked)) {
+			smp_rmb(); /* make sure interrupts_masked is read */
+			WRITE_ONCE(ena_napi->interrupts_masked, false);
 			ena_unmask_interrupt(tx_ring, NULL);
+		}
 
 		ena_update_ring_numa_node(tx_ring, NULL);
 		ret = rx_work_done;
