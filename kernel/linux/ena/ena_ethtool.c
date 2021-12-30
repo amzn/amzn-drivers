@@ -859,6 +859,7 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
+	enum ena_admin_hash_functions ena_func;
 	int rc;
 
 	rc = ena_indirection_table_get(adapter, indir);
