@@ -5,9 +5,6 @@
 
 #include "ena_xdp.h"
 #ifdef ENA_XDP_SUPPORT
-#ifdef ENA_AF_XDP_SUPPORT
-#include <net/xdp_sock_drv.h>
-#endif /* ENA_AF_XDP_SUPPORT */
 
 static int validate_xdp_req_id(struct ena_ring *tx_ring, u16 req_id)
 {
@@ -218,8 +215,13 @@ static int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 		goto err;
 	}
 
-	rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_PAGE_SHARED,
-					NULL);
+	if (ENA_IS_XSK_RING(rx_ring)) {
+		xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_XSK_BUFF_POOL, NULL);
+		xsk_pool_set_rxq_info(rx_ring->xsk_pool, &rx_ring->xdp_rxq);
+	} else {
+		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_PAGE_SHARED,
+						NULL);
+	}
 
 	if (rc) {
 		netif_err(rx_ring->adapter, ifup, rx_ring->netdev,
@@ -249,6 +251,21 @@ void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring)
 
 	if (xsk_frames)
 		xsk_tx_completed(xsk_pool, xsk_frames);
+}
+
+void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid)
+{
+	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
+	int i = 0;
+
+	for (i = 0; i < rx_ring->ring_size; i++) {
+		struct ena_rx_buffer *rx_info = &rx_ring->rx_buffer_info[i];
+
+		if (rx_info->xdp)
+			xsk_buff_free(rx_info->xdp);
+
+		rx_info->xdp = NULL;
+	}
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */

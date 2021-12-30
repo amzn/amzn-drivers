@@ -585,6 +585,26 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 	if (unlikely(rx_info->page))
 		return 0;
 
+	tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	ena_buf = &rx_info->ena_buf;
+
+#ifdef ENA_AF_XDP_SUPPORT
+	if (unlikely(ENA_IS_XSK_RING(rx_ring))) {
+		struct xdp_buff *xdp;
+
+		xdp = xsk_buff_alloc(rx_ring->xsk_pool);
+		if (!xdp)
+			return -ENOMEM;
+
+		ena_buf->paddr = xsk_buff_xdp_get_dma(xdp);
+		ena_buf->len = xsk_pool_get_rx_frame_size(rx_ring->xsk_pool);
+
+		rx_info->xdp = xdp;
+
+		return 0;
+	}
+#endif /* ENA_AF_XDP_SUPPORT */
+
 	/* We handle DMA here */
 	page = ena_lpc_get_page(rx_ring, &dma, &rx_info->is_lpc_page);
 	if (unlikely(IS_ERR(page)))
@@ -593,12 +613,9 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 		  "Allocate page %p, rx_info %p\n", page, rx_info);
 
-	tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-
 	rx_info->page = page;
 	rx_info->dma_addr = dma;
 	rx_info->page_offset = 0;
-	ena_buf = &rx_info->ena_buf;
 	ena_buf->paddr = dma + headroom;
 	ena_buf->len = ENA_PAGE_SIZE - headroom - tailroom;
 
@@ -691,6 +708,11 @@ static void ena_free_rx_bufs(struct ena_adapter *adapter,
 {
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
 	u32 i;
+
+	if (ENA_IS_XSK_RING(rx_ring)) {
+		ena_xdp_free_rx_bufs_zc(adapter, qid);
+		return;
+	}
 
 	for (i = 0; i < rx_ring->ring_size; i++) {
 		struct ena_rx_buffer *rx_info = &rx_ring->rx_buffer_info[i];

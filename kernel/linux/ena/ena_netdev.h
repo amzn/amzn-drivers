@@ -181,8 +181,16 @@ struct ena_tx_buffer {
 
 struct ena_rx_buffer {
 	struct sk_buff *skb;
-	struct page *page;
-	dma_addr_t dma_addr;
+	union {
+		struct {
+			struct page *page;
+			dma_addr_t dma_addr;
+		};
+#ifdef ENA_XDP_SUPPORT
+		/* XSK pool buffer */
+		struct xdp_buff *xdp;
+#endif
+	};
 	u32 page_offset;
 	u32 buf_offset;
 	struct ena_com_buf ena_buf;

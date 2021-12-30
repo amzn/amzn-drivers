@@ -9,6 +9,9 @@
 #include "ena_netdev.h"
 #ifdef ENA_XDP_SUPPORT
 #include <linux/bpf_trace.h>
+#ifdef ENA_AF_XDP_SUPPORT
+#include <net/xdp_sock_drv.h>
+#endif /* ENA_AF_XDP_SUPPORT */
 
 #ifdef ENA_AF_XDP_SUPPORT
 #define ENA_IS_XSK_RING(ring) (!!(ring)->xsk_pool)
@@ -53,6 +56,7 @@ int ena_xdp_xmit(struct net_device *dev, int n,
 int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf);
 #ifdef ENA_AF_XDP_SUPPORT
 void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);
+void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid);
 #endif
 
 
@@ -174,7 +178,16 @@ static inline bool ena_xdp_present_ring(struct ena_ring *ring)
 
 #endif /* ENA_XDP_SUPPORT */
 #ifndef ENA_AF_XDP_SUPPORT /* stabs for AF XDP code */
+
+/* Define (or override if it's defined) these enum and function to make sure
+ * that the code that uses them would always compile. If AF XDP isn't supported, it
+ * won't be used anyway.
+ */
+#define MEM_TYPE_XSK_BUFF_POOL 0
+#define xsk_pool_set_rxq_info(pool, rxq)
+
 static inline void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring) {}
+static inline void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid) {}
 
 #define ENA_IS_XSK_RING(ring) false
 #endif /* ENA_AF_XDP_SUPPORT */
