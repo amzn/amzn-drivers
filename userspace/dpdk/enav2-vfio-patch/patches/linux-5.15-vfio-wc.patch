@@ -1,0 +1,30 @@
+diff --git a/drivers/vfio/pci/vfio_pci_core.c b/drivers/vfio/pci/vfio_pci_core.c
+index a03b5a99c2da..8f9798138226 100644
+--- a/drivers/vfio/pci/vfio_pci_core.c
++++ b/drivers/vfio/pci/vfio_pci_core.c
+@@ -1493,7 +1493,12 @@ int vfio_pci_core_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma
+ 		if (ret)
+ 			return ret;
+ 
+-		vdev->barmap[index] = pci_iomap(pdev, index, 0);
++		if (pci_resource_flags(pdev, index) & IORESOURCE_PREFETCH)
++			vdev->barmap[index] = ioremap_wc(
++			    pci_resource_start(pdev, index),
++			    pci_resource_len(pdev, index));
++		    else
++			    vdev->barmap[index] = pci_iomap(pdev, index, 0);
+ 		if (!vdev->barmap[index]) {
+ 			pci_release_selected_regions(pdev, 1 << index);
+ 			return -ENOMEM;
+@@ -1501,7 +1506,10 @@ int vfio_pci_core_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma
+ 	}
+ 
+ 	vma->vm_private_data = vdev;
+-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
++	if (pci_resource_flags(pdev, index) & IORESOURCE_PREFETCH)
++		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
++	else
++		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+ 	vma->vm_pgoff = (pci_resource_start(pdev, index) >> PAGE_SHIFT) + pgoff;
+ 
+ 	/*

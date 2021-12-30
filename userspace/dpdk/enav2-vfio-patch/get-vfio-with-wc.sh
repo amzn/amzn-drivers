@@ -98,7 +98,10 @@ function download_kernel_src {
 }
 
 function apply_wc_patch {
-	if [ "${KERNEL_VERSION}" -ge 5080000 ]; then
+	if [ "${KERNEL_VERSION}" -ge 5150000 ]; then
+		echo "Using patch for kernel version 5.15"
+		local wc_patch="${BASE_PATH}/patches/linux-5.15-vfio-wc.patch"
+	elif [ "${KERNEL_VERSION}" -ge 5080000 ]; then
 		echo "Using patch for kernel version 5.8"
 		local wc_patch="${BASE_PATH}/patches/linux-5.8-vfio-wc.patch"
 	elif [ "${KERNEL_VERSION}" -ge 4100000 ]; then
@@ -162,18 +165,29 @@ function get_module_compression {
 }
 
 function replace_module {
+	local installed=0
+
 	bold "\n[3] Install module"
 	get_module_location
 	get_module_compression
 
-	for name in "pci/vfio-pci.ko" "vfio.ko"; do
-		if [ -n "${XZ}" ]; then
-			xz "${name}" -c > "${name}${XZ}"
+	for name in "pci/vfio-pci.ko" "pci/vfio-pci-core.ko" "vfio.ko"; do
+		if test -e "${MOD_PATH}/${name}${XZ}"; then
+			if [ -n "${XZ}" ]; then
+				xz "${name}" -c > "${name}${XZ}"
+			fi
+			mv "${MOD_PATH}/${name}${XZ}" "${MOD_PATH}/${name}${XZ}_no_wc"
+			cp "${name}${XZ}" "${MOD_PATH}/${name}${XZ}"
+			bold "Installing: ${MOD_PATH}/${name}${XZ}"
+			installed=1
 		fi
-		mv "${MOD_PATH}/${name}${XZ}" "${MOD_PATH}/${name}${XZ}_no_wc"
-		cp "${name}${XZ}" "${MOD_PATH}/${name}${XZ}"
 	done
-	green "Module installed at: ${MOD_PATH}/${name}${XZ}"
+	if [ "${installed}" -eq 1 ]; then
+		green "Module installed at: ${MOD_PATH}"
+	else
+		err "Failure during vfio-pci module installation. Prehaps it's not provided as a kernel module!"
+		exit 1
+	fi
 }
 
 ###############################################
