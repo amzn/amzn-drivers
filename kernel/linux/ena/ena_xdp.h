@@ -96,6 +96,19 @@ static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
 	return rc;
 }
 
+#ifdef ENA_AF_XDP_SUPPORT
+static inline bool ena_is_zc_q_exist(struct ena_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_io_queues; i++)
+		if (ENA_IS_XSK_RING(&adapter->rx_ring[i]))
+			return true;
+
+	return false;
+}
+
+#endif /* ENA_AF_XDP_SUPPORT */
 static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 {
 	u32 verdict = ENA_XDP_PASS;
@@ -199,5 +212,10 @@ static inline void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring) {}
 static inline void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid) {}
 
 #define ENA_IS_XSK_RING(ring) false
+
+static inline bool ena_is_zc_q_exist(struct ena_adapter *adapter)
+{
+	return false;
+}
 #endif /* ENA_AF_XDP_SUPPORT */
 #endif /* ENA_XDP_H */

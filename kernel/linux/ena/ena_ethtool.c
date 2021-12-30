@@ -1019,6 +1019,11 @@ static int ena_set_channels(struct net_device *netdev,
 
 	if (count > adapter->max_num_io_queues)
 		return -EINVAL;
+	if (count != adapter->num_io_queues && ena_is_zc_q_exist(adapter)) {
+		netdev_err(adapter->netdev,
+			   "Changing channel count not supported with xsk pool loaded\n");
+		return -EOPNOTSUPP;
+	}
 
 	return ena_update_queue_count(adapter, count);
 }
