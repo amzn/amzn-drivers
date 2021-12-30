@@ -11,7 +11,7 @@ static int validate_xdp_req_id(struct ena_ring *xdp_ring, u16 req_id)
 	struct ena_tx_buffer *tx_info;
 
 	tx_info = &xdp_ring->tx_buffer_info[req_id];
-	if (likely(tx_info->xdpf))
+	if (likely(tx_info->total_tx_size))
 		return 0;
 
 	return handle_invalid_req_id(xdp_ring, req_id, tx_info, true);
@@ -417,11 +417,14 @@ static int ena_clean_xdp_irq(struct ena_ring *xdp_ring, u32 budget)
 			  "tx_poll: q %d skb %p completed\n", xdp_ring->qid,
 			  xdpf);
 
-		tx_bytes += xdpf->len;
+		tx_bytes += tx_info->total_tx_size;
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
 
 		xdp_return_frame(xdpf);
+
+		tx_info->total_tx_size = 0;
+
 		xdp_ring->free_ids[next_to_clean] = req_id;
 		next_to_clean = ENA_TX_RING_IDX_NEXT(next_to_clean,
 						     xdp_ring->ring_size);
