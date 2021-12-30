@@ -472,10 +472,13 @@ int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 	return 0;
 }
 
-static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
+static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 {
+
+	bool is_zc_q = ENA_IS_XSK_RING(tx_ring);
 	u32 total_done = 0;
 	u16 next_to_clean;
+	bool needs_wakeup;
 	u32 tx_bytes = 0;
 	int tx_pkts = 0;
 	u16 req_id;
@@ -504,21 +507,22 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 			break;
 
 		tx_info = &tx_ring->tx_buffer_info[req_id];
-		xdpf = tx_info->xdpf;
 
-		tx_info->xdpf = NULL;
 		tx_info->last_jiffies = 0;
-		ena_unmap_tx_buff(tx_ring, tx_info);
+
+		if (!is_zc_q) {
+			xdpf = tx_info->xdpf;
+			tx_info->xdpf = NULL;
+			ena_unmap_tx_buff(tx_ring, tx_info);
+			xdp_return_frame(xdpf);
+		}
 
 		netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
-			  "tx_poll: q %d skb %p completed\n", tx_ring->qid,
-			  xdpf);
+			  "tx_poll: q %d pkt #%d\n", tx_ring->qid, tx_pkts);
 
 		tx_bytes += tx_info->total_tx_size;
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
-
-		xdp_return_frame(xdpf);
 
 		tx_info->total_tx_size = 0;
 
@@ -535,7 +539,24 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		  "tx_poll: q %d done. total pkts: %d\n",
 		  tx_ring->qid, tx_pkts);
 
-	return tx_pkts;
+	needs_wakeup = tx_pkts < budget;
+#ifdef ENA_AF_XDP_SUPPORT
+	if (is_zc_q) {
+		struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
+
+		if (tx_pkts)
+			xsk_tx_completed(xsk_pool, tx_pkts);
+
+		if (xsk_uses_need_wakeup(xsk_pool)) {
+			if (needs_wakeup)
+				xsk_set_tx_need_wakeup(xsk_pool);
+			else
+				xsk_clear_tx_need_wakeup(xsk_pool);
+		}
+	}
+#endif /* ENA_AF_XDP_SUPPORT */
+
+	return needs_wakeup;
 }
 
 /* This is the XDP napi callback. XDP queues use a separate napi callback
@@ -544,14 +565,12 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 {
 	struct ena_napi *ena_napi = container_of(napi, struct ena_napi, napi);
-	u32 xdp_work_done, xdp_budget;
 	struct ena_ring *tx_ring;
-	int napi_comp_call = 0;
+	bool needs_wakeup = true;
+	u32 rx_work_done = 0;
 	int ret;
 
 	tx_ring = ena_napi->tx_ring;
-
-	xdp_budget = budget;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags) ||
 	    test_bit(ENA_FLAG_TRIGGER_RESET, &tx_ring->adapter->flags)) {
@@ -559,7 +578,7 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 		return 0;
 	}
 
-	xdp_work_done = ena_clean_xdp_irq(tx_ring, xdp_budget);
+	needs_wakeup &= ena_clean_xdp_irq(tx_ring, budget);
 
 	/* If the device is about to reset or down, avoid unmask
 	 * the interrupt and return 0 so NAPI won't reschedule
@@ -567,18 +586,19 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 	if (unlikely(!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags))) {
 		napi_complete_done(napi, 0);
 		ret = 0;
-	} else if (xdp_budget > xdp_work_done) {
-		napi_comp_call = 1;
-		if (napi_complete_done(napi, xdp_work_done))
+	} else if (needs_wakeup) {
+		ena_increase_stat(&tx_ring->tx_stats.napi_comp, 1,
+				  &tx_ring->syncp);
+		if (napi_complete_done(napi, rx_work_done))
 			ena_unmask_interrupt(tx_ring, NULL);
+
 		ena_update_ring_numa_node(tx_ring, NULL);
-		ret = xdp_work_done;
+		ret = rx_work_done;
 	} else {
-		ret = xdp_budget;
+		ret = budget;
 	}
 
 	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->tx_stats.napi_comp += napi_comp_call;
 	tx_ring->tx_stats.tx_poll++;
 	u64_stats_update_end(&tx_ring->syncp);
 	tx_ring->tx_stats.last_napi_jiffies = jiffies;
