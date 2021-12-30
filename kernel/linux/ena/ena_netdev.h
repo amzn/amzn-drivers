@@ -137,9 +137,6 @@ struct ena_napi {
 	struct napi_struct napi;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
-#ifdef ENA_XDP_SUPPORT
-	struct ena_ring *xdp_ring;
-#endif /* ENA_XDP_SUPPORT */
 	u32 qid;
 	struct dim dim;
 };
