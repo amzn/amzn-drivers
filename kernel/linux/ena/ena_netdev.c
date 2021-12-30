@@ -4610,11 +4610,9 @@ static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
 		ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L4_IPV4_CSUM_PART_MASK)
 		dev_features |= NETIF_F_IP_CSUM;
 
-#ifdef NETIF_F_IPV6_CSUM
 	if (feat->offload.tx &
 		ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L4_IPV6_CSUM_PART_MASK)
 		dev_features |= NETIF_F_IPV6_CSUM;
-#endif /* NETIF_F_IPV6_CSUM */
 
 	if (feat->offload.tx & ENA_ADMIN_FEATURE_OFFLOAD_DESC_TSO_IPV4_MASK)
 		dev_features |= NETIF_F_TSO;
