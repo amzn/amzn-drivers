@@ -54,6 +54,8 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 int ena_xdp_xmit(struct net_device *dev, int n,
 		 struct xdp_frame **frames, u32 flags);
 int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf);
+int ena_xdp_register_rxq_info(struct ena_ring *rx_ring);
+void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring);
 #ifdef ENA_AF_XDP_SUPPORT
 void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);
 void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid);
@@ -175,6 +177,13 @@ static inline bool ena_xdp_present_ring(struct ena_ring *ring)
 {
 	return false;
 }
+
+static inline int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
+{
+	return 0;
+}
+
+static inline void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring) {}
 
 #endif /* ENA_XDP_SUPPORT */
 #ifndef ENA_AF_XDP_SUPPORT /* stabs for AF XDP code */

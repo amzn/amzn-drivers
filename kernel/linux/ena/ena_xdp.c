@@ -198,7 +198,7 @@ setup_err:
 /* Provides a way for both kernel and bpf-prog to know
  * more about the RX-queue a given XDP frame arrived on.
  */
-static int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
+int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 {
 	int rc;
 
@@ -209,6 +209,8 @@ static int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid);
 #endif
 
+	netif_dbg(rx_ring->adapter, ifup, rx_ring->netdev, "Registering RX info for queue %d",
+		  rx_ring->qid);
 	if (rc) {
 		netif_err(rx_ring->adapter, ifup, rx_ring->netdev,
 			  "Failed to register xdp rx queue info. RX queue num %d rc: %d\n",
@@ -217,7 +219,7 @@ static int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 	}
 
 	if (ENA_IS_XSK_RING(rx_ring)) {
-		xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_XSK_BUFF_POOL, NULL);
+		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_XSK_BUFF_POOL, NULL);
 		xsk_pool_set_rxq_info(rx_ring->xsk_pool, &rx_ring->xdp_rxq);
 	} else {
 		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_PAGE_SHARED,
@@ -270,8 +272,11 @@ void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid)
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */
-static void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
+void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
 {
+	netif_dbg(rx_ring->adapter, ifdown, rx_ring->netdev,
+		  "Unregistering RX info for queue %d",
+		  rx_ring->qid);
 	xdp_rxq_info_unreg_mem_model(&rx_ring->xdp_rxq);
 	xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 }
@@ -289,10 +294,8 @@ void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 		old_bpf_prog = xchg(&rx_ring->xdp_bpf_prog, prog);
 
 		if (!old_bpf_prog && prog) {
-			ena_xdp_register_rxq_info(rx_ring);
 			rx_ring->rx_headroom = XDP_PACKET_HEADROOM;
 		} else if (old_bpf_prog && !prog) {
-			ena_xdp_unregister_rxq_info(rx_ring);
 			rx_ring->rx_headroom = NET_SKB_PAD;
 		}
 	}
