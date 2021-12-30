@@ -1727,6 +1727,7 @@ static int ena_enable_msix(struct ena_adapter *adapter)
 			  "Failed to enable MSI-X. irq_cnt %d\n", irq_cnt);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
 		vfree(adapter->msix_entries);
+		adapter->msix_entries = NULL;
 #endif
 		return -ENOSPC;
 	}
