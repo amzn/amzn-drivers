@@ -405,6 +405,7 @@ https://elixir.bootlin.com/linux/latest/source/Documentation/networking/net_dim.
 .. _`RX copybreak`:
 RX copybreak
 ============
+
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
 and can be configured using ethtool --set-tunable.
 This option is supported for kernel versions 3.18 and newer.
@@ -419,6 +420,7 @@ buffer and the RX descriptor is returned to HW.
 .. _`LPC`:
 Local Page Cache (LPC)
 ======================
+
 ENA Linux driver allows to reduce lock contention and improve CPU usage by
 allocating Rx buffers from a page cache rather than from Linux memory system
 (PCP or buddy allocator). The cache is created and binded per Rx queue, and

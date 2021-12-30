@@ -4203,9 +4203,9 @@ static void ena_calc_io_queue_size(struct ena_adapter *adapter,
 						  max_queue_ext->max_tx_sq_depth);
 
 		adapter->max_tx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
-					     max_queue_ext->max_per_packet_tx_descs);
+						 max_queue_ext->max_per_packet_tx_descs);
 		adapter->max_rx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
-					     max_queue_ext->max_per_packet_rx_descs);
+						 max_queue_ext->max_per_packet_rx_descs);
 	} else {
 		struct ena_admin_queue_feature_desc *max_queues =
 			&get_feat_ctx->max_queues;
@@ -4221,9 +4221,9 @@ static void ena_calc_io_queue_size(struct ena_adapter *adapter,
 						  max_queues->max_sq_depth);
 
 		adapter->max_tx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
-					     max_queues->max_packet_tx_descs);
+						 max_queues->max_packet_tx_descs);
 		adapter->max_rx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
-					     max_queues->max_packet_rx_descs);
+						 max_queues->max_packet_rx_descs);
 	}
 
 	max_tx_queue_size = rounddown_pow_of_two(max_tx_queue_size);
@@ -4565,8 +4565,8 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 		free_irq_cpu_rmap(netdev->rx_cpu_rmap);
 		netdev->rx_cpu_rmap = NULL;
 	}
-#endif /* CONFIG_RFS_ACCEL */
 
+#endif /* CONFIG_RFS_ACCEL */
 	/* Make sure timer and reset routine won't be called after
 	 * freeing device resources.
 	 */

@@ -579,7 +579,7 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 			break;
 		}
 
-		/* validate that the request id points to a valid skb */
+		/* validate that the request id points to a valid xdp_frame */
 		rc = validate_xdp_req_id(tx_ring, req_id);
 		if (rc)
 			break;
