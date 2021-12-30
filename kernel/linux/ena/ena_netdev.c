@@ -651,7 +651,7 @@ static void ena_free_rx_page(struct ena_ring *rx_ring,
 	rx_info->page = NULL;
 }
 
-static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
+int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 {
 	u16 next_to_use, req_id;
 	u32 i;
@@ -1186,9 +1186,9 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
  * @ena_rx_ctx: received packet context/metadata
  * @skb: skb currently being received and modified
  */
-static void ena_rx_checksum(struct ena_ring *rx_ring,
-				   struct ena_com_rx_ctx *ena_rx_ctx,
-				   struct sk_buff *skb)
+void ena_rx_checksum(struct ena_ring *rx_ring,
+		     struct ena_com_rx_ctx *ena_rx_ctx,
+		     struct sk_buff *skb)
 {
 	/* Rx csum disabled */
 	if (unlikely(!(rx_ring->netdev->features & NETIF_F_RXCSUM))) {
@@ -1243,9 +1243,9 @@ static void ena_rx_checksum(struct ena_ring *rx_ring,
 
 }
 
-static void ena_set_rx_hash(struct ena_ring *rx_ring,
-			    struct ena_com_rx_ctx *ena_rx_ctx,
-			    struct sk_buff *skb)
+void ena_set_rx_hash(struct ena_ring *rx_ring,
+		     struct ena_com_rx_ctx *ena_rx_ctx,
+		     struct sk_buff *skb)
 {
 #ifdef NETIF_F_RXHASH
 	enum pkt_hash_types hash_type;

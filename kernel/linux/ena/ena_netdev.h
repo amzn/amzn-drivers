@@ -586,4 +586,11 @@ int ena_up(struct ena_adapter *adapter);
 void ena_unmask_interrupt(struct ena_ring *tx_ring, struct ena_ring *rx_ring);
 void ena_update_ring_numa_node(struct ena_ring *tx_ring,
 			       struct ena_ring *rx_ring);
+void ena_rx_checksum(struct ena_ring *rx_ring,
+		     struct ena_com_rx_ctx *ena_rx_ctx,
+		     struct sk_buff *skb);
+void ena_set_rx_hash(struct ena_ring *rx_ring,
+		     struct ena_com_rx_ctx *ena_rx_ctx,
+		     struct sk_buff *skb);
+int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num);
 #endif /* !(ENA_H) */
