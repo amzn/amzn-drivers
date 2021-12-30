@@ -900,4 +900,8 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 #define ENA_ETHTOOL_RX_BUFF_SIZE_CHANGE
 #endif
+
+#if defined(ENA_XDP_SUPPORT) && LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+#define ENA_AF_XDP_SUPPORT
+#endif
 #endif /* _KCOMPAT_H_ */

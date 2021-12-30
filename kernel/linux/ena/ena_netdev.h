@@ -269,7 +269,10 @@ struct ena_ring {
 	 * which traffic should be redirected from this rx ring.
 	 */
 	struct ena_ring *xdp_ring;
-#endif
+#ifdef ENA_AF_XDP_SUPPORT
+	struct xsk_buff_pool *xsk_pool;
+#endif /* ENA_AF_XDP_SUPPORT */
+#endif /* ENA_XDP_SUPPORT */
 
 	u16 next_to_use;
 	u16 next_to_clean;

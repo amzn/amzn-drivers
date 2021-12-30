@@ -5,6 +5,9 @@
 
 #include "ena_xdp.h"
 #ifdef ENA_XDP_SUPPORT
+#ifdef ENA_AF_XDP_SUPPORT
+#include <net/xdp_sock_drv.h>
+#endif /* ENA_AF_XDP_SUPPORT */
 
 static int validate_xdp_req_id(struct ena_ring *tx_ring, u16 req_id)
 {
@@ -351,18 +354,112 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 	return 0;
 }
 
+#ifdef ENA_AF_XDP_SUPPORT
+static bool ena_is_xsk_pool_params_allowed(struct xsk_buff_pool *pool)
+{
+	return xsk_pool_get_headroom(pool) == 0 &&
+	       xsk_pool_get_chunk_size(pool) == ENA_PAGE_SIZE;
+}
+
+static int ena_xsk_pool_enable(struct ena_adapter *adapter,
+			       struct xsk_buff_pool *pool,
+			       u16 qid)
+{
+	struct ena_ring *rx_ring, *tx_ring;
+	bool dev_was_up = false;
+	int err;
+
+	if (!ena_xdp_legal_queue_count(adapter, qid)) {
+		netdev_err(adapter->netdev,
+			   "Max qid for XSK pool is %d (received %d)\n",
+			   adapter->max_num_io_queues >> 1, qid);
+		return -EINVAL;
+	}
+
+	if (ena_is_xsk_pool_params_allowed(pool))
+		return -EINVAL;
+
+	rx_ring = &adapter->rx_ring[qid];
+	tx_ring = &adapter->tx_ring[qid];
+
+	err = xsk_pool_dma_map(pool, adapter->ena_dev->dmadev, 0);
+	if (err) {
+		ena_increase_stat(&rx_ring->rx_stats.dma_mapping_err, 1,
+				  &rx_ring->syncp);
+		netif_err(adapter, drv, adapter->netdev,
+			  "Failed to DMA map XSK pool for qid %d\n", qid);
+		return err;
+	}
+
+	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags)) {
+		dev_was_up = true;
+		ena_down(adapter);
+	}
+
+	rx_ring->xsk_pool = tx_ring->xsk_pool = pool;
+
+	netif_dbg(adapter, drv, adapter->netdev,
+		  "Setting XSK pool for queue %d\n", qid);
+
+	return dev_was_up ? ena_up(adapter) : 0;
+}
+
+static int ena_xsk_pool_disable(struct ena_adapter *adapter,
+				u16 qid)
+{
+	struct ena_ring *rx_ring, *tx_ring;
+	bool dev_was_up = false;
+
+	if (qid >= adapter->num_io_queues)
+		return -EINVAL;
+
+	rx_ring = &adapter->rx_ring[qid];
+	tx_ring = &adapter->tx_ring[qid];
+
+	/* XSK pool isn't attached to this ring */
+	if (!rx_ring->xsk_pool)
+		return 0;
+
+	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags)) {
+		dev_was_up = true;
+		ena_down(adapter);
+	}
+
+	xsk_pool_dma_unmap(rx_ring->xsk_pool, 0);
+
+	rx_ring->xsk_pool = tx_ring->xsk_pool = NULL;
+
+	netif_dbg(adapter, drv, adapter->netdev,
+		  "Removing XSK pool for queue %d\n", qid);
+
+	return dev_was_up ? ena_up(adapter) : 0;
+}
+
+static int ena_xsk_pool_setup(struct ena_adapter *adapter,
+			      struct xsk_buff_pool *pool,
+			      u16 qid)
+{
+	return pool ? ena_xsk_pool_enable(adapter, pool, qid) :
+		      ena_xsk_pool_disable(adapter, qid);
+}
+
+#endif /* ENA_AF_XDP_SUPPORT */
 /* This is the main xdp callback, it's used by the kernel to set/unset the xdp
  * program as well as to query the current xdp program id.
  */
 int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 {
-#ifndef ENA_XDP_QUERY_IN_KERNEL
+#if !defined(ENA_XDP_QUERY_IN_KERNEL) || defined(ENA_AF_XDP_SUPPORT)
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-#endif /* ENA_XDP_QUERY_IN_KERNEL */
+#endif /* ENA_XDP_QUERY_IN_KERNEL || ENA_AF_XDP_SUPPORT */
 	switch (bpf->command) {
 	case XDP_SETUP_PROG:
 		return ena_xdp_set(netdev, bpf);
+#ifdef ENA_AF_XDP_SUPPORT
+	case XDP_SETUP_XSK_POOL:
+		return ena_xsk_pool_setup(adapter, bpf->xsk.pool, bpf->xsk.queue_id);
+#endif /* ENA_AF_XDP_SUPPORT */
 #ifndef ENA_XDP_QUERY_IN_KERNEL
 	case XDP_QUERY_PROG:
 		bpf->prog_id = adapter->xdp_bpf_prog ?
