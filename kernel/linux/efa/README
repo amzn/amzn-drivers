@@ -46,7 +46,12 @@ make
 
 efa.ko is created inside the src/ folder.
 
-Peer-to-peer memory support provides GDR support and can be disabled by running
+EFA supports PCIe peer-to-peer memory access between devices.
+Currently supported peer-to-peer architectures are:
+* GPUDirect RDMA (GDR)
+* NeuronLink RDMA
+
+Peer-to-peer support can be disabled by running
 cmake with the following parameter:
 cmake -DENABLE_P2P=0 ..
 
@@ -96,7 +101,9 @@ efa_sysfs.[ch]    - Sysfs files.
 efa-abi.h         - Kernel driver <-> Userspace provider ABI.
 efa_p2p.[ch]      - Peer-to-peer memory layer implementation.
 efa_gdr.c         - GPUDirect RDMA implementation.
-nv-p2p.h          - NVIDIA GDR API
+nv-p2p.h          - NVIDIA GDR API.
+efa_neuron.c      - Neuron implementation.
+neuron_p2p.h      - Neuron P2P API.
 
 Management Interface
 ====================

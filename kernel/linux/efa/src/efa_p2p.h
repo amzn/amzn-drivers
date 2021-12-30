@@ -21,6 +21,7 @@ struct efa_p2p_ops {
 
 enum efa_p2p_prov {
 	EFA_P2P_PROVIDER_NVMEM,
+	EFA_P2P_PROVIDER_NEURON,
 	EFA_P2P_PROVIDER_MAX,
 };
 
@@ -50,5 +51,7 @@ int efa_p2p_put(u64 ticket, bool in_cb);
 /* Provider specific stuff go here */
 const struct efa_p2p_provider *nvmem_get_provider(void);
 bool nvmem_is_supported(void);
+
+const struct efa_p2p_provider *neuronmem_get_provider(void);
 
 #endif /* _EFA_P2P_H_ */

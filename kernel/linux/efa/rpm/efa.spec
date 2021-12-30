@@ -88,6 +88,8 @@ install -m 644 efa_p2p.c		%{buildroot}%{install_path}/src
 install -m 644 efa_p2p.h		%{buildroot}%{install_path}/src
 install -m 644 efa_gdr.c		%{buildroot}%{install_path}/src
 install -m 644 nv-p2p.h			%{buildroot}%{install_path}/src
+install -m 644 efa_neuron.c		%{buildroot}%{install_path}/src
+install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 
 %files
 %{install_path}

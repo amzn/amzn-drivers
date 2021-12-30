@@ -15,6 +15,7 @@ static const struct efa_p2p_provider *prov_arr[EFA_P2P_PROVIDER_MAX];
 static void p2p_providers_init(void)
 {
 	prov_arr[EFA_P2P_PROVIDER_NVMEM] = nvmem_get_provider();
+	prov_arr[EFA_P2P_PROVIDER_NEURON] = neuronmem_get_provider();
 }
 
 void efa_p2p_init(void)
