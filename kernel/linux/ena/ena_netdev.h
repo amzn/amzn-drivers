@@ -145,7 +145,15 @@ struct ena_napi {
 };
 
 struct ena_tx_buffer {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+#ifdef ENA_XDP_SUPPORT
+		/* XDP buffer structure which is used for sending packets in
+		 * the xdp queues
+		 */
+		struct xdp_frame *xdpf;
+#endif /* ENA_XDP_SUPPORT */
+	};
 	/* num of ena desc for this specific skb
 	 * (includes data desc and metadata desc)
 	 */
@@ -153,12 +161,6 @@ struct ena_tx_buffer {
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
 
-#ifdef ENA_XDP_SUPPORT
-	/* XDP buffer structure which is used for sending packets in
-	 * the xdp queues
-	 */
-	struct xdp_frame *xdpf;
-#endif /* ENA_XDP_SUPPORT */
 
 	/* Indicate if bufs[0] map the linear data of the skb. */
 	u8 map_linear_data;
