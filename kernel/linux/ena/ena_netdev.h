@@ -364,6 +364,7 @@ struct ena_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 
+	struct devlink *devlink;
 	/* rx packets that shorter that this len will be copied to the skb
 	 * header
 	 */
@@ -391,7 +392,13 @@ struct ena_adapter {
 
 	u32 msg_enable;
 
-	bool large_llq_header;
+	/* The flag is used for two purposes:
+	 * 1. Indicates that large LLQ has been requested.
+	 * 2. Indicates whether large LLQ is set or not after device
+	 *    initialization / configuration.
+	 */
+	bool large_llq_header_enabled;
+	bool large_llq_header_supported;
 
 	u16 max_tx_sgl_size;
 	u16 max_rx_sgl_size;
@@ -571,5 +578,8 @@ static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
  * succeeded, or NULL
  */
 struct page *ena_alloc_map_page(struct ena_ring *rx_ring, dma_addr_t *dma);
+
+void ena_destroy_device(struct ena_adapter *adapter, bool graceful);
+int ena_restore_device(struct ena_adapter *adapter);
 
 #endif /* !(ENA_H) */

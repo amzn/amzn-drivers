@@ -31,6 +31,8 @@
 
 #include "ena_lpc.h"
 
+#include "ena_devlink.h"
+
 static char version[] = DEVICE_NAME " v" DRV_MODULE_GENERATION "\n";
 
 MODULE_AUTHOR("Amazon.com, Inc. or its affiliates");
@@ -84,8 +86,6 @@ MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
 static void check_for_admin_com_state(struct ena_adapter *adapter);
-static void ena_destroy_device(struct ena_adapter *adapter, bool graceful);
-static int ena_restore_device(struct ena_adapter *adapter);
 static void ena_calc_io_queue_size(struct ena_adapter *adapter,
 				   struct ena_com_dev_get_features_ctx *get_feat_ctx);
 static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
@@ -3839,12 +3839,20 @@ static void set_default_llq_configurations(struct ena_adapter *adapter,
 					   struct ena_llq_configurations *llq_config,
 					   struct ena_admin_feature_llq_desc *llq)
 {
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+
 	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;
 	llq_config->llq_stride_ctrl = ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY;
 	llq_config->llq_num_decs_before_header = ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
 
+	adapter->large_llq_header_supported =
+		!!(ena_dev->supported_features & (1 << ENA_ADMIN_LLQ));
+	adapter->large_llq_header_supported &=
+		!!(llq->entry_size_ctrl_supported &
+			ENA_ADMIN_LIST_ENTRY_SIZE_256B);
+
 	if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) &&
-	    adapter->large_llq_header) {
+		adapter->large_llq_header_enabled) {
 		llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
 		llq_config->llq_ring_entry_size_value = 256;
 	} else {
@@ -3969,6 +3977,8 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	}
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0) */
 
+	ena_devlink_params_get(adapter->devlink);
+
 	/* ENA admin level init */
 	rc = ena_com_admin_init(ena_dev, &aenq_handlers);
 	if (rc) {
@@ -4067,7 +4077,7 @@ err_disable_msix:
 	return rc;
 }
 
-static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
+void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
@@ -4114,7 +4124,7 @@ static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
 }
 
-static int ena_restore_device(struct ena_adapter *adapter)
+int ena_restore_device(struct ena_adapter *adapter)
 {
 	struct ena_com_dev_get_features_ctx get_feat_ctx;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
@@ -4758,7 +4768,7 @@ static void ena_calc_io_queue_size(struct ena_adapter *adapter,
 	 * and therefore divide the queue size by 2, leaving the amount
 	 * of memory used by the queues unchanged.
 	 */
-	if (adapter->large_llq_header) {
+	if (adapter->large_llq_header_enabled) {
 		if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) &&
 		    (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
 			max_tx_queue_size /= 2;
@@ -4767,7 +4777,8 @@ static void ena_calc_io_queue_size(struct ena_adapter *adapter,
 		} else {
 			dev_err(&adapter->pdev->dev, "Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
 
-			adapter->large_llq_header = false;
+			adapter->large_llq_header_enabled = false;
+			ena_devlink_disable_large_llq_header_param(adapter->devlink);
 		}
 	}
 
@@ -4802,6 +4813,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ena_adapter *adapter;
 	struct net_device *netdev;
 	static int adapters_found;
+	struct devlink *devlink;
 	u32 max_num_io_queues;
 	bool wd_state;
 	int bars, rc;
@@ -4884,12 +4896,18 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, adapter);
 
-	adapter->large_llq_header = !!force_large_llq_header;
+	adapter->large_llq_header_enabled = !!force_large_llq_header;
+
+	devlink = ena_devlink_alloc(adapter);
+	if (!devlink) {
+		netdev_err(netdev, "ena_devlink_alloc failed\n");
+		goto err_netdev_destroy;
+	}
 
 	rc = ena_map_llq_mem_bar(pdev, ena_dev, bars);
 	if (rc) {
 		dev_err(&pdev->dev, "ENA LLQ bar mapping failed\n");
-		goto err_netdev_destroy;
+		goto err_devlink_destroy;
 	}
 
 	rc = ena_device_init(adapter, pdev, &get_feat_ctx, &wd_state);
@@ -4897,7 +4915,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "ENA device init failed\n");
 		if (rc == -ETIME)
 			rc = -EPROBE_DEFER;
-		goto err_netdev_destroy;
+		goto err_devlink_destroy;
 	}
 
 	/* Initial TX and RX interrupt delay. Assumes 1 usec granularity.
@@ -5020,6 +5038,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapters_found++;
 
+	ena_devlink_register(devlink, &pdev->dev);
+
 	return 0;
 
 err_rss:
@@ -5038,6 +5058,8 @@ err_worker_destroy:
 err_device_destroy:
 	ena_com_delete_host_info(ena_dev);
 	ena_com_admin_destroy(ena_dev);
+err_devlink_destroy:
+	ena_devlink_free(devlink);
 err_netdev_destroy:
 	free_netdev(netdev);
 err_free_region:
@@ -5064,9 +5086,14 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	struct ena_adapter *adapter = pci_get_drvdata(pdev);
 	struct ena_com_dev *ena_dev;
 	struct net_device *netdev;
+	struct devlink *devlink;
 
 	ena_dev = adapter->ena_dev;
 	netdev = adapter->netdev;
+
+	devlink = adapter->devlink;
+	ena_devlink_unregister(devlink);
+	ena_devlink_free(devlink);
 
 #ifdef CONFIG_RFS_ACCEL
 	if ((adapter->msix_vecs >= 1) && (netdev->rx_cpu_rmap)) {

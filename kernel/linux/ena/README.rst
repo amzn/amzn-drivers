@@ -197,6 +197,7 @@ ena_netdev.[ch]     Main Linux kernel driver.
 ena_sysfs.[ch]      Sysfs files.
 ena_lpc.[ch]        Local Page Cache files (see `LPC`_ for more info)
 ena_ethtool.c       ethtool callbacks.
+ena_devlink.[ch]    devlink files (see `devlink support`_ for more info)
 ena_pci_id_tbl.h    Supported device IDs.
 =================   ======================================================
 
@@ -435,6 +436,37 @@ RSS
   SKB.
 - The user can provide a hash key, hash function, and configure the
   indirection table through `ethtool(8)`.
+
+.. _`devlink support`:
+DEVLINK SUPPORT
+===============
+.. _`devlink`: https://www.kernel.org/doc/html/latest/networking/devlink/index.html
+
+`devlink`_ supports toggling LLQ entry size between the default 128 bytes and 256
+bytes.
+A 128 bytes entry size allows for a maximum of 96 bytes of packet header size
+which sometimes is not enough (e.g. when using tunneling).
+Increasing LLQ entry size to 256 bytes, allows a maximum header size of 224
+bytes. This comes with the penalty of reducing the number of LLQ entries in the
+TX queue by 2 (i.e. from 1024 to 512).
+This feature is supported on EC2 4th and 5th generation instance-types, with 6th
+generation coming soon.
+
+The entry size can be toggled by enabling/disabling the large_llq_header devlink
+param and reloading the driver to make it take effect, e.g.
+
+.. code-block:: shell
+
+  sudo devlink dev param set pci/0000:00:06.0 name large_llq_header value true cmode driverinit
+  sudo devlink dev reload pci/0000:00:06.0
+
+One way to verify that the TX queue entry size has indeed increased is to check
+that the maximum TX queue depth is 512. This can be checked, for example, by
+using:
+
+.. code-block:: shell
+
+  ethtool -g [interface]
 
 DATA PATH
 =========

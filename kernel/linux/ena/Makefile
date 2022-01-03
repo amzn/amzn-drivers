@@ -5,6 +5,7 @@ ena-objs := ena_netdev.o \
 		ena_ethtool.o \
 		ena_lpc.o	\
 		dim.o \
+		ena_devlink.o \
 		net_dim.o \
 		$(ENA_COM_PATH)/ena_com.o \
 		$(ENA_COM_PATH)/ena_eth_com.o
