@@ -195,6 +195,7 @@ ena_common_defs.h   Common definitions for ena_com layer.
 ena_regs_defs.h     Definition of ENA PCI memory-mapped (MMIO) registers.
 ena_netdev.[ch]     Main Linux kernel driver.
 ena_sysfs.[ch]      Sysfs files.
+ena_lpc.[ch]        Local Page Cache files (see `LPC`_ for more info)
 ena_ethtool.c       ethtool callbacks.
 ena_pci_id_tbl.h    Supported device IDs.
 =================   ======================================================
@@ -358,6 +359,7 @@ This option is supported for kernel versions 3.18 and newer.
 Alternatively copybreak values can be configured by the sysfs path
 /sys/bus/pci/devices/<domain:bus:slot.function>/rx_copybreak.
 
+.. _`LPC`:
 Local Page Cache (LPC)
 ======================
 ENA Linux driver allows to reduce lock contention and improve CPU usage by
