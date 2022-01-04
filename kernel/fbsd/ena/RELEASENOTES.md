@@ -8,18 +8,33 @@ The driver was verified on the following distributions:
 
 **Releases:**
 * FreeBSD 11.4
-* FreeBSD 12.2
+* FreeBSD 12.3
 * FreeBSD 13.0
 
 **Development:**
 +-----------+-------------+
 | Branch    | SHA         |
 +-----------+-------------+
-| stable/11 | 3a5f854f458 |
-| stable/12 | 62bee146aa4 |
-| stable/13 | 704d90845ce |
-| HEAD      | 0e92585cde5 |
+| stable/12 | dfe7186f287 |
+| stable/13 | cb4d27f48ef |
+| HEAD      | b406897911e |
 +-----------+-------------+
+
+## r2.5.0 release notes
+**New Features**
+* Add NUMA awareness to the driver which runs on the kernel with enabled option
+  RSS.
+* Add support for the IPv6 L4 Tx checksum offloads.
+
+**Bug Fixes**
+* Increase lifetime of the timer service to work from the attach to detach in
+  order to be able to handle more device failures.
+* Do not trigger the reset if the ENA device is not responsive.
+
+**Minor Changes**
+* Optimize logic of the Tx path 'req_id' value validation.
+* Rework Makefile in order to read the kernel build options from the SYSDIR.
+  This change makes the requirement for manual Makefile modifications redundant.
 
 ## r2.4.1 release notes
 **New Features**
