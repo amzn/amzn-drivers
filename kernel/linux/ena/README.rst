@@ -405,11 +405,15 @@ https://elixir.bootlin.com/linux/latest/source/Documentation/networking/net_dim.
 RX copybreak
 ============
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
-and can be configured by the ETHTOOL_STUNABLE command of the
-SIOCETHTOOL ioctl.
+and can be configured using ethtool --set-tunable.
 This option is supported for kernel versions 3.18 and newer.
 Alternatively copybreak values can be configured by the sysfs path
 /sys/bus/pci/devices/<domain:bus:slot.function>/rx_copybreak.
+
+This option controls the maximum packet length for which the RX
+descriptor it was received on would be recycled. When a packet smaller
+than RX copybreak bytes is received, it is copied into a new memory
+buffer and the RX descriptor is returned to HW.
 
 .. _`LPC`:
 Local Page Cache (LPC)
@@ -484,7 +488,7 @@ RSS
   ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG properties).
 - If the NETIF_F_RXHASH flag is set, the 32-bit result of the hash
   function delivered in the Rx CQ descriptor is set in the received
-  SKB.
+  `skb`.
 - The user can provide a hash key, hash function, and configure the
   indirection table through `ethtool(8)`.
 
@@ -568,17 +572,16 @@ Rx
 - :code:`ena_rx_skb()` checks packet length:
 
   * If the packet is small (len < rx_copybreak), the driver allocates
-    a SKB for the new packet, and copies the packet payload into the
-    SKB data buffer.
+    an `skb` for the new packet, and copies the packet's payload into the
+    SKB's linear part.
 
     - In this way the original data buffer is not passed to the stack
       and is reused for future Rx packets.
 
-  * Otherwise the function unmaps the Rx buffer, sets the first
-    descriptor as `skb`'s linear part and the other descriptors as the
-    `skb`'s frags.
+  * Otherwise the function unmaps the Rx buffer, sets the first descriptor as `skb`'s linear part
+    and the other descriptors as the `skb`'s frags.
 
-- The new SKB is updated with the necessary information (protocol,
+- The new `skb` is updated with the necessary information (protocol,
   checksum hw verify result, etc), and then passed to the network
   stack, using the NAPI interface function :code:`napi_gro_receive()`.
 
