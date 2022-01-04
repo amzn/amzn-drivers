@@ -45,6 +45,12 @@ is advertised by the device via the Admin Queue), a dedicated MSI-X
 interrupt vector per Tx/Rx queue pair, and CPU cacheline optimized
 data placement.
 
+When RSS is enabled, each Tx/Rx queue pair is bound to a corresponding
+CPU core and its NUMA domain. The order of those bindings is based on
+the RSS bucket mapping. For builds with RSS support disabled, the
+CPU and NUMA management is left to the kernel. CPU and NUMA management
+are only supported on FreeBSD 12 or newer.
+
 The ENA driver supports industry standard TCP/IP offload features such
 as checksum offload and TCP transmit segmentation offload (TSO).
 Receive-side scaling (RSS) is supported for multi-core scaling.
