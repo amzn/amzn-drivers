@@ -4,7 +4,7 @@ FreeBSD kernel driver for Elastic Network Adapter (ENA) family
 Version
 -------
 
-``2.4.1``
+``2.5.0``
 
 Supported FreeBSD Versions
 --------------------------
@@ -44,6 +44,12 @@ processing by providing multiple Tx/Rx queue pairs (the maximum number
 is advertised by the device via the Admin Queue), a dedicated MSI-X
 interrupt vector per Tx/Rx queue pair, and CPU cacheline optimized
 data placement.
+
+When RSS is enabled, each Tx/Rx queue pair is bound to a corresponding
+CPU core and its NUMA domain. The order of those bindings is based on
+the RSS bucket mapping. For builds with RSS support disabled, the
+CPU and NUMA management is left to the kernel. CPU and NUMA management
+are only supported on FreeBSD 12 or newer.
 
 The ENA driver supports industry standard TCP/IP offload features such
 as checksum offload and TCP transmit segmentation offload (TSO).

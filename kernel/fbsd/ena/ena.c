@@ -196,7 +196,7 @@ ena_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 int
 ena_dma_alloc(device_t dmadev, bus_size_t size,
-    ena_mem_handle_t *dma, int mapflags, bus_size_t alignment)
+    ena_mem_handle_t *dma, int mapflags, bus_size_t alignment, int domain)
 {
 	struct ena_adapter* adapter = device_get_softc(dmadev);
 	device_t pdev = adapter->pdev;
@@ -226,6 +226,15 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 		ena_log(pdev, ERR, "bus_dma_tag_create failed: %d\n", error);
 		goto fail_tag;
 	}
+
+#if __FreeBSD_version > 1200055
+	error = bus_dma_tag_set_domain(dma->tag, domain);
+	if (unlikely(error != 0)) {
+		ena_log(pdev, ERR, "bus_dma_tag_set_domain failed: %d\n",
+		    error);
+		goto fail_map_create;
+	}
+#endif
 
 	error = bus_dmamem_alloc(dma->tag, (void**) &dma->vaddr,
 	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &dma->map);
@@ -1443,6 +1452,8 @@ ena_create_io_queues(struct ena_adapter *adapter)
 		ctx.queue_size = adapter->requested_tx_ring_size;
 		ctx.msix_vector = msix_vector;
 		ctx.qid = ena_qid;
+		ctx.numa_node = adapter->que[i].domain;
+
 		rc = ena_com_create_io_queue(ena_dev, &ctx);
 		if (rc != 0) {
 			ena_log(adapter->pdev, ERR,
@@ -1460,6 +1471,11 @@ ena_create_io_queues(struct ena_adapter *adapter)
 			ena_com_destroy_io_queue(ena_dev, ena_qid);
 			goto err_tx;
 		}
+
+		if (ctx.numa_node >= 0) {
+			ena_com_update_numa_node(ring->ena_com_io_cq,
+			    ctx.numa_node);
+		}
 	}
 
 	/* Create RX queues */
@@ -1471,6 +1487,8 @@ ena_create_io_queues(struct ena_adapter *adapter)
 		ctx.queue_size = adapter->requested_rx_ring_size;
 		ctx.msix_vector = msix_vector;
 		ctx.qid = ena_qid;
+		ctx.numa_node = adapter->que[i].domain;
+
 		rc = ena_com_create_io_queue(ena_dev, &ctx);
 		if (unlikely(rc != 0)) {
 			ena_log(adapter->pdev, ERR,
@@ -1488,6 +1506,11 @@ ena_create_io_queues(struct ena_adapter *adapter)
 			    " %d rc: %d\n", i, rc);
 			ena_com_destroy_io_queue(ena_dev, ena_qid);
 			goto err_rx;
+		}
+
+		if (ctx.numa_node >= 0) {
+			ena_com_update_numa_node(ring->ena_com_io_cq,
+			    ctx.numa_node);
 		}
 	}
 
@@ -1648,11 +1671,21 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 #ifdef RSS
 	int num_buckets = rss_getnumbuckets();
 	static int last_bind = 0;
+	int cur_bind;
+	int idx;
 #endif
 	int irq_idx;
 
 	if (adapter->msix_entries == NULL)
 		return (EINVAL);
+
+#ifdef RSS
+	if (adapter->first_bind < 0) {
+		adapter->first_bind = last_bind;
+		last_bind = (last_bind + adapter->num_io_queues) % num_buckets;
+	}
+	cur_bind = adapter->first_bind;
+#endif
 
 	for (int i = 0; i < adapter->num_io_queues; i++) {
 		irq_idx = ENA_IO_IRQ_IDX(i);
@@ -1668,10 +1701,20 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 
 #ifdef RSS
 		adapter->que[i].cpu = adapter->irq_tbl[irq_idx].cpu =
-		    rss_getcpu(last_bind);
-		last_bind = (last_bind + 1) % num_buckets;
+		    rss_getcpu(cur_bind);
+		cur_bind = (cur_bind + 1) % num_buckets;
 		CPU_SETOF(adapter->que[i].cpu, &adapter->que[i].cpu_mask);
-#endif
+
+		for (idx = 0; idx < MAXMEMDOM; ++idx) {
+			if (CPU_ISSET(adapter->que[i].cpu, &cpuset_domain[idx]))
+				break;
+		}
+#endif /* RSS */
+#if defined(RSS) && __FreeBSD_version > 1200055
+		adapter->que[i].domain = idx;
+#else
+		adapter->que[i].domain = -1;
+#endif /* defined(RSS) && __FreeBSD_version > 1200055 */
 	}
 
 	return (0);
@@ -2064,6 +2107,13 @@ ena_up(struct ena_adapter *adapter)
 
 	ena_log(adapter->pdev, INFO, "device is going UP\n");
 
+	/*
+	 * ena_timer_service can use functions, which write to the admin queue.
+	 * Those calls are not protected by ENA_LOCK, and because of that, the
+	 * timer should be stopped when bringing the device up or down.
+	 */
+	ENA_TIMER_DRAIN(adapter);
+
 	/* setup interrupts for IO queues */
 	rc = ena_setup_io_intr(adapter);
 	if (unlikely(rc != 0)) {
@@ -2106,18 +2156,11 @@ ena_up(struct ena_adapter *adapter)
 	if_setdrvflagbits(adapter->ifp, IFF_DRV_RUNNING,
 		IFF_DRV_OACTIVE);
 
-	/* Activate timer service only if the device is running.
-		* If this flag is not set, it means that the driver is being
-		* reset and timer service will be activated afterwards.
-		*/
-	if (ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter)) {
-		callout_reset_sbt(&adapter->timer_service, SBT_1S,
-			SBT_1S, ena_timer_service, (void *)adapter, 0);
-	}
-
 	ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP, adapter);
 
 	ena_unmask_all_io_irqs(adapter);
+
+	ENA_TIMER_RESET(adapter);
 
 	return (0);
 
@@ -2128,6 +2171,8 @@ err_up_complete:
 err_create_queues_with_backoff:
 	ena_free_io_irq(adapter);
 error:
+	ENA_TIMER_RESET(adapter);
+
 	return (rc);
 }
 
@@ -2436,9 +2481,10 @@ ena_down(struct ena_adapter *adapter)
 	if (!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter))
 		return;
 
-	ena_log(adapter->pdev, INFO, "device is going DOWN\n");
+	/* Drain timer service to avoid admin queue race condition. */
+	ENA_TIMER_DRAIN(adapter);
 
-	callout_drain(&adapter->timer_service);
+	ena_log(adapter->pdev, INFO, "device is going DOWN\n");
 
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_DEV_UP, adapter);
 	if_setdrvflagbits(adapter->ifp, IFF_DRV_OACTIVE,
@@ -2462,6 +2508,8 @@ ena_down(struct ena_adapter *adapter)
 	ena_free_all_rx_resources(adapter);
 
 	counter_u64_add(adapter->dev_stats.interface_down, 1);
+
+	ENA_TIMER_RESET(adapter);
 }
 
 static uint32_t
@@ -3238,8 +3286,10 @@ ena_timer_service(void *data)
 	     adapter->eni_metrics_sample_interval)) {
 		/*
 		 * There is no race with other admin queue calls, as:
-		 *   - Timer service runs after interface is up, so all
+		 *   - Timer service runs after attach function ends, so all
 		 *     configuration calls to the admin queue are finished.
+		 *   - Timer service is temporarily stopped when bringing
+		 *     the interface up or down.
 		 *   - After interface is up, the driver doesn't use (at least
 		 *     for now) other functions writing to the admin queue.
 		 *
@@ -3260,6 +3310,18 @@ ena_timer_service(void *data)
 		ena_update_host_info(host_info, adapter->ifp);
 
 	if (unlikely(ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+		/*
+		 * Timeout when validating version indicates that the device
+		 * became unresponsive. If that happens skip the reset and
+		 * reschedule timer service, so the reset can be retried later.
+		 */
+		if (ena_com_validate_version(adapter->ena_dev) ==
+		    ENA_COM_TIMER_EXPIRED) {
+			ena_log(adapter->pdev, WARN,
+			    "FW unresponsive, skipping reset\n");
+			ENA_TIMER_RESET(adapter);
+			return;
+		}
 		ena_log(adapter->pdev, WARN, "Trigger reset is on\n");
 		taskqueue_enqueue(adapter->reset_tq, &adapter->reset_task);
 		return;
@@ -3268,7 +3330,7 @@ ena_timer_service(void *data)
 	/*
 	 * Schedule another timeout one second from now.
 	 */
-	callout_schedule_sbt(&adapter->timer_service, SBT_1S, SBT_1S, 0);
+	ENA_TIMER_RESET(adapter);
 }
 
 void
@@ -3283,7 +3345,7 @@ ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 
 	if_link_state_change(ifp, LINK_STATE_DOWN);
 
-	callout_drain(&adapter->timer_service);
+	ENA_TIMER_DRAIN(adapter);
 
 	dev_up = ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter);
 	if (dev_up)
@@ -3414,17 +3476,15 @@ ena_restore_device(struct ena_adapter *adapter)
 	/* Indicate that device is running again and ready to work */
 	ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEVICE_RUNNING, adapter);
 
-	if (ENA_FLAG_ISSET(ENA_FLAG_DEV_UP_BEFORE_RESET, adapter)) {
-		/*
-		 * As the AENQ handlers weren't executed during reset because
-		 * the flag ENA_FLAG_DEVICE_RUNNING was turned off, the
-		 * timestamp must be updated again That will prevent next reset
-		 * caused by missing keep alive.
-		 */
-		adapter->keep_alive_timestamp = getsbinuptime();
-		callout_reset_sbt(&adapter->timer_service, SBT_1S, SBT_1S,
-		    ena_timer_service, (void *)adapter, 0);
-	}
+	/*
+	 * As the AENQ handlers weren't executed during reset because
+	 * the flag ENA_FLAG_DEVICE_RUNNING was turned off, the
+	 * timestamp must be updated again That will prevent next reset
+	 * caused by missing keep alive.
+	 */
+	adapter->keep_alive_timestamp = getsbinuptime();
+	ENA_TIMER_RESET(adapter);
+
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_DEV_UP_BEFORE_RESET, adapter);
 
 	ena_log(dev, INFO,
@@ -3445,6 +3505,8 @@ err:
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_DEVICE_RUNNING, adapter);
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_ONGOING_RESET, adapter);
 	ena_log(dev, ERR, "Reset attempt failed. Can not reset the device\n");
+
+	ENA_TIMER_RESET(adapter);
 
 	return (rc);
 }
@@ -3487,12 +3549,13 @@ ena_attach(device_t pdev)
 
 	adapter = device_get_softc(pdev);
 	adapter->pdev = pdev;
+	adapter->first_bind = -1;
 
 	/*
 	 * Set up the timer service - driver is responsible for avoiding
 	 * concurrency, as the callout won't be using any locking inside.
 	 */
-	callout_init(&adapter->timer_service, true);
+	ENA_TIMER_INIT(adapter);
 	adapter->keep_alive_timeout = DEFAULT_KEEP_ALIVE_TO;
 	adapter->missing_tx_timeout = DEFAULT_TX_CMP_TO;
 	adapter->missing_tx_max_queues = DEFAULT_TX_MONITORED_QUEUES;
@@ -3677,6 +3740,9 @@ ena_attach(device_t pdev)
 	if_setdrvflagbits(adapter->ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 	ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEVICE_RUNNING, adapter);
 
+	/* Run the timer service */
+	ENA_TIMER_RESET(adapter);
+
 	return (0);
 
 #ifdef DEV_NETMAP
@@ -3730,7 +3796,7 @@ ena_detach(device_t pdev)
 
 	/* Stop timer service */
 	ENA_LOCK_LOCK();
-	callout_drain(&adapter->timer_service);
+	ENA_TIMER_DRAIN(adapter);
 	ENA_LOCK_UNLOCK();
 
 	/* Release reset task */
