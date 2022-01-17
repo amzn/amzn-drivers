@@ -1930,11 +1930,11 @@ static int pbl_create(struct efa_dev *dev,
 	if (is_vmalloc_addr(pbl->pbl_buf)) {
 		pbl->physically_continuous = 0;
 #ifdef HAVE_EFA_P2P
-		if (mr->umem)
+		if (mr->p2pmem)
+			err = efa_p2p_to_page_list(dev, mr->p2pmem, pbl->pbl_buf);
+		else
 			err = umem_to_page_list(dev, mr->umem, pbl->pbl_buf, hp_cnt,
 						hp_shift);
-		else
-			err = efa_p2p_to_page_list(dev, mr->p2pmem, pbl->pbl_buf);
 #else
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
@@ -1948,11 +1948,11 @@ static int pbl_create(struct efa_dev *dev,
 	} else {
 		pbl->physically_continuous = 1;
 #ifdef HAVE_EFA_P2P
-		if (mr->umem)
+		if (mr->p2pmem)
+			err = efa_p2p_to_page_list(dev, mr->p2pmem, pbl->pbl_buf);
+		else
 			err = umem_to_page_list(dev, mr->umem, pbl->pbl_buf, hp_cnt,
 						hp_shift);
-		else
-			err = efa_p2p_to_page_list(dev, mr->p2pmem, pbl->pbl_buf);
 #else
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
@@ -1994,12 +1994,12 @@ static int efa_create_inline_pbl(struct efa_dev *dev, struct efa_mr *mr,
 
 	params->inline_pbl = 1;
 #ifdef HAVE_EFA_P2P
-	if (mr->umem)
-		err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
-					params->page_num, params->page_shift);
-	else
+	if (mr->p2pmem)
 		err = efa_p2p_to_page_list(dev, mr->p2pmem,
 					   params->pbl.inline_pbl_array);
+	else
+		err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
+					params->page_num, params->page_shift);
 #else
 	err = umem_to_page_list(dev, mr->umem, params->pbl.inline_pbl_array,
 				params->page_num, params->page_shift);
@@ -2185,12 +2185,12 @@ skip_umem_pg_sz:
 	params.page_shift = order_base_2(pg_sz);
 #ifdef HAVE_IB_UMEM_NUM_DMA_BLOCKS
 #ifdef HAVE_EFA_P2P
-	if (mr->umem)
-		params.page_num = ib_umem_num_dma_blocks(mr->umem, pg_sz);
-	else
+	if (mr->p2pmem)
 		params.page_num = DIV_ROUND_UP(length +
 					       (virt_addr & (pg_sz - 1)),
 					       pg_sz);
+	else
+		params.page_num = ib_umem_num_dma_blocks(mr->umem, pg_sz);
 #else
 	params.page_num = ib_umem_num_dma_blocks(mr->umem, pg_sz);
 #endif
