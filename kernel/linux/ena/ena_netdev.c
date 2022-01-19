@@ -60,13 +60,17 @@ static int rx_queue_size = ENA_DEFAULT_RING_SIZE;
 module_param(rx_queue_size, int, 0444);
 MODULE_PARM_DESC(rx_queue_size, "Rx queue size. The size should be a power of 2. Max value is 8K\n");
 
-static int force_large_llq_header;
+static int force_large_llq_header = 0;
 module_param(force_large_llq_header, int, 0444);
 MODULE_PARM_DESC(force_large_llq_header, "Increases maximum supported header size in LLQ mode to 224 bytes, while reducing the maximum TX queue size by half.\n");
 
 static int num_io_queues = ENA_MAX_NUM_IO_QUEUES;
 module_param(num_io_queues, int, 0444);
 MODULE_PARM_DESC(num_io_queues, "Sets number of RX/TX queues to allocate to device. The maximum value depends on the device and number of online CPUs.\n");
+
+static int enable_bql = 0;
+module_param(enable_bql, int, 0444);
+MODULE_PARM_DESC(enable_bql, "Enable BQL.\n");
 
 static int lpc_size = ENA_LPC_DEFAULT_MULTIPLIER;
 module_param(lpc_size, uint, 0444);
@@ -787,6 +791,7 @@ static void ena_init_io_rings(struct ena_adapter *adapter,
 		txr->tx_max_header_size = ena_dev->tx_max_header_size;
 		txr->tx_mem_queue_type = ena_dev->tx_mem_queue_type;
 		txr->sgl_size = adapter->max_tx_sgl_size;
+		txr->enable_bql = enable_bql;
 		txr->smoothed_interval =
 			ena_com_get_nonadaptive_moderation_interval_tx(ena_dev);
 		txr->disable_meta_caching = adapter->disable_meta_caching;
@@ -1465,6 +1470,9 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 	tx_ring->next_to_clean = next_to_clean;
 	ena_com_comp_ack(tx_ring->ena_com_io_sq, total_done);
 	ena_com_update_dev_comp_head(tx_ring->ena_com_io_cq);
+
+	if (tx_ring->enable_bql)
+		netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
 
 	netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
 		  "tx_poll: q %d done. total pkts: %d\n",
@@ -3392,6 +3400,9 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			     skb->len);
 	if (rc)
 		goto error_unmap_dma;
+
+	if (tx_ring->enable_bql)
+		netdev_tx_sent_queue(txq, skb->len);
 
 	/* stop the queue when no more space available, the packet can have up
 	 * to sgl_size + 2. one for the meta descriptor and one for header

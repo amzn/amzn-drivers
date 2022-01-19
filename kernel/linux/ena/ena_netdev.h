@@ -296,6 +296,7 @@ struct ena_ring {
 	u16 qid;
 	u16 mtu;
 	u16 sgl_size;
+	u8 enable_bql;
 
 	/* The maximum header length the device can handle */
 	u8 tx_max_header_size;
