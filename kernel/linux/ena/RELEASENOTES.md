@@ -39,6 +39,13 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.6.1 release notes
+**New Features**
+* Add BQL support enabled by module parameter
+
+**Minor Changes**
+* Don't print stats on refresh capabilities reset
+
 ## r2.6.0 release notes
 **New Features**
 * Add "capabilities" field to negotiate device capabilities
