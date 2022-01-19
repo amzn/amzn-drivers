@@ -4505,7 +4505,10 @@ static void ena_timer_service(unsigned long data)
 
 		netif_err(adapter, drv, adapter->netdev,
 			  "Trigger reset is on\n");
-		ena_dump_stats_to_dmesg(adapter);
+
+		if (adapter->reset_reason != ENA_REGS_RESET_NORMAL)
+			ena_dump_stats_to_dmesg(adapter);
+
 		queue_work(ena_wq, &adapter->reset_task);
 		return;
 	}
