@@ -97,6 +97,12 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Mon Jan 24 2022 Firas Jahjah <firasj@amazon.com> - 1.16.0
+- Add CQ notifications
+- Add support for dmabuf
+- Add NeuronLink RDMA support
+- Remove gdr from module info keys
+
 * Sun Oct 17 2021 Firas Jahjah <firasj@amazon.com> - 1.14.2
 - Various GDR fixes
 

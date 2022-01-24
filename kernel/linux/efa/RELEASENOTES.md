@@ -3,6 +3,12 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r1.16.0 release notes
+* Add CQ notifications
+* Add support for dmabuf
+* Add NeuronLink RDMA support
+* Remove gdr from module info keys
+
 ## r1.14.2 release notes
 * Various GDR fixes
 

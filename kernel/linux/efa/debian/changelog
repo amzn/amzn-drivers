@@ -1,3 +1,11 @@
+efa (1.16.0-1.amzn1) unstable; urgency=medium
+  * Add CQ notifications
+  * Add support for dmabuf
+  * Add NeuronLink RDMA support
+  * Remove gdr from module info keys
+
+ -- Firas Jahjah <firasj@amazon.com>  Mon, 24 Jan 2022 16:03:29 +0000
+
 efa (1.14.2-1.amzn1) unstable; urgency=medium
   * Various GDR fixes
 
