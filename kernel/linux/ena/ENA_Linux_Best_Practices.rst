@@ -258,11 +258,19 @@ mean?
 header with options. I suspect my Tx packets are not sent out.
 
 **A:** ENA LLQs in default mode support network headers size up to 96 bytes. If
-header size is larger, the packet would be dropped.
-To resolve this issue we recommend to reload the ENA driver with module
+header size is larger, the packet will be dropped.
+To resolve this issue, we recommend to reload the ENA driver with module
 parameter ``force_large_llq_header=1``. This will increase the supported header
 size to a maximum of 224 bytes. Please note that this option reduces the max Tx
 ring size form 1K to 512.
+An example of such use case is IPv6 protocol with TCP SACK enabled, which might
+result in the packet header exceeding 96 bytes.
+An alternative solution for this particular use-case would be to disable TCP SACK:
+
+   .. code-block:: bash
+
+    $ echo 0 > /proc/sys/net/ipv4/tcp_sack
+
 Please also note that this feature is only supported by the GitHub version of
 ENA driver and by AL2 distro.
 
