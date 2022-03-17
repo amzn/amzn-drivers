@@ -1,0 +1,93 @@
+From bea3e8720e58abe187e9676b381fe37edff8b8ff Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:07 +0200
+Subject: [PATCH 021/166] net/ena: check for admin queue state
+
+The admin queue can stop responding or became inactive due to unexpected
+behaviour of the device. In that case, the whole device should be
+restarted.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 37 ++++++++++++++++++++++++++++--------
+ drivers/net/ena/ena_ethdev.h |  2 ++
+ 2 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index c3946cfb67..7405820115 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -529,6 +529,8 @@ ena_dev_reset(struct rte_eth_dev *dev)
+ 	for (i = 0; i < nb_queues; ++i)
+ 		ena_tx_queue_setup(eth_dev, i, adapter->tx_ring_size, 0, NULL);
+ 
++	adapter->trigger_reset = false;
++
+ 	return 0;
+ }
+ 
+@@ -1410,21 +1412,40 @@ static void ena_interrupt_handler_rte(void *cb_arg)
+ 		ena_com_aenq_intr_handler(ena_dev, adapter);
+ }
+ 
++static void check_for_missing_keep_alive(struct ena_adapter *adapter)
++{
++	if (adapter->keep_alive_timeout == ENA_HW_HINTS_NO_TIMEOUT)
++		return;
++
++	if (unlikely((rte_get_timer_cycles() - adapter->timestamp_wd) >=
++	    adapter->keep_alive_timeout)) {
++		RTE_LOG(ERR, PMD, "Keep alive timeout\n");
++		adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
++		adapter->trigger_reset = true;
++	}
++}
++
++/* Check if admin queue is enabled */
++static void check_for_admin_com_state(struct ena_adapter *adapter)
++{
++	if (unlikely(!ena_com_get_admin_running_state(&adapter->ena_dev))) {
++		RTE_LOG(ERR, PMD, "ENA admin queue is not in running state!\n");
++		adapter->reset_reason = ENA_REGS_RESET_ADMIN_TO;
++		adapter->trigger_reset = true;
++	}
++}
++
+ static void ena_timer_wd_callback(__rte_unused struct rte_timer *timer,
+ 				  void *arg)
+ {
+ 	struct ena_adapter *adapter = (struct ena_adapter *)arg;
+ 	struct rte_eth_dev *dev = adapter->rte_dev;
+ 
+-	if (adapter->keep_alive_timeout == ENA_HW_HINTS_NO_TIMEOUT)
+-		return;
++	check_for_missing_keep_alive(adapter);
++	check_for_admin_com_state(adapter);
+ 
+-	/* Within reasonable timing range no memory barriers are needed */
+-	if ((rte_get_timer_cycles() - adapter->timestamp_wd) >=
+-	    adapter->keep_alive_timeout) {
+-		RTE_LOG(ERR, PMD, "The ENA device is not responding - "
+-			"performing device reset...");
+-		adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
++	if (unlikely(adapter->trigger_reset)) {
++		RTE_LOG(ERR, PMD, "Trigger reset is on\n");
+ 		_rte_eth_dev_callback_process(dev, RTE_ETH_EVENT_INTR_RESET,
+ 			NULL, NULL);
+ 	}
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index b44cca23e9..1f6a7062fa 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -194,6 +194,8 @@ struct ena_adapter {
+ 	struct rte_timer timer_wd;
+ 	uint64_t timestamp_wd;
+ 	uint64_t keep_alive_timeout;
++
++	bool trigger_reset;
+ };
+ 
+ #endif /* _ENA_ETHDEV_H_ */
+-- 
+2.25.1
+

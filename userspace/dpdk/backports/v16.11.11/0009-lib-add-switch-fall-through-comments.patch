@@ -1,0 +1,94 @@
+From ce537860b78a6d4f92b3e0374712786996aead01 Mon Sep 17 00:00:00 2001
+From: Bruce Richardson <bruce.richardson@intel.com>
+Date: Thu, 4 May 2017 16:38:18 +0100
+Subject: [PATCH 009/177] lib: add switch fall-through comments
+
+With GCC 7 we need to explicitly document when we are falling through from
+one switch case to another.
+
+Fixes: af75078fece3 ("first public release")
+Fixes: 8bae1da2afe0 ("hash: fallback to software CRC32 implementation")
+Fixes: 9ec201f5d6e7 ("mbuf: provide bulk allocation")
+
+Signed-off-by: Bruce Richardson <bruce.richardson@intel.com>
+---
+ lib/librte_cmdline/cmdline_parse_num.c | 4 ++--
+ lib/librte_hash/rte_hash_crc.h         | 6 ++++++
+ lib/librte_mbuf/rte_mbuf.h             | 4 ++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/lib/librte_cmdline/cmdline_parse_num.c b/lib/librte_cmdline/cmdline_parse_num.c
+index b0f9a35d6f..e507ec4f1f 100644
+--- a/lib/librte_cmdline/cmdline_parse_num.c
++++ b/lib/librte_cmdline/cmdline_parse_num.c
+@@ -250,7 +250,7 @@ cmdline_parse_num(cmdline_parse_token_hdr_t *tk, const char *srcbuf, void *res,
+ 
+ 		case HEX:
+ 			st = HEX_OK;
+-			/* no break */
++			/* fall-through no break */
+ 		case HEX_OK:
+ 			if (c >= '0' && c <= '9') {
+ 				if (add_to_res(c - '0', &res1, 16) < 0)
+@@ -282,7 +282,7 @@ cmdline_parse_num(cmdline_parse_token_hdr_t *tk, const char *srcbuf, void *res,
+ 
+ 		case BIN:
+ 			st = BIN_OK;
+-			/* no break */
++			/* fall-through */
+ 		case BIN_OK:
+ 			if (c >= '0' && c <= '1') {
+ 				if (add_to_res(c - '0', &res1, 2) < 0)
+diff --git a/lib/librte_hash/rte_hash_crc.h b/lib/librte_hash/rte_hash_crc.h
+index 2aec6c5f64..5b683e2bf4 100644
+--- a/lib/librte_hash/rte_hash_crc.h
++++ b/lib/librte_hash/rte_hash_crc.h
+@@ -475,9 +475,15 @@ rte_hash_crc_set_alg(uint8_t alg)
+ 	case CRC32_SSE42_x64:
+ 		if (! rte_cpu_get_flag_enabled(RTE_CPUFLAG_EM64T))
+ 			alg = CRC32_SSE42;
++#if __GNUC__ >= 7
++		__attribute__ ((fallthrough));
++#endif
+ 	case CRC32_SSE42:
+ 		if (! rte_cpu_get_flag_enabled(RTE_CPUFLAG_SSE4_2))
+ 			alg = CRC32_SW;
++#if __GNUC__ >= 7
++		__attribute__ ((fallthrough));
++#endif
+ #endif
+ 	case CRC32_SW:
+ 		crc32_alg = alg;
+diff --git a/lib/librte_mbuf/rte_mbuf.h b/lib/librte_mbuf/rte_mbuf.h
+index be0271d462..9b9c7ccced 100644
+--- a/lib/librte_mbuf/rte_mbuf.h
++++ b/lib/librte_mbuf/rte_mbuf.h
+@@ -1076,21 +1076,25 @@ static inline int rte_pktmbuf_alloc_bulk(struct rte_mempool *pool,
+ 			rte_mbuf_refcnt_set(mbufs[idx], 1);
+ 			rte_pktmbuf_reset(mbufs[idx]);
+ 			idx++;
++			/* fall-through */
+ 	case 3:
+ 			RTE_ASSERT(rte_mbuf_refcnt_read(mbufs[idx]) == 0);
+ 			rte_mbuf_refcnt_set(mbufs[idx], 1);
+ 			rte_pktmbuf_reset(mbufs[idx]);
+ 			idx++;
++			/* fall-through */
+ 	case 2:
+ 			RTE_ASSERT(rte_mbuf_refcnt_read(mbufs[idx]) == 0);
+ 			rte_mbuf_refcnt_set(mbufs[idx], 1);
+ 			rte_pktmbuf_reset(mbufs[idx]);
+ 			idx++;
++			/* fall-through */
+ 	case 1:
+ 			RTE_ASSERT(rte_mbuf_refcnt_read(mbufs[idx]) == 0);
+ 			rte_mbuf_refcnt_set(mbufs[idx], 1);
+ 			rte_pktmbuf_reset(mbufs[idx]);
+ 			idx++;
++			/* fall-through */
+ 		}
+ 	}
+ 	return 0;
+-- 
+2.25.1
+

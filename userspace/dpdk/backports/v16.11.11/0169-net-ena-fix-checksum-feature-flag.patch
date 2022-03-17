@@ -1,0 +1,32 @@
+From 1e65f81e29cc405fb97c7fbda8061e88f20367b3 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Mon, 8 Apr 2019 12:27:44 +0200
+Subject: [PATCH 169/177] net/ena: fix checksum feature flag
+
+The boolean value was assigned to Tx flag twice, so it could cause bug
+whenever Rx checksum will not be supported and Tx will be.
+
+Coverity issue: 336831
+Fixes: 117ba4a60488 ("net/ena: get device info statically")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 3482cc25d2..43ae965fa1 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1831,7 +1831,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 		ENA_ADMIN_FEATURE_OFFLOAD_DESC_TSO_IPV4_MASK) != 0;
+ 	adapter->offloads.tx_csum_supported = (get_feat_ctx.offload.tx &
+ 		ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L4_IPV4_CSUM_PART_MASK) != 0;
+-	adapter->offloads.tx_csum_supported =
++	adapter->offloads.rx_csum_supported =
+ 		(get_feat_ctx.offload.rx_supported &
+ 		ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_L4_IPV4_CSUM_MASK) != 0;
+ 
+-- 
+2.25.1
+

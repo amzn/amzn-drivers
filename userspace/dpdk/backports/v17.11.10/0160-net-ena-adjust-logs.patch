@@ -1,0 +1,926 @@
+From 904b42cd0c5ef0a4b9d039a6d665f3a9528ec5e4 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 23 Jul 2021 12:24:49 +0200
+Subject: [PATCH 160/166] net/ena: adjust logs
+
+ENA logs were not consistent regarding the new line character. Few of
+them were relying on the new line character added by the PMD_*_LOG
+macros, but most were adding the new line character by themselves. It
+was causing ENA logs to add extra empty line after almost each log.
+
+To unify this behavior, the missing new line characters were added to
+the driver logs, and they were removed from the logging macros. After
+this patch, every ENA log message should add '\n' at the end.
+
+Moreover, the logging messages were adjusted in terms of wording
+(removed unnecessary abbreviations), capitalizing of the words (start
+sentences with capital letters, and use 'Tx/Rx' instead of 'tx/TX' etc.
+
+Some of the logs were rephrased to make them more clear for the reader.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shai Brandes <shaibran@amazon.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h |   4 +-
+ drivers/net/ena/ena_ethdev.c         | 260 +++++++++++++++------------
+ drivers/net/ena/ena_logs.h           |  22 ++-
+ 3 files changed, 165 insertions(+), 121 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 70bdf2efd6..658be297c3 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -89,6 +89,8 @@ typedef uint64_t dma_addr_t;
+ #define ENA_GET_SYSTEM_USECS()						       \
+ 	(rte_get_timer_cycles() * US_PER_S / rte_get_timer_hz())
+ 
++extern int ena_logtype_com;
++
+ #define ENA_MAX_T(type, x, y) RTE_MAX((type)(x), (type)(y))
+ #define ENA_MAX32(x, y) ENA_MAX_T(uint32_t, (x), (y))
+ #define ENA_MAX16(x, y) ENA_MAX_T(uint16_t, (x), (y))
+@@ -110,7 +112,7 @@ typedef uint64_t dma_addr_t;
+ #define ena_trc_log(dev, level, fmt, arg...)				       \
+ 	(								       \
+ 		ENA_TOUCH(dev),						       \
+-		RTE_LOG(level, PMD,					       \
++		rte_log(RTE_LOG_ ## level, ena_logtype_com,		       \
+ 			"[ENA_COM: %s]" fmt, __func__, ##arg)		       \
+ 	)
+ 
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 5345588217..672bf06812 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -157,6 +157,16 @@ static const struct ena_stats ena_stats_rx_strings[] = {
+ int ena_logtype_init;
+ int ena_logtype_driver;
+ 
++#ifdef RTE_LIBRTE_ENA_DEBUG_RX
++int ena_logtype_rx;
++#endif
++#ifdef RTE_LIBRTE_ENA_DEBUG_TX
++int ena_logtype_tx;
++#endif
++#ifdef RTE_LIBRTE_ENA_COM_DEBUG
++int ena_logtype_com;
++#endif
++
+ static const struct rte_pci_id pci_id_ena_map[] = {
+ 	{ RTE_PCI_DEVICE(PCI_VENDOR_ID_AMAZON, PCI_DEVICE_ID_ENA_VF) },
+ 	{ RTE_PCI_DEVICE(PCI_VENDOR_ID_AMAZON, PCI_DEVICE_ID_ENA_VF_RSERV0) },
+@@ -405,9 +415,9 @@ static int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
+ 	}
+ 
+ 	if (tx_info)
+-		RTE_LOG(ERR, PMD, "tx_info doesn't have valid mbuf\n");
++		PMD_DRV_LOG(ERR, "tx_info doesn't have valid mbuf\n");
+ 	else
+-		RTE_LOG(ERR, PMD, "Invalid req_id: %hu\n", req_id);
++		PMD_DRV_LOG(ERR, "Invalid req_id: %hu\n", req_id);
+ 
+ 	/* Trigger device reset */
+ 	++tx_ring->tx_stats.bad_req_id;
+@@ -424,7 +434,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev)
+ 	/* Allocate only the host info */
+ 	rc = ena_com_allocate_host_info(ena_dev);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD, "Cannot allocate host info\n");
++		PMD_DRV_LOG(ERR, "Cannot allocate host info\n");
+ 		return;
+ 	}
+ 
+@@ -452,9 +462,9 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev)
+ 	rc = ena_com_set_host_attributes(ena_dev);
+ 	if (rc) {
+ 		if (rc == -ENA_COM_UNSUPPORTED)
+-			RTE_LOG(WARNING, PMD, "Cannot set host attributes\n");
++			PMD_DRV_LOG(WARNING, "Cannot set host attributes\n");
+ 		else
+-			RTE_LOG(ERR, PMD, "Cannot set host attributes\n");
++			PMD_DRV_LOG(ERR, "Cannot set host attributes\n");
+ 
+ 		goto err;
+ 	}
+@@ -485,16 +495,16 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
+ 
+ 	rc = ena_com_allocate_debug_area(&adapter->ena_dev, debug_area_size);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD, "Cannot allocate debug area\n");
++		PMD_DRV_LOG(ERR, "Cannot allocate debug area\n");
+ 		return;
+ 	}
+ 
+ 	rc = ena_com_set_host_attributes(&adapter->ena_dev);
+ 	if (rc) {
+ 		if (rc == -ENA_COM_UNSUPPORTED)
+-			RTE_LOG(WARNING, PMD, "Cannot set host attributes\n");
++			PMD_DRV_LOG(WARNING, "Cannot set host attributes\n");
+ 		else
+-			RTE_LOG(ERR, PMD, "Cannot set host attributes\n");
++			PMD_DRV_LOG(ERR, "Cannot set host attributes\n");
+ 
+ 		goto err;
+ 	}
+@@ -546,7 +556,7 @@ ena_dev_reset(struct rte_eth_dev *dev)
+ 	ena_destroy_device(dev);
+ 	rc = eth_ena_dev_init(dev);
+ 	if (rc)
+-		PMD_INIT_LOG(CRIT, "Cannot initialize device");
++		PMD_INIT_LOG(CRIT, "Cannot initialize device\n");
+ 
+ 	return rc;
+ }
+@@ -566,8 +576,8 @@ static int ena_rss_reta_update(struct rte_eth_dev *dev,
+ 		return -EINVAL;
+ 
+ 	if (reta_size > ENA_RX_RSS_TABLE_SIZE) {
+-		RTE_LOG(WARNING, PMD,
+-			"indirection table %d is bigger than supported (%d)\n",
++		PMD_DRV_LOG(WARNING,
++			"Requested indirection table size (%d) is bigger than supported: %d\n",
+ 			reta_size, ENA_RX_RSS_TABLE_SIZE);
+ 		return -EINVAL;
+ 	}
+@@ -586,7 +596,7 @@ static int ena_rss_reta_update(struct rte_eth_dev *dev,
+ 							       i,
+ 							       entry_value);
+ 			if (unlikely(rc && rc != ENA_COM_UNSUPPORTED)) {
+-				RTE_LOG(ERR, PMD,
++				PMD_DRV_LOG(ERR,
+ 					"Cannot fill indirect table\n");
+ 				return rc;
+ 			}
+@@ -597,12 +607,12 @@ static int ena_rss_reta_update(struct rte_eth_dev *dev,
+ 	rc = ena_com_indirect_table_set(ena_dev);
+ 	rte_spinlock_unlock(&adapter->admin_lock);
+ 	if (unlikely(rc && rc != ENA_COM_UNSUPPORTED)) {
+-		RTE_LOG(ERR, PMD, "Cannot flush the indirect table\n");
++		PMD_DRV_LOG(ERR, "Cannot flush the indirect table\n");
+ 		return rc;
+ 	}
+ 
+-	RTE_LOG(DEBUG, PMD, "%s(): RSS configured %d entries  for port %d\n",
+-		__func__, reta_size, dev->data->port_id);
++	PMD_DRV_LOG(DEBUG, "RSS configured %d entries for port %d\n",
++		reta_size, dev->data->port_id);
+ 
+ 	return 0;
+ }
+@@ -628,7 +638,7 @@ static int ena_rss_reta_query(struct rte_eth_dev *dev,
+ 	rc = ena_com_indirect_table_get(ena_dev, indirect_table);
+ 	rte_spinlock_unlock(&adapter->admin_lock);
+ 	if (unlikely(rc && rc != ENA_COM_UNSUPPORTED)) {
+-		RTE_LOG(ERR, PMD, "cannot get indirect table\n");
++		PMD_DRV_LOG(ERR, "Cannot get indirection table\n");
+ 		return -ENOTSUP;
+ 	}
+ 
+@@ -652,7 +662,7 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
+ 
+ 	rc = ena_com_rss_init(ena_dev, ENA_RX_RSS_TABLE_LOG_SIZE);
+ 	if (unlikely(rc)) {
+-		RTE_LOG(ERR, PMD, "Cannot init indirect table\n");
++		PMD_DRV_LOG(ERR, "Cannot init indirection table\n");
+ 		goto err_rss_init;
+ 	}
+ 
+@@ -661,7 +671,7 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
+ 		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
+ 						       ENA_IO_RXQ_IDX(val));
+ 		if (unlikely(rc && (rc != ENA_COM_UNSUPPORTED))) {
+-			RTE_LOG(ERR, PMD, "Cannot fill indirect table\n");
++			PMD_DRV_LOG(ERR, "Cannot fill indirection table\n");
+ 			goto err_fill_indir;
+ 		}
+ 	}
+@@ -669,22 +679,22 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
+ 	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_CRC32, NULL,
+ 					ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
+ 	if (unlikely(rc && (rc != ENA_COM_UNSUPPORTED))) {
+-		RTE_LOG(INFO, PMD, "Cannot fill hash function\n");
++		PMD_DRV_LOG(INFO, "Cannot fill hash function\n");
+ 		goto err_fill_indir;
+ 	}
+ 
+ 	rc = ena_com_set_default_hash_ctrl(ena_dev);
+ 	if (unlikely(rc && (rc != ENA_COM_UNSUPPORTED))) {
+-		RTE_LOG(INFO, PMD, "Cannot fill hash control\n");
++		PMD_DRV_LOG(INFO, "Cannot fill hash control\n");
+ 		goto err_fill_indir;
+ 	}
+ 
+ 	rc = ena_com_indirect_table_set(ena_dev);
+ 	if (unlikely(rc && (rc != ENA_COM_UNSUPPORTED))) {
+-		RTE_LOG(ERR, PMD, "Cannot flush the indirect table\n");
++		PMD_DRV_LOG(ERR, "Cannot flush indirection table\n");
+ 		goto err_fill_indir;
+ 	}
+-	RTE_LOG(DEBUG, PMD, "RSS configured for port %d\n",
++	PMD_DRV_LOG(DEBUG, "RSS configured for port %d\n",
+ 		adapter->edev_data->port_id);
+ 
+ 	return 0;
+@@ -735,7 +745,7 @@ static void ena_rx_queue_release(void *queue)
+ 
+ 	ring->configured = 0;
+ 
+-	RTE_LOG(NOTICE, PMD, "RX Queue %d:%d released\n",
++	PMD_DRV_LOG(NOTICE, "Rx queue %d:%d released\n",
+ 		ring->port_id, ring->id);
+ }
+ 
+@@ -759,7 +769,7 @@ static void ena_tx_queue_release(void *queue)
+ 
+ 	ring->configured = 0;
+ 
+-	RTE_LOG(NOTICE, PMD, "TX Queue %d:%d released\n",
++	PMD_DRV_LOG(NOTICE, "Tx queue %d:%d released\n",
+ 		ring->port_id, ring->id);
+ }
+ 
+@@ -824,19 +834,19 @@ static int ena_queue_start_all(struct rte_eth_dev *dev,
+ 			if (ring_type == ENA_RING_TYPE_RX) {
+ 				ena_assert_msg(
+ 					dev->data->rx_queues[i] == &queues[i],
+-					"Inconsistent state of rx queues\n");
++					"Inconsistent state of Rx queues\n");
+ 			} else {
+ 				ena_assert_msg(
+ 					dev->data->tx_queues[i] == &queues[i],
+-					"Inconsistent state of tx queues\n");
++					"Inconsistent state of Tx queues\n");
+ 			}
+ 
+ 			rc = ena_queue_start(&queues[i]);
+ 
+ 			if (rc) {
+ 				PMD_INIT_LOG(ERR,
+-					     "failed to start queue %d type(%d)",
+-					     i, ring_type);
++					"Failed to start queue[%d] of type(%d)\n",
++					i, ring_type);
+ 				goto err;
+ 			}
+ 		}
+@@ -869,9 +879,9 @@ static int ena_check_valid_conf(struct ena_adapter *adapter)
+ 	uint32_t max_frame_len = ena_get_mtu_conf(adapter);
+ 
+ 	if (max_frame_len > adapter->max_mtu || max_frame_len < ENA_MIN_MTU) {
+-		PMD_INIT_LOG(ERR, "Unsupported MTU of %d. "
+-				  "max mtu: %d, min mtu: %d",
+-			     max_frame_len, adapter->max_mtu, ENA_MIN_MTU);
++		PMD_INIT_LOG(ERR,
++			"Unsupported MTU of %d. Max MTU: %d, min MTU: %d\n",
++			max_frame_len, adapter->max_mtu, ENA_MIN_MTU);
+ 		return ENA_COM_UNSUPPORTED;
+ 	}
+ 
+@@ -940,7 +950,7 @@ ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx,
+ 		     ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
+ 			max_tx_queue_size /= 2;
+ 			PMD_INIT_LOG(INFO,
+-				"Forcing large headers and decreasing maximum TX queue size to %d\n",
++				"Forcing large headers and decreasing maximum Tx queue size to %d\n",
+ 				max_tx_queue_size);
+ 		} else {
+ 			PMD_INIT_LOG(ERR,
+@@ -949,7 +959,7 @@ ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx,
+ 	}
+ 
+ 	if (unlikely(max_rx_queue_size == 0 || max_tx_queue_size == 0)) {
+-		PMD_INIT_LOG(ERR, "Invalid queue size");
++		PMD_INIT_LOG(ERR, "Invalid queue size\n");
+ 		return -EFAULT;
+ 	}
+ 
+@@ -988,7 +998,7 @@ static int ena_stats_get(struct rte_eth_dev *dev,
+ 	rc = ena_com_get_dev_basic_stats(ena_dev, &ena_stats);
+ 	rte_spinlock_unlock(&adapter->admin_lock);
+ 	if (unlikely(rc)) {
+-		RTE_LOG(ERR, PMD, "Could not retrieve statistics from ENA\n");
++		PMD_DRV_LOG(ERR, "Could not retrieve statistics from ENA\n");
+ 		return rc;
+ 	}
+ 
+@@ -1045,18 +1055,17 @@ static int ena_mtu_set(struct rte_eth_dev *dev, uint16_t mtu)
+ 	ena_assert_msg(ena_dev != NULL, "Uninitialized device\n");
+ 
+ 	if (mtu > ena_get_mtu_conf(adapter) || mtu < ENA_MIN_MTU) {
+-		RTE_LOG(ERR, PMD,
+-			"Invalid MTU setting. new_mtu: %d "
+-			"max mtu: %d min mtu: %d\n",
++		PMD_DRV_LOG(ERR,
++			"Invalid MTU setting. New MTU: %d, max MTU: %d, min MTU: %d\n",
+ 			mtu, ena_get_mtu_conf(adapter), ENA_MIN_MTU);
+ 		return -EINVAL;
+ 	}
+ 
+ 	rc = ena_com_set_dev_mtu(ena_dev, mtu);
+ 	if (rc)
+-		RTE_LOG(ERR, PMD, "Could not set MTU: %d\n", mtu);
++		PMD_DRV_LOG(ERR, "Could not set MTU: %d\n", mtu);
+ 	else
+-		RTE_LOG(NOTICE, PMD, "Set MTU: %d\n", mtu);
++		PMD_DRV_LOG(NOTICE, "MTU set to: %d\n", mtu);
+ 
+ 	return rc;
+ }
+@@ -1132,7 +1141,7 @@ static void ena_stop(struct rte_eth_dev *dev)
+ 	if (adapter->trigger_reset) {
+ 		rc = ena_com_dev_reset(ena_dev, adapter->reset_reason);
+ 		if (rc)
+-			RTE_LOG(ERR, PMD, "Device reset failed rc=%d\n", rc);
++			PMD_DRV_LOG(ERR, "Device reset failed, rc: %d\n", rc);
+ 	}
+ 
+ 	++adapter->dev_stats.dev_stop;
+@@ -1173,8 +1182,8 @@ static int ena_create_io_queue(struct ena_ring *ring)
+ 
+ 	rc = ena_com_create_io_queue(ena_dev, &ctx);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD,
+-			"failed to create io queue #%d (qid:%d) rc: %d\n",
++		PMD_DRV_LOG(ERR,
++			"Failed to create IO queue[%d] (qid:%d), rc: %d\n",
+ 			ring->id, ena_qid, rc);
+ 		return rc;
+ 	}
+@@ -1183,8 +1192,8 @@ static int ena_create_io_queue(struct ena_ring *ring)
+ 				     &ring->ena_com_io_sq,
+ 				     &ring->ena_com_io_cq);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD,
+-			"Failed to get io queue handlers. queue num %d rc: %d\n",
++		PMD_DRV_LOG(ERR,
++			"Failed to get IO queue[%d] handlers, rc: %d\n",
+ 			ring->id, rc);
+ 		ena_com_destroy_io_queue(ena_dev, ena_qid);
+ 		return rc;
+@@ -1239,7 +1248,7 @@ static int ena_queue_start(struct ena_ring *ring)
+ 
+ 	rc = ena_create_io_queue(ring);
+ 	if (rc) {
+-		PMD_INIT_LOG(ERR, "Failed to create IO queue!");
++		PMD_INIT_LOG(ERR, "Failed to create IO queue\n");
+ 		return rc;
+ 	}
+ 
+@@ -1257,7 +1266,7 @@ static int ena_queue_start(struct ena_ring *ring)
+ 	if (rc != bufs_num) {
+ 		ena_com_destroy_io_queue(&ring->adapter->ena_dev,
+ 					 ENA_IO_RXQ_IDX(ring->id));
+-		PMD_INIT_LOG(ERR, "Failed to populate rx ring !");
++		PMD_INIT_LOG(ERR, "Failed to populate Rx ring\n");
+ 		return ENA_COM_FAULT;
+ 	}
+ 	/* Flush per-core RX buffers pools cache as they can be used on other
+@@ -1282,29 +1291,29 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 	txq = &adapter->tx_ring[queue_idx];
+ 
+ 	if (txq->configured) {
+-		RTE_LOG(CRIT, PMD,
+-			"API violation. Queue %d is already configured\n",
++		PMD_DRV_LOG(CRIT,
++			"API violation. Queue[%d] is already configured\n",
+ 			queue_idx);
+ 		return ENA_COM_FAULT;
+ 	}
+ 
+ 	if (!rte_is_power_of_2(nb_desc)) {
+-		RTE_LOG(ERR, PMD,
+-			"Unsupported size of TX queue: %d is not a power of 2.\n",
++		PMD_DRV_LOG(ERR,
++			"Unsupported size of Tx queue: %d is not a power of 2.\n",
+ 			nb_desc);
+ 		return -EINVAL;
+ 	}
+ 
+ 	if (nb_desc > adapter->max_tx_ring_size) {
+-		RTE_LOG(ERR, PMD,
+-			"Unsupported size of TX queue (max size: %d)\n",
++		PMD_DRV_LOG(ERR,
++			"Unsupported size of Tx queue (max size: %d)\n",
+ 			adapter->max_tx_ring_size);
+ 		return -EINVAL;
+ 	}
+ 
+ 	if (tx_conf->txq_flags == ETH_TXQ_FLAGS_IGNORE &&
+ 	    !ena_are_tx_queue_offloads_allowed(adapter, tx_conf->offloads)) {
+-		RTE_LOG(ERR, PMD, "Unsupported queue offloads\n");
++		PMD_DRV_LOG(ERR, "Unsupported queue offloads\n");
+ 		return -EINVAL;
+ 	}
+ 
+@@ -1321,7 +1330,8 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 					  txq->ring_size,
+ 					  RTE_CACHE_LINE_SIZE);
+ 	if (!txq->tx_buffer_info) {
+-		RTE_LOG(ERR, PMD, "failed to alloc mem for tx buffer info\n");
++		PMD_DRV_LOG(ERR,
++			"Failed to allocate memory for Tx buffer info\n");
+ 		return -ENOMEM;
+ 	}
+ 
+@@ -1329,7 +1339,8 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 					 sizeof(u16) * txq->ring_size,
+ 					 RTE_CACHE_LINE_SIZE);
+ 	if (!txq->empty_tx_reqs) {
+-		RTE_LOG(ERR, PMD, "failed to alloc mem for tx reqs\n");
++		PMD_DRV_LOG(ERR,
++			"Failed to allocate memory for empty Tx requests\n");
+ 		rte_free(txq->tx_buffer_info);
+ 		return -ENOMEM;
+ 	}
+@@ -1339,7 +1350,7 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 			    txq->tx_max_header_size,
+ 			    RTE_CACHE_LINE_SIZE);
+ 	if (!txq->push_buf_intermediate_buf) {
+-		RTE_LOG(ERR, PMD, "failed to alloc push buff for LLQ\n");
++		PMD_DRV_LOG(ERR, "Failed to alloc push buffer for LLQ\n");
+ 		rte_free(txq->tx_buffer_info);
+ 		rte_free(txq->empty_tx_reqs);
+ 		return -ENOMEM;
+@@ -1371,28 +1382,28 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 
+ 	rxq = &adapter->rx_ring[queue_idx];
+ 	if (rxq->configured) {
+-		RTE_LOG(CRIT, PMD,
+-			"API violation. Queue %d is already configured\n",
++		PMD_DRV_LOG(CRIT,
++			"API violation. Queue[%d] is already configured\n",
+ 			queue_idx);
+ 		return ENA_COM_FAULT;
+ 	}
+ 
+ 	if (!rte_is_power_of_2(nb_desc)) {
+-		RTE_LOG(ERR, PMD,
+-			"Unsupported size of RX queue: %d is not a power of 2.\n",
++		PMD_DRV_LOG(ERR,
++			"Unsupported size of Rx queue: %d is not a power of 2.\n",
+ 			nb_desc);
+ 		return -EINVAL;
+ 	}
+ 
+ 	if (nb_desc > adapter->max_rx_ring_size) {
+-		RTE_LOG(ERR, PMD,
+-			"Unsupported size of RX queue (max size: %d)\n",
++		PMD_DRV_LOG(ERR,
++			"Unsupported size of Rx queue (max size: %d)\n",
+ 			adapter->max_rx_ring_size);
+ 		return -EINVAL;
+ 	}
+ 
+ 	if (!ena_are_rx_queue_offloads_allowed(adapter, rx_conf->offloads)) {
+-		RTE_LOG(ERR, PMD, "Unsupported queue offloads\n");
++		PMD_DRV_LOG(ERR, "Unsupported queue offloads\n");
+ 		return -EINVAL;
+ 	}
+ 
+@@ -1400,7 +1411,7 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 	buffer_size = rte_pktmbuf_data_room_size(mp) - RTE_PKTMBUF_HEADROOM;
+ 	if (buffer_size < ENA_RX_BUF_MIN_SIZE) {
+ 		PMD_DRV_LOG(ERR,
+-			"Unsupported size of RX buffer: %zu (min size: %d)\n",
++			"Unsupported size of Rx buffer: %zu (min size: %d)\n",
+ 			buffer_size, ENA_RX_BUF_MIN_SIZE);
+ 		return -EINVAL;
+ 	}
+@@ -1417,7 +1428,8 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 		sizeof(struct ena_rx_buffer) * nb_desc,
+ 		RTE_CACHE_LINE_SIZE);
+ 	if (!rxq->rx_buffer_info) {
+-		RTE_LOG(ERR, PMD, "failed to alloc mem for rx buffer info\n");
++		PMD_DRV_LOG(ERR,
++			"Failed to allocate memory for Rx buffer info\n");
+ 		return -ENOMEM;
+ 	}
+ 
+@@ -1426,7 +1438,8 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 					    RTE_CACHE_LINE_SIZE);
+ 
+ 	if (!rxq->rx_refill_buffer) {
+-		RTE_LOG(ERR, PMD, "failed to alloc mem for rx refill buffer\n");
++		PMD_DRV_LOG(ERR,
++			"Failed to allocate memory for Rx refill buffer\n");
+ 		rte_free(rxq->rx_buffer_info);
+ 		rxq->rx_buffer_info = NULL;
+ 		return -ENOMEM;
+@@ -1436,7 +1449,8 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 					 sizeof(uint16_t) * nb_desc,
+ 					 RTE_CACHE_LINE_SIZE);
+ 	if (!rxq->empty_rx_reqs) {
+-		RTE_LOG(ERR, PMD, "failed to alloc mem for empty rx reqs\n");
++		PMD_DRV_LOG(ERR,
++			"Failed to allocate memory for empty Rx requests\n");
+ 		rte_free(rxq->rx_buffer_info);
+ 		rxq->rx_buffer_info = NULL;
+ 		rte_free(rxq->rx_refill_buffer);
+@@ -1467,7 +1481,7 @@ static int ena_add_single_rx_desc(struct ena_com_io_sq *io_sq,
+ 	/* pass resource to device */
+ 	rc = ena_com_add_single_rx_desc(io_sq, &ebuf, id);
+ 	if (unlikely(rc != 0))
+-		PMD_DRV_LOG(WARNING, "failed adding rx desc\n");
++		PMD_DRV_LOG(WARNING, "Failed adding Rx desc\n");
+ 
+ 	return rc;
+ }
+@@ -1493,7 +1507,7 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 	if (unlikely(rc < 0)) {
+ 		rte_atomic64_inc(&rxq->adapter->drv_stats->rx_nombuf);
+ 		++rxq->rx_stats.mbuf_alloc_fail;
+-		PMD_RX_LOG(DEBUG, "there are no enough free buffers");
++		PMD_RX_LOG(DEBUG, "There are not enough free buffers\n");
+ 		return 0;
+ 	}
+ 
+@@ -1516,8 +1530,9 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 	}
+ 
+ 	if (unlikely(i < count)) {
+-		RTE_LOG(WARNING, PMD, "refilled rx qid %d with only %d "
+-			"buffers (from %d)\n", rxq->id, i, count);
++		PMD_DRV_LOG(WARNING,
++			"Refilled Rx queue[%d] with only %d/%d buffers\n",
++			rxq->id, i, count);
+ 		rte_mempool_put_bulk(rxq->mb_pool, (void **)(&mbufs[i]),
+ 				     count - i);
+ 		++rxq->rx_stats.refill_partial;
+@@ -1546,7 +1561,7 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	/* Initialize mmio registers */
+ 	rc = ena_com_mmio_reg_read_request_init(ena_dev);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD, "failed to init mmio read less\n");
++		PMD_DRV_LOG(ERR, "Failed to init MMIO read less\n");
+ 		return rc;
+ 	}
+ 
+@@ -1559,14 +1574,14 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	/* reset device */
+ 	rc = ena_com_dev_reset(ena_dev, ENA_REGS_RESET_NORMAL);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD, "cannot reset device\n");
++		PMD_DRV_LOG(ERR, "Cannot reset device\n");
+ 		goto err_mmio_read_less;
+ 	}
+ 
+ 	/* check FW version */
+ 	rc = ena_com_validate_version(ena_dev);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD, "device version is too low\n");
++		PMD_DRV_LOG(ERR, "Device version is too low\n");
+ 		goto err_mmio_read_less;
+ 	}
+ 
+@@ -1575,8 +1590,8 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	/* ENA device administration layer init */
+ 	rc = ena_com_admin_init(ena_dev, &aenq_handlers);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD,
+-			"cannot initialize ena admin queue with device\n");
++		PMD_DRV_LOG(ERR,
++			"Cannot initialize ENA admin queue\n");
+ 		goto err_mmio_read_less;
+ 	}
+ 
+@@ -1591,8 +1606,8 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	/* Get Device Attributes and features */
+ 	rc = ena_com_get_dev_attr_feat(ena_dev, get_feat_ctx);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD,
+-			"cannot get attribute for ena device rc= %d\n", rc);
++		PMD_DRV_LOG(ERR,
++			"Cannot get attribute for ENA device, rc: %d\n", rc);
+ 		goto err_admin_init;
+ 	}
+ 
+@@ -1605,7 +1620,7 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
+ 	rc = ena_com_set_aenq_config(ena_dev, aenq_groups);
+ 	if (rc) {
+-		RTE_LOG(ERR, PMD, "Cannot configure aenq groups rc: %d\n", rc);
++		PMD_DRV_LOG(ERR, "Cannot configure AENQ groups, rc: %d\n", rc);
+ 		goto err_admin_init;
+ 	}
+ 
+@@ -1643,7 +1658,7 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
+ 
+ 	if (unlikely((rte_get_timer_cycles() - adapter->timestamp_wd) >=
+ 	    adapter->keep_alive_timeout)) {
+-		RTE_LOG(ERR, PMD, "Keep alive timeout\n");
++		PMD_DRV_LOG(ERR, "Keep alive timeout\n");
+ 		adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
+ 		adapter->trigger_reset = true;
+ 		++adapter->dev_stats.wd_expired;
+@@ -1654,7 +1669,7 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
+ static void check_for_admin_com_state(struct ena_adapter *adapter)
+ {
+ 	if (unlikely(!ena_com_get_admin_running_state(&adapter->ena_dev))) {
+-		RTE_LOG(ERR, PMD, "ENA admin queue is not in running state!\n");
++		PMD_DRV_LOG(ERR, "ENA admin queue is not in running state\n");
+ 		adapter->reset_reason = ENA_REGS_RESET_ADMIN_TO;
+ 		adapter->trigger_reset = true;
+ 	}
+@@ -1670,7 +1685,7 @@ static void ena_timer_wd_callback(__rte_unused struct rte_timer *timer,
+ 	check_for_admin_com_state(adapter);
+ 
+ 	if (unlikely(adapter->trigger_reset)) {
+-		RTE_LOG(ERR, PMD, "Trigger reset is on\n");
++		PMD_DRV_LOG(ERR, "Trigger reset is on\n");
+ 		_rte_eth_dev_callback_process(dev, RTE_ETH_EVENT_INTR_RESET,
+ 			NULL, NULL);
+ 	}
+@@ -1709,7 +1724,7 @@ ena_set_queues_placement_policy(struct ena_adapter *adapter,
+ 
+ 	llq_feature_mask = 1 << ENA_ADMIN_LLQ;
+ 	if (!(ena_dev->supported_features & llq_feature_mask)) {
+-		RTE_LOG(INFO, PMD,
++		PMD_DRV_LOG(INFO,
+ 			"LLQ is not supported. Fallback to host mode policy.\n");
+ 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+ 		return 0;
+@@ -1717,8 +1732,8 @@ ena_set_queues_placement_policy(struct ena_adapter *adapter,
+ 
+ 	rc = ena_com_config_dev_mode(ena_dev, llq, llq_default_configurations);
+ 	if (unlikely(rc)) {
+-		PMD_INIT_LOG(WARNING, "Failed to config dev mode. "
+-			"Fallback to host mode policy.");
++		PMD_INIT_LOG(WARNING,
++			"Failed to config dev mode. Fallback to host mode policy.\n");
+ 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+ 		return 0;
+ 	}
+@@ -1728,8 +1743,8 @@ ena_set_queues_placement_policy(struct ena_adapter *adapter,
+ 		return 0;
+ 
+ 	if (!adapter->dev_mem_base) {
+-		RTE_LOG(ERR, PMD, "Unable to access LLQ bar resource. "
+-			"Fallback to host mode policy.\n.");
++		PMD_DRV_LOG(ERR,
++			"Unable to access LLQ BAR resource. Fallback to host mode policy.\n");
+ 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+ 		return 0;
+ 	}
+@@ -1769,7 +1784,7 @@ static uint32_t ena_calc_max_io_queue_num(struct ena_com_dev *ena_dev,
+ 	max_num_io_queues = RTE_MIN(max_num_io_queues, io_tx_cq_num);
+ 
+ 	if (unlikely(max_num_io_queues == 0)) {
+-		RTE_LOG(ERR, PMD, "Number of IO queues should not be 0\n");
++		PMD_DRV_LOG(ERR, "Number of IO queues cannot not be 0\n");
+ 		return -EFAULT;
+ 	}
+ 
+@@ -1807,7 +1822,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 
+ 	pci_dev = RTE_ETH_DEV_TO_PCI(eth_dev);
+ 
+-	PMD_INIT_LOG(INFO, "Initializing %x:%x:%x.%d",
++	PMD_INIT_LOG(INFO, "Initializing %x:%x:%x.%d\n",
+ 		     pci_dev->addr.domain,
+ 		     pci_dev->addr.bus,
+ 		     pci_dev->addr.devid,
+@@ -1819,7 +1834,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	adapter->dev_mem_base = pci_dev->mem_resource[ENA_MEM_BAR].addr;
+ 
+ 	if (!adapter->regs) {
+-		PMD_INIT_LOG(CRIT, "Failed to access registers BAR(%d)",
++		PMD_INIT_LOG(CRIT, "Failed to access registers BAR(%d)\n",
+ 			     ENA_REGS_BAR);
+ 		return -ENXIO;
+ 	}
+@@ -1842,7 +1857,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	/* device specific initialization routine */
+ 	rc = ena_device_init(ena_dev, pci_dev, &get_feat_ctx, &wd_state);
+ 	if (rc) {
+-		PMD_INIT_LOG(CRIT, "Failed to init ENA device");
++		PMD_INIT_LOG(CRIT, "Failed to init ENA device\n");
+ 		goto err;
+ 	}
+ 	adapter->wd_state = wd_state;
+@@ -1852,7 +1867,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 	rc = ena_set_queues_placement_policy(adapter, ena_dev,
+ 					     &get_feat_ctx.llq, &llq_config);
+ 	if (unlikely(rc)) {
+-		PMD_INIT_LOG(CRIT, "Failed to set placement policy");
++		PMD_INIT_LOG(CRIT, "Failed to set placement policy\n");
+ 		return rc;
+ 	}
+ 
+@@ -1860,7 +1875,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 		queue_type_str = "Regular";
+ 	else
+ 		queue_type_str = "Low latency";
+-	RTE_LOG(INFO, PMD, "Placement policy: %s\n", queue_type_str);
++	PMD_DRV_LOG(INFO, "Placement policy: %s\n", queue_type_str);
+ 
+ 	calc_queue_ctx.ena_dev = ena_dev;
+ 	calc_queue_ctx.get_feat_ctx = &get_feat_ctx;
+@@ -1913,7 +1928,8 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 					 sizeof(*adapter->drv_stats),
+ 					 RTE_CACHE_LINE_SIZE);
+ 	if (!adapter->drv_stats) {
+-		RTE_LOG(ERR, PMD, "failed to alloc mem for adapter stats\n");
++		PMD_DRV_LOG(ERR,
++			"Failed to allocate memory for adapter statistics\n");
+ 		rc = -ENOMEM;
+ 		goto err_delete_debug_area;
+ 	}
+@@ -1994,16 +2010,16 @@ static int ena_dev_configure(struct rte_eth_dev *dev)
+ 	uint64_t rx_offloads = dev->data->dev_conf.rxmode.offloads;
+ 
+ 	if ((tx_offloads & adapter->tx_supported_offloads) != tx_offloads) {
+-		RTE_LOG(ERR, PMD, "Some Tx offloads are not supported "
+-		    "requested 0x%" PRIx64 " supported 0x%" PRIx64 "\n",
+-		    tx_offloads, adapter->tx_supported_offloads);
++		PMD_DRV_LOG(ERR,
++			"Some Tx offloads are not supported requested 0x%" PRIx64 " supported 0x%" PRIx64 "\n",
++			tx_offloads, adapter->tx_supported_offloads);
+ 		return -ENOTSUP;
+ 	}
+ 
+ 	if ((rx_offloads & adapter->rx_supported_offloads) != rx_offloads) {
+-		RTE_LOG(ERR, PMD, "Some Rx offloads are not supported "
+-		    "requested 0x%" PRIx64 " supported 0x%" PRIx64 "\n",
+-		    rx_offloads, adapter->rx_supported_offloads);
++		PMD_DRV_LOG(ERR,
++			"Some Rx offloads are not supported requested 0x%" PRIx64 " supported 0x%" PRIx64 "\n",
++			rx_offloads, adapter->rx_supported_offloads);
+ 		return -ENOTSUP;
+ 	}
+ 
+@@ -2264,7 +2280,7 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 
+ 	/* Check adapter state */
+ 	if (unlikely(rx_ring->adapter->state != ENA_ADAPTER_STATE_RUNNING)) {
+-		RTE_LOG(ALERT, PMD,
++		PMD_DRV_LOG(ALERT,
+ 			"Trying to receive pkts while device is NOT running\n");
+ 		return 0;
+ 	}
+@@ -2283,7 +2299,9 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 				    rx_ring->ena_com_io_sq,
+ 				    &ena_rx_ctx);
+ 		if (unlikely(rc)) {
+-			RTE_LOG(ERR, PMD, "ena_com_rx_pkt error %d\n", rc);
++			PMD_DRV_LOG(ERR,
++				"Failed to get the packet from the device, rc: %d\n",
++				rc);
+ 			if (rc == ENA_COM_NO_SPACE) {
+ 				++rx_ring->rx_stats.bad_desc_num;
+ 				rx_ring->adapter->reset_reason =
+@@ -2458,13 +2476,13 @@ static int ena_check_space_and_linearize_mbuf(struct ena_ring *tx_ring,
+ 	 * be needed so we reduce the segments number from num_segments to 1
+ 	 */
+ 	if (!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq, 3)) {
+-		PMD_DRV_LOG(DEBUG, "Not enough space in the tx queue\n");
++		PMD_DRV_LOG(DEBUG, "Not enough space in the Tx queue\n");
+ 		return ENA_COM_NO_MEM;
+ 	}
+ 	++tx_ring->tx_stats.linearize;
+ 	rc = rte_pktmbuf_linearize(mbuf);
+ 	if (unlikely(rc)) {
+-		RTE_LOG(WARNING, PMD, "Mbuf linearize failed\n");
++		PMD_DRV_LOG(WARNING, "Mbuf linearize failed\n");
+ 		rte_atomic64_inc(&tx_ring->adapter->drv_stats->ierrors);
+ 		++tx_ring->tx_stats.linearize_failed;
+ 		return rc;
+@@ -2478,7 +2496,7 @@ static int ena_check_space_and_linearize_mbuf(struct ena_ring *tx_ring,
+ 	 */
+ 	if (!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+ 					  num_segments + 2)) {
+-		PMD_DRV_LOG(DEBUG, "Not enough space in the tx queue\n");
++		PMD_DRV_LOG(DEBUG, "Not enough space in the Tx queue\n");
+ 		return ENA_COM_NO_MEM;
+ 	}
+ 
+@@ -2594,7 +2612,7 @@ static int ena_xmit_mbuf(struct ena_ring *tx_ring, struct rte_mbuf *mbuf)
+ 	if (unlikely(ena_com_is_doorbell_needed(tx_ring->ena_com_io_sq,
+ 			&ena_tx_ctx))) {
+ 		PMD_DRV_LOG(DEBUG,
+-			"llq tx max burst size of queue %d achieved, writing doorbell to send burst\n",
++			"LLQ Tx max burst size of queue %d achieved, writing doorbell to send burst\n",
+ 			tx_ring->id);
+ 		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+ 		tx_ring->tx_stats.doorbells++;
+@@ -2716,10 +2734,10 @@ int ena_copy_eni_stats(struct ena_adapter *adapter)
+ 	if (rc != 0) {
+ 		if (rc == ENA_COM_UNSUPPORTED) {
+ 			PMD_DRV_LOG(DEBUG,
+-				"Retrieving ENI metrics is not supported.\n");
++				"Retrieving ENI metrics is not supported\n");
+ 		} else {
+ 			PMD_DRV_LOG(WARNING,
+-				"Failed to get ENI metrics: %d\n", rc);
++				"Failed to get ENI metrics, rc: %d\n", rc);
+ 		}
+ 		return rc;
+ 	}
+@@ -3011,6 +3029,24 @@ ena_init_log(void)
+ 	ena_logtype_driver = rte_log_register("pmd.net.ena.driver");
+ 	if (ena_logtype_driver >= 0)
+ 		rte_log_set_level(ena_logtype_driver, RTE_LOG_NOTICE);
++
++#ifdef RTE_LIBRTE_ENA_DEBUG_RX
++	ena_logtype_rx = rte_log_register("pmd.net.ena.rx");
++	if (ena_logtype_rx >= 0)
++		rte_log_set_level(ena_logtype_rx, RTE_LOG_NOTICE);
++#endif
++
++#ifdef RTE_LIBRTE_ENA_DEBUG_TX
++	ena_logtype_tx = rte_log_register("pmd.net.ena.tx");
++	if (ena_logtype_tx >= 0)
++		rte_log_set_level(ena_logtype_tx, RTE_LOG_NOTICE);
++#endif
++
++#ifdef RTE_LIBRTE_ENA_COM_DEBUG
++	ena_logtype_com = rte_log_register("pmd.net.ena.com");
++	if (ena_logtype_com >= 0)
++		rte_log_set_level(ena_logtype_com, RTE_LOG_NOTICE);
++#endif
+ }
+ 
+ /******************************************************************************
+@@ -3042,7 +3078,7 @@ static void ena_notification(void *adapter_data,
+ 	struct ena_admin_ena_hw_hints *hints;
+ 
+ 	if (aenq_e->aenq_common_desc.group != ENA_ADMIN_NOTIFICATION)
+-		RTE_LOG(WARNING, PMD, "Invalid group(%x) expected %x\n",
++		PMD_DRV_LOG(WARNING, "Invalid AENQ group: %x. Expected: %x\n",
+ 			aenq_e->aenq_common_desc.group,
+ 			ENA_ADMIN_NOTIFICATION);
+ 
+@@ -3053,7 +3089,7 @@ static void ena_notification(void *adapter_data,
+ 		ena_update_hints(adapter, hints);
+ 		break;
+ 	default:
+-		RTE_LOG(ERR, PMD, "Invalid aenq notification link state %d\n",
++		PMD_DRV_LOG(ERR, "Invalid AENQ notification link state: %d\n",
+ 			aenq_e->aenq_common_desc.syndrome);
+ 	}
+ }
+@@ -3083,8 +3119,8 @@ static void ena_keep_alive(void *adapter_data,
+ static void unimplemented_aenq_handler(__rte_unused void *data,
+ 				       __rte_unused struct ena_admin_aenq_entry *aenq_e)
+ {
+-	RTE_LOG(ERR, PMD, "Unknown event was received or event with "
+-			  "unimplemented handler\n");
++	PMD_DRV_LOG(ERR,
++		"Unknown event was received or event with unimplemented handler\n");
+ }
+ 
+ static struct ena_aenq_handlers aenq_handlers = {
+diff --git a/drivers/net/ena/ena_logs.h b/drivers/net/ena/ena_logs.h
+index 50fa4190d7..040bebfb98 100644
+--- a/drivers/net/ena/ena_logs.h
++++ b/drivers/net/ena/ena_logs.h
+@@ -9,25 +9,31 @@
+ extern int ena_logtype_init;
+ #define PMD_INIT_LOG(level, fmt, args...) \
+ 	rte_log(RTE_LOG_ ## level, ena_logtype_init, \
+-		"%s(): " fmt "\n", __func__, ## args)
++		"%s(): " fmt, __func__, ## args)
+ 
+ #ifdef RTE_LIBRTE_ENA_DEBUG_RX
+-#define PMD_RX_LOG(level, fmt, args...) \
+-	RTE_LOG(level, PMD, "%s(): " fmt "\n", __func__, ## args)
++extern int ena_logtype_rx;
++#define PMD_RX_LOG(level, fmt, args...)			\
++	rte_log(RTE_LOG_ ## level, ena_logtype_rx,	\
++		"%s(): " fmt, __func__, ## args)
+ #else
+ #define PMD_RX_LOG(level, fmt, args...) do { } while (0)
+ #endif
+ 
+ #ifdef RTE_LIBRTE_ENA_DEBUG_TX
+-#define PMD_TX_LOG(level, fmt, args...) \
+-	RTE_LOG(level, PMD, "%s(): " fmt "\n", __func__, ## args)
++extern int ena_logtype_tx;
++#define PMD_TX_LOG(level, fmt, args...)			\
++	rte_log(RTE_LOG_ ## level, ena_logtype_tx,	\
++		"%s(): " fmt, __func__, ## args)
+ #else
+ #define PMD_TX_LOG(level, fmt, args...) do { } while (0)
+ #endif
+ 
+ #ifdef RTE_LIBRTE_ENA_DEBUG_TX_FREE
+-#define PMD_TX_FREE_LOG(level, fmt, args...) \
+-	RTE_LOG(level, PMD, "%s(): " fmt "\n", __func__, ## args)
++extern int ena_logtype_tx_free;
++#define PMD_TX_FREE_LOG(level, fmt, args...)			\
++	rte_log(RTE_LOG_ ## level, ena_logtype_tx_free,	\
++		"%s(): " fmt, __func__, ## args)
+ #else
+ #define PMD_TX_FREE_LOG(level, fmt, args...) do { } while (0)
+ #endif
+@@ -35,6 +41,6 @@ extern int ena_logtype_init;
+ extern int ena_logtype_driver;
+ #define PMD_DRV_LOG(level, fmt, args...) \
+ 	rte_log(RTE_LOG_ ## level, ena_logtype_driver, \
+-		"%s(): " fmt "\n", __func__, ## args)
++		"%s(): " fmt, __func__, ## args)
+ 
+ #endif /* _ENA_LOGS_H_ */
+-- 
+2.25.1
+

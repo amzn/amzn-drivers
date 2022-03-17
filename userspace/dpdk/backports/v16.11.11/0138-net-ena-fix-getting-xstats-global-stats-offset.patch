@@ -1,0 +1,39 @@
+From b23cc06a260d0c9af88cdb71fa0da489b59008b1 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 16 Jul 2020 10:55:26 +0000
+Subject: [PATCH 138/177] net/ena: fix getting xstats global stats offset
+
+There was a bug in a code, which was reading stat_offset value from the
+ena_stats_rx_strings array instead of ena_stats_global_strings.
+
+It wasn't causing real problems just because ena_stats_rx_strings was
+not smaller than ena_stats_global_strings and both arrays hold the same
+offsets.
+
+Fixes: 7830e905b7c9 ("net/ena: expose extended stats")
+Cc: stable@dpdk.org
+
+Change-Id: I20bf38880aea300d1de68a85620cd5cdfe4ba4dc
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index a876abb2a9..d05d91abed 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2578,7 +2578,7 @@ static int ena_xstats_get(struct rte_eth_dev *dev,
+ 		return 0;
+ 
+ 	for (stat = 0; stat < ENA_STATS_ARRAY_GLOBAL; stat++, count++) {
+-		stat_offset = ena_stats_rx_strings[stat].stat_offset;
++		stat_offset = ena_stats_global_strings[stat].stat_offset;
+ 		stats_begin = &adapter->dev_stats;
+ 
+ 		xstats[count].id = count;
+-- 
+2.25.1
+

@@ -1,0 +1,26 @@
+From 9b03b71f56a61112f8925b257c64db33ced534ef Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Thu, 5 Nov 2020 12:03:51 +0100
+Subject: [PATCH 007/177] net/qede: work-around GCC 7 compilation
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Change-Id: I05fbe398804b4203487c4ac1c8cfd36b66517c36
+---
+ drivers/net/qede/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/qede/Makefile b/drivers/net/qede/Makefile
+index 323423ecdf..296b2d5b1b 100644
+--- a/drivers/net/qede/Makefile
++++ b/drivers/net/qede/Makefile
+@@ -34,6 +34,7 @@ CFLAGS_BASE_DRIVER += -Wno-unused-function
+ CFLAGS_BASE_DRIVER += -Wno-unused-variable
+ CFLAGS_BASE_DRIVER += -Wno-strict-aliasing
+ CFLAGS_BASE_DRIVER += -Wno-missing-prototypes
++CFLAGS_BASE_DRIVER += -Wno-stringop-overflow
+ 
+ ifneq ($(CONFIG_RTE_TOOLCHAIN_ICC),y)
+ CFLAGS_BASE_DRIVER += -Wno-unused-value
+-- 
+2.25.1
+

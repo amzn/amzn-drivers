@@ -1,0 +1,44 @@
+From 8ff5f5633d712ad2fbadbda825710af07bc5dea3 Mon Sep 17 00:00:00 2001
+From: Bruce Richardson <bruce.richardson@intel.com>
+Date: Thu, 4 May 2017 16:38:13 +0100
+Subject: [PATCH 008/177] mk: adjust gcc flags for new gcc 7 warnings
+
+There are two new warnings in GCC 7 that cause problems in the DPDK
+compile.
+
+1. GCC now warns if you have a switch fall-through without a suitable
+comment indicating that it was intentional. The compiler supports a number
+of levels of warning which are triggered depending on the type of message
+used, with level 3 being the default. To accept a wider range of possible
+fall-through messages, we adjust this down to level 2.
+
+2. GCC also warns about an snprintf where there may be truncation and the
+return value is not checked. Given that we often use snprintf in DPDK in
+place of strncpy, and in many cases where truncation is not a problem, we
+can just disable this particular warning.
+
+Signed-off-by: Bruce Richardson <bruce.richardson@intel.com>
+---
+ mk/toolchain/gcc/rte.vars.mk | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/mk/toolchain/gcc/rte.vars.mk b/mk/toolchain/gcc/rte.vars.mk
+index ff70f3d9f6..f96aba1848 100644
+--- a/mk/toolchain/gcc/rte.vars.mk
++++ b/mk/toolchain/gcc/rte.vars.mk
+@@ -99,5 +99,12 @@ ifeq ($(shell test $(GCC_VERSION) -lt 47 && echo 1), 1)
+ WERROR_FLAGS += -Wno-uninitialized
+ endif
+ 
++ifeq ($(shell test $(GCC_VERSION) -gt 70 && echo 1), 1)
++# Tell GCC only to error for switch fallthroughs without a suitable comment
++WERROR_FLAGS += -Wimplicit-fallthrough=2
++# Ignore errors for snprintf truncation
++WERROR_FLAGS += -Wno-format-truncation
++endif
++
+ export CC AS AR LD OBJCOPY OBJDUMP STRIP READELF
+ export TOOLCHAIN_CFLAGS TOOLCHAIN_LDFLAGS TOOLCHAIN_ASFLAGS
+-- 
+2.25.1
+

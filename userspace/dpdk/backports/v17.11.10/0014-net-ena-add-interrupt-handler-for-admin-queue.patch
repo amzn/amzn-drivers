@@ -1,0 +1,83 @@
+From 3fdc5a63442d513e992c71a4b5694a0136618990 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:42:59 +0200
+Subject: [PATCH 014/166] net/ena: add interrupt handler for admin queue
+
+The ENA device is able to send MSI-X when it will complete an command
+when polling mode is deactivated. Further, the same interrupt handler
+will be used for the AENQ handling - services of the ENA device, that
+allows to implement watchdog or LSC handler.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 449e3cde03..a069fea9b2 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -252,6 +252,7 @@ static bool ena_are_tx_queue_offloads_allowed(struct ena_adapter *adapter,
+ 					      uint64_t offloads);
+ static bool ena_are_rx_queue_offloads_allowed(struct ena_adapter *adapter,
+ 					      uint64_t offloads);
++static void ena_interrupt_handler_rte(void *cb_arg);
+ 
+ static const struct eth_dev_ops ena_dev_ops = {
+ 	.dev_configure        = ena_dev_configure,
+@@ -461,9 +462,16 @@ static void ena_close(struct rte_eth_dev *dev)
+ {
+ 	struct ena_adapter *adapter =
+ 		(struct ena_adapter *)(dev->data->dev_private);
++	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(dev);
++	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
+ 
+ 	adapter->state = ENA_ADAPTER_STATE_STOPPED;
+ 
++	rte_intr_disable(intr_handle);
++	rte_intr_callback_unregister(intr_handle,
++				     ena_interrupt_handler_rte,
++				     adapter);
++
+ 	ena_rx_queue_release_all(dev);
+ 	ena_tx_queue_release_all(dev);
+ }
+@@ -910,6 +918,8 @@ static int ena_start(struct rte_eth_dev *dev)
+ {
+ 	struct ena_adapter *adapter =
+ 		(struct ena_adapter *)(dev->data->dev_private);
++	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(dev);
++	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
+ 	int rc = 0;
+ 
+ 	if (!(adapter->state == ENA_ADAPTER_STATE_CONFIG ||
+@@ -939,6 +949,11 @@ static int ena_start(struct rte_eth_dev *dev)
+ 
+ 	ena_stats_restart(dev);
+ 
++	rte_intr_callback_register(intr_handle,
++				   ena_interrupt_handler_rte,
++				   adapter);
++	rte_intr_enable(intr_handle);
++
+ 	adapter->state = ENA_ADAPTER_STATE_RUNNING;
+ 
+ 	return 0;
+@@ -1304,6 +1319,14 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	return rc;
+ }
+ 
++static void ena_interrupt_handler_rte(__rte_unused void *cb_arg)
++{
++	struct ena_adapter *adapter = (struct ena_adapter *)cb_arg;
++	struct ena_com_dev *ena_dev = &adapter->ena_dev;
++
++	ena_com_admin_q_comp_intr_handler(ena_dev);
++}
++
+ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ {
+ 	struct rte_pci_device *pci_dev;
+-- 
+2.25.1
+

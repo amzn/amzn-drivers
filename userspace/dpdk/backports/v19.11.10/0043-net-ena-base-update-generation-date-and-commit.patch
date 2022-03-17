@@ -1,0 +1,31 @@
+From d373156fdc0b717f18048e13665e7d60bb218c54 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 12:33:06 +0200
+Subject: [PATCH 43/72] net/ena/base: update generation date and commit
+
+The current ena_com version was generated on 26.04.2020.
+
+Change-Id: I2d3e43902ca09b32d211721672c327c1716bea68
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_defs/ena_gen_info.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_defs/ena_gen_info.h b/drivers/net/ena/base/ena_defs/ena_gen_info.h
+index 8f55504bc5..54bbfda11f 100644
+--- a/drivers/net/ena/base/ena_defs/ena_gen_info.h
++++ b/drivers/net/ena/base/ena_defs/ena_gen_info.h
+@@ -2,5 +2,5 @@
+  * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+-#define	ENA_GEN_DATE	"Wed Sep 25 11:32:57 UTC 2019"
+-#define	ENA_GEN_COMMIT	"952697a9e0d3"
++#define	ENA_GEN_DATE	"Sun Apr 26 13:45:21 DST 2020"
++#define	ENA_GEN_COMMIT	"37aa7c3"
+-- 
+2.25.1
+

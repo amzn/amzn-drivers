@@ -1,0 +1,34 @@
+From 3fee39a418822165a9eb0dedbea1d1d36e7642b5 Mon Sep 17 00:00:00 2001
+From: Harry van Haaren <harry.van.haaren@intel.com>
+Date: Thu, 25 Jan 2018 09:01:00 +0000
+Subject: [PATCH 009/166] net/ena: align dynamic log names with standard
+
+This commit aligns the names for dynamic logging with
+the newly defined logging format.
+
+Signed-off-by: Harry van Haaren <harry.van.haaren@intel.com>
+Acked-by: Bruce Richardson <bruce.richardson@intel.com>
+---
+ drivers/net/ena/ena_ethdev.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 992e400455..b6d454d7ad 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1909,10 +1909,10 @@ RTE_INIT(ena_init_log);
+ static void
+ ena_init_log(void)
+ {
+-	ena_logtype_init = rte_log_register("pmd.ena.init");
++	ena_logtype_init = rte_log_register("pmd.net.ena.init");
+ 	if (ena_logtype_init >= 0)
+ 		rte_log_set_level(ena_logtype_init, RTE_LOG_NOTICE);
+-	ena_logtype_driver = rte_log_register("pmd.ena.driver");
++	ena_logtype_driver = rte_log_register("pmd.net.ena.driver");
+ 	if (ena_logtype_driver >= 0)
+ 		rte_log_set_level(ena_logtype_driver, RTE_LOG_NOTICE);
+ }
+-- 
+2.25.1
+

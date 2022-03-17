@@ -1,0 +1,30 @@
+From 063c4c72b4b8bdc93308eae2ff87c4ff75dd4a72 Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Mon, 30 Nov 2020 14:25:46 +0100
+Subject: [PATCH 01/72] timer: clarify subsystem_init return value
+
+rte_timer_subsystem_init() may return -EALREADY if it has been already
+initialized. Therefore put explicitly into doxygen that this is not a
+failure for the application.
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Change-Id: I5edb17606d6a9e246f1a04c0ed81d466411d3a0c
+---
+ lib/librte_timer/rte_timer.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/lib/librte_timer/rte_timer.h b/lib/librte_timer/rte_timer.h
+index 88cc267686..4ea4d9b529 100644
+--- a/lib/librte_timer/rte_timer.h
++++ b/lib/librte_timer/rte_timer.h
+@@ -179,6 +179,7 @@ int rte_timer_data_dealloc(uint32_t id);
+  *   - 0: Success
+  *   - -ENOMEM: Unable to allocate memory needed to initialize timer
+  *      subsystem
++ *   - -EALREADY: timer subsystem was already initialized. Not an error.
+  */
+ int rte_timer_subsystem_init(void);
+ 
+-- 
+2.25.1
+

@@ -1,0 +1,44 @@
+From 2e4c7e65097785909f26bd94125111c97d1c6db6 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Jul 2020 16:07:15 +0200
+Subject: [PATCH 121/177] net/ena/base: fix release of wait event
+
+The wait event is being accessed without making sure it the completion
+context exists. The check for that is just below, so it could be used
+for releasing wait even safely.
+
+Fixes: 3adcba9a8987 ("net/ena: update HAL to the newer version")
+Cc: stable@dpdk.org
+
+Change-Id: Ibfd32f194d62fe38072302a30138a9d14737e22a
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index b4e54318c6..ce239ab164 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1655,11 +1655,13 @@ void ena_com_admin_destroy(struct ena_com_dev *ena_dev)
+ 	struct ena_com_aenq *aenq = &ena_dev->aenq;
+ 	u16 size;
+ 
+-	ENA_WAIT_EVENT_DESTROY(admin_queue->comp_ctx->wait_event);
+-	if (admin_queue->comp_ctx)
++	if (admin_queue->comp_ctx) {
++		ENA_WAIT_EVENT_DESTROY(admin_queue->comp_ctx->wait_event);
+ 		ENA_MEM_FREE(ena_dev->dmadev,
+ 			     admin_queue->comp_ctx,
+ 			     (admin_queue->q_depth * sizeof(struct ena_comp_ctx)));
++	}
++
+ 	admin_queue->comp_ctx = NULL;
+ 	size = ADMIN_SQ_SIZE(admin_queue->q_depth);
+ 	if (sq->entries)
+-- 
+2.25.1
+

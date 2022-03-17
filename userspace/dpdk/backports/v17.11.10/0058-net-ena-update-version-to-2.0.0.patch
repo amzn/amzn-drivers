@@ -1,0 +1,43 @@
+From 06fe44c2a3cdf8f7084b6c7eca28598508bdb164 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 14 Dec 2018 14:18:46 +0100
+Subject: [PATCH 058/166] net/ena: update version to 2.0.0
+
+The ENAv2 is introducing many new features, mainly the LLQ feature
+(Low Latency Queue) which allows the device to process packets faster
+and as a result, the latency is noticeably lower.
+
+The second major feature is configurable depth of hw queues where Rx
+and Tx can be reconfigured independently and maximum depth of Rx queue
+is 8k.
+
+The release also includes many bug fixes and minor new features, like
+improved statistics counters and extended statistics.
+
+Driver is still compatible with ENAv1 device.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index cf96a02c3f..83af864103 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -53,9 +53,9 @@
+ #include <ena_admin_defs.h>
+ #include <ena_eth_io_defs.h>
+ 
+-#define DRV_MODULE_VER_MAJOR	1
+-#define DRV_MODULE_VER_MINOR	1
+-#define DRV_MODULE_VER_SUBMINOR	1
++#define DRV_MODULE_VER_MAJOR	2
++#define DRV_MODULE_VER_MINOR	0
++#define DRV_MODULE_VER_SUBMINOR	0
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+ #define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+-- 
+2.25.1
+

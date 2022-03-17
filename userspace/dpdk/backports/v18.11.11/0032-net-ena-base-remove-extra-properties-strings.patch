@@ -1,0 +1,144 @@
+From 1e9e7c69442608b5d177286936149c1b88e54bbe Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:28:59 +0200
+Subject: [PATCH 032/107] net/ena/base: remove extra properties strings
+
+This buffer was never used by the ENA PMD. It could be used for
+debugging, but it's presence is redundant now.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c | 56 ----------------------------------
+ drivers/net/ena/base/ena_com.h | 33 --------------------
+ 2 files changed, 89 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index bab50ca818..f2fd90d5e7 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1907,62 +1907,6 @@ int ena_com_get_link_params(struct ena_com_dev *ena_dev,
+ 	return ena_com_get_feature(ena_dev, resp, ENA_ADMIN_LINK_CONFIG, 0);
+ }
+ 
+-int ena_com_extra_properties_strings_init(struct ena_com_dev *ena_dev)
+-{
+-	struct ena_admin_get_feat_resp resp;
+-	struct ena_extra_properties_strings *extra_properties_strings =
+-			&ena_dev->extra_properties_strings;
+-	u32 rc;
+-	extra_properties_strings->size = ENA_ADMIN_EXTRA_PROPERTIES_COUNT *
+-		ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN;
+-
+-	ENA_MEM_ALLOC_COHERENT(ena_dev->dmadev,
+-			       extra_properties_strings->size,
+-			       extra_properties_strings->virt_addr,
+-			       extra_properties_strings->dma_addr,
+-			       extra_properties_strings->dma_handle);
+-	if (unlikely(!extra_properties_strings->virt_addr)) {
+-		ena_trc_err("Failed to allocate extra properties strings\n");
+-		return 0;
+-	}
+-
+-	rc = ena_com_get_feature_ex(ena_dev, &resp,
+-				    ENA_ADMIN_EXTRA_PROPERTIES_STRINGS,
+-				    extra_properties_strings->dma_addr,
+-				    extra_properties_strings->size, 0);
+-	if (rc) {
+-		ena_trc_dbg("Failed to get extra properties strings\n");
+-		goto err;
+-	}
+-
+-	return resp.u.extra_properties_strings.count;
+-err:
+-	ena_com_delete_extra_properties_strings(ena_dev);
+-	return 0;
+-}
+-
+-void ena_com_delete_extra_properties_strings(struct ena_com_dev *ena_dev)
+-{
+-	struct ena_extra_properties_strings *extra_properties_strings =
+-				&ena_dev->extra_properties_strings;
+-
+-	if (extra_properties_strings->virt_addr) {
+-		ENA_MEM_FREE_COHERENT(ena_dev->dmadev,
+-				      extra_properties_strings->size,
+-				      extra_properties_strings->virt_addr,
+-				      extra_properties_strings->dma_addr,
+-				      extra_properties_strings->dma_handle);
+-		extra_properties_strings->virt_addr = NULL;
+-	}
+-}
+-
+-int ena_com_get_extra_properties_flags(struct ena_com_dev *ena_dev,
+-				       struct ena_admin_get_feat_resp *resp)
+-{
+-	return ena_com_get_feature(ena_dev, resp,
+-				   ENA_ADMIN_EXTRA_PROPERTIES_FLAGS, 0);
+-}
+-
+ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
+ 			      struct ena_com_dev_get_features_ctx *get_feat_ctx)
+ {
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index 9d2333ffb8..83c8ce0a07 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -284,13 +284,6 @@ struct ena_host_attribute {
+ 	ena_mem_handle_t host_info_dma_handle;
+ };
+ 
+-struct ena_extra_properties_strings {
+-	u8 *virt_addr;
+-	dma_addr_t dma_addr;
+-	ena_mem_handle_t dma_handle;
+-	u32 size;
+-};
+-
+ /* Each ena_dev is a PCI function. */
+ struct ena_com_dev {
+ 	struct ena_com_admin_queue admin_queue;
+@@ -326,7 +319,6 @@ struct ena_com_dev {
+ 	struct ena_intr_moder_entry *intr_moder_tbl;
+ 
+ 	struct ena_com_llq_info llq_info;
+-	struct ena_extra_properties_strings extra_properties_strings;
+ };
+ 
+ struct ena_com_dev_get_features_ctx {
+@@ -564,31 +556,6 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev);
+ int ena_com_get_link_params(struct ena_com_dev *ena_dev,
+ 			    struct ena_admin_get_feat_resp *resp);
+ 
+-/* ena_com_extra_properties_strings_init - Initialize the extra properties strings buffer.
+- * @ena_dev: ENA communication layer struct
+- *
+- * Initialize the extra properties strings buffer.
+- */
+-int ena_com_extra_properties_strings_init(struct ena_com_dev *ena_dev);
+-
+-/* ena_com_delete_extra_properties_strings - Free the extra properties strings buffer.
+- * @ena_dev: ENA communication layer struct
+- *
+- * Free the allocated extra properties strings buffer.
+- */
+-void ena_com_delete_extra_properties_strings(struct ena_com_dev *ena_dev);
+-
+-/* ena_com_get_extra_properties_flags - Retrieve extra properties flags.
+- * @ena_dev: ENA communication layer struct
+- * @resp: Extra properties flags.
+- *
+- * Retrieve the extra properties flags.
+- *
+- * @return - 0 on Success negative value otherwise.
+- */
+-int ena_com_get_extra_properties_flags(struct ena_com_dev *ena_dev,
+-				       struct ena_admin_get_feat_resp *resp);
+-
+ /* ena_com_get_dma_width - Retrieve physical dma address width the device
+  * supports.
+  * @ena_dev: ENA communication layer struct
+-- 
+2.25.1
+

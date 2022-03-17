@@ -1,0 +1,47 @@
+From 6d6262c3873fed72e4678733eac913683164b2c1 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 25 Jan 2019 09:10:27 +0100
+Subject: [PATCH 073/177] doc: update release notes for ENA PMD
+
+Add changes in ENA PMD to DPDK release notes.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Change-Id: I4626049b17383965daeed346803c5bb44901bf55
+---
+ doc/guides/rel_notes/release_16_11.rst | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/doc/guides/rel_notes/release_16_11.rst b/doc/guides/rel_notes/release_16_11.rst
+index 72bd62a7c0..72b4f4a53b 100644
+--- a/doc/guides/rel_notes/release_16_11.rst
++++ b/doc/guides/rel_notes/release_16_11.rst
+@@ -155,6 +155,25 @@ New Features
+   The GCC 4.9 ``-march`` option supports the Intel processor code names.
+   The config option ``RTE_MACHINE`` can be used to pass code names to the compiler via the ``-march`` flag.
+ 
++* **Release of the ENA PMD v2.0.0**
++
++  * Added Low Latency Queue v2 (LLQv2). This feature reduces the latency
++    of the packets by pushing the header directly through the PCI to the
++    device. This allows the NIC to start handle packet right after the doorbell
++    without waiting for DMA.
++  * Added independent configuration of HW Tx and Rx ring depths.
++  * Added support for up to 8k Rx descriptors per ring.
++  * Added additional doorbell check on Tx, to handle Tx more efficiently for big
++    bursts of packets.
++  * Added per queue statistics.
++  * Added extended statistics using xstats DPDK API.
++  * The reset routine was aligned with the DPDK API, so now it can be
++    handled as in other PMDs.
++  * Fixed out of order (OOO) completion.
++  * Fixed memory leaks due to port stops and starts in the middle of
++    traffic.
++  * Updated documentation and features list of the PMD.
++
+ 
+ Resolved Issues
+ ---------------
+-- 
+2.25.1
+

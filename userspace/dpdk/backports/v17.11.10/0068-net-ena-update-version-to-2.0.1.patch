@@ -1,0 +1,38 @@
+From 2883175299a9d89f1545507c8b26eafbb5dd810b Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 16 Jul 2019 13:13:32 +0200
+Subject: [PATCH 068/166] net/ena: update version to 2.0.1
+
+In 2.0.1 ENA, there were patches for:
+  * assigning NUMA node to the IO queue
+    commit 4217cb0b7d2c ("net/ena: fix assigning NUMA node to IO queue")
+  * statistics counters (Rx checksum errors and per-queue number of the
+    Tx packets)
+    commit ef74b5f7b69b ("net/ena: fix Rx checksum errors statistics")
+    commit 5673e285a633 ("net/ena: fix Tx statistics")
+  * SMP support
+    commit 117ba4a60488 ("net/ena: get device info statically")
+  * setting Rx checksum support
+    commit ef538c1a7f56 ("net/ena: fix checksum feature flag")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index d0830b2feb..a6f228c0a1 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -54,7 +54,7 @@
+ 
+ #define DRV_MODULE_VER_MAJOR	2
+ #define DRV_MODULE_VER_MINOR	0
+-#define DRV_MODULE_VER_SUBMINOR	0
++#define DRV_MODULE_VER_SUBMINOR	1
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+ #define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+-- 
+2.25.1
+

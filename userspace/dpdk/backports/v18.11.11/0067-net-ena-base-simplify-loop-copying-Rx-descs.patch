@@ -1,0 +1,49 @@
+From 83d5cd67d75123560acbdc89ff3a80be6d0acc6b Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 12:32:42 +0200
+Subject: [PATCH 067/107] net/ena/base: simplify loop copying Rx descs
+
+Checking for the cdesc not being NULL doesn't have any sense if the idx
+argument is not 0, so it can be skipped, as the error won't be detected
+anyway.
+
+To simplify that, only the 'i' value is being verified and the code is
+breaking from the infinite loop in case when all descriptors were copied
+into the buffer.
+
+Change-Id: If8f42485f2ac4572d6c80eb465e48a1db05817c5
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_eth_com.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_eth_com.c b/drivers/net/ena/base/ena_eth_com.c
+index 766643f47b..a35d92fbd3 100644
+--- a/drivers/net/ena/base/ena_eth_com.c
++++ b/drivers/net/ena/base/ena_eth_com.c
+@@ -557,10 +557,15 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
+ 	ena_rx_ctx->pkt_offset = cdesc->offset;
+ 
+ 	do {
+-		ena_buf->len = cdesc->length;
+-		ena_buf->req_id = cdesc->req_id;
+-		ena_buf++;
+-	} while ((++i < nb_hw_desc) && (cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx + i)));
++		ena_buf[i].len = cdesc->length;
++		ena_buf[i].req_id = cdesc->req_id;
++
++		if (++i >= nb_hw_desc)
++			break;
++
++		cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx + i);
++
++	} while (1);
+ 
+ 	/* Update SQ head ptr */
+ 	io_sq->next_to_comp += nb_hw_desc;
+-- 
+2.25.1
+

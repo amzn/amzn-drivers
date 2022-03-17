@@ -1,0 +1,48 @@
+From 1a2063bcb3e232a5785bface545fc7012469aa60 Mon Sep 17 00:00:00 2001
+From: Ido Segev <idose@amazon.com>
+Date: Tue, 26 Jan 2021 19:32:22 +0100
+Subject: [PATCH 144/177] net/ena: flush Rx buffers memory pool cache
+
+As the refill called as part of ena_start(), we end up the refill
+progress with stuck buffers at the caller core cache.
+
+Calling to flush the cache results with invalidate this cache and free
+those stuck buffers.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Signed-off-by: Ido Segev <idose@amazon.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 06fcabbbb3..b76028e3b1 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1166,6 +1166,7 @@ static void ena_queue_stop_all(struct rte_eth_dev *dev,
+ 
+ static int ena_queue_start(struct ena_ring *ring)
+ {
++	struct rte_mempool_cache *cache;
+ 	int rc, bufs_num;
+ 
+ 	ena_assert_msg(ring->configured == 1,
+@@ -1194,6 +1195,11 @@ static int ena_queue_start(struct ena_ring *ring)
+ 		PMD_INIT_LOG(ERR, "Failed to populate rx ring !");
+ 		return ENA_COM_FAULT;
+ 	}
++	/* Flush per-core RX buffers pools cache as they can be used on other
++	 * cores as well.
++	 */
++	cache =	rte_mempool_default_cache(ring->mb_pool, rte_lcore_id());
++	rte_mempool_cache_flush(cache, ring->mb_pool);
+ 
+ 	return 0;
+ }
+-- 
+2.25.1
+

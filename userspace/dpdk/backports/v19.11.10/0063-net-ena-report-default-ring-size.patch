@@ -1,0 +1,67 @@
+From 8753736198efc3000f93bce93b01bf92e50ad85a Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Tue, 11 May 2021 08:45:53 +0200
+Subject: [PATCH 63/72] net/ena: report default ring size
+
+Remove invalid ring size alignment logic and add default Rx and Tx port
+ring sizes to the device info spec.
+
+The logic in lines 1297 and 1371 is invalid. The
+RTE_ETH_DEV_FALLBACK_RX_RINGSIZE (and the TX counterpart) is a value
+that rte_eth_rx_queue_setup() will set if
+dev_info.default_rxportconf.ring_size is 0 and user provided 0 in
+nb_rx_desc argument. However the current code treats it as a hint for
+the PMD to change the ring size to internal defaults.
+
+Additionally since the ENA_DEFAULT_RING_SIZE is defined, report it in
+the device capabilities so that both rte_ethdev code and the user can
+utilize it for device configuration.
+
+Fixes: ea93d37eb49d ("net/ena: add HW queues depth setup")
+Cc: stable@dpdk.org
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 255a377cd4..9fd71f428c 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1285,9 +1285,6 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 		return -EINVAL;
+ 	}
+ 
+-	if (nb_desc == RTE_ETH_DEV_FALLBACK_TX_RINGSIZE)
+-		nb_desc = adapter->max_tx_ring_size;
+-
+ 	txq->port_id = dev->data->port_id;
+ 	txq->next_to_clean = 0;
+ 	txq->next_to_use = 0;
+@@ -1359,9 +1356,6 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 		return ENA_COM_FAULT;
+ 	}
+ 
+-	if (nb_desc == RTE_ETH_DEV_FALLBACK_RX_RINGSIZE)
+-		nb_desc = adapter->max_rx_ring_size;
+-
+ 	if (!rte_is_power_of_2(nb_desc)) {
+ 		PMD_DRV_LOG(ERR,
+ 			"Unsupported size of RX queue: %d is not a power of 2.\n",
+@@ -2090,6 +2084,9 @@ static int ena_infos_get(struct rte_eth_dev *dev,
+ 	dev_info->tx_desc_lim.nb_mtu_seg_max = RTE_MIN(ENA_PKT_MAX_BUFS,
+ 					adapter->max_tx_sgl_size);
+ 
++	dev_info->default_rxportconf.ring_size = ENA_DEFAULT_RING_SIZE;
++	dev_info->default_txportconf.ring_size = ENA_DEFAULT_RING_SIZE;
++
+ 	return 0;
+ }
+ 
+-- 
+2.25.1
+

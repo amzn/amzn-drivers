@@ -1,0 +1,57 @@
+From 0ce39109b8c25f04af5fcd6d9c8e959f23ed2bb6 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Jul 2020 13:12:47 +0200
+Subject: [PATCH 117/177] net/ena/base: use min/max macros with type conversion
+
+Usage of RTE_MIN(MAX) in ENA_MIN32, ENA_MIN16, ENA_MIN8 (and same for
+the MAX), was not enough, as the HAL code is assuming that those macros
+will conver both arguments to the specified uintX_t type.
+
+As RTE_MIN(MAX) is using 'typeof' operator, the behavior won't be the
+same, especially if arguments has different types (and it could cause
+compilation warnings).
+
+To satisfy that, the ENA_MIN_T and ENA_MAX_T macros were added, which
+are converting both arguments to the type which is being passed as an
+argument.
+
+Fixes: 9ba7981ec992 ("ena: add communication layer for DPDK")
+Cc: stable@dpdk.org
+
+Change-Id: I9b4c52280ec6bd4c0304ae42a19e9a4cc083a946
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 7f683bf717..d57104a901 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -83,12 +83,14 @@ typedef uint64_t dma_addr_t;
+ #define ENA_ASSERT(cond, format, arg...) do {} while (0)
+ #endif
+ 
+-#define ENA_MAX32(x, y) RTE_MAX((x), (y))
+-#define ENA_MAX16(x, y) RTE_MAX((x), (y))
+-#define ENA_MAX8(x, y) RTE_MAX((x), (y))
+-#define ENA_MIN32(x, y) RTE_MIN((x), (y))
+-#define ENA_MIN16(x, y) RTE_MIN((x), (y))
+-#define ENA_MIN8(x, y) RTE_MIN((x), (y))
++#define ENA_MAX_T(type, x, y) RTE_MAX((type)(x), (type)(y))
++#define ENA_MAX32(x, y) ENA_MAX_T(uint32_t, (x), (y))
++#define ENA_MAX16(x, y) ENA_MAX_T(uint16_t, (x), (y))
++#define ENA_MAX8(x, y) ENA_MAX_T(uint8_t, (x), (y))
++#define ENA_MIN_T(type, x, y) RTE_MIN((type)(x), (type)(y))
++#define ENA_MIN32(x, y) ENA_MIN_T(uint32_t, (x), (y))
++#define ENA_MIN16(x, y) ENA_MIN_T(uint16_t, (x), (y))
++#define ENA_MIN8(x, y) ENA_MIN_T(uint8_t, (x), (y))
+ 
+ #define BITS_PER_LONG_LONG (__SIZEOF_LONG_LONG__ * 8)
+ #define U64_C(x) x ## ULL
+-- 
+2.25.1
+

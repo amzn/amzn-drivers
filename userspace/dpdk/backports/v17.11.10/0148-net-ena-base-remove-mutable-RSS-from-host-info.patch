@@ -1,0 +1,56 @@
+From 9317de819be93c5581a8b2a3fd2436b8de4a719d Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 11 May 2021 08:45:43 +0200
+Subject: [PATCH 148/166] net/ena/base: remove mutable RSS from host info
+
+This feature wasn't used by any of the drivers. Because of that, it was
+removed.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+---
+ drivers/net/ena/base/ena_defs/ena_admin_defs.h | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_defs/ena_admin_defs.h b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+index 40c2db717c..56768e1a1b 100644
+--- a/drivers/net/ena/base/ena_defs/ena_admin_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+@@ -866,7 +866,7 @@ struct ena_admin_host_info {
+ 
+ 	uint16_t reserved;
+ 
+-	/* 0 : mutable_rss_table_size
++	/* 0 : reserved
+ 	 * 1 : rx_offset
+ 	 * 2 : interrupt_moderation
+ 	 * 3 : rx_buf_mirroring
+@@ -1189,7 +1189,6 @@ struct ena_admin_ena_mmio_req_read_less_resp {
+ #define ENA_ADMIN_HOST_INFO_DEVICE_MASK                     GENMASK(7, 3)
+ #define ENA_ADMIN_HOST_INFO_BUS_SHIFT                       8
+ #define ENA_ADMIN_HOST_INFO_BUS_MASK                        GENMASK(15, 8)
+-#define ENA_ADMIN_HOST_INFO_MUTABLE_RSS_TABLE_SIZE_MASK     BIT(0)
+ #define ENA_ADMIN_HOST_INFO_RX_OFFSET_SHIFT                 1
+ #define ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK                  BIT(1)
+ #define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_SHIFT      2
+@@ -1619,16 +1618,6 @@ static inline void set_ena_admin_host_info_bus(struct ena_admin_host_info *p, ui
+ 	p->bdf |= (val << ENA_ADMIN_HOST_INFO_BUS_SHIFT) & ENA_ADMIN_HOST_INFO_BUS_MASK;
+ }
+ 
+-static inline uint32_t get_ena_admin_host_info_mutable_rss_table_size(const struct ena_admin_host_info *p)
+-{
+-	return p->driver_supported_features & ENA_ADMIN_HOST_INFO_MUTABLE_RSS_TABLE_SIZE_MASK;
+-}
+-
+-static inline void set_ena_admin_host_info_mutable_rss_table_size(struct ena_admin_host_info *p, uint32_t val)
+-{
+-	p->driver_supported_features |= val & ENA_ADMIN_HOST_INFO_MUTABLE_RSS_TABLE_SIZE_MASK;
+-}
+-
+ static inline uint32_t get_ena_admin_host_info_rx_offset(const struct ena_admin_host_info *p)
+ {
+ 	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK) >> ENA_ADMIN_HOST_INFO_RX_OFFSET_SHIFT;
+-- 
+2.25.1
+

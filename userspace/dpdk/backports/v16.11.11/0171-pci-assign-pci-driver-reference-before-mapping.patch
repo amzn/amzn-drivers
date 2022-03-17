@@ -1,0 +1,47 @@
+From 9bd4493c0a8ed016b6d968d8991aa2cd61df7a19 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 13 Aug 2021 08:25:24 +0200
+Subject: [PATCH 171/177] pci: assign pci driver reference before mapping
+
+As the mapping module is depending on the driver's to check if the
+write-combined memory should be requested, the reference of the driver
+to the device should be assigned before the mapping will happen.
+
+Otherwise, the WC memory mapping won't work even the PMD requested this
+in the PCI driver flags.
+
+This change is related to the different probing and mapping logic in the
+older DPDK releases.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ lib/librte_eal/common/eal_common_pci.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/lib/librte_eal/common/eal_common_pci.c b/lib/librte_eal/common/eal_common_pci.c
+index 6bff6752f5..2dc741fd90 100644
+--- a/lib/librte_eal/common/eal_common_pci.c
++++ b/lib/librte_eal/common/eal_common_pci.c
+@@ -198,6 +198,9 @@ rte_eal_pci_probe_one_driver(struct rte_pci_driver *dr, struct rte_pci_device *d
+ 		RTE_LOG(INFO, EAL, "  probe driver: %x:%x %s\n", dev->id.vendor_id,
+ 				dev->id.device_id, dr->driver.name);
+ 
++		/* reference driver structure */
++		dev->driver = dr;
++
+ 		if (dr->drv_flags & RTE_PCI_DRV_NEED_MAPPING) {
+ 			/* map resources for devices that use igb_uio */
+ 			ret = rte_eal_pci_map_device(dev);
+@@ -210,9 +213,6 @@ rte_eal_pci_probe_one_driver(struct rte_pci_driver *dr, struct rte_pci_device *d
+ 				return -1;
+ 		}
+ 
+-		/* reference driver structure */
+-		dev->driver = dr;
+-
+ 		/* call the driver probe() function */
+ 		ret = dr->probe(dr, dev);
+ 		if (ret)
+-- 
+2.25.1
+

@@ -1,0 +1,111 @@
+From 997fc1a49a641f636f939383689d1c65b21ba1dc Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 4 Jun 2019 12:59:36 +0200
+Subject: [PATCH 078/177] net/ena: fix assigning NUMA node to IO queue
+
+Previous solution was using memzones in invalid way in hope to assign
+IO queue to the appropriate NUMA zone.
+
+The right way is to use socket_id from the rx/tx queue setup function
+and then pass it to the IO queue.
+
+Fixes: 3d3edc265fc8 ("net/ena: make coherent memory allocation NUMA-aware")
+Cc: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: David Marchand <david.marchand@redhat.com>
+---
+ drivers/net/ena/ena_ethdev.c | 21 ++++++---------------
+ drivers/net/ena/ena_ethdev.h |  2 ++
+ 2 files changed, 8 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 3fb59bb1e9..95fb20627f 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -39,6 +39,7 @@
+ #include <rte_errno.h>
+ #include <rte_version.h>
+ #include <rte_eal_memconfig.h>
++#include <rte_net.h>
+ 
+ #include "ena_ethdev.h"
+ #include "ena_logs.h"
+@@ -240,18 +241,6 @@ static const struct eth_dev_ops ena_dev_ops = {
+ 	.reta_query           = ena_rss_reta_query,
+ };
+ 
+-#define NUMA_NO_NODE	SOCKET_ID_ANY
+-
+-static inline int ena_cpu_to_node(int cpu)
+-{
+-	struct rte_config *config = rte_eal_get_configuration();
+-
+-	if (likely(cpu < RTE_MAX_MEMZONE))
+-		return config->mem_config->memzone[cpu].socket_id;
+-
+-	return NUMA_NO_NODE;
+-}
+-
+ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 				       struct ena_com_rx_ctx *ena_rx_ctx)
+ {
+@@ -1065,7 +1054,7 @@ static int ena_create_io_queue(struct ena_ring *ring)
+ 	}
+ 	ctx.qid = ena_qid;
+ 	ctx.msix_vector = -1; /* interrupts not used */
+-	ctx.numa_node = ena_cpu_to_node(ring->id);
++	ctx.numa_node = ring->numa_socket_id;
+ 
+ 	rc = ena_com_create_io_queue(ena_dev, &ctx);
+ 	if (rc) {
+@@ -1162,7 +1151,7 @@ static int ena_queue_start(struct ena_ring *ring)
+ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 			      uint16_t queue_idx,
+ 			      uint16_t nb_desc,
+-			      __rte_unused unsigned int socket_id,
++			      unsigned int socket_id,
+ 			      __rte_unused const struct rte_eth_txconf *tx_conf)
+ {
+ 	struct ena_ring *txq = NULL;
+@@ -1196,6 +1185,7 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ 	txq->next_to_clean = 0;
+ 	txq->next_to_use = 0;
+ 	txq->ring_size = nb_desc;
++	txq->numa_socket_id = socket_id;
+ 
+ 	txq->tx_buffer_info = rte_zmalloc("txq->tx_buffer_info",
+ 					  sizeof(struct ena_tx_buffer) *
+@@ -1239,7 +1229,7 @@ static int ena_tx_queue_setup(struct rte_eth_dev *dev,
+ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 			      uint16_t queue_idx,
+ 			      uint16_t nb_desc,
+-			      __rte_unused unsigned int socket_id,
++			      unsigned int socket_id,
+ 			      __rte_unused const struct rte_eth_rxconf *rx_conf,
+ 			      struct rte_mempool *mp)
+ {
+@@ -1273,6 +1263,7 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 	rxq->next_to_clean = 0;
+ 	rxq->next_to_use = 0;
+ 	rxq->ring_size = nb_desc;
++	rxq->numa_socket_id = socket_id;
+ 	rxq->mb_pool = mp;
+ 
+ 	rxq->rx_buffer_info = rte_zmalloc("rxq->buffer_info",
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 7866d933d1..ec6b00f8ce 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -141,6 +141,8 @@ struct ena_ring {
+ 		struct ena_stats_rx rx_stats;
+ 		struct ena_stats_tx tx_stats;
+ 	};
++
++	unsigned int numa_socket_id;
+ } __rte_cache_aligned;
+ 
+ enum ena_adapter_state {
+-- 
+2.25.1
+

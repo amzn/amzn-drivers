@@ -1,0 +1,40 @@
+From a9497210cb28de98231ce5febd6512879e1e9171 Mon Sep 17 00:00:00 2001
+From: Aleksey Baulin <aleksey.baulin@gmail.com>
+Date: Mon, 20 Nov 2017 01:16:04 +0300
+Subject: [PATCH 001/166] eal: improve likely and unlikely macros
+
+A warning is issued when using an argument to likely() or unlikely()
+builtins which is evaluated to a pointer value, as __builtin_expect()
+expects a 'long int' type for its first argument. With this fix
+a pointer value is converted to an integer with the value of 0 or 1.
+
+Signed-off-by: Aleksey Baulin <aleksey.baulin@gmail.com>
+---
+ lib/librte_eal/common/include/rte_branch_prediction.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/librte_eal/common/include/rte_branch_prediction.h b/lib/librte_eal/common/include/rte_branch_prediction.h
+index a6a56d1747..2e7dc6947d 100644
+--- a/lib/librte_eal/common/include/rte_branch_prediction.h
++++ b/lib/librte_eal/common/include/rte_branch_prediction.h
+@@ -50,7 +50,7 @@
+  *
+  */
+ #ifndef likely
+-#define likely(x)  __builtin_expect((x),1)
++#define likely(x)	__builtin_expect(!!(x), 1)
+ #endif /* likely */
+ 
+ /**
+@@ -64,7 +64,7 @@
+  *
+  */
+ #ifndef unlikely
+-#define unlikely(x)  __builtin_expect((x),0)
++#define unlikely(x)	__builtin_expect(!!(x), 0)
+ #endif /* unlikely */
+ 
+ #endif /* _RTE_BRANCH_PREDICTION_H_ */
+-- 
+2.25.1
+

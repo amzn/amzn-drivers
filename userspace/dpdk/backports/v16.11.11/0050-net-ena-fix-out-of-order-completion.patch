@@ -1,0 +1,147 @@
+From 2f4ce83994d1dc3ae39fd52d05c267675e7e0bf8 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Wed, 21 Nov 2018 09:21:14 +0100
+Subject: [PATCH 050/177] net/ena: fix out of order completion
+
+rx_buffer_info should be refill not linearly, but out of order.
+IDs should be taken from empty_rx_reqs array.
+
+rx_refill_buffer is introduced to temporary storage
+bulk of mbufs taken from pool.
+
+In case of error unused mbufs are put back to pool.
+
+Fixes: c2034976673d ("net/ena: add Rx out of order completion")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 40 +++++++++++++++++++++++++-----------
+ drivers/net/ena/ena_ethdev.h |  1 +
+ 2 files changed, 29 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 5abbdd6a90..2168d7bb08 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -683,6 +683,10 @@ static void ena_rx_queue_release(void *queue)
+ 		rte_free(ring->rx_buffer_info);
+ 	ring->rx_buffer_info = NULL;
+ 
++	if (ring->rx_refill_buffer)
++		rte_free(ring->rx_refill_buffer);
++	ring->rx_refill_buffer = NULL;
++
+ 	if (ring->empty_rx_reqs)
+ 		rte_free(ring->empty_rx_reqs);
+ 	ring->empty_rx_reqs = NULL;
+@@ -1218,6 +1222,17 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 		return -ENOMEM;
+ 	}
+ 
++	rxq->rx_refill_buffer = rte_zmalloc("rxq->rx_refill_buffer",
++					    sizeof(struct rte_mbuf *) * nb_desc,
++					    RTE_CACHE_LINE_SIZE);
++
++	if (!rxq->rx_refill_buffer) {
++		RTE_LOG(ERR, PMD, "failed to alloc mem for rx refill buffer\n");
++		rte_free(rxq->rx_buffer_info);
++		rxq->rx_buffer_info = NULL;
++		return -ENOMEM;
++	}
++
+ 	rxq->empty_rx_reqs = rte_zmalloc("rxq->empty_rx_reqs",
+ 					 sizeof(uint16_t) * nb_desc,
+ 					 RTE_CACHE_LINE_SIZE);
+@@ -1225,6 +1240,8 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 		RTE_LOG(ERR, PMD, "failed to alloc mem for empty rx reqs\n");
+ 		rte_free(rxq->rx_buffer_info);
+ 		rxq->rx_buffer_info = NULL;
++		rte_free(rxq->rx_refill_buffer);
++		rxq->rx_refill_buffer = NULL;
+ 		return -ENOMEM;
+ 	}
+ 
+@@ -1246,7 +1263,7 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 	uint16_t ring_mask = ring_size - 1;
+ 	uint16_t next_to_use = rxq->next_to_use;
+ 	uint16_t in_use, req_id;
+-	struct rte_mbuf **mbufs = &rxq->rx_buffer_info[0];
++	struct rte_mbuf **mbufs = rxq->rx_refill_buffer;
+ 
+ 	if (unlikely(!count))
+ 		return 0;
+@@ -1254,13 +1271,8 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 	in_use = rxq->next_to_use - rxq->next_to_clean;
+ 	ena_assert_msg(((in_use + count) < ring_size), "bad ring state");
+ 
+-	count = RTE_MIN(count,
+-			(uint16_t)(ring_size - (next_to_use & ring_mask)));
+-
+ 	/* get resources for incoming packets */
+-	rc = rte_mempool_get_bulk(rxq->mb_pool,
+-				  (void **)(&mbufs[next_to_use & ring_mask]),
+-				  count);
++	rc = rte_mempool_get_bulk(rxq->mb_pool, (void **)mbufs, count);
+ 	if (unlikely(rc < 0)) {
+ 		rte_atomic64_inc(&rxq->adapter->drv_stats->rx_nombuf);
+ 		PMD_RX_LOG(DEBUG, "there are no enough free buffers");
+@@ -1269,15 +1281,17 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 
+ 	for (i = 0; i < count; i++) {
+ 		uint16_t next_to_use_masked = next_to_use & ring_mask;
+-		struct rte_mbuf *mbuf = mbufs[next_to_use_masked];
++		struct rte_mbuf *mbuf = mbufs[i];
+ 		struct ena_com_buf ebuf;
+ 
+-		rte_prefetch0(mbufs[((next_to_use + 4) & ring_mask)]);
++		if (likely((i + 4) < count))
++			rte_prefetch0(mbufs[i + 4]);
+ 
+ 		req_id = rxq->empty_rx_reqs[next_to_use_masked];
+ 		rc = validate_rx_req_id(rxq, req_id);
+ 		if (unlikely(rc < 0))
+ 			break;
++		rxq->rx_buffer_info[req_id] = mbuf;
+ 
+ 		/* prepare physical address for DMA transaction */
+ 		ebuf.paddr = mbuf->buf_physaddr + RTE_PKTMBUF_HEADROOM;
+@@ -1286,17 +1300,19 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 		rc = ena_com_add_single_rx_desc(rxq->ena_com_io_sq,
+ 						&ebuf, req_id);
+ 		if (unlikely(rc)) {
+-			rte_mempool_put_bulk(rxq->mb_pool, (void **)(&mbuf),
+-					     count - i);
+ 			RTE_LOG(WARNING, PMD, "failed adding rx desc\n");
++			rxq->rx_buffer_info[req_id] = NULL;
+ 			break;
+ 		}
+ 		next_to_use++;
+ 	}
+ 
+-	if (unlikely(i < count))
++	if (unlikely(i < count)) {
+ 		RTE_LOG(WARNING, PMD, "refilled rx qid %d with only %d "
+ 			"buffers (from %d)\n", rxq->id, i, count);
++		rte_mempool_put_bulk(rxq->mb_pool, (void **)(&mbufs[i]),
++				     count - i);
++	}
+ 
+ 	/* When we submitted free recources to device... */
+ 	if (likely(i > 0)) {
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 92c5d64ecf..e4e721161d 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -86,6 +86,7 @@ struct ena_ring {
+ 		struct ena_tx_buffer *tx_buffer_info; /* contex of tx packet */
+ 		struct rte_mbuf **rx_buffer_info; /* contex of rx packet */
+ 	};
++	struct rte_mbuf **rx_refill_buffer;
+ 	unsigned int ring_size; /* number of tx/rx_buffer_info's entries */
+ 
+ 	struct ena_com_io_cq *ena_com_io_cq;
+-- 
+2.25.1
+

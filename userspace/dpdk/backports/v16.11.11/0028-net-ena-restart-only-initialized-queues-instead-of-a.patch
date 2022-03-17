@@ -1,0 +1,44 @@
+From 0bbcd114b10205bbac53fe6a069c3ce6228d56c5 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:03 +0200
+Subject: [PATCH 028/177] net/ena: restart only initialized queues instead of
+ all
+
+There is no need to check for restart all queues. It is sufficient to
+check only previously initialized queues.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index d4f984bf8f..ae792978b7 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -721,13 +721,18 @@ static int ena_queue_restart_all(struct rte_eth_dev *dev,
+ 	struct ena_adapter *adapter =
+ 		(struct ena_adapter *)(dev->data->dev_private);
+ 	struct ena_ring *queues = NULL;
++	int nb_queues;
+ 	int i = 0;
+ 	int rc = 0;
+ 
+-	queues = (ring_type == ENA_RING_TYPE_RX) ?
+-		adapter->rx_ring : adapter->tx_ring;
+-
+-	for (i = 0; i < adapter->num_queues; i++) {
++	if (ring_type == ENA_RING_TYPE_RX) {
++		queues = adapter->rx_ring;
++		nb_queues = dev->data->nb_rx_queues;
++	} else {
++		queues = adapter->tx_ring;
++		nb_queues = dev->data->nb_tx_queues;
++	}
++	for (i = 0; i < nb_queues; i++) {
+ 		if (queues[i].configured) {
+ 			if (ring_type == ENA_RING_TYPE_RX) {
+ 				ena_assert_msg(
+-- 
+2.25.1
+

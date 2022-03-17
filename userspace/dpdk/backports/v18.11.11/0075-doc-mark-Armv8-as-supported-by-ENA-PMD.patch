@@ -1,0 +1,35 @@
+From 81e74e74363f9bb3e5f82087bc973a8f4e47ed37 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Mon, 27 Jul 2020 11:46:45 +0200
+Subject: [PATCH 075/107] doc: mark Armv8 as supported by ENA PMD
+
+The ARMv8 platform support was tested and works fine with the ENA PMD.
+
+It can be used on the AWS a1.* and m6g.* instances.
+
+The ARMv8 support in ENA is at least from v19.11, where the VFIO DPDK
+driver was fixed to work with 32-bit applications compiled for arm.
+
+Change-Id: Ib2c4ea5626df8380d6d5cfe47d37f6b38039c04b
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ doc/guides/nics/features/ena.ini | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/doc/guides/nics/features/ena.ini b/doc/guides/nics/features/ena.ini
+index 4300dd012c..7cd6d50f98 100644
+--- a/doc/guides/nics/features/ena.ini
++++ b/doc/guides/nics/features/ena.ini
+@@ -18,6 +18,7 @@ Basic stats          = Y
+ Extended stats       = Y
+ Linux UIO            = Y
+ Linux VFIO           = Y
++ARMv8                = Y
+ x86-32               = Y
+ x86-64               = Y
+ Usage doc            = Y
+-- 
+2.25.1
+

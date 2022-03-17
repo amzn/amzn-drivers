@@ -1,0 +1,746 @@
+From 2812079f7bfa25451d02b51a199b89e38ecc00c0 Mon Sep 17 00:00:00 2001
+From: Maciej Bielski <mba@semihalf.com>
+Date: Fri, 27 Sep 2019 13:41:45 +0200
+Subject: [PATCH 024/107] net/ena: change license clause to SPDX tags
+
+Signed-off-by: Maciej Bielski <mba@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ doc/guides/nics/ena.rst                       | 31 +---------------
+ drivers/net/ena/Makefile                      | 33 +----------------
+ drivers/net/ena/base/ena_com.c                | 36 ++----------------
+ drivers/net/ena/base/ena_com.h                | 36 ++----------------
+ .../net/ena/base/ena_defs/ena_admin_defs.h    | 37 +++----------------
+ .../net/ena/base/ena_defs/ena_common_defs.h   | 37 +++----------------
+ .../net/ena/base/ena_defs/ena_eth_io_defs.h   | 37 +++----------------
+ drivers/net/ena/base/ena_defs/ena_gen_info.h  | 37 +++----------------
+ drivers/net/ena/base/ena_defs/ena_includes.h  |  5 +++
+ drivers/net/ena/base/ena_defs/ena_regs_defs.h | 37 +++----------------
+ drivers/net/ena/base/ena_eth_com.c            | 36 ++----------------
+ drivers/net/ena/base/ena_eth_com.h            | 36 ++----------------
+ drivers/net/ena/base/ena_plat.h               | 36 ++----------------
+ drivers/net/ena/ena_ethdev.c                  | 36 ++----------------
+ drivers/net/ena/ena_ethdev.h                  | 36 ++----------------
+ drivers/net/ena/ena_logs.h                    | 36 ++----------------
+ drivers/net/ena/ena_platform.h                | 36 ++----------------
+ 17 files changed, 70 insertions(+), 508 deletions(-)
+
+diff --git a/doc/guides/nics/ena.rst b/doc/guides/nics/ena.rst
+index 80da4b6be7..1265cda4c8 100644
+--- a/doc/guides/nics/ena.rst
++++ b/doc/guides/nics/ena.rst
+@@ -1,34 +1,7 @@
+-.. BSD LICENSE
+-
+-    Copyright (c) 2015-2018 Amazon.com, Inc. or its affiliates.
++..  SPDX-License-Identifier: BSD-3-Clause
++    Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+     All rights reserved.
+ 
+-    Redistribution and use in source and binary forms, with or without
+-    modification, are permitted provided that the following conditions
+-    are met:
+-
+-    * Redistributions of source code must retain the above copyright
+-    notice, this list of conditions and the following disclaimer.
+-    * Redistributions in binary form must reproduce the above copyright
+-    notice, this list of conditions and the following disclaimer in
+-    the documentation and/or other materials provided with the
+-    distribution.
+-    * Neither the name of Amazon.com, Inc. nor the names of its
+-    contributors may be used to endorse or promote products derived
+-    from this software without specific prior written permission.
+-
+-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-
+ ENA Poll Mode Driver
+ ====================
+ 
+diff --git a/drivers/net/ena/Makefile b/drivers/net/ena/Makefile
+index ff9ce315bb..8336b7606a 100644
+--- a/drivers/net/ena/Makefile
++++ b/drivers/net/ena/Makefile
+@@ -1,35 +1,6 @@
+-#
+-# BSD LICENSE
+-#
+-# Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
++# SPDX-License-Identifier: BSD-3-Clause
++# Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ # All rights reserved.
+-#
+-# Redistribution and use in source and binary forms, with or without
+-# modification, are permitted provided that the following conditions
+-# are met:
+-#
+-# * Redistributions of source code must retain the above copyright
+-# notice, this list of conditions and the following disclaimer.
+-# * Redistributions in binary form must reproduce the above copyright
+-# notice, this list of conditions and the following disclaimer in
+-# the documentation and/or other materials provided with the
+-# distribution.
+-# * Neither the name of copyright holder nor the names of its
+-# contributors may be used to endorse or promote products derived
+-# from this software without specific prior written permission.
+-#
+-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-#
+ 
+ include $(RTE_SDK)/mk/rte.vars.mk
+ 
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 969ce97c4c..ad28ae2f07 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #include "ena_com.h"
+ 
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index 8becce005e..7fadf0db01 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #ifndef ENA_COM
+ #define ENA_COM
+diff --git a/drivers/net/ena/base/ena_defs/ena_admin_defs.h b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+index d97be14a42..cd81e891d6 100644
+--- a/drivers/net/ena/base/ena_defs/ena_admin_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+@@ -1,35 +1,8 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
++
+ #ifndef _ENA_ADMIN_H_
+ #define _ENA_ADMIN_H_
+ 
+diff --git a/drivers/net/ena/base/ena_defs/ena_common_defs.h b/drivers/net/ena/base/ena_defs/ena_common_defs.h
+index e023340720..759bd23977 100644
+--- a/drivers/net/ena/base/ena_defs/ena_common_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_common_defs.h
+@@ -1,35 +1,8 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
++
+ #ifndef _ENA_COMMON_H_
+ #define _ENA_COMMON_H_
+ 
+diff --git a/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h b/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
+index d060d8be30..82fe03a95f 100644
+--- a/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
+@@ -1,35 +1,8 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
++
+ #ifndef _ENA_ETH_IO_H_
+ #define _ENA_ETH_IO_H_
+ 
+diff --git a/drivers/net/ena/base/ena_defs/ena_gen_info.h b/drivers/net/ena/base/ena_defs/ena_gen_info.h
+index 640d5aa3e7..fe4bf5140e 100644
+--- a/drivers/net/ena/base/ena_defs/ena_gen_info.h
++++ b/drivers/net/ena/base/ena_defs/ena_gen_info.h
+@@ -1,34 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
++
+ #define	ENA_GEN_DATE	"Wed Sep 26 13:46:28 DST 2018"
+ #define	ENA_GEN_COMMIT	"aac865f"
+diff --git a/drivers/net/ena/base/ena_defs/ena_includes.h b/drivers/net/ena/base/ena_defs/ena_includes.h
+index 5ea312f823..20dba04d52 100644
+--- a/drivers/net/ena/base/ena_defs/ena_includes.h
++++ b/drivers/net/ena/base/ena_defs/ena_includes.h
+@@ -1,3 +1,8 @@
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
++
+ #include "ena_common_defs.h"
+ #include "ena_regs_defs.h"
+ #include "ena_admin_defs.h"
+diff --git a/drivers/net/ena/base/ena_defs/ena_regs_defs.h b/drivers/net/ena/base/ena_defs/ena_regs_defs.h
+index 13b419830a..2118ddf323 100644
+--- a/drivers/net/ena/base/ena_defs/ena_regs_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_regs_defs.h
+@@ -1,35 +1,8 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
++
+ #ifndef _ENA_REGS_H_
+ #define _ENA_REGS_H_
+ 
+diff --git a/drivers/net/ena/base/ena_eth_com.c b/drivers/net/ena/base/ena_eth_com.c
+index 9d250db7eb..2aede7b5a9 100644
+--- a/drivers/net/ena/base/ena_eth_com.c
++++ b/drivers/net/ena/base/ena_eth_com.c
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #include "ena_eth_com.h"
+ 
+diff --git a/drivers/net/ena/base/ena_eth_com.h b/drivers/net/ena/base/ena_eth_com.h
+index 79acbf31d0..820057b8b1 100644
+--- a/drivers/net/ena/base/ena_eth_com.h
++++ b/drivers/net/ena/base/ena_eth_com.h
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #ifndef ENA_ETH_COM_H_
+ #define ENA_ETH_COM_H_
+diff --git a/drivers/net/ena/base/ena_plat.h b/drivers/net/ena/base/ena_plat.h
+index d57de057cd..2583823080 100644
+--- a/drivers/net/ena/base/ena_plat.h
++++ b/drivers/net/ena/base/ena_plat.h
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #ifndef ENA_PLAT_H_
+ #define ENA_PLAT_H_
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index ec69e79373..003d579326 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #include <rte_ether.h>
+ #include <rte_ethdev_driver.h>
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index fafaed428e..a9895d6e2c 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #ifndef _ENA_ETHDEV_H_
+ #define _ENA_ETHDEV_H_
+diff --git a/drivers/net/ena/ena_logs.h b/drivers/net/ena/ena_logs.h
+index fb7fb1fc14..9053c9183f 100644
+--- a/drivers/net/ena/ena_logs.h
++++ b/drivers/net/ena/ena_logs.h
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #ifndef _ENA_LOGS_H_
+ #define _ENA_LOGS_H_
+diff --git a/drivers/net/ena/ena_platform.h b/drivers/net/ena/ena_platform.h
+index a2239a92c4..d3e40e0e9e 100644
+--- a/drivers/net/ena/ena_platform.h
++++ b/drivers/net/ena/ena_platform.h
+@@ -1,35 +1,7 @@
+-/*-
+-* BSD LICENSE
+-*
+-* Copyright (c) 2015-2016 Amazon.com, Inc. or its affiliates.
+-* All rights reserved.
+-*
+-* Redistribution and use in source and binary forms, with or without
+-* modification, are permitted provided that the following conditions
+-* are met:
+-*
+-* * Redistributions of source code must retain the above copyright
+-* notice, this list of conditions and the following disclaimer.
+-* * Redistributions in binary form must reproduce the above copyright
+-* notice, this list of conditions and the following disclaimer in
+-* the documentation and/or other materials provided with the
+-* distribution.
+-* * Neither the name of copyright holder nor the names of its
+-* contributors may be used to endorse or promote products derived
+-* from this software without specific prior written permission.
+-*
+-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-* OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-*/
++/* SPDX-License-Identifier: BSD-3-Clause
++ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * All rights reserved.
++ */
+ 
+ #ifndef __ENA_PLATFORM_H__
+ #define __ENA_PLATFORM_H__
+-- 
+2.25.1
+

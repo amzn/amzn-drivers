@@ -1,0 +1,47 @@
+From 7c19238c81e9e525d5e8bd2a8ddaaa286981b429 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 11 May 2021 08:45:54 +0200
+Subject: [PATCH 64/72] net/ena: update version to v2.3.0
+
+This version update contains:
+  * memcpy mapping to the dpdk-optimized version.
+  * ena_com (HAL) update to the latest version (from 18.09.2020).
+  * Bug fixes for the large LLQ headers and devargs parsing.
+  * Bug fix for the default ring size.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_defs/ena_gen_info.h | 4 ++--
+ drivers/net/ena/ena_ethdev.c                 | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_defs/ena_gen_info.h b/drivers/net/ena/base/ena_defs/ena_gen_info.h
+index 54bbfda11f..49895108d5 100644
+--- a/drivers/net/ena/base/ena_defs/ena_gen_info.h
++++ b/drivers/net/ena/base/ena_defs/ena_gen_info.h
+@@ -2,5 +2,5 @@
+  * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+-#define	ENA_GEN_DATE	"Sun Apr 26 13:45:21 DST 2020"
+-#define	ENA_GEN_COMMIT	"37aa7c3"
++#define	ENA_GEN_DATE	"Fri Sep 18 17:09:00 IDT 2020"
++#define	ENA_GEN_COMMIT	"0f80d82"
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 9fd71f428c..88e85effc4 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -27,8 +27,8 @@
+ #include <ena_eth_io_defs.h>
+ 
+ #define DRV_MODULE_VER_MAJOR	2
+-#define DRV_MODULE_VER_MINOR	2
+-#define DRV_MODULE_VER_SUBMINOR	1
++#define DRV_MODULE_VER_MINOR	3
++#define DRV_MODULE_VER_SUBMINOR	0
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+ #define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+-- 
+2.25.1
+

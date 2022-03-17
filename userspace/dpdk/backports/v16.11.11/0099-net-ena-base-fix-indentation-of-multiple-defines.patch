@@ -1,0 +1,49 @@
+From c0c1c8cb2680282c0743bdaee7f83d72e21ed36c Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:29:06 +0200
+Subject: [PATCH 099/177] net/ena/base: fix indentation of multiple defines
+
+As the alignment of the defines wasn't valid, it was removed at all, so
+instead of using multiple spaces or tabs, the single space after define
+name is being used.
+
+Fixes: 99ecfbf845b3 ("ena: import communication layer")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_com.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index 6c9943df79..61074eaf63 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -8,9 +8,9 @@
+ 
+ #include "ena_plat.h"
+ 
+-#define ENA_MAX_NUM_IO_QUEUES		128U
++#define ENA_MAX_NUM_IO_QUEUES 128U
+ /* We need to queues for each IO (on for Tx and one for Rx) */
+-#define ENA_TOTAL_NUM_QUEUES		(2 * (ENA_MAX_NUM_IO_QUEUES))
++#define ENA_TOTAL_NUM_QUEUES (2 * (ENA_MAX_NUM_IO_QUEUES))
+ 
+ #define ENA_MAX_HANDLERS 256
+ 
+@@ -33,9 +33,9 @@
+ 
+ #define ENA_HASH_KEY_SIZE				40
+ 
+-#define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
++#define ENA_HW_HINTS_NO_TIMEOUT 0xFFFF
+ 
+-#define ENA_FEATURE_MAX_QUEUE_EXT_VER	1
++#define ENA_FEATURE_MAX_QUEUE_EXT_VER 1
+ 
+ struct ena_llq_configurations {
+ 	enum ena_admin_llq_header_location llq_header_location;
+-- 
+2.25.1
+

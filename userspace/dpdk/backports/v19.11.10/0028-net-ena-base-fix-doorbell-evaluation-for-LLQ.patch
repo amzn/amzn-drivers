@@ -1,0 +1,35 @@
+From 2f4a6573f1cf5c82fff29dfc69f8796708cd931c Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 12 Aug 2020 18:37:29 +0200
+Subject: [PATCH 28/72] net/ena/base: fix doorbell evaluation for LLQ
+
+This patch adds a missing LLQ-related check in the
+ena_com_is_doorbell_needed() routine, which is relevant for the feature
+supported by the next generation HW of the ENA.
+
+Fixes: b2b02edeb0d6 ("net/ena/base: upgrade HAL for new HW features")
+CC: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Signed-off-by: Artur Rojek <ar@semihalf.com>
+---
+ drivers/net/ena/base/ena_eth_com.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_eth_com.h b/drivers/net/ena/base/ena_eth_com.h
+index e37b642d4c..3d66237b8d 100644
+--- a/drivers/net/ena/base/ena_eth_com.h
++++ b/drivers/net/ena/base/ena_eth_com.h
+@@ -133,7 +133,8 @@ static inline bool ena_com_is_doorbell_needed(struct ena_com_io_sq *io_sq,
+ 	llq_info = &io_sq->llq_info;
+ 	num_descs = ena_tx_ctx->num_bufs;
+ 
+-	if (unlikely(ena_com_meta_desc_changed(io_sq, ena_tx_ctx)))
++	if (llq_info->disable_meta_caching ||
++	    unlikely(ena_com_meta_desc_changed(io_sq, ena_tx_ctx)))
+ 		++num_descs;
+ 
+ 	if (num_descs > llq_info->descs_num_before_header) {
+-- 
+2.25.1
+

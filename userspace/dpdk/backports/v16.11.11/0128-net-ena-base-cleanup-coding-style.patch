@@ -1,0 +1,127 @@
+From 4591b4492a85b99f2bc86ddea4f45802be544b6b Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 12:09:11 +0200
+Subject: [PATCH 128/177] net/ena/base: cleanup coding style
+
+* Function argument style improvement (space after *)
+* Align indentation of the define
+* Typo fix in the documentation
+* Remove extra empty line after license (aligned with other files)
+* Extra alignment of one line was fixed
+
+Change-Id: I7f6fe3ef26e3f683005c607dcc08173ede765486
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c                  | 4 ++--
+ drivers/net/ena/base/ena_com.h                  | 4 ++--
+ drivers/net/ena/base/ena_defs/ena_eth_io_defs.h | 3 +--
+ drivers/net/ena/base/ena_defs/ena_gen_info.h    | 1 -
+ drivers/net/ena/base/ena_defs/ena_regs_defs.h   | 3 +--
+ drivers/net/ena/base/ena_eth_com.c              | 4 ++--
+ 6 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 9764bd2f48..f2668f79c7 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1701,7 +1701,7 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
+ 	ena_dev->admin_queue.polling = polling;
+ }
+ 
+-bool ena_com_get_admin_polling_mode(struct ena_com_dev * ena_dev)
++bool ena_com_get_admin_polling_mode(struct ena_com_dev *ena_dev)
+ {
+ 	return ena_dev->admin_queue.polling;
+ }
+@@ -2958,8 +2958,8 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
+ 			    struct ena_admin_feature_llq_desc *llq_features,
+ 			    struct ena_llq_configurations *llq_default_cfg)
+ {
++	struct ena_com_llq_info *llq_info = &ena_dev->llq_info;
+ 	int rc;
+-	struct ena_com_llq_info *llq_info = &(ena_dev->llq_info);;
+ 
+ 	if (!llq_features->max_llq_num) {
+ 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index ba367b4ca0..f507aa47ed 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -31,7 +31,7 @@
+ #define ENA_INTR_INITIAL_RX_INTERVAL_USECS 0
+ #define ENA_DEFAULT_INTR_DELAY_RESOLUTION 1
+ 
+-#define ENA_HASH_KEY_SIZE				40
++#define ENA_HASH_KEY_SIZE 40
+ 
+ #define ENA_HW_HINTS_NO_TIMEOUT 0xFFFF
+ 
+@@ -744,7 +744,7 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev);
+  *
+  * Retrieve the hash control from the device.
+  *
+- * @note: If the caller called ena_com_fill_hash_ctrl but didn't flash
++ * @note: If the caller called ena_com_fill_hash_ctrl but didn't flush
+  * it to the device, the new configuration will be lost.
+  *
+  * @return: 0 on Success and negative value otherwise.
+diff --git a/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h b/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
+index 108bed8520..2b934fff08 100644
+--- a/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_eth_io_defs.h
+@@ -1,8 +1,7 @@
+ /* SPDX-License-Identifier: BSD-3-Clause
+- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+-
+ #ifndef _ENA_ETH_IO_H_
+ #define _ENA_ETH_IO_H_
+ 
+diff --git a/drivers/net/ena/base/ena_defs/ena_gen_info.h b/drivers/net/ena/base/ena_defs/ena_gen_info.h
+index f486e9fe6e..8f55504bc5 100644
+--- a/drivers/net/ena/base/ena_defs/ena_gen_info.h
++++ b/drivers/net/ena/base/ena_defs/ena_gen_info.h
+@@ -2,6 +2,5 @@
+  * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+-
+ #define	ENA_GEN_DATE	"Wed Sep 25 11:32:57 UTC 2019"
+ #define	ENA_GEN_COMMIT	"952697a9e0d3"
+diff --git a/drivers/net/ena/base/ena_defs/ena_regs_defs.h b/drivers/net/ena/base/ena_defs/ena_regs_defs.h
+index 2d6bf5486e..639cd98c0a 100644
+--- a/drivers/net/ena/base/ena_defs/ena_regs_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_regs_defs.h
+@@ -1,8 +1,7 @@
+ /* SPDX-License-Identifier: BSD-3-Clause
+- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+-
+ #ifndef _ENA_REGS_H_
+ #define _ENA_REGS_H_
+ 
+diff --git a/drivers/net/ena/base/ena_eth_com.c b/drivers/net/ena/base/ena_eth_com.c
+index 80d35556cb..9c4e6133f5 100644
+--- a/drivers/net/ena/base/ena_eth_com.c
++++ b/drivers/net/ena/base/ena_eth_com.c
+@@ -188,8 +188,8 @@ static int ena_com_sq_update_llq_tail(struct ena_com_io_sq *io_sq)
+ 
+ 		pkt_ctrl->curr_bounce_buf =
+ 			ena_com_get_next_bounce_buffer(&io_sq->bounce_buf_ctrl);
+-			memset(io_sq->llq_buf_ctrl.curr_bounce_buf,
+-			       0x0, llq_info->desc_list_entry_size);
++		memset(io_sq->llq_buf_ctrl.curr_bounce_buf,
++		       0x0, llq_info->desc_list_entry_size);
+ 
+ 		pkt_ctrl->idx = 0;
+ 		if (unlikely(llq_info->desc_stride_ctrl == ENA_ADMIN_SINGLE_DESC_PER_ENTRY))
+-- 
+2.25.1
+

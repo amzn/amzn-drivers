@@ -1,0 +1,163 @@
+From 3a944200467599522f4961a4961edc936afe78cb Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 30 Oct 2020 12:31:19 +0100
+Subject: [PATCH 131/166] net/ena/base: align IO CQ allocation to 4K
+
+Latest generation HW requires IO completion queue descriptors to be
+aligned to a 4K in order to achieve the best performance.
+
+Because of that, the new allocation macros were added, which allows
+driver to allocate the memory with specified alignment.
+
+The previous allocation macros are now wrappers around the macros
+doing the alignment, with the alignment value equal to cacheline size.
+
+Fixes: b68309be44c0 ("net/ena/base: update communication layer for the ENAv2")
+Cc: stable@dpdk.org
+
+Change-Id: Ibf039d818f31e201fd5fe9fcaacf87a590984231
+Signed-off-by: Ido Segev <idose@amazon.com>
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Amit Bernstein <amitbern@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c       | 26 ++++++++++----------
+ drivers/net/ena/base/ena_com.h       |  2 ++
+ drivers/net/ena/base/ena_plat_dpdk.h | 36 +++++++++++++++++++++-------
+ 3 files changed, 44 insertions(+), 20 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 3686ae05c4..aae68721fb 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -413,19 +413,21 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
+ 	size = io_cq->cdesc_entry_size_in_bytes * io_cq->q_depth;
+ 	io_cq->bus = ena_dev->bus;
+ 
+-	ENA_MEM_ALLOC_COHERENT_NODE(ena_dev->dmadev,
+-			size,
+-			io_cq->cdesc_addr.virt_addr,
+-			io_cq->cdesc_addr.phys_addr,
+-			io_cq->cdesc_addr.mem_handle,
+-			ctx->numa_node,
+-			prev_node);
++	ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(ena_dev->dmadev,
++					    size,
++					    io_cq->cdesc_addr.virt_addr,
++					    io_cq->cdesc_addr.phys_addr,
++					    io_cq->cdesc_addr.mem_handle,
++					    ctx->numa_node,
++					    prev_node,
++					    ENA_CDESC_RING_SIZE_ALIGNMENT);
+ 	if (!io_cq->cdesc_addr.virt_addr) {
+-		ENA_MEM_ALLOC_COHERENT(ena_dev->dmadev,
+-				       size,
+-				       io_cq->cdesc_addr.virt_addr,
+-				       io_cq->cdesc_addr.phys_addr,
+-				       io_cq->cdesc_addr.mem_handle);
++		ENA_MEM_ALLOC_COHERENT_ALIGNED(ena_dev->dmadev,
++					       size,
++					       io_cq->cdesc_addr.virt_addr,
++					       io_cq->cdesc_addr.phys_addr,
++					       io_cq->cdesc_addr.mem_handle,
++					       ENA_CDESC_RING_SIZE_ALIGNMENT);
+ 	}
+ 
+ 	if (!io_cq->cdesc_addr.virt_addr) {
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index 8eacaeab0e..64d8f247cb 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -23,6 +23,8 @@
+ #define ADMIN_CQ_SIZE(depth)	((depth) * sizeof(struct ena_admin_acq_entry))
+ #define ADMIN_AENQ_SIZE(depth)	((depth) * sizeof(struct ena_admin_aenq_entry))
+ 
++#define ENA_CDESC_RING_SIZE_ALIGNMENT	(1 << 12) /* 4K */
++
+ /*****************************************************************************/
+ /*****************************************************************************/
+ /* ENA adaptive interrupt moderation settings */
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index a0fa196e39..ababcdfdda 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -170,7 +170,8 @@ do {                                                                   \
+  */
+ extern rte_atomic32_t ena_alloc_cnt;
+ 
+-#define ENA_MEM_ALLOC_COHERENT(dmadev, size, virt, phys, handle)	\
++#define ENA_MEM_ALLOC_COHERENT_ALIGNED(					\
++	dmadev, size, virt, phys, handle, alignment)			\
+ 	do {								\
+ 		const struct rte_memzone *mz = NULL;			\
+ 		ENA_TOUCH(dmadev); ENA_TOUCH(handle);			\
+@@ -179,9 +180,10 @@ extern rte_atomic32_t ena_alloc_cnt;
+ 			snprintf(z_name, sizeof(z_name),		\
+ 			 "ena_alloc_%d",				\
+ 			 rte_atomic32_add_return(&ena_alloc_cnt, 1));	\
+-			mz = rte_memzone_reserve(z_name, size,		\
++			mz = rte_memzone_reserve_aligned(z_name, size,	\
+ 					SOCKET_ID_ANY,			\
+-					0);				\
++					0,				\
++					alignment);			\
+ 			handle = mz;					\
+ 		}							\
+ 		if (mz == NULL) {					\
+@@ -193,13 +195,21 @@ extern rte_atomic32_t ena_alloc_cnt;
+ 			phys = mz->iova;				\
+ 		}							\
+ 	} while (0)
++#define ENA_MEM_ALLOC_COHERENT(dmadev, size, virt, phys, handle)	\
++		ENA_MEM_ALLOC_COHERENT_ALIGNED(				\
++			dmadev,						\
++			size,						\
++			virt,						\
++			phys,						\
++			handle,						\
++			RTE_CACHE_LINE_SIZE)
+ #define ENA_MEM_FREE_COHERENT(dmadev, size, virt, phys, handle) 	\
+ 		({ ENA_TOUCH(size); ENA_TOUCH(phys);			\
+ 		   ENA_TOUCH(dmadev);					\
+ 		   rte_memzone_free(handle); })
+ 
+-#define ENA_MEM_ALLOC_COHERENT_NODE(					\
+-	dmadev, size, virt, phys, mem_handle, node, dev_node)		\
++#define ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(				\
++	dmadev, size, virt, phys, mem_handle, node, dev_node, alignment) \
+ 	do {								\
+ 		const struct rte_memzone *mz = NULL;			\
+ 		ENA_TOUCH(dmadev); ENA_TOUCH(dev_node);			\
+@@ -208,8 +218,8 @@ extern rte_atomic32_t ena_alloc_cnt;
+ 			snprintf(z_name, sizeof(z_name),		\
+ 			 "ena_alloc_%d",				\
+ 			 rte_atomic32_add_return(&ena_alloc_cnt, 1));   \
+-			mz = rte_memzone_reserve(z_name, size, node,	\
+-				0);					\
++			mz = rte_memzone_reserve_aligned(z_name, size, node, \
++				0, alignment);				\
+ 			mem_handle = mz;				\
+ 		}							\
+ 		if (mz == NULL) {					\
+@@ -221,7 +231,17 @@ extern rte_atomic32_t ena_alloc_cnt;
+ 			phys = mz->iova;				\
+ 		}							\
+ 	} while (0)
+-
++#define ENA_MEM_ALLOC_COHERENT_NODE(					\
++	dmadev, size, virt, phys, mem_handle, node, dev_node)		\
++		ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(			\
++			dmadev,						\
++			size,						\
++			virt,						\
++			phys,						\
++			mem_handle,					\
++			node,						\
++			dev_node,					\
++			RTE_CACHE_LINE_SIZE)
+ #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) \
+ 	do {								\
+ 		ENA_TOUCH(dmadev); ENA_TOUCH(dev_node);			\
+-- 
+2.25.1
+

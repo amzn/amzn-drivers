@@ -1,0 +1,45 @@
+From 51f5094d231473a376e638d5df4137da03d98964 Mon Sep 17 00:00:00 2001
+From: Stanislaw Kardach <kda@semihalf.com>
+Date: Tue, 11 May 2021 08:45:49 +0200
+Subject: [PATCH 152/166] net/ena: remove endian swap functions
+
+swap*_*_le() functions are not used anywhere and besides there are rte
+alternatives already present.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Signed-off-by: Stanislaw Kardach <kda@semihalf.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+---
+ drivers/net/ena/ena_platform.h | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+diff --git a/drivers/net/ena/ena_platform.h b/drivers/net/ena/ena_platform.h
+index d3e40e0e9e..748928b2d9 100644
+--- a/drivers/net/ena/ena_platform.h
++++ b/drivers/net/ena/ena_platform.h
+@@ -6,18 +6,6 @@
+ #ifndef __ENA_PLATFORM_H__
+ #define __ENA_PLATFORM_H__
+ 
+-#define swap16_to_le(x)		(x)
+-
+-#define swap32_to_le(x)		(x)
+-
+-#define swap64_to_le(x)		(x)
+-
+-#define swap16_from_le(x)       (x)
+-
+-#define swap32_from_le(x)	(x)
+-
+-#define swap64_from_le(x)	(x)
+-
+ #define ena_assert_msg(cond, msg)		\
+ 	do {					\
+ 		if (unlikely(!(cond))) {	\
+-- 
+2.25.1
+

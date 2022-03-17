@@ -1,0 +1,33 @@
+From 2912f822cdffa4b11973ca583fd26111492b43f6 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Mon, 26 Jul 2021 11:10:59 +0200
+Subject: [PATCH 158/166] net/ena: allow uninit call from secondary process
+
+ENA shouldn't return error if uninit is called from the secondary
+process - the wrapper functions can be called from both the primary and
+the secondary process.
+
+As ENA doesn't have to perform any cleanup for secondary process, it can
+just return 0.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index faf5b4e2fd..5345588217 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1974,7 +1974,7 @@ static void ena_destroy_device(struct rte_eth_dev *eth_dev)
+ static int eth_ena_dev_uninit(struct rte_eth_dev *eth_dev)
+ {
+ 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+-		return -EPERM;
++		return 0;
+ 
+ 	ena_destroy_device(eth_dev);
+ 
+-- 
+2.25.1
+

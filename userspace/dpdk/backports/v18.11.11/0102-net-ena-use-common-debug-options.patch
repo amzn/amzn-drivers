@@ -1,0 +1,276 @@
+From 6f5bf36df422680170730879e58da61b9f5875ab Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 23 Jul 2021 12:24:50 +0200
+Subject: [PATCH 102/107] net/ena: use common debug options
+
+ENA defined its own logger flags for Tx and Rx, but they weren't
+technically used anywhere. Those data path loggers weren't used anywhere
+after the definition.
+
+This commit uses the generic RTE_ETHDEV_DEBUG_RX and RTE_ETHDEV_DEBUG_TX
+flags to define PMD_TX_LOG and PMD_RX_LOG which are now being used on
+the data path. The PMD_TX_FREE_LOG was removed, as it has no usage in
+the current version of the driver.
+
+RTE_ETH_DEBUG_[TR]X now wraps extra checks for the driver state in the
+IO path - this saves extra conditionals on the hot path.
+
+ena_com logger is no longer optional (previously it had to be explicitly
+enabled by defining this flag: RTE_LIBRTE_ENA_COM_DEBUG). Having this
+logger optional makes tracing of ena_com errors much harder.
+Due to ena_com design, it's impossible to separate IO path logs
+from the management path logs, so for now they will be always enabled.
+
+Default levels for the affected loggers were modified. Hot path loggers
+are initialized with the default level of DEBUG instead of NOTICE, as
+they have to be explicitly enabled. ena_com logging level was reduced
+from NOTICE to WARNING - as it's no longer optional, the driver should
+report just a warnings in the ena_com layer.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shai Brandes <shaibran@amazon.com>
+---
+ config/common_base                   |  1 -
+ drivers/net/ena/base/ena_plat_dpdk.h |  7 ----
+ drivers/net/ena/ena_ethdev.c         | 56 +++++++++++++---------------
+ drivers/net/ena/ena_logs.h           |  9 -----
+ 4 files changed, 26 insertions(+), 47 deletions(-)
+
+diff --git a/config/common_base b/config/common_base
+index 401388188c..829cb47be1 100644
+--- a/config/common_base
++++ b/config/common_base
+@@ -243,7 +243,6 @@ CONFIG_RTE_LIBRTE_ENETC_PMD=n
+ CONFIG_RTE_LIBRTE_ENA_PMD=y
+ CONFIG_RTE_LIBRTE_ENA_DEBUG_RX=n
+ CONFIG_RTE_LIBRTE_ENA_DEBUG_TX=n
+-CONFIG_RTE_LIBRTE_ENA_DEBUG_TX_FREE=n
+ CONFIG_RTE_LIBRTE_ENA_COM_DEBUG=n
+ 
+ #
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 3ac8f277c3..652f2b2bbc 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -108,7 +108,6 @@ extern int ena_logtype_com;
+ #define GENMASK_ULL(h, l) (((~0ULL) - (1ULL << (l)) + 1) &		       \
+ 			  (~0ULL >> (BITS_PER_LONG_LONG - 1 - (h))))
+ 
+-#ifdef RTE_LIBRTE_ENA_COM_DEBUG
+ #define ena_trc_log(dev, level, fmt, arg...)				       \
+ 	(								       \
+ 		ENA_TOUCH(dev),						       \
+@@ -121,12 +120,6 @@ extern int ena_logtype_com;
+ #define ena_trc_warn(dev, format, arg...)				       \
+ 	ena_trc_log(dev, WARNING, format, ##arg)
+ #define ena_trc_err(dev, format, arg...) ena_trc_log(dev, ERR, format, ##arg)
+-#else
+-#define ena_trc_dbg(dev, format, arg...) ENA_TOUCH(dev)
+-#define ena_trc_info(dev, format, arg...) ENA_TOUCH(dev)
+-#define ena_trc_warn(dev, format, arg...) ENA_TOUCH(dev)
+-#define ena_trc_err(dev, format, arg...) ENA_TOUCH(dev)
+-#endif /* RTE_LIBRTE_ENA_COM_DEBUG */
+ 
+ #define ENA_WARN(cond, dev, format, arg...)				       \
+ 	do {								       \
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 5dde780dc2..7a2c33f53e 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -163,12 +163,7 @@ int ena_logtype_rx;
+ #ifdef RTE_LIBRTE_ENA_DEBUG_TX
+ int ena_logtype_tx;
+ #endif
+-#ifdef RTE_LIBRTE_ENA_DEBUG_TX_FREE
+-int ena_logtype_tx_free;
+-#endif
+-#ifdef RTE_LIBRTE_ENA_COM_DEBUG
+ int ena_logtype_com;
+-#endif
+ 
+ static const struct rte_pci_id pci_id_ena_map[] = {
+ 	{ RTE_PCI_DEVICE(PCI_VENDOR_ID_AMAZON, PCI_DEVICE_ID_ENA_VF) },
+@@ -414,9 +409,9 @@ static int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
+ 	}
+ 
+ 	if (tx_info)
+-		PMD_DRV_LOG(ERR, "tx_info doesn't have valid mbuf\n");
++		PMD_TX_LOG(ERR, "tx_info doesn't have valid mbuf\n");
+ 	else
+-		PMD_DRV_LOG(ERR, "Invalid req_id: %hu\n", req_id);
++		PMD_TX_LOG(ERR, "Invalid req_id: %hu\n", req_id);
+ 
+ 	/* Trigger device reset */
+ 	++tx_ring->tx_stats.bad_req_id;
+@@ -1469,7 +1464,7 @@ static int ena_add_single_rx_desc(struct ena_com_io_sq *io_sq,
+ 	/* pass resource to device */
+ 	rc = ena_com_add_single_rx_desc(io_sq, &ebuf, id);
+ 	if (unlikely(rc != 0))
+-		PMD_DRV_LOG(WARNING, "Failed adding Rx desc\n");
++		PMD_RX_LOG(WARNING, "Failed adding Rx desc\n");
+ 
+ 	return rc;
+ }
+@@ -1479,16 +1474,21 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 	unsigned int i;
+ 	int rc;
+ 	uint16_t next_to_use = rxq->next_to_use;
+-	uint16_t in_use, req_id;
++	uint16_t req_id;
++#ifdef RTE_LIBRTE_ENA_DEBUG_RX
++	uint16_t in_use;
++#endif
+ 	struct rte_mbuf **mbufs = rxq->rx_refill_buffer;
+ 
+ 	if (unlikely(!count))
+ 		return 0;
+ 
++#ifdef RTE_LIBRTE_ENA_DEBUG_RX
+ 	in_use = rxq->ring_size - 1 -
+ 		ena_com_free_q_entries(rxq->ena_com_io_sq);
+-	ena_assert_msg(((in_use + count) < rxq->ring_size),
+-		"bad ring state\n");
++	if (unlikely((in_use + count) >= rxq->ring_size))
++		PMD_RX_LOG(ERR, "Bad Rx ring state\n");
++#endif
+ 
+ 	/* get resources for incoming packets */
+ 	rc = rte_mempool_get_bulk(rxq->mb_pool, (void **)mbufs, count);
+@@ -1518,7 +1518,7 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 	}
+ 
+ 	if (unlikely(i < count)) {
+-		PMD_DRV_LOG(WARNING,
++		PMD_RX_LOG(WARNING,
+ 			"Refilled Rx queue[%d] with only %d/%d buffers\n",
+ 			rxq->id, i, count);
+ 		rte_mempool_put_bulk(rxq->mb_pool, (void **)(&mbufs[i]),
+@@ -2229,12 +2229,14 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 	struct ena_com_rx_ctx ena_rx_ctx;
+ 	int i, rc = 0;
+ 
++#ifdef RTE_LIBRTE_ENA_DEBUG_TX
+ 	/* Check adapter state */
+ 	if (unlikely(rx_ring->adapter->state != ENA_ADAPTER_STATE_RUNNING)) {
+-		PMD_DRV_LOG(ALERT,
++		PMD_RX_LOG(ALERT,
+ 			"Trying to receive pkts while device is NOT running\n");
+ 		return 0;
+ 	}
++#endif
+ 
+ 	descs_in_use = rx_ring->ring_size -
+ 		ena_com_free_q_entries(rx_ring->ena_com_io_sq) - 1;
+@@ -2250,7 +2252,7 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 				    rx_ring->ena_com_io_sq,
+ 				    &ena_rx_ctx);
+ 		if (unlikely(rc)) {
+-			PMD_DRV_LOG(ERR,
++			PMD_RX_LOG(ERR,
+ 				"Failed to get the packet from the device, rc: %d\n",
+ 				rc);
+ 			if (rc == ENA_COM_NO_SPACE) {
+@@ -2427,13 +2429,13 @@ static int ena_check_space_and_linearize_mbuf(struct ena_ring *tx_ring,
+ 	 * be needed so we reduce the segments number from num_segments to 1
+ 	 */
+ 	if (!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq, 3)) {
+-		PMD_DRV_LOG(DEBUG, "Not enough space in the Tx queue\n");
++		PMD_TX_LOG(DEBUG, "Not enough space in the Tx queue\n");
+ 		return ENA_COM_NO_MEM;
+ 	}
+ 	++tx_ring->tx_stats.linearize;
+ 	rc = rte_pktmbuf_linearize(mbuf);
+ 	if (unlikely(rc)) {
+-		PMD_DRV_LOG(WARNING, "Mbuf linearize failed\n");
++		PMD_TX_LOG(WARNING, "Mbuf linearize failed\n");
+ 		rte_atomic64_inc(&tx_ring->adapter->drv_stats->ierrors);
+ 		++tx_ring->tx_stats.linearize_failed;
+ 		return rc;
+@@ -2447,7 +2449,7 @@ static int ena_check_space_and_linearize_mbuf(struct ena_ring *tx_ring,
+ 	 */
+ 	if (!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+ 					  num_segments + 2)) {
+-		PMD_DRV_LOG(DEBUG, "Not enough space in the Tx queue\n");
++		PMD_TX_LOG(DEBUG, "Not enough space in the Tx queue\n");
+ 		return ENA_COM_NO_MEM;
+ 	}
+ 
+@@ -2562,7 +2564,7 @@ static int ena_xmit_mbuf(struct ena_ring *tx_ring, struct rte_mbuf *mbuf)
+ 
+ 	if (unlikely(ena_com_is_doorbell_needed(tx_ring->ena_com_io_sq,
+ 			&ena_tx_ctx))) {
+-		PMD_DRV_LOG(DEBUG,
++		PMD_TX_LOG(DEBUG,
+ 			"LLQ Tx max burst size of queue %d achieved, writing doorbell to send burst\n",
+ 			tx_ring->id);
+ 		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+@@ -2639,12 +2641,14 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 	struct ena_ring *tx_ring = (struct ena_ring *)(tx_queue);
+ 	uint16_t sent_idx = 0;
+ 
++#ifdef RTE_LIBRTE_ENA_DEBUG_TX
+ 	/* Check adapter state */
+ 	if (unlikely(tx_ring->adapter->state != ENA_ADAPTER_STATE_RUNNING)) {
+-		PMD_DRV_LOG(ALERT,
++		PMD_TX_LOG(ALERT,
+ 			"Trying to xmit pkts while device is NOT running\n");
+ 		return 0;
+ 	}
++#endif
+ 
+ 	for (sent_idx = 0; sent_idx < nb_pkts; sent_idx++) {
+ 		if (ena_xmit_mbuf(tx_ring, tx_pkts[sent_idx]))
+@@ -2982,26 +2986,18 @@ RTE_INIT(ena_init_log)
+ #ifdef RTE_LIBRTE_ENA_DEBUG_RX
+ 	ena_logtype_rx = rte_log_register("pmd.net.ena.rx");
+ 	if (ena_logtype_rx >= 0)
+-		rte_log_set_level(ena_logtype_rx, RTE_LOG_NOTICE);
++		rte_log_set_level(ena_logtype_rx, RTE_LOG_DEBUG);
+ #endif
+ 
+ #ifdef RTE_LIBRTE_ENA_DEBUG_TX
+ 	ena_logtype_tx = rte_log_register("pmd.net.ena.tx");
+ 	if (ena_logtype_tx >= 0)
+-		rte_log_set_level(ena_logtype_tx, RTE_LOG_NOTICE);
++		rte_log_set_level(ena_logtype_tx, RTE_LOG_DEBUG);
+ #endif
+ 
+-#ifdef RTE_LIBRTE_ENA_DEBUG_TX_FREE
+-	ena_logtype_tx_free = rte_log_register("pmd.net.ena.tx_free");
+-	if (ena_logtype_tx_free >= 0)
+-		rte_log_set_level(ena_logtype_tx_free, RTE_LOG_NOTICE);
+-#endif
+-
+-#ifdef RTE_LIBRTE_ENA_COM_DEBUG
+ 	ena_logtype_com = rte_log_register("pmd.net.ena.com");
+ 	if (ena_logtype_com >= 0)
+-		rte_log_set_level(ena_logtype_com, RTE_LOG_NOTICE);
+-#endif
++		rte_log_set_level(ena_logtype_com, RTE_LOG_WARNING);
+ }
+ 
+ /******************************************************************************
+diff --git a/drivers/net/ena/ena_logs.h b/drivers/net/ena/ena_logs.h
+index 040bebfb98..6c83ae2229 100644
+--- a/drivers/net/ena/ena_logs.h
++++ b/drivers/net/ena/ena_logs.h
+@@ -29,15 +29,6 @@ extern int ena_logtype_tx;
+ #define PMD_TX_LOG(level, fmt, args...) do { } while (0)
+ #endif
+ 
+-#ifdef RTE_LIBRTE_ENA_DEBUG_TX_FREE
+-extern int ena_logtype_tx_free;
+-#define PMD_TX_FREE_LOG(level, fmt, args...)			\
+-	rte_log(RTE_LOG_ ## level, ena_logtype_tx_free,	\
+-		"%s(): " fmt, __func__, ## args)
+-#else
+-#define PMD_TX_FREE_LOG(level, fmt, args...) do { } while (0)
+-#endif
+-
+ extern int ena_logtype_driver;
+ #define PMD_DRV_LOG(level, fmt, args...) \
+ 	rte_log(RTE_LOG_ ## level, ena_logtype_driver, \
+-- 
+2.25.1
+

@@ -1,0 +1,32 @@
+From 43d2cf999b1d1c78198e79b908db7a576e417257 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 23 Jul 2021 12:24:54 +0200
+Subject: [PATCH 72/72] net/ena: update version to 2.4.0
+
+This version update contains:
+  * Rx interrupts feature,
+  * Support for the RSS hash function reconfiguration,
+  * Small rework of the works,
+  * Reset trigger on Tx path fix.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 52778866ab..044726f81a 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -21,7 +21,7 @@
+ #include <ena_eth_io_defs.h>
+ 
+ #define DRV_MODULE_VER_MAJOR	2
+-#define DRV_MODULE_VER_MINOR	3
++#define DRV_MODULE_VER_MINOR	4
+ #define DRV_MODULE_VER_SUBMINOR	0
+ 
+ #define __MERGE_64B_H_L(h, l) (((uint64_t)h << 32) | l)
+-- 
+2.25.1
+

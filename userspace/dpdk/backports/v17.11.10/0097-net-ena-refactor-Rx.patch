@@ -1,0 +1,340 @@
+From 5dc88fb5d9d45e025366da004304c3a33bff0da7 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:29:14 +0200
+Subject: [PATCH 097/166] net/ena: refactor Rx
+
+* Split main Rx function into multiple ones - the body of the main
+  was very big and further there were 2 nested loops, which were
+  making the code hard to read
+* Rework how the Rx mbuf chains are being created - Instead of having
+  while loop which has conditional check if it's first segment, handle
+  this segment outside the loop and if more fragments are existing,
+  process them inside.
+* Initialize Rx mbuf using simple function - it's the common thing for
+  the 1st and next segments.
+* Create structure for Rx buffer to align it with Tx path, other ENA
+  drivers and to make the variable name more descriptive - on DPDK, Rx
+  buffer must hold only mbuf, so initially array of mbufs was used as
+  the buffers. However, it was misleading, as it was named
+  "rx_buffer_info". To make it more clear, the structure holding mbuf
+  pointer was added and now there is possibility to expand it in the
+  future without reworking the driver.
+* Remove redundant variables and conditional checks.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 182 ++++++++++++++++++++++-------------
+ drivers/net/ena/ena_ethdev.h |   8 +-
+ 2 files changed, 124 insertions(+), 66 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 0f49cea3a2..c43d938744 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -174,6 +174,12 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev, uint16_t queue_idx,
+ 			      uint16_t nb_desc, unsigned int socket_id,
+ 			      const struct rte_eth_rxconf *rx_conf,
+ 			      struct rte_mempool *mp);
++static inline void ena_init_rx_mbuf(struct rte_mbuf *mbuf, uint16_t len);
++static struct rte_mbuf *ena_rx_mbuf(struct ena_ring *rx_ring,
++				    struct ena_com_rx_buf_info *ena_bufs,
++				    uint32_t descs,
++				    uint16_t *next_to_clean,
++				    uint8_t offset);
+ static uint16_t eth_ena_recv_pkts(void *rx_queue,
+ 				  struct rte_mbuf **rx_pkts, uint16_t nb_pkts);
+ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count);
+@@ -741,11 +747,13 @@ static void ena_rx_queue_release_bufs(struct ena_ring *ring)
+ {
+ 	unsigned int i;
+ 
+-	for (i = 0; i < ring->ring_size; ++i)
+-		if (ring->rx_buffer_info[i]) {
+-			rte_mbuf_raw_free(ring->rx_buffer_info[i]);
+-			ring->rx_buffer_info[i] = NULL;
++	for (i = 0; i < ring->ring_size; ++i) {
++		struct ena_rx_buffer *rx_info = &ring->rx_buffer_info[i];
++		if (rx_info->mbuf) {
++			rte_mbuf_raw_free(rx_info->mbuf);
++			rx_info->mbuf = NULL;
+ 		}
++	}
+ }
+ 
+ static void ena_tx_queue_release_bufs(struct ena_ring *ring)
+@@ -1360,8 +1368,8 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
+ 	rxq->mb_pool = mp;
+ 
+ 	rxq->rx_buffer_info = rte_zmalloc("rxq->buffer_info",
+-					  sizeof(struct rte_mbuf *) * nb_desc,
+-					  RTE_CACHE_LINE_SIZE);
++		sizeof(struct ena_rx_buffer) * nb_desc,
++		RTE_CACHE_LINE_SIZE);
+ 	if (!rxq->rx_buffer_info) {
+ 		RTE_LOG(ERR, PMD, "failed to alloc mem for rx buffer info\n");
+ 		return -ENOMEM;
+@@ -1429,15 +1437,17 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 		uint16_t next_to_use_masked = next_to_use & ring_mask;
+ 		struct rte_mbuf *mbuf = mbufs[i];
+ 		struct ena_com_buf ebuf;
++		struct ena_rx_buffer *rx_info;
+ 
+ 		if (likely((i + 4) < count))
+ 			rte_prefetch0(mbufs[i + 4]);
+ 
+ 		req_id = rxq->empty_rx_reqs[next_to_use_masked];
+ 		rc = validate_rx_req_id(rxq, req_id);
+-		if (unlikely(rc < 0))
++		if (unlikely(rc))
+ 			break;
+-		rxq->rx_buffer_info[req_id] = mbuf;
++
++		rx_info = &rxq->rx_buffer_info[req_id];
+ 
+ 		/* prepare physical address for DMA transaction */
+ 		ebuf.paddr = mbuf->buf_iova + RTE_PKTMBUF_HEADROOM;
+@@ -1447,9 +1457,9 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 						&ebuf, req_id);
+ 		if (unlikely(rc)) {
+ 			RTE_LOG(WARNING, PMD, "failed adding rx desc\n");
+-			rxq->rx_buffer_info[req_id] = NULL;
+ 			break;
+ 		}
++		rx_info->mbuf = mbuf;
+ 		next_to_use++;
+ 	}
+ 
+@@ -2083,6 +2093,83 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 					adapter->max_tx_sgl_size);
+ }
+ 
++static inline void ena_init_rx_mbuf(struct rte_mbuf *mbuf, uint16_t len)
++{
++	mbuf->data_len = len;
++	mbuf->data_off = RTE_PKTMBUF_HEADROOM;
++	mbuf->refcnt = 1;
++	mbuf->next = NULL;
++}
++
++static struct rte_mbuf *ena_rx_mbuf(struct ena_ring *rx_ring,
++				    struct ena_com_rx_buf_info *ena_bufs,
++				    uint32_t descs,
++				    uint16_t *next_to_clean,
++				    uint8_t offset)
++{
++	struct rte_mbuf *mbuf;
++	struct rte_mbuf *mbuf_head;
++	struct ena_rx_buffer *rx_info;
++	unsigned int ring_mask = rx_ring->ring_size - 1;
++	uint16_t ntc, len, req_id, buf = 0;
++
++	if (unlikely(descs == 0))
++		return NULL;
++
++	ntc = *next_to_clean;
++
++	len = ena_bufs[buf].len;
++	req_id = ena_bufs[buf].req_id;
++	if (unlikely(validate_rx_req_id(rx_ring, req_id)))
++		return NULL;
++
++	rx_info = &rx_ring->rx_buffer_info[req_id];
++
++	mbuf = rx_info->mbuf;
++	RTE_ASSERT(mbuf != NULL);
++
++	ena_init_rx_mbuf(mbuf, len);
++
++	/* Fill the mbuf head with the data specific for 1st segment. */
++	mbuf_head = mbuf;
++	mbuf_head->nb_segs = descs;
++	mbuf_head->port = rx_ring->port_id;
++	mbuf_head->pkt_len = len;
++	mbuf_head->data_off += offset;
++
++	rx_info->mbuf = NULL;
++	rx_ring->empty_rx_reqs[ntc & ring_mask] = req_id;
++	++ntc;
++
++	while (--descs) {
++		++buf;
++		len = ena_bufs[buf].len;
++		req_id = ena_bufs[buf].req_id;
++		if (unlikely(validate_rx_req_id(rx_ring, req_id))) {
++			rte_mbuf_raw_free(mbuf_head);
++			return NULL;
++		}
++
++		rx_info = &rx_ring->rx_buffer_info[req_id];
++		RTE_ASSERT(rx_info->mbuf != NULL);
++
++		/* Create an mbuf chain. */
++		mbuf->next = rx_info->mbuf;
++		mbuf = mbuf->next;
++
++		ena_init_rx_mbuf(mbuf, len);
++		mbuf_head->pkt_len += len;
++
++		rx_info->mbuf = NULL;
++		rx_ring->empty_rx_reqs[ntc & ring_mask] = req_id;
++		++ntc;
++	}
++
++	*next_to_clean = ntc;
++
++	return mbuf_head;
++}
++
+ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 				  uint16_t nb_pkts)
+ {
+@@ -2091,16 +2178,10 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 	unsigned int ring_mask = ring_size - 1;
+ 	uint16_t next_to_clean = rx_ring->next_to_clean;
+ 	uint16_t desc_in_use = 0;
+-	uint16_t req_id;
+-	unsigned int recv_idx = 0;
+-	struct rte_mbuf *mbuf = NULL;
+-	struct rte_mbuf *mbuf_head = NULL;
+-	struct rte_mbuf *mbuf_prev = NULL;
+-	struct rte_mbuf **rx_buff_info = rx_ring->rx_buffer_info;
+-	unsigned int completed;
+-
++	struct rte_mbuf *mbuf;
++	uint16_t completed;
+ 	struct ena_com_rx_ctx ena_rx_ctx;
+-	int rc = 0;
++	int i, rc = 0;
+ 
+ 	/* Check adapter state */
+ 	if (unlikely(rx_ring->adapter->state != ENA_ADAPTER_STATE_RUNNING)) {
+@@ -2114,8 +2195,6 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 		nb_pkts = desc_in_use;
+ 
+ 	for (completed = 0; completed < nb_pkts; completed++) {
+-		int segments = 0;
+-
+ 		ena_rx_ctx.max_bufs = rx_ring->sgl_size;
+ 		ena_rx_ctx.ena_bufs = rx_ring->ena_bufs;
+ 		ena_rx_ctx.descs = 0;
+@@ -2133,63 +2212,36 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 			return 0;
+ 		}
+ 
+-		if (unlikely(ena_rx_ctx.descs == 0))
+-			break;
+-
+-		while (segments < ena_rx_ctx.descs) {
+-			req_id = ena_rx_ctx.ena_bufs[segments].req_id;
+-			rc = validate_rx_req_id(rx_ring, req_id);
+-			if (unlikely(rc)) {
+-				if (segments != 0)
+-					rte_mbuf_raw_free(mbuf_head);
+-				break;
+-			}
+-
+-			mbuf = rx_buff_info[req_id];
+-			rx_buff_info[req_id] = NULL;
+-			mbuf->data_len = ena_rx_ctx.ena_bufs[segments].len;
+-			mbuf->data_off = RTE_PKTMBUF_HEADROOM;
+-			mbuf->refcnt = 1;
+-			mbuf->next = NULL;
+-			if (unlikely(segments == 0)) {
+-				mbuf->nb_segs = ena_rx_ctx.descs;
+-				mbuf->port = rx_ring->port_id;
+-				mbuf->pkt_len = 0;
+-				mbuf->data_off += ena_rx_ctx.pkt_offset;
+-				mbuf_head = mbuf;
+-			} else {
+-				/* for multi-segment pkts create mbuf chain */
+-				mbuf_prev->next = mbuf;
++		mbuf = ena_rx_mbuf(rx_ring,
++			ena_rx_ctx.ena_bufs,
++			ena_rx_ctx.descs,
++			&next_to_clean,
++			ena_rx_ctx.pkt_offset);
++		if (unlikely(mbuf == NULL)) {
++			for (i = 0; i < ena_rx_ctx.descs; ++i) {
++				rx_ring->empty_rx_reqs[next_to_clean & ring_mask] =
++					rx_ring->ena_bufs[i].req_id;
++				++next_to_clean;
+ 			}
+-			mbuf_head->pkt_len += mbuf->data_len;
+-
+-			mbuf_prev = mbuf;
+-			rx_ring->empty_rx_reqs[next_to_clean & ring_mask] =
+-				req_id;
+-			segments++;
+-			next_to_clean++;
+-		}
+-		if (unlikely(rc))
+ 			break;
++		}
+ 
+ 		/* fill mbuf attributes if any */
+-		ena_rx_mbuf_prepare(mbuf_head, &ena_rx_ctx);
++		ena_rx_mbuf_prepare(mbuf, &ena_rx_ctx);
+ 
+-		if (unlikely(mbuf_head->ol_flags &
++		if (unlikely(mbuf->ol_flags &
+ 				(PKT_RX_IP_CKSUM_BAD | PKT_RX_L4_CKSUM_BAD))) {
+ 			rte_atomic64_inc(&rx_ring->adapter->drv_stats->ierrors);
+ 			++rx_ring->rx_stats.bad_csum;
+ 		}
+ 
+-		mbuf_head->hash.rss = ena_rx_ctx.hash;
++		mbuf->hash.rss = ena_rx_ctx.hash;
+ 
+-		/* pass to DPDK application head mbuf */
+-		rx_pkts[recv_idx] = mbuf_head;
+-		recv_idx++;
+-		rx_ring->rx_stats.bytes += mbuf_head->pkt_len;
++		rx_pkts[completed] = mbuf;
++		rx_ring->rx_stats.bytes += mbuf->pkt_len;
+ 	}
+ 
+-	rx_ring->rx_stats.cnt += recv_idx;
++	rx_ring->rx_stats.cnt += completed;
+ 	rx_ring->next_to_clean = next_to_clean;
+ 
+ 	desc_in_use = desc_in_use - completed + 1;
+@@ -2199,7 +2251,7 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 		ena_populate_rx_queue(rx_ring, ring_size - desc_in_use);
+ 	}
+ 
+-	return recv_idx;
++	return completed;
+ }
+ 
+ static uint16_t
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 4e35475ea6..f697068707 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -44,6 +44,12 @@ struct ena_tx_buffer {
+ 	struct ena_com_buf bufs[ENA_PKT_MAX_BUFS];
+ };
+ 
++/* Rx buffer holds only pointer to the mbuf - may be expanded in the future */
++struct ena_rx_buffer {
++	struct rte_mbuf *mbuf;
++	struct ena_com_buf ena_buf;
++};
++
+ struct ena_calc_queue_size_ctx {
+ 	struct ena_com_dev_get_features_ctx *get_feat_ctx;
+ 	struct ena_com_dev *ena_dev;
+@@ -89,7 +95,7 @@ struct ena_ring {
+ 
+ 	union {
+ 		struct ena_tx_buffer *tx_buffer_info; /* contex of tx packet */
+-		struct rte_mbuf **rx_buffer_info; /* contex of rx packet */
++		struct ena_rx_buffer *rx_buffer_info; /* contex of rx packet */
+ 	};
+ 	struct rte_mbuf **rx_refill_buffer;
+ 	unsigned int ring_size; /* number of tx/rx_buffer_info's entries */
+-- 
+2.25.1
+

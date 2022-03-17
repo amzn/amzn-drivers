@@ -1,0 +1,32 @@
+From d369ada1d385ca5f5abaed3d5efe9f7277075110 Mon Sep 17 00:00:00 2001
+From: Erik Gabriel Carrillo <erik.g.carrillo@intel.com>
+Date: Wed, 4 Apr 2018 16:51:09 -0500
+Subject: [PATCH 017/177] mk: update timer library order in static build
+
+The introduction of the event timer adapter library adds a dependency
+on the rte_timer library from the rte_eventdev library.  Update the
+order so that the timer library comes after the eventdev library in the
+linker command when statically linking applications.
+
+Signed-off-by: Erik Gabriel Carrillo <erik.g.carrillo@intel.com>
+Acked-by: Jerin Jacob <jerin.jacob@caviumnetworks.com>
+Change-Id: Iaebb4de4300c208aae25d8a7468366df45acd2e3
+---
+ mk/rte.app.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mk/rte.app.mk b/mk/rte.app.mk
+index c7e7e7ecae..f8c14fb0fd 100644
+--- a/mk/rte.app.mk
++++ b/mk/rte.app.mk
+@@ -93,6 +93,7 @@ _LDLIBS-$(CONFIG_RTE_LIBRTE_MBUF)           += -lrte_mbuf
+ _LDLIBS-$(CONFIG_RTE_LIBRTE_NET)            += -lrte_net
+ _LDLIBS-$(CONFIG_RTE_LIBRTE_ETHER)          += -lrte_ethdev
+ _LDLIBS-$(CONFIG_RTE_LIBRTE_CRYPTODEV)      += -lrte_cryptodev
++_LDLIBS-$(CONFIG_RTE_LIBRTE_TIMER)          += -lrte_timer
+ _LDLIBS-$(CONFIG_RTE_LIBRTE_MEMPOOL)        += -lrte_mempool
+ _LDLIBS-$(CONFIG_RTE_LIBRTE_RING)           += -lrte_ring
+ _LDLIBS-$(CONFIG_RTE_LIBRTE_EAL)            += -lrte_eal
+-- 
+2.25.1
+

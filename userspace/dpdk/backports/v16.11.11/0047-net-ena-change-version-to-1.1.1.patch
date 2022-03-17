@@ -1,0 +1,28 @@
+From b677aee00a874e5ecb04925d105206db0d20d504 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 25 Oct 2018 19:59:23 +0200
+Subject: [PATCH 047/177] net/ena: change version to 1.1.1
+
+Version change is connected with major bug fixes.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index e2fec22d9f..812cd77b9b 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -53,7 +53,7 @@
+ 
+ #define DRV_MODULE_VER_MAJOR	1
+ #define DRV_MODULE_VER_MINOR	1
+-#define DRV_MODULE_VER_SUBMINOR	0
++#define DRV_MODULE_VER_SUBMINOR	1
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+ #define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+-- 
+2.25.1
+

@@ -1,0 +1,149 @@
+From 6a14861ec6a1354467cad47a21523b3c251b0228 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 26 Jan 2021 19:32:24 +0100
+Subject: [PATCH 079/107] net/ena: validate Rx req ID upon acquiring descriptor
+
+Instead of verifying the Rx descriptor each time it's being used in the
+driver code, now the verification happens on the HAL side.
+
+This simplifies code a lot as instead of doing 2 validations, only
+single one is needed. The driver have to check the rc value returned
+by the ena_com upon reading the Rx descriptor and trigger the reset
+if needed. It was previously the responsibility of the
+validate_rx_req_id() function.
+
+As part of the change, the version of the driver was bumped to v2.2.1.
+
+Fixes: 2061fe41f212 ("net/ena: linearize Tx mbuf")
+Cc: stable@dpdk.org
+
+Signed-off-by: Ido Segev <idose@amazon.com>
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+---
+ drivers/net/ena/base/ena_eth_com.c   |  3 +++
+ drivers/net/ena/base/ena_plat_dpdk.h |  1 +
+ drivers/net/ena/ena_ethdev.c         | 38 ++++++++--------------------
+ 3 files changed, 14 insertions(+), 28 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_eth_com.c b/drivers/net/ena/base/ena_eth_com.c
+index a35d92fbd3..5583a310a1 100644
+--- a/drivers/net/ena/base/ena_eth_com.c
++++ b/drivers/net/ena/base/ena_eth_com.c
+@@ -531,6 +531,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
+ {
+ 	struct ena_com_rx_buf_info *ena_buf = &ena_rx_ctx->ena_bufs[0];
+ 	struct ena_eth_io_rx_cdesc_base *cdesc = NULL;
++	u16 q_depth = io_cq->q_depth;
+ 	u16 cdesc_idx = 0;
+ 	u16 nb_hw_desc;
+ 	u16 i = 0;
+@@ -559,6 +560,8 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
+ 	do {
+ 		ena_buf[i].len = cdesc->length;
+ 		ena_buf[i].req_id = cdesc->req_id;
++		if (unlikely(ena_buf[i].req_id >= q_depth))
++			return ENA_COM_EIO;
+ 
+ 		if (++i >= nb_hw_desc)
+ 			break;
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 48c77f0c19..a1d749f83f 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -51,6 +51,7 @@ typedef uint64_t dma_addr_t;
+ #define ENA_COM_FAULT	-EFAULT
+ #define ENA_COM_TRY_AGAIN	-EAGAIN
+ #define ENA_COM_UNSUPPORTED    -EOPNOTSUPP
++#define ENA_COM_EIO    -EIO
+ 
+ #define ____cacheline_aligned __rte_cache_aligned
+ 
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 8853447497..846877ec86 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -27,7 +27,7 @@
+ 
+ #define DRV_MODULE_VER_MAJOR	2
+ #define DRV_MODULE_VER_MINOR	2
+-#define DRV_MODULE_VER_SUBMINOR	0
++#define DRV_MODULE_VER_SUBMINOR	1
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+ #define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+@@ -395,20 +395,6 @@ static inline void ena_tx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 	}
+ }
+ 
+-static inline int validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
+-{
+-	if (likely(req_id < rx_ring->ring_size))
+-		return 0;
+-
+-	PMD_DRV_LOG(ERR, "Invalid rx req_id: %hu\n", req_id);
+-
+-	rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+-	rx_ring->adapter->trigger_reset = true;
+-	++rx_ring->rx_stats.bad_req_id;
+-
+-	return -EFAULT;
+-}
+-
+ static int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
+ {
+ 	struct ena_tx_buffer *tx_info = NULL;
+@@ -1494,10 +1480,6 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ 			rte_prefetch0(mbufs[i + 4]);
+ 
+ 		req_id = rxq->empty_rx_reqs[next_to_use];
+-		rc = validate_rx_req_id(rxq, req_id);
+-		if (unlikely(rc))
+-			break;
+-
+ 		rx_info = &rxq->rx_buffer_info[req_id];
+ 
+ 		rc = ena_add_single_rx_desc(rxq->ena_com_io_sq, mbuf, req_id);
+@@ -2128,8 +2110,6 @@ static struct rte_mbuf *ena_rx_mbuf(struct ena_ring *rx_ring,
+ 
+ 	len = ena_bufs[buf].len;
+ 	req_id = ena_bufs[buf].req_id;
+-	if (unlikely(validate_rx_req_id(rx_ring, req_id)))
+-		return NULL;
+ 
+ 	rx_info = &rx_ring->rx_buffer_info[req_id];
+ 
+@@ -2153,10 +2133,6 @@ static struct rte_mbuf *ena_rx_mbuf(struct ena_ring *rx_ring,
+ 		++buf;
+ 		len = ena_bufs[buf].len;
+ 		req_id = ena_bufs[buf].req_id;
+-		if (unlikely(validate_rx_req_id(rx_ring, req_id))) {
+-			rte_mbuf_raw_free(mbuf_head);
+-			return NULL;
+-		}
+ 
+ 		rx_info = &rx_ring->rx_buffer_info[req_id];
+ 		RTE_ASSERT(rx_info->mbuf != NULL);
+@@ -2244,10 +2220,16 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 				    &ena_rx_ctx);
+ 		if (unlikely(rc)) {
+ 			PMD_DRV_LOG(ERR, "ena_com_rx_pkt error %d\n", rc);
+-			rx_ring->adapter->reset_reason =
+-				ENA_REGS_RESET_TOO_MANY_RX_DESCS;
++			if (rc == ENA_COM_NO_SPACE) {
++				++rx_ring->rx_stats.bad_desc_num;
++				rx_ring->adapter->reset_reason =
++					ENA_REGS_RESET_TOO_MANY_RX_DESCS;
++			} else {
++				++rx_ring->rx_stats.bad_req_id;
++				rx_ring->adapter->reset_reason =
++					ENA_REGS_RESET_INV_RX_REQ_ID;
++			}
+ 			rx_ring->adapter->trigger_reset = true;
+-			++rx_ring->rx_stats.bad_desc_num;
+ 			return 0;
+ 		}
+ 
+-- 
+2.25.1
+

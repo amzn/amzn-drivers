@@ -1,0 +1,57 @@
+From 0ddfdd50f99d549bff23824fb1d955ce67f48fae Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 1 Oct 2020 11:40:09 +0200
+Subject: [PATCH 140/177] net/ena: change name of the supported PCI device IDs
+
+The ID 0xEC21 is not associated with LLQ feature of the device, so it
+would be misleading for the user. Because of that, the current
+identifier is more precise.
+
+Together with code update, the documentation was changed to reflect
+current changes
+
+Change-Id: I7a22f68c45c7c83c7986ea926f712da1eb8722fe
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ doc/guides/nics/ena.rst      | 2 +-
+ drivers/net/ena/ena_ethdev.c | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/guides/nics/ena.rst b/doc/guides/nics/ena.rst
+index 81f47a306d..29fb322796 100644
+--- a/doc/guides/nics/ena.rst
++++ b/doc/guides/nics/ena.rst
+@@ -134,7 +134,7 @@ Supported ENA adapters
+ Current ENA PMD supports the following ENA adapters including:
+ 
+ * ``1d0f:ec20`` - ENA VF
+-* ``1d0f:ec21`` - ENA VF with LLQ support
++* ``1d0f:ec21`` - ENA VF RSERV0
+ 
+ Supported Operating Systems
+ ---------------------------
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 08687edc97..16350dd987 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -131,12 +131,12 @@ static const struct ena_stats ena_stats_rx_strings[] = {
+ /** Vendor ID used by Amazon devices */
+ #define PCI_VENDOR_ID_AMAZON 0x1D0F
+ /** Amazon devices */
+-#define PCI_DEVICE_ID_ENA_VF	0xEC20
+-#define PCI_DEVICE_ID_ENA_LLQ_VF	0xEC21
++#define PCI_DEVICE_ID_ENA_VF		0xEC20
++#define PCI_DEVICE_ID_ENA_VF_RSERV0	0xEC21
+ 
+ static struct rte_pci_id pci_id_ena_map[] = {
+ 	{ RTE_PCI_DEVICE(PCI_VENDOR_ID_AMAZON, PCI_DEVICE_ID_ENA_VF) },
+-	{ RTE_PCI_DEVICE(PCI_VENDOR_ID_AMAZON, PCI_DEVICE_ID_ENA_LLQ_VF) },
++	{ RTE_PCI_DEVICE(PCI_VENDOR_ID_AMAZON, PCI_DEVICE_ID_ENA_VF_RSERV0) },
+ 	{ .device_id = 0 },
+ };
+ 
+-- 
+2.25.1
+

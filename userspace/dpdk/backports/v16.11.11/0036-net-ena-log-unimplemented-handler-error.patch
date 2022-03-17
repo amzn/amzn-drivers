@@ -1,0 +1,44 @@
+From 5c1361e2c04021eb0ef5d6f8976cd1469f644427 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:12 +0200
+Subject: [PATCH 036/177] net/ena: log unimplemented handler error
+
+Enable AENQ FATAL_ERROR and WARNING callbacks by setting flags
+in aenq_groups. They are handled by "unimplemented handler".
+
+If unimplemented handler is called, error is logged.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 84e67253f4..5112ea2a97 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1317,7 +1317,9 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 
+ 	aenq_groups = BIT(ENA_ADMIN_LINK_CHANGE) |
+ 		      BIT(ENA_ADMIN_NOTIFICATION) |
+-		      BIT(ENA_ADMIN_KEEP_ALIVE);
++		      BIT(ENA_ADMIN_KEEP_ALIVE) |
++		      BIT(ENA_ADMIN_FATAL_ERROR) |
++		      BIT(ENA_ADMIN_WARNING);
+ 
+ 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
+ 	rc = ena_com_set_aenq_config(ena_dev, aenq_groups);
+@@ -1988,7 +1990,8 @@ static void ena_keep_alive(void *adapter_data,
+ static void unimplemented_aenq_handler(__rte_unused void *data,
+ 				       __rte_unused struct ena_admin_aenq_entry *aenq_e)
+ {
+-	// Unimplemented handler
++	RTE_LOG(ERR, PMD, "Unknown event was received or event with "
++			  "unimplemented handler\n");
+ }
+ 
+ static struct ena_aenq_handlers aenq_handlers = {
+-- 
+2.25.1
+

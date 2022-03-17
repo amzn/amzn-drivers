@@ -1,0 +1,43 @@
+From 07cb0f54afaa93a47fbf7bfde1fbc0aaa9735418 Mon Sep 17 00:00:00 2001
+From: Stephen Hemminger <stephen@networkplumber.org>
+Date: Wed, 29 May 2019 12:14:57 -0700
+Subject: [PATCH 020/107] net/ena: remove unnecessary cast
+
+The device private pointer (dev_private) is of type void *
+therefore no cast is necessary in C.
+
+Cc: stable@dpdk.org
+
+Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+Reviewed-by: Ferruh Yigit <ferruh.yigit@intel.com>
+---
+ drivers/net/ena/ena_ethdev.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 3e38002d63..f5ec609b10 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2473,8 +2473,7 @@ static int ena_xstats_get(struct rte_eth_dev *dev,
+ 			  struct rte_eth_xstat *xstats,
+ 			  unsigned int n)
+ {
+-	struct ena_adapter *adapter =
+-			(struct ena_adapter *)(dev->data->dev_private);
++	struct ena_adapter *adapter = dev->data->dev_private;
+ 	unsigned int xstats_count = ena_xstats_calc_num(dev);
+ 	unsigned int stat, i, count = 0;
+ 	int stat_offset;
+@@ -2525,8 +2524,7 @@ static int ena_xstats_get_by_id(struct rte_eth_dev *dev,
+ 				uint64_t *values,
+ 				unsigned int n)
+ {
+-	struct ena_adapter *adapter =
+-		(struct ena_adapter *)(dev->data->dev_private);
++	struct ena_adapter *adapter = dev->data->dev_private;
+ 	uint64_t id;
+ 	uint64_t rx_entries, tx_entries;
+ 	unsigned int i;
+-- 
+2.25.1
+

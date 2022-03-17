@@ -1,0 +1,154 @@
+From 7cbc92ab4f5d086a9066247ff1ef3d4268d6fda3 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:01 +0200
+Subject: [PATCH 026/177] net/ena: add LSC intr support and AENQ handling
+
+To make the LSC interrupt working, the AENQ must be configured properly
+in the ENA device. The AENQ interrupt is common for all maintenance
+interrupts - the proper handler is then executed depending on the
+received descriptor.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 47 +++++++++++++++++++++++++++++++-----
+ drivers/net/ena/ena_ethdev.h |  1 +
+ 2 files changed, 42 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 68b57490db..a1c614d8af 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -180,7 +180,7 @@ static struct rte_pci_id pci_id_ena_map[] = {
+ 	{ .device_id = 0 },
+ };
+ 
+-static struct ena_aenq_handlers empty_aenq_handlers;
++static struct ena_aenq_handlers aenq_handlers;
+ 
+ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 			   struct ena_com_dev_get_features_ctx *get_feat_ctx);
+@@ -704,8 +704,11 @@ static int ena_link_update(struct rte_eth_dev *dev,
+ 			   __rte_unused int wait_to_complete)
+ {
+ 	struct rte_eth_link *link = &dev->data->dev_link;
++	struct ena_adapter *adapter;
++
++	adapter = (struct ena_adapter *)(dev->data->dev_private);
+ 
+-	link->link_status = 1;
++	link->link_status = adapter->link_status ? ETH_LINK_UP : ETH_LINK_DOWN;
+ 	link->link_speed = ETH_SPEED_NUM_NONE;
+ 	link->link_duplex = ETH_LINK_FULL_DUPLEX;
+ 
+@@ -1196,6 +1199,7 @@ static int ena_populate_rx_queue(struct ena_ring *rxq, unsigned int count)
+ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 			   struct ena_com_dev_get_features_ctx *get_feat_ctx)
+ {
++	uint32_t aenq_groups;
+ 	int rc;
+ 	bool readless_supported;
+ 
+@@ -1231,7 +1235,7 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 	ena_dev->dma_addr_bits = ena_com_get_dma_width(ena_dev);
+ 
+ 	/* ENA device administration layer init */
+-	rc = ena_com_admin_init(ena_dev, &empty_aenq_handlers, true);
++	rc = ena_com_admin_init(ena_dev, &aenq_handlers, true);
+ 	if (rc) {
+ 		RTE_LOG(ERR, PMD,
+ 			"cannot initialize ena admin queue with device\n");
+@@ -1254,6 +1258,15 @@ static int ena_device_init(struct ena_com_dev *ena_dev,
+ 		goto err_admin_init;
+ 	}
+ 
++	aenq_groups = BIT(ENA_ADMIN_LINK_CHANGE);
++
++	aenq_groups &= get_feat_ctx->aenq.supported_groups;
++	rc = ena_com_set_aenq_config(ena_dev, aenq_groups);
++	if (rc) {
++		RTE_LOG(ERR, PMD, "Cannot configure aenq groups rc: %d\n", rc);
++		goto err_admin_init;
++	}
++
+ 	return 0;
+ 
+ err_admin_init:
+@@ -1273,6 +1286,8 @@ ena_interrupt_handler_rte(__rte_unused struct rte_intr_handle *intr_handle,
+ 	struct ena_com_dev *ena_dev = &adapter->ena_dev;
+ 
+ 	ena_com_admin_q_comp_intr_handler(ena_dev);
++	if (adapter->state != ENA_ADAPTER_STATE_CLOSED)
++		ena_com_aenq_intr_handler(ena_dev, adapter);
+ }
+ 
+ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+@@ -1370,6 +1385,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
+ 				   adapter);
+ 	rte_intr_enable(intr_handle);
+ 	ena_com_set_admin_polling_mode(ena_dev, false);
++	ena_com_admin_aenq_enable(ena_dev);
+ 
+ 	adapters_found++;
+ 	adapter->state = ENA_ADAPTER_STATE_INIT;
+@@ -1730,7 +1746,7 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ static struct eth_driver rte_ena_pmd = {
+ 	.pci_drv = {
+ 		.id_table = pci_id_ena_map,
+-		.drv_flags = RTE_PCI_DRV_NEED_MAPPING,
++		.drv_flags = RTE_PCI_DRV_NEED_MAPPING | RTE_PCI_DRV_INTR_LSC,
+ 		.probe = rte_eth_dev_pci_probe,
+ 		.remove = rte_eth_dev_pci_remove,
+ 	},
+@@ -1745,6 +1761,25 @@ RTE_PMD_REGISTER_PCI_TABLE(net_ena, pci_id_ena_map);
+ /******************************************************************************
+  ******************************** AENQ Handlers *******************************
+  *****************************************************************************/
++static void ena_update_on_link_change(void *adapter_data,
++				      struct ena_admin_aenq_entry *aenq_e)
++{
++	struct rte_eth_dev *eth_dev;
++	struct ena_adapter *adapter;
++	struct ena_admin_aenq_link_change_desc *aenq_link_desc;
++	uint32_t status;
++
++	adapter = (struct ena_adapter *)adapter_data;
++	aenq_link_desc = (struct ena_admin_aenq_link_change_desc *)aenq_e;
++	eth_dev = adapter->rte_dev;
++
++	status = get_ena_admin_aenq_link_change_desc_link_status(aenq_link_desc);
++	adapter->link_status = status;
++
++	ena_link_update(eth_dev, 0);
++	_rte_eth_dev_callback_process(eth_dev, RTE_ETH_EVENT_INTR_LSC, NULL);
++}
++
+ /**
+  * This handler will called for unknown event group or unimplemented handlers
+  **/
+@@ -1754,9 +1789,9 @@ static void unimplemented_aenq_handler(__rte_unused void *data,
+ 	// Unimplemented handler
+ }
+ 
+-static struct ena_aenq_handlers empty_aenq_handlers = {
++static struct ena_aenq_handlers aenq_handlers = {
+ 	.handlers = {
+-		[ENA_ADMIN_LINK_CHANGE] = unimplemented_aenq_handler,
++		[ENA_ADMIN_LINK_CHANGE] = ena_update_on_link_change,
+ 		[ENA_ADMIN_NOTIFICATION] = unimplemented_aenq_handler,
+ 		[ENA_ADMIN_KEEP_ALIVE] = unimplemented_aenq_handler
+ 	},
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 44018a48db..4322f27a11 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -174,6 +174,7 @@ struct ena_adapter {
+ 	struct ena_driver_stats *drv_stats;
+ 	enum ena_adapter_state state;
+ 
++	bool link_status;
+ };
+ 
+ #endif /* _ENA_ETHDEV_H_ */
+-- 
+2.25.1
+

@@ -1,0 +1,142 @@
+From 110c43da7922f1889b2ab4365d94e637d3fc7fbb Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 11:43:01 +0200
+Subject: [PATCH 058/107] net/ena/base: add ENI stats
+
+The Elastic Netfwork Interface (ENI) stats can be acquired from the HW.
+
+They can provide advanced values which can be further used by the
+application for better flow management.
+
+It isn't available to the DPDK application, yet. The PMD must expose
+them directly.
+
+Change-Id: I17bdfa96c0e4de985cae26642924d8e27bf70078
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.c                | 19 +++++++++-
+ drivers/net/ena/base/ena_com.h                |  9 +++++
+ .../net/ena/base/ena_defs/ena_admin_defs.h    | 37 ++++++++++++++++++-
+ 3 files changed, 62 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index b21c1f8d83..1463f5f1d4 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -2206,6 +2206,21 @@ static int ena_get_dev_stats(struct ena_com_dev *ena_dev,
+ 	return ret;
+ }
+ 
++int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
++			  struct ena_admin_eni_stats *stats)
++{
++	struct ena_com_stats_ctx ctx;
++	int ret;
++
++	memset(&ctx, 0x0, sizeof(ctx));
++	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_ENI);
++	if (likely(ret == 0))
++		memcpy(stats, &ctx.get_resp.u.eni_stats,
++		       sizeof(ctx.get_resp.u.eni_stats));
++
++	return ret;
++}
++
+ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
+ 				struct ena_admin_basic_stats *stats)
+ {
+@@ -2215,8 +2230,8 @@ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
+ 	memset(&ctx, 0x0, sizeof(ctx));
+ 	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_BASIC);
+ 	if (likely(ret == 0))
+-		memcpy(stats, &ctx.get_resp.basic_stats,
+-		       sizeof(ctx.get_resp.basic_stats));
++		memcpy(stats, &ctx.get_resp.u.basic_stats,
++		       sizeof(ctx.get_resp.u.basic_stats));
+ 
+ 	return ret;
+ }
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index 2acf6d8ae5..751bfcdd7e 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -600,6 +600,15 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
+ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
+ 				struct ena_admin_basic_stats *stats);
+ 
++/* ena_com_get_eni_stats - Get extended network interface statistics
++ * @ena_dev: ENA communication layer struct
++ * @stats: stats return value
++ *
++ * @return: 0 on Success and negative value otherwise.
++ */
++int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
++			  struct ena_admin_eni_stats *stats);
++
+ /* ena_com_set_dev_mtu - Configure the device mtu.
+  * @ena_dev: ENA communication layer struct
+  * @mtu: mtu value
+diff --git a/drivers/net/ena/base/ena_defs/ena_admin_defs.h b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+index 6d266c4cf4..be1747cd9f 100644
+--- a/drivers/net/ena/base/ena_defs/ena_admin_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+@@ -95,6 +95,8 @@ enum ena_admin_completion_policy_type {
+ enum ena_admin_get_stats_type {
+ 	ENA_ADMIN_GET_STATS_TYPE_BASIC              = 0,
+ 	ENA_ADMIN_GET_STATS_TYPE_EXTENDED           = 1,
++	/* extra HW stats for specific network interface */
++	ENA_ADMIN_GET_STATS_TYPE_ENI                = 2,
+ };
+ 
+ enum ena_admin_get_stats_scope {
+@@ -388,10 +390,43 @@ struct ena_admin_basic_stats {
+ 	uint32_t tx_drops_high;
+ };
+ 
++/* ENI Statistics Command. */
++struct ena_admin_eni_stats {
++	/* The number of packets shaped due to inbound aggregate BW
++	 * allowance being exceeded
++	 */
++	uint64_t bw_in_allowance_exceeded;
++
++	/* The number of packets shaped due to outbound aggregate BW
++	 * allowance being exceeded
++	 */
++	uint64_t bw_out_allowance_exceeded;
++
++	/* The number of packets shaped due to PPS allowance being exceeded */
++	uint64_t pps_allowance_exceeded;
++
++	/* The number of packets shaped due to connection tracking
++	 * allowance being exceeded and leading to failure in establishment
++	 * of new connections
++	 */
++	uint64_t conntrack_allowance_exceeded;
++
++	/* The number of packets shaped due to linklocal packet rate
++	 * allowance being exceeded
++	 */
++	uint64_t linklocal_allowance_exceeded;
++};
++
+ struct ena_admin_acq_get_stats_resp {
+ 	struct ena_admin_acq_common_desc acq_common_desc;
+ 
+-	struct ena_admin_basic_stats basic_stats;
++	union {
++		uint64_t raw[7];
++
++		struct ena_admin_basic_stats basic_stats;
++
++		struct ena_admin_eni_stats eni_stats;
++	} u;
+ };
+ 
+ struct ena_admin_get_set_feature_common_desc {
+-- 
+2.25.1
+

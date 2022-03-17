@@ -1,0 +1,36 @@
+From c2b47e3c730d7a2c6119dba2c291d477df77b05d Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Tue, 11 May 2021 08:45:47 +0200
+Subject: [PATCH 093/107] net/ena: fix crash with unsupported device argument
+
+As the documentation of rte_kvargs_parse() states, the valid_keys
+argument must be NULL terminated. Lack of this feature may cause
+segmentation fault if the passed devarg will be different then the
+supported value.
+
+Fixes: 8a7a73f26cc9 ("net/ena: support large LLQ headers")
+Cc: stable@dpdk.org
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Shay Agroskin <shayagr@amazon.com>
+Acked-by: Ferruh Yigit <ferruh.yigit@intel.com>
+---
+ drivers/net/ena/ena_ethdev.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 73663c9620..50b1715a9a 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -2891,6 +2891,7 @@ static int ena_parse_devargs(struct ena_adapter *adapter,
+ {
+ 	static const char * const allowed_args[] = {
+ 		ENA_DEVARG_LARGE_LLQ_HDR,
++		NULL,
+ 	};
+ 	struct rte_kvargs *kvlist;
+ 	int rc;
+-- 
+2.25.1
+

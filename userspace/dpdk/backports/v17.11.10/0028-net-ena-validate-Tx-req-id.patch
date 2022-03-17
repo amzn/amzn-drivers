@@ -1,0 +1,60 @@
+From e9011ed22d2ac210ee818339ba8d76d0ab5a070f Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:14 +0200
+Subject: [PATCH 028/166] net/ena: validate Tx req id
+
+Validate Tx req id during clearing completed packets.
+If id is wrong, trigger NIC reset.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 81e4fc63ea..66c1938b85 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -386,6 +386,27 @@ static inline int validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
+ 	return -EFAULT;
+ }
+ 
++static int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
++{
++	struct ena_tx_buffer *tx_info = NULL;
++
++	if (likely(req_id < tx_ring->ring_size)) {
++		tx_info = &tx_ring->tx_buffer_info[req_id];
++		if (likely(tx_info->mbuf))
++			return 0;
++	}
++
++	if (tx_info)
++		RTE_LOG(ERR, PMD, "tx_info doesn't have valid mbuf\n");
++	else
++		RTE_LOG(ERR, PMD, "Invalid req_id: %hu\n", req_id);
++
++	/* Trigger device reset */
++	tx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
++	tx_ring->adapter->trigger_reset	= true;
++	return -EFAULT;
++}
++
+ static void ena_config_host_info(struct ena_com_dev *ena_dev)
+ {
+ 	struct ena_admin_host_info *host_info;
+@@ -2153,6 +2174,10 @@ static uint16_t eth_ena_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
+ 
+ 	/* Clear complete packets  */
+ 	while (ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq, &req_id) >= 0) {
++		rc = validate_tx_req_id(tx_ring, req_id);
++		if (rc)
++			break;
++
+ 		/* Get Tx info & store how many descs were processed  */
+ 		tx_info = &tx_ring->tx_buffer_info[req_id];
+ 		total_tx_descs += tx_info->tx_descs;
+-- 
+2.25.1
+

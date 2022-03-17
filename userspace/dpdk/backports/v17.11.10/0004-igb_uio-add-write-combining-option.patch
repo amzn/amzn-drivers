@@ -1,0 +1,81 @@
+From d85c6b685b22438bb3f18405f4e875bc229590ab Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 29 Jun 2018 15:54:05 +0200
+Subject: [PATCH 004/166] igb_uio: add write combining option
+
+Write combining (WC) increases NIC performance by making better
+utilization of PCI bus, but cannot be use by all PMD.
+
+To get internal_addr memory need to be mapped. But as memory could not be
+mapped twice: with and without WC it should be skipped for WC. [1]
+
+To do not spoil other drivers that potentially could use internal_addr,
+parameter wc_activate adds possibility to skip it for those PMDs,
+that do not use it.
+
+[1] https://www.kernel.org/doc/ols/2008/ols2008v2-pages-135-144.pdf
+	section 5.3 and 5.4
+
+Change-Id: Iea8b1a6b43c83e259ac35e0e2ef022abea1623bc
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Bruce Richardson <bruce.richardson@intel.com>
+Acked-by: Ferruh Yigit <ferruh.yigit@intel.com>
+---
+ lib/librte_eal/linuxapp/igb_uio/igb_uio.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/lib/librte_eal/linuxapp/igb_uio/igb_uio.c b/lib/librte_eal/linuxapp/igb_uio/igb_uio.c
+index 3073bca319..bc1258e293 100644
+--- a/lib/librte_eal/linuxapp/igb_uio/igb_uio.c
++++ b/lib/librte_eal/linuxapp/igb_uio/igb_uio.c
+@@ -48,6 +48,7 @@ struct rte_uio_pci_dev {
+ 	atomic_t refcnt;
+ };
+ 
++static int wc_activate;
+ static char *intr_mode;
+ static enum rte_intr_mode igbuio_intr_mode_preferred = RTE_INTR_MODE_MSIX;
+ /* sriov sysfs */
+@@ -384,9 +385,13 @@ igbuio_pci_setup_iomem(struct pci_dev *dev, struct uio_info *info,
+ 	len = pci_resource_len(dev, pci_bar);
+ 	if (addr == 0 || len == 0)
+ 		return -1;
+-	internal_addr = ioremap(addr, len);
+-	if (internal_addr == NULL)
+-		return -1;
++	if (wc_activate == 0) {
++		internal_addr = ioremap(addr, len);
++		if (internal_addr == NULL)
++			return -1;
++	} else {
++		internal_addr = NULL;
++	}
+ 	info->mem[n].name = name;
+ 	info->mem[n].addr = addr;
+ 	info->mem[n].internal_addr = internal_addr;
+@@ -622,6 +627,9 @@ igbuio_pci_init_module(void)
+ {
+ 	int ret;
+ 
++	if (wc_activate != 0)
++		pr_info("wc_activate is set\n");
++
+ 	ret = igbuio_config_intr_mode(intr_mode);
+ 	if (ret < 0)
+ 		return ret;
+@@ -646,6 +654,12 @@ MODULE_PARM_DESC(intr_mode,
+ "    " RTE_INTR_MODE_LEGACY_NAME "     Use Legacy interrupt\n"
+ "\n");
+ 
++module_param(wc_activate, int, 0);
++MODULE_PARM_DESC(wc_activate,
++"Activate support for write combining (WC) (default=0)\n"
++"    0 - disable\n"
++"    other - enable\n");
++
+ MODULE_DESCRIPTION("UIO driver for Intel IGB PCI cards");
+ MODULE_LICENSE("GPL");
+ MODULE_AUTHOR("Intel Corporation");
+-- 
+2.25.1
+

@@ -1,0 +1,47 @@
+From 8c91192c5407c57ac11371d3b08b2cdb806d48f9 Mon Sep 17 00:00:00 2001
+From: David Marchand <david.marchand@redhat.com>
+Date: Fri, 23 Oct 2020 10:43:51 +0200
+Subject: [PATCH 127/166] net/ena: remove unused macro
+
+This assert macro is not called anymore.
+This also fixes an invalid reference to RTE_LOGTYPE_ERR that does not
+exist.
+
+Fixes: 3adcba9a8987 ("net/ena: update HAL to the newer version")
+Fixes: 6f1c9df9e9cc ("net/ena: use dynamic log type for debug logging")
+Cc: stable@dpdk.org
+
+Change-Id: I257f57e9f3a62cadc87dc4f73ca0b1960f9c97c8
+Signed-off-by: David Marchand <david.marchand@redhat.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 13 -------------
+ 1 file changed, 13 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 64e4ed798d..a0fa196e39 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -72,19 +72,6 @@ typedef uint64_t dma_addr_t;
+ #define ENA_GET_SYSTEM_USECS()						\
+ 	(rte_get_timer_cycles() * US_PER_S / rte_get_timer_hz())
+ 
+-#if RTE_LOG_LEVEL >= RTE_LOG_DEBUG
+-#define ENA_ASSERT(cond, format, arg...)				\
+-	do {								\
+-		if (unlikely(!(cond))) {				\
+-			RTE_LOG(ERR, PMD, format, ##arg);		\
+-			rte_panic("line %d\tassert \"" #cond "\""	\
+-					"failed\n", __LINE__);		\
+-		}							\
+-	} while (0)
+-#else
+-#define ENA_ASSERT(cond, format, arg...) do {} while (0)
+-#endif
+-
+ #define ENA_MAX_T(type, x, y) RTE_MAX((type)(x), (type)(y))
+ #define ENA_MAX32(x, y) ENA_MAX_T(uint32_t, (x), (y))
+ #define ENA_MAX16(x, y) ENA_MAX_T(uint16_t, (x), (y))
+-- 
+2.25.1
+

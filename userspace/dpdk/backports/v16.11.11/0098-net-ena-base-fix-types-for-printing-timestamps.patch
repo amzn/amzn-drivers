@@ -1,0 +1,47 @@
+From 84cf8aa1b2272f2d8184fe36559419ee28931adc Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:29:05 +0200
+Subject: [PATCH 098/177] net/ena/base: fix types for printing timestamps
+
+Because ena_com is being used by multiple platforms which are using
+different C versions, PRIu64 cannot be used directly and must be defined
+in the platform file.
+
+Fixes: b2b02edeb0d6 ("net/ena/base: upgrade HAL for new HW features")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c       | 2 +-
+ drivers/net/ena/base/ena_plat_dpdk.h | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 4968054a99..6257c535b1 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -2063,7 +2063,7 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
+ 		timestamp = (u64)aenq_common->timestamp_low |
+ 			((u64)aenq_common->timestamp_high << 32);
+ 		ENA_TOUCH(timestamp); /* In case debug is disabled */
+-		ena_trc_dbg("AENQ! Group[%x] Syndrom[%x] timestamp: [%"PRIu64"]\n",
++		ena_trc_dbg("AENQ! Group[%x] Syndrom[%x] timestamp: [%" ENA_PRIu64 "s]\n",
+ 			    aenq_common->group,
+ 			    aenq_common->syndrom,
+ 			    timestamp);
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index e3b4d0c21d..7f683bf717 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -337,5 +337,7 @@ void ena_rss_key_fill(void *key, size_t size);
+ 
+ #define ENA_INTR_INITIAL_TX_INTERVAL_USECS_PLAT 0
+ 
++#define ENA_PRIu64 PRIu64
++
+ #include "ena_includes.h"
+ #endif /* DPDK_ENA_COM_ENA_PLAT_DPDK_H_ */
+-- 
+2.25.1
+

@@ -1,0 +1,34 @@
+From eb7f6a64f114a4d660090a8bfc964335b7037628 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 14 Dec 2018 14:18:31 +0100
+Subject: [PATCH 055/177] net/ena: skip packet with wrong request id
+
+When invalid req_id is received, the reset should be handled by the
+application, as it is indicating invalid rings state, so further Rx
+is not making any sense.
+
+Fixes: c2034976673d ("net/ena: add Rx out of order completion")
+Cc: stable@dpdk.org
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 2c244c0351..8c52ed0481 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1852,6 +1852,8 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+ 			segments++;
+ 			next_to_clean++;
+ 		}
++		if (unlikely(rc))
++			break;
+ 
+ 		/* fill mbuf attributes if any */
+ 		ena_rx_mbuf_prepare(mbuf_head, &ena_rx_ctx);
+-- 
+2.25.1
+

@@ -1,0 +1,63 @@
+From bf6c2b1d134fe02108df13c648628c5cabd28d54 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Mon, 6 Jul 2020 16:11:11 +0200
+Subject: [PATCH 139/177] net/ena: fix setting Rx checksum flags in mbuf
+
+The driver was never setting PKT_RX_*_CKSUM_GOOD flags, so the only way
+of checking if the checksum was checked was by testing for the
+PKT_RX_*_CKSUM_BAD. In that situation, the application couldn't detect
+if the checksum was valid or uknown, as unknown flag is equal to 0.
+
+Moreover, the l3_csum_err value is only valid if the l3_proto is
+indicating IPv4, so it shouldn't be checked for other protocols.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Change-Id: I2b4f44551e84e3f90459a66174b5e1fb83056279
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index d05d91abed..08687edc97 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -269,21 +269,23 @@ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 	else if (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP)
+ 		packet_type |= RTE_PTYPE_L4_UDP;
+ 
+-	if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV4)
++	if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV4) {
+ 		packet_type |= RTE_PTYPE_L3_IPV4;
+-	else if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV6)
++		if (unlikely(ena_rx_ctx->l3_csum_err))
++			ol_flags |= PKT_RX_IP_CKSUM_BAD;
++		else
++			ol_flags |= PKT_RX_IP_CKSUM_GOOD;
++	} else if (ena_rx_ctx->l3_proto == ENA_ETH_IO_L3_PROTO_IPV6) {
+ 		packet_type |= RTE_PTYPE_L3_IPV6;
++	}
+ 
+-	if (!ena_rx_ctx->l4_csum_checked)
++	if (!ena_rx_ctx->l4_csum_checked || ena_rx_ctx->frag)
+ 		ol_flags |= PKT_RX_L4_CKSUM_UNKNOWN;
+ 	else
+-		if (unlikely(ena_rx_ctx->l4_csum_err) && !ena_rx_ctx->frag)
++		if (unlikely(ena_rx_ctx->l4_csum_err))
+ 			ol_flags |= PKT_RX_L4_CKSUM_BAD;
+ 		else
+-			ol_flags |= PKT_RX_L4_CKSUM_UNKNOWN;
+-
+-	if (unlikely(ena_rx_ctx->l3_csum_err))
+-		ol_flags |= PKT_RX_IP_CKSUM_BAD;
++			ol_flags |= PKT_RX_L4_CKSUM_GOOD;
+ 
+ 	mbuf->ol_flags = ol_flags;
+ 	mbuf->packet_type = packet_type;
+-- 
+2.25.1
+

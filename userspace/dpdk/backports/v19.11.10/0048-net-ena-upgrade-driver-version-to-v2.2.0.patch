@@ -1,0 +1,45 @@
+From f9cf090987f071b28fc9e65db8be8188674bda6b Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 24 Sep 2020 07:34:06 +0200
+Subject: [PATCH 48/72] net/ena: upgrade driver version to v2.2.0
+
+The v2.2.0 adds support for network interface metrics, includes some bug
+fixes and updates HAL to the latest version.
+
+Change-Id: I05bd701c0f824ee30bf9e37adec720f087522c33
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ doc/guides/rel_notes/release_19_11.rst | 1 +
+ drivers/net/ena/ena_ethdev.c           | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/guides/rel_notes/release_19_11.rst b/doc/guides/rel_notes/release_19_11.rst
+index 6159fbf868..bc26b886eb 100644
+--- a/doc/guides/rel_notes/release_19_11.rst
++++ b/doc/guides/rel_notes/release_19_11.rst
+@@ -350,6 +350,7 @@ New Features
+   * Added Tx drops as new extended driver statistic.
+   * Added support for accelerated LLQ mode.
+   * Handling of the 0 length descriptors on the Rx path.
++  * Added network interface metrics which can be read using xstats.
+ 
+ 
+ Removed Items
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 9839629e1a..b788d572da 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -27,7 +27,7 @@
+ #include <ena_eth_io_defs.h>
+ 
+ #define DRV_MODULE_VER_MAJOR	2
+-#define DRV_MODULE_VER_MINOR	1
++#define DRV_MODULE_VER_MINOR	2
+ #define DRV_MODULE_VER_SUBMINOR	0
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+-- 
+2.25.1
+

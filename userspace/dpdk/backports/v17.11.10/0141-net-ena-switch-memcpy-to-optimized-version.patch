@@ -1,0 +1,45 @@
+From e82a4043cffe41f96a2974a1066732f6033ee575 Mon Sep 17 00:00:00 2001
+From: Igor Chauskin <igorch@amazon.com>
+Date: Tue, 11 May 2021 08:45:36 +0200
+Subject: [PATCH 141/166] net/ena: switch memcpy to optimized version
+
+memcpy is now mapped to rte_memcpy macro on x86 architectures.
+
+Fixes: 9ba7981ec992 ("ena: add communication layer for DPDK")
+Cc: stable@dpdk.org
+
+Signed-off-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Artur Rojek <ar@semihalf.com>
+---
+ drivers/net/ena/base/ena_plat_dpdk.h | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 8b3c07a16a..58519250e6 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -25,6 +25,7 @@
+ #include <rte_spinlock.h>
+ 
+ #include <sys/time.h>
++#include <rte_memcpy.h>
+ 
+ typedef uint64_t u64;
+ typedef uint32_t u32;
+@@ -62,7 +63,11 @@ typedef uint64_t dma_addr_t;
+ #define ENA_UDELAY(x) rte_delay_us_block(x)
+ 
+ #define ENA_TOUCH(x) ((void)(x))
+-#define memcpy_toio memcpy
++/* Avoid nested declaration on arm64, as it may define rte_memcpy as memcpy. */
++#if defined(RTE_ARCH_X86)
++#undef memcpy
++#define memcpy rte_memcpy
++#endif
+ #define wmb rte_wmb
+ #define rmb rte_rmb
+ #define mb rte_mb
+-- 
+2.25.1
+

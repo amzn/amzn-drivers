@@ -1,0 +1,33 @@
+From 6617152d574cbc702b46a8f6da9360286b98007f Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:04 +0200
+Subject: [PATCH 029/177] net/ena: add reset routine
+
+Reset routine can be used by the DPDK application to reset the device in
+case of receiving RTE_ETH_EVENT_INTR_RESET from the PMD.
+
+The reset event is not triggered by the driver, yet. It will be added in
+next commits to enable error recovery in case of misfunctioning of the
+device.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 4322f27a11..96cc3a7485 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -175,6 +175,8 @@ struct ena_adapter {
+ 	enum ena_adapter_state state;
+ 
+ 	bool link_status;
++
++	enum ena_regs_reset_reason_types reset_reason;
+ };
+ 
+ #endif /* _ENA_ETHDEV_H_ */
+-- 
+2.25.1
+

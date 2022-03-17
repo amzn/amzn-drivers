@@ -1,0 +1,29 @@
+From 1fb8c2a3a1ec478fbaf22488359e96d4e261d45b Mon Sep 17 00:00:00 2001
+From: Jakub Palider <jpa@semihalf.com>
+Date: Wed, 4 Jan 2017 14:58:54 +0100
+Subject: [PATCH 003/177] net/ena: use correct field for Rx offload features
+
+Previously the capability bitmap for Rx offloads was mistakenly taken
+from Tx capability bitmap field. This patch fixes the problem.
+
+Signed-off-by: Jakub Palider <jpa@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 7de63e6c32..af09b0b3ff 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1463,7 +1463,7 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 			DEV_TX_OFFLOAD_UDP_CKSUM |
+ 			DEV_TX_OFFLOAD_TCP_CKSUM;
+ 
+-	if (feat.offload.tx &
++	if (feat.offload.rx_supported &
+ 	    ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_L4_IPV4_CSUM_MASK)
+ 		rx_feat |= DEV_RX_OFFLOAD_IPV4_CKSUM |
+ 			DEV_RX_OFFLOAD_UDP_CKSUM  |
+-- 
+2.25.1
+

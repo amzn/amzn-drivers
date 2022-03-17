@@ -1,0 +1,75 @@
+From b80d531df8c0cb75190e60fe6cde55f25b099d4a Mon Sep 17 00:00:00 2001
+From: Bruce Richardson <bruce.richardson@intel.com>
+Date: Thu, 4 May 2017 16:38:14 +0100
+Subject: [PATCH 013/177] drivers/net: disable new gcc 7 warnings for base code
+
+For base code in drivers shared with other projects, disable the new
+warnings from gcc 7 about unlabelled fall-through in switch statements.
+
+Signed-off-by: Bruce Richardson <bruce.richardson@intel.com>
+---
+ drivers/net/e1000/Makefile | 3 +++
+ drivers/net/fm10k/Makefile | 3 +++
+ drivers/net/ixgbe/Makefile | 3 +++
+ drivers/net/qede/Makefile  | 3 +++
+ 4 files changed, 12 insertions(+)
+
+diff --git a/drivers/net/e1000/Makefile b/drivers/net/e1000/Makefile
+index 3858148fd0..407056097f 100644
+--- a/drivers/net/e1000/Makefile
++++ b/drivers/net/e1000/Makefile
+@@ -58,6 +58,9 @@ CFLAGS_BASE_DRIVER += -Wno-unused-variable
+ ifeq ($(CONFIG_RTE_TOOLCHAIN_GCC),y)
+ ifeq ($(shell test $(GCC_VERSION) -ge 60 && echo 1), 1)
+ CFLAGS_BASE_DRIVER += -Wno-misleading-indentation
++ifeq ($(shell test $(GCC_VERSION) -ge 70 && echo 1), 1)
++CFLAGS_BASE_DRIVER += -Wno-implicit-fallthrough
++endif
+ endif
+ endif
+ endif
+diff --git a/drivers/net/fm10k/Makefile b/drivers/net/fm10k/Makefile
+index 4b1c194aaf..eabee4eac7 100644
+--- a/drivers/net/fm10k/Makefile
++++ b/drivers/net/fm10k/Makefile
+@@ -72,6 +72,9 @@ CFLAGS_BASE_DRIVER += -Wno-missing-field-initializers
+ ifeq ($(shell test $(GCC_VERSION) -ge 44 && echo 1), 1)
+ CFLAGS     += -Wno-deprecated
+ CFLAGS_BASE_DRIVER += -Wno-unused-but-set-variable
++ifeq ($(shell test $(GCC_VERSION) -ge 70 && echo 1), 1)
++CFLAGS_BASE_DRIVER += -Wno-implicit-fallthrough
++endif
+ endif
+ endif
+ 
+diff --git a/drivers/net/ixgbe/Makefile b/drivers/net/ixgbe/Makefile
+index 516ff30588..8f601dea26 100644
+--- a/drivers/net/ixgbe/Makefile
++++ b/drivers/net/ixgbe/Makefile
+@@ -77,6 +77,9 @@ endif
+ 
+ ifeq ($(shell test $(GCC_VERSION) -ge 50 && echo 1), 1)
+ CFLAGS_ixgbe_common.o += -Wno-logical-not-parentheses
++ifeq ($(shell test $(GCC_VERSION) -ge 70 && echo 1), 1)
++CFLAGS_BASE_DRIVER += -Wno-implicit-fallthrough
++endif
+ endif
+ 
+ endif
+diff --git a/drivers/net/qede/Makefile b/drivers/net/qede/Makefile
+index 296b2d5b1b..9814e3efb7 100644
+--- a/drivers/net/qede/Makefile
++++ b/drivers/net/qede/Makefile
+@@ -57,6 +57,9 @@ endif
+ CFLAGS_BASE_DRIVER += -Wno-strict-prototypes
+ ifeq ($(shell test $(GCC_VERSION) -ge 60 && echo 1), 1)
+ CFLAGS_BASE_DRIVER += -Wno-shift-negative-value
++ifeq ($(shell test $(GCC_VERSION) -ge 70 && echo 1), 1)
++CFLAGS_BASE_DRIVER += -Wno-implicit-fallthrough
++endif
+ endif
+ else ifeq ($(CONFIG_RTE_TOOLCHAIN_CLANG),y)
+ CFLAGS_BASE_DRIVER += -Wno-format-extra-args
+-- 
+2.25.1
+

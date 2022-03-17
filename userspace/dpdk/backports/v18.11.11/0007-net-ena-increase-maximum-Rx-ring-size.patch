@@ -1,0 +1,32 @@
+From c9e652a7169eb54df289270b13ea6e4f5bac0047 Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Fri, 14 Dec 2018 14:18:33 +0100
+Subject: [PATCH 007/107] net/ena: increase maximum Rx ring size
+
+Some of ENA devices supports 8k Rx rings. Maximum supported size is
+received upon device initialization.
+As ENA_DEFAULT_RING_SIZE_RX macro is upper limit, it needs to be
+adjusted.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index a041bb3c69..bf1e058377 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -115,7 +115,7 @@ struct ena_stats {
+ #define ENA_STAT_GLOBAL_ENTRY(stat) \
+ 	ENA_STAT_ENTRY(stat, dev)
+ 
+-#define ENA_MAX_RING_SIZE_RX 1024
++#define ENA_MAX_RING_SIZE_RX 8192
+ #define ENA_MAX_RING_SIZE_TX 1024
+ 
+ /*
+-- 
+2.25.1
+

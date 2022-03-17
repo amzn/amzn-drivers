@@ -1,0 +1,46 @@
+From fbabcc4aecb152480eebad0d149b59dd710a26a5 Mon Sep 17 00:00:00 2001
+From: Ghalem Boudour <ghalem.boudour@6wind.com>
+Date: Fri, 30 Jul 2021 10:34:41 +0200
+Subject: [PATCH 107/107] net/ena: enable multi-segment in Tx offload flags
+
+The DPDK ENA driver does not provide multi-segment tx offload capability.
+Let's add DEV_TX_OFFLOAD_MULTI_SEGS to ports offload capability by
+default, and always set it in dev->data->dev_conf.txmode.offload.
+
+This flag in not listed in doc/guides/nics/features/default.ini, so
+ena.ini does not need to be updated.
+
+Fixes: 1173fca25af9 ("ena: add polling-mode driver")
+Cc: stable@dpdk.org
+
+Signed-off-by: Ghalem Boudour <ghalem.boudour@6wind.com>
+Signed-off-by: Olivier Matz <olivier.matz@6wind.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 0bd642bf88..aa55d7f3c1 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1865,6 +1865,8 @@ static int ena_dev_configure(struct rte_eth_dev *dev)
+ 
+ 	adapter->state = ENA_ADAPTER_STATE_CONFIG;
+ 
++	dev->data->dev_conf.txmode.offloads |= DEV_TX_OFFLOAD_MULTI_SEGS;
++
+ 	adapter->tx_selected_offloads = dev->data->dev_conf.txmode.offloads;
+ 	adapter->rx_selected_offloads = dev->data->dev_conf.rxmode.offloads;
+ 	return 0;
+@@ -1938,6 +1940,7 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 			DEV_RX_OFFLOAD_TCP_CKSUM;
+ 
+ 	rx_feat |= DEV_RX_OFFLOAD_JUMBO_FRAME;
++	tx_feat |= DEV_TX_OFFLOAD_MULTI_SEGS;
+ 
+ 	/* Inform framework about available features */
+ 	dev_info->rx_offload_capa = rx_feat;
+-- 
+2.25.1
+

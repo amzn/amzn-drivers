@@ -1,0 +1,34 @@
+From 26287612614f14945f3871597acd4fc1bbc43227 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:29:21 +0200
+Subject: [PATCH 051/107] net/ena: update driver version to v2.1.0
+
+The v2.1.0 is refactoring Tx and Rx paths, including few bug fixes and
+is also adding a new features which are going to be available with the
+newest hardware.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/ena_ethdev.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 8b7f806bd5..1b629d72cb 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -26,8 +26,8 @@
+ #include <ena_eth_io_defs.h>
+ 
+ #define DRV_MODULE_VER_MAJOR	2
+-#define DRV_MODULE_VER_MINOR	0
+-#define DRV_MODULE_VER_SUBMINOR	3
++#define DRV_MODULE_VER_MINOR	1
++#define DRV_MODULE_VER_SUBMINOR	0
+ 
+ #define ENA_IO_TXQ_IDX(q)	(2 * (q))
+ #define ENA_IO_RXQ_IDX(q)	(2 * (q) + 1)
+-- 
+2.25.1
+

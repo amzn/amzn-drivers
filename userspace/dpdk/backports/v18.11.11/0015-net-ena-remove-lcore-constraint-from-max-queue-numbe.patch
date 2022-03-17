@@ -1,0 +1,37 @@
+From 710ef2f00697d587a12d56b10cf3a3d7dba936c8 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Fri, 25 Jan 2019 09:10:24 +0100
+Subject: [PATCH 015/107] net/ena: remove lcore constraint from max queue
+ number
+
+The number of queues was limited by number of lcores in the recent ENAv2
+patch. However, some apps like symmetric_mp, are configuring multiple
+queues although there is only single lcore used.
+
+To prevent failure in that case, the lcore number constraint was
+removed.
+
+Fixes: ea93d37eb49d ("net/ena: add HW queues depth setup")
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index b198b3d50e..b096eb12e5 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -1659,8 +1659,7 @@ static int ena_calc_io_queue_num(struct ena_com_dev *ena_dev,
+ 	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+ 		io_tx_sq_num = get_feat_ctx->llq.max_llq_num;
+ 
+-	io_queue_num = RTE_MIN(rte_lcore_count(), ENA_MAX_NUM_IO_QUEUES);
+-	io_queue_num = RTE_MIN(io_queue_num, io_rx_num);
++	io_queue_num = RTE_MIN(ENA_MAX_NUM_IO_QUEUES, io_rx_num);
+ 	io_queue_num = RTE_MIN(io_queue_num, io_tx_sq_num);
+ 	io_queue_num = RTE_MIN(io_queue_num, io_tx_cq_num);
+ 
+-- 
+2.25.1
+

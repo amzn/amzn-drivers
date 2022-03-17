@@ -1,0 +1,45 @@
+From 3b40dd52c4fd6f2370646fb422a9cf544796484f Mon Sep 17 00:00:00 2001
+From: Rafal Kozik <rk@semihalf.com>
+Date: Thu, 7 Jun 2018 11:43:11 +0200
+Subject: [PATCH 035/177] net/ena: add info about max number of Tx/Rx
+ descriptors
+
+In function ena_infos_get driver provides information about minimal
+and maximal number of Rx and Tx descriptors.
+
+Signed-off-by: Rafal Kozik <rk@semihalf.com>
+Acked-by: Michal Krawczyk <mk@semihalf.com>
+---
+ drivers/net/ena/ena_ethdev.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index 9e09dd6945..84e67253f4 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -83,6 +83,9 @@
+ 
+ #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+ 
++#define ENA_MAX_RING_DESC	ENA_DEFAULT_RING_SIZE
++#define ENA_MIN_RING_DESC	128
++
+ enum ethtool_stringset {
+ 	ETH_SS_TEST             = 0,
+ 	ETH_SS_STATS,
+@@ -1629,6 +1632,12 @@ static void ena_infos_get(struct rte_eth_dev *dev,
+ 	dev_info->max_rx_queues = adapter->num_queues;
+ 	dev_info->max_tx_queues = adapter->num_queues;
+ 	dev_info->reta_size = ENA_RX_RSS_TABLE_SIZE;
++
++	dev_info->rx_desc_lim.nb_max = ENA_MAX_RING_DESC;
++	dev_info->rx_desc_lim.nb_min = ENA_MIN_RING_DESC;
++
++	dev_info->tx_desc_lim.nb_max = ENA_MAX_RING_DESC;
++	dev_info->tx_desc_lim.nb_min = ENA_MIN_RING_DESC;
+ }
+ 
+ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
+-- 
+2.25.1
+

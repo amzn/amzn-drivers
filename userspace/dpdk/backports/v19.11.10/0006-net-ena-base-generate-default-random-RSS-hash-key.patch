@@ -1,0 +1,151 @@
+From 6120bb5ca888c4fff9c3582a50966c76ef36111e Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Wed, 8 Apr 2020 10:28:55 +0200
+Subject: [PATCH 06/72] net/ena/base: generate default random RSS hash key
+
+Although the RSS key still cannot be set, it is now being generated
+every time the driver is being initialized.
+
+Multiple devices can still have the same key if they're used by the same
+driver.
+
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c       | 34 ++++++++++++++++++++--------
+ drivers/net/ena/base/ena_com.h       |  3 ++-
+ drivers/net/ena/base/ena_plat_dpdk.h |  5 +++-
+ drivers/net/ena/ena_ethdev.c         | 17 ++++++++++++++
+ 4 files changed, 48 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index d86a83bd53..e112981092 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: BSD-3-Clause
+- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+ 
+@@ -1034,6 +1034,19 @@ static int ena_com_get_feature(struct ena_com_dev *ena_dev,
+ 				      feature_ver);
+ }
+ 
++static void ena_com_hash_key_fill_default_key(struct ena_com_dev *ena_dev)
++{
++	struct ena_admin_feature_rss_flow_hash_control *hash_key =
++		(ena_dev->rss).hash_key;
++
++	ENA_RSS_FILL_KEY(&hash_key->key, sizeof(hash_key->key));
++	/* The key is stored in the device in uint32_t array
++	 * as well as the API requires the key to be passed in this
++	 * format. Thus the size of our array should be divided by 4
++	 */
++	hash_key->keys_num = sizeof(hash_key->key) / sizeof(uint32_t);
++}
++
+ static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
+ {
+ 	struct ena_rss *rss = &ena_dev->rss;
+@@ -2411,15 +2424,16 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
+ 
+ 	switch (func) {
+ 	case ENA_ADMIN_TOEPLITZ:
+-		if (key_len > sizeof(hash_key->key)) {
+-			ena_trc_err("key len (%hu) is bigger than the max supported (%zu)\n",
+-				    key_len, sizeof(hash_key->key));
+-			return ENA_COM_INVAL;
++		if (key) {
++			if (key_len != sizeof(hash_key->key)) {
++				ena_trc_err("key len (%hu) doesn't equal the supported size (%zu)\n",
++					     key_len, sizeof(hash_key->key));
++				return ENA_COM_INVAL;
++			}
++			memcpy(hash_key->key, key, key_len);
++			rss->hash_init_val = init_val;
++			hash_key->keys_num = key_len / sizeof(u32);
+ 		}
+-
+-		memcpy(hash_key->key, key, key_len);
+-		rss->hash_init_val = init_val;
+-		hash_key->keys_num = key_len >> 2;
+ 		break;
+ 	case ENA_ADMIN_CRC32:
+ 		rss->hash_init_val = init_val;
+@@ -2749,6 +2763,8 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 indr_tbl_log_size)
+ 	if (unlikely(rc))
+ 		goto err_hash_key;
+ 
++	ena_com_hash_key_fill_default_key(ena_dev);
++
+ 	rc = ena_com_hash_ctrl_init(ena_dev);
+ 	if (unlikely(rc))
+ 		goto err_hash_ctrl;
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index efa7451fd4..d9d77ec6d4 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: BSD-3-Clause
+- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
++ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+  * All rights reserved.
+  */
+ 
+@@ -55,6 +55,7 @@
+ #define ENA_INTR_DELAY_NEW_VALUE_WEIGHT			4
+ #define ENA_INTR_MODER_LEVEL_STRIDE			1
+ #define ENA_INTR_BYTE_COUNT_NOT_SUPPORTED		0xFFFFFF
++#define ENA_HASH_KEY_SIZE				40
+ 
+ #define ENA_HW_HINTS_NO_TIMEOUT 0xFFFF
+ 
+diff --git a/drivers/net/ena/base/ena_plat_dpdk.h b/drivers/net/ena/base/ena_plat_dpdk.h
+index 68f7962e5f..8a7071f263 100644
+--- a/drivers/net/ena/base/ena_plat_dpdk.h
++++ b/drivers/net/ena/base/ena_plat_dpdk.h
+@@ -317,6 +317,9 @@ extern rte_atomic32_t ena_alloc_cnt;
+ 
+ #define ENA_FFS(x) ffs(x)
+ 
+-#include "ena_includes.h"
++void ena_rss_key_fill(void *key, size_t size);
++
++#define ENA_RSS_FILL_KEY(key, size) ena_rss_key_fill(key, size)
+ 
++#include "ena_includes.h"
+ #endif /* DPDK_ENA_COM_ENA_PLAT_DPDK_H_ */
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index c97ca62e60..012f194078 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -256,6 +256,23 @@ static const struct eth_dev_ops ena_dev_ops = {
+ 	.reta_query           = ena_rss_reta_query,
+ };
+ 
++void ena_rss_key_fill(void *key, size_t size)
++{
++	static bool key_generated;
++	static uint8_t default_key[ENA_HASH_KEY_SIZE];
++	size_t i;
++
++	RTE_ASSERT(size <= ENA_HASH_KEY_SIZE);
++
++	if (!key_generated) {
++		for (i = 0; i < ENA_HASH_KEY_SIZE; ++i)
++			default_key[i] = rte_rand() & 0xff;
++		key_generated = true;
++	}
++
++	rte_memcpy(key, default_key, size);
++}
++
+ static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
+ 				       struct ena_com_rx_ctx *ena_rx_ctx)
+ {
+-- 
+2.25.1
+

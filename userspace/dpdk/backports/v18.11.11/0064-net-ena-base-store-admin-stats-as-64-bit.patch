@@ -1,0 +1,41 @@
+From b18a47fac8235a0c901d28adeb6990f1b67a1196 Mon Sep 17 00:00:00 2001
+From: Michal Krawczyk <mk@semihalf.com>
+Date: Thu, 9 Jul 2020 12:10:58 +0200
+Subject: [PATCH 064/107] net/ena/base: store admin stats as 64-bit
+
+To minimize chance of integer overflow, the type of admin statistics was
+changed from u32 to u64.
+
+Change-Id: Ibb5af01f46353dad7299786c471147ade2108adf
+Signed-off-by: Michal Krawczyk <mk@semihalf.com>
+Reviewed-by: Igor Chauskin <igorch@amazon.com>
+Reviewed-by: Guy Tzalik <gtzalik@amazon.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ drivers/net/ena/base/ena_com.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index f507aa47ed..8eacaeab0e 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -192,11 +192,11 @@ struct ena_com_admin_sq {
+ };
+ 
+ struct ena_com_stats_admin {
+-	u32 aborted_cmd;
+-	u32 submitted_cmd;
+-	u32 completed_cmd;
+-	u32 out_of_space;
+-	u32 no_completion;
++	u64 aborted_cmd;
++	u64 submitted_cmd;
++	u64 completed_cmd;
++	u64 out_of_space;
++	u64 no_completion;
+ };
+ 
+ struct ena_com_admin_queue {
+-- 
+2.25.1
+
