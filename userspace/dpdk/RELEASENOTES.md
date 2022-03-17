@@ -4,6 +4,51 @@ ___
 
 ### Normal releases
 
+#### v21.11
+_Release of the new version of the driver - r2.5.0_
+
+New Features:
+* Support tx_free_thresh and rx_free_thresh configuration parameters.
+* Add NUMA aware allocations for the queue helper structures.
+* Add checking for the missing Tx completions to avoid Tx queue stalls.
+
+Bug Fixes:
+* Fix offloads capabilities verification. Take into consideration capabilities
+  provided by the hardware instead of assuming that they're always supported,
+  add IPv6 checksum offload support, add extra verifications in the Tx prepare
+  function
+* Fix per-queue offload capabilities.
+* Expose scattered Rx capability, which was already supported by the PMD.
+
+Minor Changes:
+* Remove unused and invalid pointer validation in the redirection table
+  setup code.
+
+#### v21.08
+_Release of the new version of the driver - r2.4.0_
+
+New Features:
+* Full RSS reconfiguration support. PMD now allows the users to change the RSS
+  hash key on the supported hardware. The default RSS key is chosen randomly
+  if not provided by the application.
+* Rx interrupt support. The Rx polling thread now can use Rx interrupts to wake
+  up when something will become available on the Rx path.
+
+Bug Fixes:
+* Provide multi-segment Tx offload capability. ENA driver was already
+  supporting this feature, but it wasn't being announced to the application as
+  a capability.
+* Trigger reset on Tx prepare failure. As Tx prepare should never fail in the
+  normal conditions, the upper layer should be notified about the invalid driver
+  state and trigger the reset routine.
+* Adjust logs, by fixing the new-line characters (in most of the logs they were
+  doubled) and unifying the style of the messages.
+
+Minor Changes:
+* Use the common debugging options, instead of defining ones in the driver.
+  RTE_ETH_DEBUG_[TR]X now is used instead of the RTE_LIBRTE_ENA_DEBUG_[TR]X and
+  also those flags wraps the IO code used only for debugging.
+
 #### v21.05
 _Release of the new version of the driver - r2.3.0_
 
@@ -322,6 +367,37 @@ _Release of the driver (unversioned)_
 
 There comes only backported patches.
 
+#### v20.11.3
+Bug fixes:
+* Provide multi-segment Tx offload capability. ENA driver was already
+  supporting this feature, but it wasn't being announced to the application as
+  a capability. (v21.08)
+* Trigger reset on Tx prepare failure. As Tx prepare should never fail in the
+  normal conditions, the upper layer should be notified about the invalid driver
+  state and trigger the reset routine. (v21.08)
+
+#### v20.11.2
+Bug fixes:
+* Hal fixes (v21.05):
+  - Fix type conversions by adding explicit type casting.
+  - Destroy multiple wait events instead of only single one.
+  - Style and comments fixes.
+* Clear mbuf pointers on the Tx queue release function, to avoid situation when
+  the application could receive duplicate mbufs for two different packets.
+  (v21.05)
+* Fix parsing of the unsupported device arguments. (v21.05)
+* Fix parsing of the large LLQ header device argument. (v21.05)
+* Report default ring size value and do not treat value
+  `RTE_ETH_DEV_FALLBACK_[TR]X_RINGSIZE` as a hint to use the internal default.
+  The fallback value is set by the ethdev layer and it is valid size value,
+  which is used when the application didn't set ring size and driver doesn't
+  report any size, neither. (v21.05)
+* Indicate RSS hash presence in the mbuf, by setting the `PKT_RX_RSS_HASH` and
+  setting the capability: `DEV_RX_OFFLOAD_RSS_HASH`. (v21.05)
+
+Minor Changes:
+* Switch memcpy to optimized version on x86 and x86_64. (v21.05)
+
 #### v20.11.1
 Bug fixes:
 * Prevent driver from calling doorbell twice on Tx path when Tx burst doorbell
@@ -338,6 +414,26 @@ Bug fixes:
 * Validate Rx requested ID upon acquiring descriptor instead of doing that each
   time it's being used in the driver code. As a result this value is validated
   only once and a driver code could be simplified. (v21.02)
+
+#### v19.11.10
+Bug fixes:
+* Provide multi-segment Tx offload capability. ENA driver was already
+  supporting this feature, but it wasn't being announced to the application as
+  a capability. (v21.08)
+* Trigger reset on Tx prepare failure. As Tx prepare should never fail in the
+  normal conditions, the upper layer should be notified about the invalid driver
+  state and trigger the reset routine. (v21.08)
+
+#### v19.11.9
+Bug fixes:
+* Hal fix (v21.05):
+  - Fix type conversions by adding explicit type casting.
+* Clear mbuf pointers on the Tx queue release function, to avoid situation when
+  the application could receive duplicate mbufs for two different packets.
+  (v21.05)
+
+Minor Changes:
+* Switch memcpy to optimized version on x86 and x86_64. (v21.05)
 
 #### v19.11.7
 Bug fixes:
