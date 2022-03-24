@@ -1,7 +1,7 @@
 # DPDK driver for Elastic Network Adapter (ENA)
 
 - [1. Overview](#1-overview)
-- [2. ENA versions and DPDK releases](#2-ena-versions-and-dpdk-releases)
+- [2. ENA PMD versions and DPDK releases](#2-ena-pmd-versions-and-dpdk-releases)
 - [3. ENA PMD backports](#3-ena-pmd-backports)
   - [3.1. Manual patching](#31-manual-patching)
   - [3.2. Patching using script](#32-patching-using-script)
@@ -55,6 +55,7 @@
   - [12.2. Rx path](#122-rx-path)
 - [13. General FAQ](#13-general-faq)
 - [14. Performance FAQ](#14-performance-faq)
+- [15. Known issues](#15-known-issues)
 
 ## 1. Overview
 
@@ -74,28 +75,29 @@ versions, as not all version discrepancy topics were covered. However, the most
 important changes between the different ENA and the DPDK versions are being
 documented.
 
-## 2. ENA versions and DPDK releases
+## 2. ENA PMD versions and DPDK releases
 
-New ENA driver version releases are strictly associated with the new releases
+New ENA PMD version releases are strictly associated with the new releases
 of the DPDK framework. Table below allows to quickly associate DPDK releases
-with the ENA driver's releases.
+with the ENA PMD releases.
 
-| DPDK version | ENA version  |
-|--------------|--------------|
-| 16.04        | unversioned  |
-| 16.07        | 1.0.0        |
-| 18.08        | 1.1.0        |
-| 18.11        | 1.1.1        |
-| 19.02        | 2.0.0        |
-| 19.08        | 2.0.1        |
-| 19.11        | 2.0.2        |
-| 20.02        | 2.0.3        |
-| 20.05        | 2.1.0        |
-| 20.11        | 2.2.0        |
-| 21.02        | 2.2.1        |
-| 21.05        | 2.3.0        |
-| 21.08        | 2.4.0        |
-| 21.11        | 2.5.0        |
+| DPDK version | ENA PMD version  |
+|--------------|------------------|
+| 16.04        | unversioned      |
+| 16.07        | 1.0.0            |
+| 18.08        | 1.1.0            |
+| 18.11        | 1.1.1            |
+| 19.02        | 2.0.0            |
+| 19.08        | 2.0.1            |
+| 19.11        | 2.0.2            |
+| 20.02        | 2.0.3            |
+| 20.05        | 2.1.0            |
+| 20.11        | 2.2.0            |
+| 21.02        | 2.2.1            |
+| 21.05        | 2.3.0            |
+| 21.08        | 2.4.0            |
+| 21.11        | 2.5.0            |
+| 22.03        | 2.6.0            |
 
 ## 3. ENA PMD backports
 
@@ -321,8 +323,9 @@ purpose. The example usage of the device arguments for device with PCI BDF of
 
 ENA supports below devargs:
 
-- **large_llq_hdr** *(default 0)* - Starting from DPDK v20.05. Enables or
-  disables usage of large LLQ headers.
+- **large_llq_hdr**
+
+  Enables or disables usage of large LLQ headers.
 
   Allows application to send packets which header size is greater than 96B.
   Large LLQ header maximum size is 224B.
@@ -334,6 +337,29 @@ ENA supports below devargs:
 
   Note: it's fully functional since DPDK release v21.05 (ENA v2.3.0) and LTS
   release v20.11.2.
+
+  - **First appeared in:** _DPDK v20.05_, but it's fully functional since
+    _DPDK v21.05_ and LTS _v20.11.2_.
+  - **Valid values**:
+    - `0` _(default)_ - large LLQ headers are turned off
+    - `1` - large LLQ headers are turned on
+
+- **miss_txc_to**
+
+  Defines the timeout in seconds after which the completion for the Tx packet is
+  considered missing. This value may be adjusted if the application uses the
+  watchdog which checks for the Tx ring stall. Please refer to the
+  [device reset section](#9-device-reset-and-the-timer-service) for more
+  details.
+
+  **Caution**: disabling the feature can potentially lead to a performance
+  degradation or a Tx queue stall in case of excessive missing Tx completions.
+
+  - **First appeared in:** _DPDK v22.03_
+  - **Valid values _[sec]_**:
+    - _Minimal_ - `0` (disables Tx completions check feature)
+    - _Maximal_ - `60`
+    - _Default_ - `5`
 
 ### 5.2. Makefile (deprecated starting from v20.11)
 
@@ -632,7 +658,8 @@ performed (x86_64 only):
       If `write-combining` appears next to this memory region as above, then the
       Write Combining is working properly. Only the second line in the above
       output is relevant, as it describes the prefetchable memory region
-      starting at the address `0xfe900000`.
+      starting at the address `0xfe900000`.  Otherwise, please refer to the
+      [known issues](#15-known-issues) section.
 
 ### 6.3. Note about usage on *.metal instances
 
@@ -863,12 +890,12 @@ by the DPDK, ENA provides extra ones:
 
 Statistics global for the driver.
 
-- `wd_expired` - The number of times keep alive watchdog has expired.
-- `dev_start` - The number of times the device was started.
-- `dev_stop` - The number of times the device was stopped.
-- `tx_drops` - (since ENA v2.0.3) The number of Tx packets dropped
-  by the HW. Device can start dropping Tx packets if the driver will push more data
-  than the link can handle.
+| Statistic          | Supported in ENA PMD | Description                                          |
+|--------------------|----------------------|------------------------------------------------------|
+| `wd_expired`       | All                  | The number of times keep alive watchdog has expired. |
+| `dev_start`        | All                  | The number of times the device was started.          |
+| `dev_stop`         | All                  | The number of times the device was stopped.          |
+| `tx_drops`         | 2.0.3 and later      |  The number of Tx packets dropped by the HW. Device can start dropping Tx packets if the driver will push more data than the link can handle. |
 
 #### 8.2.2. ENI limiters
 
@@ -877,59 +904,50 @@ limiters. More details about those metrics can be read in the
 [related AWS blog post](https://aws.amazon.com/blogs/networking-and-content-delivery/amazon-ec2-instance-level-network-performance-metrics-uncover-new-insights/).
 Available since ENA v2.2.0.
 
-- `bw_in_allowance_exceeded` - The number of packets queued or dropped because
-  the inbound aggregate bandwidth exceeded the maximum for the instance.
-- `bw_out_allowance_exceeded` - The number of packets queued or dropped because
-  the outbound aggregate bandwidth exceeded the maximum for the instance.
-- `pps_allowance_exceeded` - The number of packets queued or dropped because the
-  bidirectional PPS exceeded the maximum for the instance.
-- `conntrack_allowance_exceeded` -The number of packets dropped because
-  connection tracking exceeded the maximum for the instance and new connections
-  could not be established. This can result in packet loss for traffic to or
-  from the instance.
-- `linklocal_allowance_exceeded` - The number of packets dropped because the PPS
-  of the traffic to local proxy services exceeded the maximum for the network
-  interface. This impacts traffic to the DNS service, the Instance Metadata
-  Service, and the Amazon Time Sync Service.
+
+| Metric                         | Description |
+|--------------------------------|-------------|
+| `bw_in_allowance_exceeded`     | The number of packets queued or dropped because the inbound aggregate bandwidth exceeded the maximum for the instance. |
+| `bw_out_allowance_exceeded`    | The number of packets queued or dropped because the outbound aggregate bandwidth exceeded the maximum for the instance. |
+| `pps_allowance_exceeded`       | The number of packets queued or dropped because the bidirectional PPS exceeded the maximum for the instance. |
+| `conntrack_allowance_exceeded` | The number of packets dropped because connection tracking exceeded the maximum for the instance and new connections could not be established. This can result in packet loss for traffic to or from the instance. |
+| `linklocal_allowance_exceeded` | The number of packets dropped because the PPS of the traffic to local proxy services exceeded the maximum for the network interface. This impacts traffic to the DNS service, the Instance Metadata Service, and the Amazon Time Sync Service. |
 
 #### 8.2.3. Tx per-queue statistics
 
 Each Tx queue provides below set of statistics. Each statistic described below
 has "tx_qX_" prefix, where 'X' stands for the queue ID.
 
-- `cnt` - The number of packets were transmitted by this queue.
-- `bytes` - The number of bytes were transmitted by this queue.
-- `prepare_ctx_err` - The number of failures of the Tx routine which prepares
-  packets for the hardware. This kind of error is a reset condition.
-- `linearize` - The number of times Tx packet has been linearized by the driver
-  because it had too much segments.
-- `linearize_failed` - The number of times linearization of the Tx packet has
-  failed.
-- `tx_poll` -  The number of times the Tx polling function has been called.
-- `doorbells` - The number of times the hardware doorbell has been written.
-- `bad_req_id` - The number of times invalid Tx request ID has been detect. It
-  is a reset condition.
-- `available_desc` - The number of Tx descriptors that has been available last
-  time, the Tx burst function has been called. Rough calculations for devices
-  using LLQ.
+| Statistic          | Supported in ENA PMD | Description                                                    |
+|--------------------|----------------------|----------------------------------------------------------------|
+| `cnt`              | All                  | The number of packets were transmitted by this queue.          |
+| `bytes`            | All                  | The number of bytes were transmitted by this queue.            |
+| `prepare_ctx_err`  | All                  | The number of failures of the Tx routine which prepares packets for the hardware. This kind of error is a reset condition. |
+| `linearize`        | All                  | The number of times Tx packet has been linearized by the driver because it had too much segments. |
+| `linearize_failed` | All                  | The number of times linearization of the Tx packet has failed. |
+| `tx_poll`          | All                  | The number of times the Tx polling function has been called.   |
+| `doorbells`        | All                  | The number of times the hardware doorbell has been written.    |
+| `bad_req_id`       | All                  | The number of times invalid Tx request ID has been detect. It is a reset condition. |
+| `available_desc`   | 2.0.0 and later      | The number of Tx descriptors that has been available last time, the Tx burst function has been called. Rough calculations for devices using LLQ. |
+| `missed_tx`        | 2.5.0 and later      | The number of Tx packets which weren't completed on time. Please refer to `miss_txc_to` [device argument](#51-runtime-options-devargs) for more details. |
 
 #### 8.2.4. Rx per-queue statistics
 
 Each Rx queue provides below set of statistics. Each statistic described below
 has "rx_qX_" prefix, where 'X' stands for the queue ID.
 
-- `cnt` - The number of packets were received by this queue.
-- `bytes` - The number of bytes were received by this queue.
-- `refill_partial` - The number of times Rx ring has been partially refilled
-  because the descriptor couldn't be passed to the HW.
-- `bad_csum` - The number of times invalid Rx checksum was detected by the
-  device.
-- `mbuf_alloc_fail` - The number of times memory pool couldn't provide enough
-  mbufs to refill the Rx ring.
-- `bad_desc_num` - The number of times Rx packets couldn't be retrieved from the
-  HW because it had too many Rx descriptors. It is a reset condition.
-- `bad_req_id` - The number of times Rx packets couldn't be retrieved from the
-  HW because it had invalid Rx request ID. It is a reset condition.
+| Statistic         | Supported in ENA PMD | Description                                                              |
+|-------------------|----------------------|--------------------------------------------------------------------------|
+| `cnt`             | All                  | The number of packets were received by this queue.                       |
+| `bytes`           | All                  | The number of bytes were received by this queue.                         |
+| `refill_partial`  | All                  | The number of times Rx ring has been partially refilled because the descriptor couldn't be passed to the HW. |
+| `bad_csum`        | Up to 2.5.0          | The number of times invalid Rx checksum was detected by the device.      |
+| `l3_csum_bad`     | 2.6.0 and later      | The number of times invalid Rx L3 checksum was detected by the device.   |
+| `l4_csum_bad`     | 2.6.0 and later      | The number of times invalid Rx L4 checksum was detected by the device.   |
+| `l4_csum_good`    | 2.6.0 and later      | The number of times Rx L4 checksum was correctly verified by the device. |
+| `mbuf_alloc_fail` | All                  | The number of times memory pool couldn't provide enough mbufs to refill the Rx ring. |
+| `bad_desc_num`    | All                  | The number of times Rx packets couldn't be retrieved from the HW because it had too many Rx descriptors. It is a reset condition. |
+| `bad_req_id`      | All                  | The number of times Rx packets couldn't be retrieved from the HW because it had invalid Rx request ID. It is a reset condition. |
 
 ## 9. Device reset and the timer service
 
@@ -961,17 +979,19 @@ listed below:
 
 ## 10. Multi process (MP) support
 
-Currently MP support is __*experimental*__ - this means, that the driver does
-not guarantee all calls are MP safe and it is not performing all the required
-verification checks for the MP mode in all the places.
+Up to ENA v2.5.0, the MP support was __*experimental*__ - this means, that the
+driver was not guaranteeing that all calls were MP safe and it was not
+performing all the required verification checks for the MP mode in all the
+places.
 
-As many of the driver's requests to the hardware are performed using the admin
-queue which requests cannot be handled from the secondary process, all the API
-which must use it will not be supported from the secondary process.
+Many of the driver's requests to the hardware are performed using the admin
+queue. The admin queue requests cannot be handled directly from the secondary
+process. As a result, all the API calls which had to use requests like that
+were not supported by the secondary process.
 
-Some API is clear about it's usage in the secondary process, but other is not.
-To make it more clear, below is the list of the generic API which should not
-be used from the secondary process in the DPDK v21.08:
+Since not all API are clear about their usage by the secondary process, we
+provide here the list of the generic API which should not be used from the
+secondary process up to the DPDK v21.11 and ENA v2.5.0:
 
 - `rte_eth_stats_get()` - To get information about statistics, the ENA admin
   command needs to be send.
@@ -979,6 +999,22 @@ be used from the secondary process in the DPDK v21.08:
   command needs to be send.
 - `rte_eth_xstats_get_by_id()` - It's not allowed only if the ENI limiters are
   being requested from the secondary process.
+
+Starting from ENA v2.6.0 (DPDK v22.03), the MP support was improved and now
+it should be possible to use more function calls from the secondary process.
+Please note, that operations clearly forbidden by the DPDK documentation will
+never be supported from the secondary process (like the ones which requires
+memory allocations).
+
+List of the new functions that can be used safely from the secondary process
+since ENA v2.6.0:
+
+- `rte_eth_stats_get()`
+- `rte_eth_xstats_get()`
+- `rte_eth_xstats_get_by_id()`
+- `rte_eth_dev_set_mtu()`
+- `rte_eth_dev_rss_reta_query()`
+- `rte_eth_dev_rss_reta_update()`
 
 ## 11. RSS support
 
@@ -1317,6 +1353,75 @@ control from the device is not supported. .rss_hf will contain a default
 value.` - however it will be printed only for the first time the API
 `rte_eth_dev_rss_hash_conf_get()` is being called.
 
+---
+
+__Q:__ _Why is the link speed exposed by the ENA device RTE_ETH_SPEED_NUM_NONE
+(or 0)?_
+
+__A:__ ENA is a device that runs in AWS virtualized environment and thus does
+not have a physical link. The bandwidth is limited according to the
+instance-specific allowance of which PMD is unaware. However, this allowance can
+be queried by the application through the
+[instance metadata](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html).
+
+---
+
+__Q:__ _I am trying to configure the L4 Tx checksum offload for the IPv6 packets.
+However the `rte_eth_tx_prepare()` function fails or the data doesn't reach the
+target host properly although the data seems to be correct. What can cause the
+failure?_
+
+__A:__ L4 Tx checksum offload for the IPv6 packets is supported since ENA
+v2.6.0, given that the hardware support IPv6 checksum offload as well.
+
+Prior to ENA v2.5.0, the device capabilities weren't checked, so the invalid
+checksum offload request could be passed to the hardware. Since ENA v2.5.0, the
+`rte_eth_tx_prepare()` should fail if the request is not supported by the
+driver or the hardware.
+
+---
+
+__Q:__ _Is there any dependency between the ENA kernel driver and the DPDK/PMD?_
+
+__A:__ No. Except that they are both drivers for the same hardware, they're
+totally independent. DPDK doesn't need ENA kernel driver to operate properly, as
+it provides it's own driver (PMD - Poll Mode Driver) which is used to
+communicate with the real hardware by using the `igb_uio`, `vfio-pci` or other
+similar kernel modules which exposes hardware resources to the userspace.
+
+---
+
+__Q:__ _How to use KNI with the ENA PMD?_
+
+DPDK Kernel NIC Interface
+([KNI](https://doc.dpdk.org/guides/prog_guide/kernel_nic_interface.html)) allows
+userspace applications access to the Linux control plane.
+
+Although the KNI driver is exposed as `ethX`, it has no binding the physical
+hardware or with the PMD directly. The DPDK application should handle both the
+PMD and the KNI requests and that's transparent for the ENA PMD.
+
+That being said, the KNI usage for the ENA PMD is generic, there is no special
+use case and the information provided in the official guide should cover it.
+
+Both Tx and Rx flow looks as below, when the KNI is being used:
+
+```txt
+NetworkInterface (ethX) <-> Linux stack <-> KNI driver <-> DPDK Application <-> ENA PMD <-> ENA HW
+```
+
+We suggest you always make sure you use the KNI provided with the DPDK version
+being used in order to prevent any API mismatch.
+
+---
+
+__Q:__ _Where can I see the list of features that ENA PMD supports?_
+
+ENA uses only the standard DPDK features. You can find the latest feature list
+[here](https://doc.dpdk.org/guides/nics/overview.html).
+
+All non-standard behaviors for the ENA driver are covered in this document.
+
 ## 14. Performance FAQ
 
 __Q:__ _Upon profiling I've noticed that `ena_com_prep_pkts` is taking a lot of
@@ -1327,6 +1432,9 @@ Combining support. This can lead to a poor performance when ENA is sending LLQ
 (Low Latency Queue) buffers to the hardware, leading to high CPU utilization in
 the `ena_com_prep_pkts` function. Please refer to the
 [appropriate section](#61-enav2--v200-and-writecombining) for more details.
+
+If the issue still persists after following steps in the above section, please
+see the [known issues](#15-known-issues).
 
 ---
 
@@ -1366,3 +1474,16 @@ __A:__ Unpatched version of the pktgen doesn't work well as is with the ENA hard
 
 Please refer to the [performance tuning](#12-performance-tuning) section for
 more details.
+
+## 15. Known issues
+
+__igb_uio does not map memory as Write Combined with DPDK v21.11__
+
+DPDK v21.11 introduced a regression in the DPDK bus code in the commit
+`d61138d4f0e2 ("drivers: remove direct access to interrupt handle")`.
+
+The regression prevents the PMD flags to be passed to the userspace igb_uio
+driver. As a result, the request to map the memory region as a WC is ignored.
+
+This was fixed in the commit `6b92f184680283b4b3da4ebc722b5feb7ef280fb` which
+landed in DPDK v22.03, and was backported to the LTS DPDK v21.11.1.
