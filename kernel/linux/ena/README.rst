@@ -151,6 +151,8 @@ Module Parameters
   value), the maximum packet header size is set to 96 bytes. When this
   parameter is set to a non 0 value, the maximum packet header size is
   set to 224 bytes, and the Tx queue size is reduced by half.
+  This feature is supported on EC2 4th and 5th generation instance-types,
+  with 6th generation coming soon.
 
 :num_io_queues:
   Controls the number of requested IO queues. The maximum
