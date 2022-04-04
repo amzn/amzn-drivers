@@ -39,6 +39,10 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.7.1 release notes
+**Bug Fixes**
+* Fix NUMA node update rate
+
 ## r2.7.0 release notes
 **New Features**
 * Add AF XDP with zero-copy support
