@@ -414,6 +414,16 @@ __*Notes:*__
 
 ## 6. vfio-pci and igb_uio
 
+__Important note - please read it first!__
+
+ENA on 5th generation instances and newer supports LLQ (Low Latency Queue) mode.
+While it's highly recommended to use the LLQ mode for the 5th generation
+platforms, it is specifically required on the 6th generation platforms and
+later. Failing to do so will result in a huge performance degradation.
+
+List of the all instance generation can be found
+[here](https://aws.amazon.com/ec2/instance-types/).
+
 ### 6.1. ENAv2 (>= v2.0.0) and Write Combining
 
 For ENA PMD of v2.0.0 and higher it's mandatory to map memory BAR of the ENA as
