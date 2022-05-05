@@ -24,6 +24,7 @@
   - [6.2. Instructions for using `igb_uio` and `vfio-pci`](#62-instructions-for-using-igb_uio-and-vfio-pci)
     - [6.2.1. igb_uio](#621-igb_uio)
     - [6.2.2. vfio-pci](#622-vfio-pci)
+    - [6.2.3. Verification of the Write Combined memory mapping](#623-verification-of-the-write-combined-memory-mapping)
   - [6.3. Note about usage on *.metal instances](#63-note-about-usage-on-metal-instances)
     - [6.3.1. x86_64 (e.g. c5.metal, i3.metal)](#631-x86_64-eg-c5metal-i3metal)
     - [6.3.2. arm64 (a1.metal)](#632-arm64-a1metal)
@@ -500,47 +501,6 @@ with the patched version. In some cases the kernel update and reboot is required
 if the package manager no longer holds the kernel sources for the currently
 running kernel.
 
-In order to verify that vfio-pci has been properly installed and Write Combining
-has been enabled on the host, the steps below must be performed (x86_64 only):
-
-1. Load `vfio-pci` module as described below.
-
-2. Bind ENA device to the `vfio-pci` driver.
-
-3. Start any DPDK application that will use this ENA device - the device has to
-   be properly initialized and the application must be running in order to make
-   the ENA resources be exposed with their attributes.
-
-4. Verify address of the _prefetchable_ BAR of the ENA device that is used by
-   the DPDK application.
-
-   ```sh
-   # lspci -v -s 00:06.0
-   00:06.0 Ethernet controller: Amazon.com, Inc. Elastic Network Adapter (ENA)
-   Subsystem: Amazon.com, Inc. Elastic Network Adapter (ENA)
-   Physical Slot: 6
-   Flags: fast devsel, IOMMU group 0
-   Memory at febf8000 (32-bit, non-prefetchable) [size=16K]
-   Memory at fe900000 (32-bit, prefetchable) [size=1M]
-   Capabilities: [70] Express Endpoint, MSI 00
-   Capabilities: [b0] MSI-X: Enable- Count=9 Masked-
-   Kernel driver in use: vfio-pci
-   Kernel modules: ena
-   ```
-
-   In this case, the prefetchable BAR has address of `0xfe900000`.
-
-5. Check what memory attributes are assigned to this memory region:
-
-   ```sh
-   # cat /sys/kernel/debug/x86/pat_memtype_list | grep fe900000
-   PAT: [mem 0x00000000fe800000-0x00000000fe900000] write-combining
-   PAT: [mem 0x00000000fe900000-0x00000000fea00000] write-combining
-   ```
-
-   If `write-combining` appears next to this memory region as above, then the
-   Write Combining is working properly.
-
 Although documentation in older DPDK releases (18.08 and earlier) does not
 mention `vfio-pci` support, it can be used with the ENA DPDK PMD. It was
 tested for DPDK releases starting from v17.02, so there are no contraindications
@@ -570,6 +530,63 @@ to use `vfio-pci` instead of `igb_uio` since v17.02 release.
 At this point the system should be ready to run DPDK applications. Once the
 application runs to completion, the ENA can be detached from attached module if
 necessary.
+
+#### 6.2.3. Verification of the Write Combined memory mapping
+
+In order to verify that the kernel module has been properly configured and
+the Write Combining has been enabled on the host, the steps below must be
+performed (x86_64 only):
+
+1. Load appropriate kernel module as described above.
+
+2. Bind ENA device to the kernel driver (`vfio-pci` or `igb_uio`).
+
+3. Start any DPDK application that will use this ENA device - the device has to
+   be properly initialized and the application must be running in order to make
+   the ENA resources be exposed with their attributes.
+
+   For example:
+
+   ```sh
+   `sudo ./dpdk-build-dir/apps/dpdk-testpmd`
+   ```
+
+4. _In the second console:_
+
+   1. Verify address of the _prefetchable_ BAR of the ENA device that is used by
+      the DPDK application.
+
+      ```sh
+      # lspci -v -s 00:06.0
+      00:06.0 Ethernet controller: Amazon.com, Inc. Elastic Network Adapter (ENA)
+      Subsystem: Amazon.com, Inc. Elastic Network Adapter (ENA)
+      Physical Slot: 6
+      Flags: fast devsel, IOMMU group 0
+      Memory at febf8000 (32-bit, non-prefetchable) [size=16K]
+      Memory at fe900000 (32-bit, prefetchable) [size=1M]
+      Capabilities: [70] Express Endpoint, MSI 00
+      Capabilities: [b0] MSI-X: Enable- Count=9 Masked-
+      Kernel driver in use: vfio-pci
+      Kernel modules: ena
+      ```
+
+      In this case, the prefetchable BAR has address of `0xfe900000`.
+
+   2. Check what memory attributes are assigned to this memory region.
+
+      __NOTE:__ The DPDK application must be still running while the command
+      below is being executed! Otherwise the mapping won't be visible.
+
+      ```sh
+      # cat /sys/kernel/debug/x86/pat_memtype_list | grep fe900000
+      PAT: [mem 0x00000000fe800000-0x00000000fe900000] write-combining
+      PAT: [mem 0x00000000fe900000-0x00000000fea00000] write-combining
+      ```
+
+      If `write-combining` appears next to this memory region as above, then the
+      Write Combining is working properly. Only the second line in the above
+      output is relevant, as it describes the prefetchable memory region
+      starting at the address `0xfe900000`.
 
 ### 6.3. Note about usage on *.metal instances
 
