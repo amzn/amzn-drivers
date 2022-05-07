@@ -186,7 +186,7 @@ type. On some instance types Rx moderation is disabled by default, on others it
 is enabled in adaptive mode.
 Please use
 
-.. code-block::bash
+.. code-block:: bash
 
     $ ethtool -c DEVNAME
 
