@@ -26,7 +26,7 @@ static ssize_t ena_store_rx_copybreak(struct device *dev,
 	if (err < 0)
 		return err;
 
-	if (len > adapter->netdev->mtu)
+	if (rx_copybreak > min_t(u16, adapter->netdev->mtu, ENA_PAGE_SIZE))
 		return -EINVAL;
 
 	rtnl_lock();

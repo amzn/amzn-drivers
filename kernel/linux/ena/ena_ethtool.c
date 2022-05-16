@@ -1060,7 +1060,7 @@ static int ena_set_tunable(struct net_device *netdev,
 	switch (tuna->id) {
 	case ETHTOOL_RX_COPYBREAK:
 		len = *(u32 *)data;
-		if (len > adapter->netdev->mtu) {
+		if (len > min_t(u16, adapter->netdev->mtu, ENA_PAGE_SIZE)) {
 			ret = -EINVAL;
 			break;
 		}
