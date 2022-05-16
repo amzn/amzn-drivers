@@ -39,6 +39,17 @@ The driver was verified on the following distributions:
 SUSE Linux Enterprise Server 12 SP2
 SUSE Linux Enterprise Server 12 SP3
 
+## r2.7.2 release notes
+**Bug Fixes**
+* Fix compilation for SLES 15 SP3
+* Fix compilation for RHEL 8.6
+* Fix wrong value check in copybreak sysfs code
+
+**Minor Changes**
+* Provide more information on TX timeouts
+* Use the same interrupt moderation value for both TX and RX
+  In XDP TX/REDIRECT channels
+
 ## r2.7.1 release notes
 **Bug Fixes**
 * Fix NUMA node update rate
