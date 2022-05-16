@@ -904,4 +904,18 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 #if defined(ENA_XDP_SUPPORT) && LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 #define ENA_AF_XDP_SUPPORT
 #endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
+/* kernels older than 3.3.0 didn't have this function and
+ * used netif_tx_queue_stopped() for the same purpose
+ */
+static inline int netif_xmit_stopped(const struct netdev_queue *dev_queue)
+{
+	return netif_tx_queue_stopped(dev_queue);
+}
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+#define NAPIF_STATE_SCHED BIT(NAPI_STATE_SCHED)
+#endif
 #endif /* _KCOMPAT_H_ */
