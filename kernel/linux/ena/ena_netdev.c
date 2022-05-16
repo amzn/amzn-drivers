@@ -3396,6 +3396,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 			   bool *wd_state)
 {
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	struct net_device *netdev = adapter->netdev;
 	struct ena_llq_configurations llq_config;
 	netdev_features_t prev_netdev_features;
 	struct device *dev = &pdev->dev;
@@ -3503,7 +3504,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx->llq,
 					     &llq_config);
 	if (rc) {
-		dev_err(dev, "ENA device init failed\n");
+		netdev_err(netdev, "Cannot set queues placement policy rc= %d\n", rc);
 		goto err_admin_init;
 	}
 
