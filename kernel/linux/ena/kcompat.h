@@ -887,16 +887,16 @@ xdp_prepare_buff(struct xdp_buff *xdp, unsigned char *hard_start,
 #define ENA_XDP_XMIT_FREES_FAILED_DESCS_INTERNALLY
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0) && \
+	!(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 6))
 static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 {
 	memcpy(dev->dev_addr, addr, ETH_ALEN);
 }
+#endif
 
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0) */
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) || \
+	(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 6))
 #define ENA_EXTENDED_COALESCE_UAPI_WITH_CQE_SUPPORTED
 #endif
 
