@@ -531,6 +531,52 @@ At this point the system should be ready to run DPDK applications. Once the
 application runs to completion, the ENA can be detached from attached module if
 necessary.
 
+__Note:__ On Dec/2021 it was reported, that Ubuntu 20.04 LTS AMI changed the way
+how the `vfio-pci` is being distributed. Instead of releasing it as a module,
+it's being built-in the kernel.
+
+The last working Ubuntu kernel, which is having the `vfio-pci` provided as a
+module is a `5.4.0-1060-aws`.
+
+There are two possible workaround to make the `vfio-pci` work on the latest
+Ubuntu AMIs:
+
+1. Change configuration of the existing Ubuntu kernel and rebuild it with
+   `vfio-pci` being built as a kernel module. This helper script
+   ['buildscript.zip'](https://github.com/amzn/amzn-drivers/files/7769634/buildscript.zip)
+   can be used to automate those steps. It must be executed as a root.
+
+2. Downgrade the kernel to the version where the `vfio-pci` is distributed as a
+   module.
+
+   A. Revert to the kernel `5.4.0-1060-aws`
+
+      ```sh
+      sudo apt install -y linux-image-5.4.0-1060-aws linux-headers-5.4.0-1060-aws linux-tools-5.4.0-1060-aws
+      ```
+
+   B. Update the grub
+
+     1. On the fresh instance, open the `/etc/default/grub` and set the
+        `GRUB_DEFAULT` value to `"1>2"`. It can be verified using the command
+        below.
+
+        ```sh
+        $ grep GRUB_DEFAULT /etc/default/grub
+        GRUB_DEFAULT="1>2"
+        ```
+
+        If the OS was modified prior to those steps, the `GRUB_DEFAULT` value
+        may need to be set to a different value. This entry changes the kernel
+        which will be booted.
+
+     2. Apply the grub changes and reboot
+
+        ```sh
+        sudo update-grub
+        sudo reboot
+        ```
+
 #### 6.2.3. Verification of the Write Combined memory mapping
 
 In order to verify that the kernel module has been properly configured and
