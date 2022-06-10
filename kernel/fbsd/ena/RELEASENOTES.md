@@ -9,16 +9,37 @@ The driver was verified on the following distributions:
 **Releases:**
 * FreeBSD 11.4
 * FreeBSD 12.3
-* FreeBSD 13.0
+* FreeBSD 13.1
 
 **Development:**
 +-----------+-------------+
 | Branch    | SHA         |
 +-----------+-------------+
-| stable/12 | dfe7186f287 |
-| stable/13 | cb4d27f48ef |
-| HEAD      | b406897911e |
+| stable/12 | dad7c072f48 |
+| stable/13 | 185159f77c9 |
+| HEAD      | 8020c05683f |
 +-----------+-------------+
+
+## r2.6.0 release notes
+**New Features**
+* Rework the Makefile to automatically detect the kernel options. This also
+  changes the supported compilation options.
+
+**Bug Fixes**
+* Fix invalid KASSERT in the netmap code.
+* Fix ENI metrics probing, by moving it to a separate task. That fixes the
+  issue with the sleep inside the callout.
+* Prevent LLQ initialization when membar isn't exposed.
+
+**Minor Changes**
+* Remove write-only variables.
+* Code style improvements.
+* Align the driver with the latest upstream kernel driver changes.
+* Use the generic function for setting the device description in probe.
+* Documentation update regarding the TSO.
+* Use atomic accessors for the first_interrupt variable.
+* Store last Tx cleanup ticks for easier device reset debugging.
+* Logging improvements.
 
 ## r2.5.0 release notes
 **New Features**
