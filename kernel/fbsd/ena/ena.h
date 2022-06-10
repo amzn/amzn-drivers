@@ -500,7 +500,7 @@ struct ena_adapter {
 
 #define	ENA_TIMER_INIT(_adapter)					\
 	callout_init(&(_adapter)->timer_service, true)
-#define ENA_TIMER_DRAIN(_adapter)					\
+#define	ENA_TIMER_DRAIN(_adapter)					\
 	callout_drain(&(_adapter)->timer_service)
 #define	ENA_TIMER_RESET(_adapter)					\
 	callout_reset_sbt(&(_adapter)->timer_service, SBT_1S, SBT_1S,	\

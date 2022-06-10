@@ -2543,7 +2543,7 @@ ena_calc_max_io_queue_num(device_t pdev, struct ena_com_dev *ena_dev,
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues, io_rx_num);
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues, io_tx_sq_num);
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues, io_tx_cq_num);
-	/* 1 IRQ for for mgmnt and 1 IRQ for each TX/RX pair */
+	/* 1 IRQ for mgmnt and 1 IRQ for each TX/RX pair */
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues,
 	    pci_msix_count(pdev) - 1);
 #ifdef RSS
@@ -3961,8 +3961,7 @@ static driver_t ena_driver = {
     "ena", ena_methods, sizeof(struct ena_adapter),
 };
 
-devclass_t ena_devclass;
-DRIVER_MODULE(ena, pci, ena_driver, ena_devclass, 0, 0);
+DRIVER_MODULE(ena, pci, ena_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, ena, ena_vendor_info_array,
 #if __FreeBSD_version > 1200084
     nitems(ena_vendor_info_array) - 1);
