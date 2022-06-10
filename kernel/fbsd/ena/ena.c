@@ -3961,7 +3961,12 @@ static driver_t ena_driver = {
     "ena", ena_methods, sizeof(struct ena_adapter),
 };
 
+#if __FreeBSD_version > 1400057
 DRIVER_MODULE(ena, pci, ena_driver, 0, 0);
+#else
+devclass_t ena_devclass;
+DRIVER_MODULE(ena, pci, ena_driver, ena_devclass, 0, 0);
+#endif
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, ena, ena_vendor_info_array,
 #if __FreeBSD_version > 1200084
     nitems(ena_vendor_info_array) - 1);
