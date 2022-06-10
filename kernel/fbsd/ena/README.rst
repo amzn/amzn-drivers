@@ -565,31 +565,38 @@ Compilation flags
 -----------------
 
 The supplied Makefile provides multiple optional compilation flags, allowing
-for customization of the driver operation. All of those flags are by default
-disabled and require the user to manually uncomment relevant lines. Those
-include:
+for customization of the driver operation.
 
-* ``ENA_LOG_IO_ENABLE``
+The Makefile will automatically attempt to detect the running kernel
+configuration and enable appropriate build flags if needed. This behavior can
+be overridden by passing variables to the make command, like below:
 
-  The driver provides an ability to control log verbosity at runtime, through
-  the sysctl interface. However, by default, the Tx/Rx data path logs remain
-  compiled out, even when matching log verbosity is set. This is dictated by
-  performance reasons. In order to enable logging on the data path,
-  the following line should be uncommented:
+.. code-block:: sh
 
-  .. code-block:: Makefile
+  make DEV_NETMAP=1 RSS=0
 
-    # CFLAGS += -DENA_LOG_IO_ENABLE
+This command will force-enable ``DEV_NETMAP`` flag and force-disable ``RSS``
+flag.
+
+Description of the available arguments and their meaning can be found below.
+
+* ``DEBUG``
+
+  This option turns on the flag ``ENA_LOG_IO_ENABLE``. The driver provides an
+  ability to control log verbosity at runtime, through the sysctl interface.
+  However, by default, the Tx/Rx data path logs remain compiled out, even when
+  matching log verbosity is set. This is dictated by performance reasons.
+
+  Also the ``DEBUG`` variable must be defined in order to use ``INVARIANTS``,
+  ``INVARIANT_SUPPORT``, ``WITNESS`` and ``WITNESS_SKIPSPIN`` flags, which will
+  be used if the kernel has been built with them or the user forces their usage
+  by passing them as a make variable.
 
 * ``DEV_NETMAP``
 
   The driver supports the `netmap <https://github.com/luigirizzo/netmap/>`_
-  framework. In order to use this feature, the following line should be
-  uncommented:
-
-  .. code-block:: Makefile
-
-    # CFLAGS += -DDEV_NETMAP
+  framework. If the ``device netmap`` has been enabled for the running kernel,
+  then it will be automatically added to the driver build configuration.
 
   The kernel must also be built with ``DEV_NETMAP`` option in order to be able
   to use the driver with the netmap support, which is default for ``amd64``, but
@@ -597,13 +604,7 @@ include:
 
 * ``RSS``
 
-  The driver is able to work with kernel side Receive Side Scaling support. In
-  order to use this feature, the following line should be uncommented:
-
-  .. code-block:: Makefile
-
-    # CFLAGS += -DRSS
-
+  The driver is able to work with kernel side Receive Side Scaling support.
   This flag should only be used if ``option RSS`` is enabled in the kernel.
 
 Management Interface
