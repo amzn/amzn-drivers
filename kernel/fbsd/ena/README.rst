@@ -49,11 +49,8 @@ When RSS is enabled, each Tx/Rx queue pair is bound to a corresponding
 CPU core and its NUMA domain. The order of those bindings is based on
 the RSS bucket mapping. For builds with RSS support disabled, the
 CPU and NUMA management is left to the kernel. CPU and NUMA management
-are only supported on FreeBSD 12 or newer.
-
-The ENA driver supports industry standard TCP/IP offload features such
-as checksum offload and TCP transmit segmentation offload (TSO).
-Receive-side scaling (RSS) is supported for multi-core scaling.
+are only supported on FreeBSD 12 or newer. Receive-side scaling (RSS) is
+supported for multi-core scaling.
 
 The ENA driver and its corresponding devices implement health
 monitoring mechanisms such as watchdog, enabling the device and driver
@@ -755,7 +752,6 @@ Stateless Offloads
 
 The ENA driver supports:
 
-* TSO over IPv4/IPv6
 * IPv4 header checksum offload
 * TCP/UDP over IPv4/IPv6 checksum offloads
 
