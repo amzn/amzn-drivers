@@ -36,8 +36,8 @@ The driver was verified on the following distributions:
 * CentOS 7
 
 **SUSE:**
-SUSE Linux Enterprise Server 12 SP2
-SUSE Linux Enterprise Server 12 SP3
+* SUSE Linux Enterprise Server 12 SP2
+* SUSE Linux Enterprise Server 12 SP3
 
 ## r2.7.2 release notes
 **Bug Fixes**
