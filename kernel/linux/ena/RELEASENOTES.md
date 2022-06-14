@@ -8,36 +8,29 @@ with an addition of kernel 2.6.32.
 The driver was verified on the following distributions:
 
 **RedHat:**
-* RedHat Enterprise Linux 6.7
-* RedHat Enterprise Linux 6.8
-* RedHat Enterprise Linux 6.9
-* RedHat Enterprise Linux 7.2
-* RedHat Enterprise Linux 7.3
-* RedHat Enterprise Linux 7.4
-* RedHat Enterprise Linux 7.5
-* RedHat Enterprise Linux 7.6
+* RedHat Enterprise Linux 6.7 or newer
 
 **Ubuntu:**
-* ubuntu Trusty 14.04 amd64 server
+* Ubuntu Trusty 14.04 amd64 server
 * Ubuntu Xenial 16.04 amd64 server
 * Ubuntu Yakkety 16.10 amd64 server
 * Ubuntu Zesty 17.04 amd64 server
-* Ubuntu Bionic Beaver 18.04 amd64 server
+* Ubuntu Bionic Beaver 18.04 server or newer
 
 **Amazon Linux:**
-* Amazon Linux AMI 2
-* Amazon Linux AMI 2018.03
-* Amazon Linux AMI 2017.09
-* Amazon Linux AMI 2017.03
 * Amazon Linux AMI 2016.09.1
+* Amazon Linux AMI 2017.03
+* Amazon Linux AMI 2017.09
+* Amazon Linux AMI 2018.03
+* Amazon Linux AMI 2 or newer
 
 **CentOS:**
-* CentOS 6
-* CentOS 7
+* CentOS 6.7 or newer
 
 **SUSE:**
 * SUSE Linux Enterprise Server 12 SP2
 * SUSE Linux Enterprise Server 12 SP3
+* SUSE Linux Enterprise Server 15 or newer
 
 ## r2.7.2 release notes
 **Bug Fixes**
