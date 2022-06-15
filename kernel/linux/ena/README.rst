@@ -618,3 +618,11 @@ This mechanism isn't used when an XDP program is loaded, or when the
 RX packet is less than rx_copybreak bytes (in which case the packet is
 copied out of the RX buffer into the linear part of a new skb allocated
 for it and the RX buffer remains the same size, see `RX copybreak`_).
+
+AF XDP Native Support (zero copy)
+---------------------------------
+
+ENA driver supports native AF XDP (zero copy), however the feature is still
+experimental.
+Please follow https://github.com/amzn/amzn-drivers/issues/221 for possible
+mitigations to issues.
