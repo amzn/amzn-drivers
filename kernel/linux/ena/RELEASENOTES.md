@@ -32,6 +32,11 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.7.3 release notes
+**Changes**
+* Make AF XDP native support experimental
+* Update supported distributions documentation
+
 ## r2.7.2 release notes
 **Bug Fixes**
 * Fix compilation for SLES 15 SP3
