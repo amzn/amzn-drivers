@@ -40,7 +40,7 @@
 
 #define ENA_DRV_MODULE_VER_MAJOR	2
 #define ENA_DRV_MODULE_VER_MINOR	6
-#define ENA_DRV_MODULE_VER_SUBMINOR	0
+#define ENA_DRV_MODULE_VER_SUBMINOR	1
 
 #define ENA_DRV_MODULE_NAME		"ena"
 
@@ -328,7 +328,7 @@ struct ena_ring {
 
 	};
 
-	bool first_interrupt;
+	uint8_t first_interrupt;
 	uint16_t no_interrupt_event_cnt;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];

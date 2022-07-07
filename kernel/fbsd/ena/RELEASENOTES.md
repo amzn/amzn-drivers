@@ -20,6 +20,17 @@ The driver was verified on the following distributions:
 | HEAD      | 8020c05683f |
 +-----------+-------------+
 
+## r2.6.1 release notes
+**Bug Fixes**
+* Fix KASAN and KMSAN kernel sanitizers build errors, by changing the
+  `first_interrupt` variable type from `bool` to `uint8_t`.
+* Fix LLQ descriptor reconfiguration after the device reset. This could cause
+  driver misbehavior on the 6-generation AWS instances.
+
+**Minor Changes**
+* Align `req_id` and `qid` logging order.
+* Fix typo in a comment.
+
 ## r2.6.0 release notes
 **New Features**
 * Rework the Makefile to automatically detect the kernel options. This also

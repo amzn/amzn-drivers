@@ -89,8 +89,8 @@ ena_cleanup(void *arg, int pending)
 	ena_qid = ENA_IO_TXQ_IDX(qid);
 	io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
 
-	atomic_store_8(&tx_ring->first_interrupt, true);
-	atomic_store_8(&rx_ring->first_interrupt, true);
+	atomic_store_8(&tx_ring->first_interrupt, 1);
+	atomic_store_8(&rx_ring->first_interrupt, 1);
 
 	for (i = 0; i < ENA_CLEAN_BUDGET; ++i) {
 		rxc = ena_rx_cleanup(rx_ring);
@@ -218,8 +218,8 @@ ena_get_tx_req_id(struct ena_ring *tx_ring, struct ena_com_io_cq *io_cq,
 		return (0);
 
 	ena_log(adapter->pdev, ERR,
-	    "tx_info doesn't have valid mbuf. qid %hu req_id %hu\n",
-	    tx_ring->qid, *req_id);
+	    "tx_info doesn't have valid mbuf. req_id %hu qid %hu\n",
+	    *req_id, tx_ring->qid);
 err:
 	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
 
