@@ -254,6 +254,19 @@ mean?
 4. Make sure vCPUs handling ENA IRQs are not overloaded with other unrelated
    tasks (use `taskset`_ or `numactl`_ to move heavy tasks to other vCPUs)
 
+5. Disable DIM (Dynamic Interrupt Moderation):
+
+   .. code-block:: bash
+
+    $ sudo ethtool -C DEVNAME adaptive-rx off rx-usecs 0 tx-usecs 0
+
+    $ ethtool -c eth0 | grep -E 'Adaptive|usecs|frames'
+    Adaptive RX: off  TX: off
+    rx-usecs: 0
+    rx-frames: 0
+    tx-usecs: 0
+    tx-frames: 0
+
 **Q:** Part of my network traffic uses IPv6 header with extensions and also TCP
 header with options. I suspect my Tx packets are not sent out.
 
@@ -489,18 +502,18 @@ ensure low-latency system performance.
 For more information, see `High performance and low latency by limiting deeper
 C-states`_.
 
-- Edit the GRUB configuration and add ``intel_idle.max_cstate=1`` to the kernel
-  boot options For Amazon Linux 2, edit the /etc/default/grub file and add this
+- Edit the GRUB configuration and add ``intel_idle.max_cstate=1`` and ``processor.max_cstate=1``
+  to the kernel boot options For Amazon Linux 2, edit the /etc/default/grub file and add this
   option to the ``GRUB_CMDLINE_LINUX_DEFAULT`` line, as shown below::
 
-    > GRUB_CMDLINE_LINUX_DEFAULT="console=tty0 console=ttyS0,115200n8 net.ifnames=0 biosdevname=0 nvme_core.io_timeout=4294967295 xen_nopvspin=1 clocksource=tsc intel_idle.max_cstate=1"
+    > GRUB_CMDLINE_LINUX_DEFAULT="console=tty0 console=ttyS0,115200n8 net.ifnames=0 biosdevname=0 nvme_core.io_timeout=4294967295 xen_nopvspin=1 clocksource=tsc intel_idle.max_cstate=1 processor.max_cstate=1"
 
     > GRUB_TIMEOUT=0
 
   For Amazon Linux AMI, edit the /boot/grub/grub.conf file and add this option
   to the kernel line, as shown below::
 
-    > kernel /boot/vmlinuz-4.14.62-65.117.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295 xen_nopvspin=1 clocksource=tsc intel_idle.max_cstate=1
+    > kernel /boot/vmlinuz-4.14.62-65.117.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295 xen_nopvspin=1 clocksource=tsc intel_idle.max_cstate=1 processor.max_cstate=1
 
 - (Amazon Linux 2 only) Rebuild your GRUB configuration file to pick up these
   changes:
