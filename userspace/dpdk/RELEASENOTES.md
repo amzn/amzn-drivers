@@ -4,6 +4,52 @@ ___
 
 ### Normal releases
 
+#### v22.03
+_Release of the new version of the driver - r2.6.0_
+
+New Features:
+* Modify Rx checksum related xstats:
+  * Remove 'bad_csum' counter.
+  * Add 'l3_csum_bad' - indicates L3 checksum error, detected by the hardware.
+  * Add 'l4_csum_bad' - indicates L4 checksum error, detected by the hardware.
+  * Add 'l4_csum_good' - indicates valid L4 checksum, detected by the hardware.
+* Add dynamic Link Status Change interrupt configuration.
+* Use optimized memcpy version also on Arm.
+* Add support for a subset of the PMD calls for the secondary processes:
+  * Reading the xstats and the regular statistics.
+  * MTU setting.
+  * Reading and modifying the indirection table entries.
+* Add support for the Tx cleanup ethdev call.
+* Add support for retrieving the xstat names by ID.
+* Make Tx completion timeout configurable through the 'miss_txc_to' devarg.
+
+Bug Fixes:
+* Stop timer if the reset was already triggered to improve the handling of
+  missing reset handlers from applications.
+* Stop timer if the reset was already triggered to improve the handling of
+  missing reset handlers from applications which doesn't provide PMD reset
+  handlers.
+* Make the ena_com memzone ID unique per port to fix the race for MP mode.
+* Fix potential reset reason value override in case multiple reset conditions
+  were met.
+* Fix meta descriptor's DF flag setup for the IPv6 packets.
+* Initialize LLQ only when the memory BAR is available.
+* Avoid setting RTE_MBUF_F_RX_L4_CKSUM_BAD mbuf ol_flag in case of invalid L4
+  checksum to workaround a potential false-negative detection of L4 checksum
+  error indication from HW. Instead, set it to RTE_MBUF_F_RX_L4_CKSUM_UNKNOWN
+  to fallback to re-evaluating the calculation by the application.
+
+Minor Changes:
+* Remove Tx linearization function. PMD isn't supposed to change the mbuf's
+  structure. A maximum number of the Tx descriptors supported by the HW can be
+  probed by the application and also the rte_eth_tx_prepare() fails if the mbuf
+  has too many segments.
+* Add assertion which makes sure there are no outstanding mbufs in the Tx queue.
+* Remove unused enumeration and offload variables.
+* Perform Tx cleanup before sending packets - this can potentially free space in
+  the Tx queue and increase the probability that the whole Tx burst will succeed.
+* Extend logs for the resets because of the invalid Tx request ID.
+
 #### v21.11
 _Release of the new version of the driver - r2.5.0_
 
@@ -367,6 +413,16 @@ _Release of the driver (unversioned)_
 
 There comes only backported patches.
 
+#### v20.11.4
+Bug fixes:
+* Fix offloads capabilities verification. Take into consideration capabilities
+  provided by the hardware instead of assuming that they're always supported,
+  add IPv6 checksum offload support, add extra verifications in the Tx prepare
+  function. (v21.11)
+* Fix per-queue offload capabilities. (v21.11)
+* Expose scattered Rx capability, which was already supported by the PMD.
+  (v21.11)
+
 #### v20.11.3
 Bug fixes:
 * Provide multi-segment Tx offload capability. ENA driver was already
@@ -414,6 +470,17 @@ Bug fixes:
 * Validate Rx requested ID upon acquiring descriptor instead of doing that each
   time it's being used in the driver code. As a result this value is validated
   only once and a driver code could be simplified. (v21.02)
+
+#### v19.11.11
+Bug fixes:
+* Fix offloads capabilities verification. Take into consideration capabilities
+  provided by the hardware instead of assuming that they're always supported,
+  add IPv6 checksum offload support, add extra verifications in the Tx prepare
+  function. (v21.11)
+* Fix per-queue offload capabilities. (v21.11)
+* Expose scattered Rx capability, which was already supported by the PMD.
+  (v21.11)
+* Revert the patch 'Trigger reset on Tx prepare failure', added in v19.11.10.
 
 #### v19.11.10
 Bug fixes:
