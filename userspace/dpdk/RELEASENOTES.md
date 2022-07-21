@@ -4,6 +4,22 @@ ___
 
 ### Normal releases
 
+#### v22.07
+_Release of the new version of the driver - r2.7.0_
+
+New Features:
+* Add support for the RTE_ETH_TX_OFFLOAD_MBUF_FAST_FREE offload, which allows
+  releasing mbufs faster on the Tx path if certain conditions are met.
+* Add an option to disable the LLQ mode by using the `use_large_llq_hdr` device
+  argument.
+
+Bug Fixes:
+* Fix build with GCC 12.
+
+Minor Changes:
+* Remove redundant MTU verification from the PMD code, as the rte_ethdev layer
+  is already verifying the provided value.
+
 #### v22.03
 _Release of the new version of the driver - r2.6.0_
 
@@ -26,9 +42,6 @@ New Features:
 Bug Fixes:
 * Stop timer if the reset was already triggered to improve the handling of
   missing reset handlers from applications.
-* Stop timer if the reset was already triggered to improve the handling of
-  missing reset handlers from applications which doesn't provide PMD reset
-  handlers.
 * Make the ena_com memzone ID unique per port to fix the race for MP mode.
 * Fix potential reset reason value override in case multiple reset conditions
   were met.
@@ -413,6 +426,38 @@ _Release of the driver (unversioned)_
 
 There comes only backported patches.
 
+#### v21.11.1
+Bug Fixes:
+* Stop timer if the reset was already triggered to improve the handling of
+  missing reset handlers from applications. (v22.03)
+* Fix potential reset reason value override in case multiple reset conditions
+  were met. (v22.03)
+* Fix meta descriptor's DF flag setup for the IPv6 packets. (v22.03)
+* Initialize LLQ only when the memory BAR is available. (v22.03)
+* Avoid setting RTE_MBUF_F_RX_L4_CKSUM_BAD mbuf ol_flag in case of invalid L4
+  checksum to workaround a potential false-negative detection of L4 checksum
+  error indication from HW. Instead, set it to RTE_MBUF_F_RX_L4_CKSUM_UNKNOWN
+  to fallback to re-evaluating the calculation by the application. (v22.03)
+
+Minor Changes:
+* Remove unused enumeration and offload variables. (v22.03)
+
+#### v20.11.5
+Bug Fixes:
+* Stop timer if the reset was already triggered to improve the handling of
+  missing reset handlers from applications. (v22.03)
+* Fix potential reset reason value override in case multiple reset conditions
+  were met. (v22.03)
+* Fix meta descriptor's DF flag setup for the IPv6 packets. (v22.03)
+* Initialize LLQ only when the memory BAR is available. (v22.03)
+* Avoid setting RTE_MBUF_F_RX_L4_CKSUM_BAD mbuf ol_flag in case of invalid L4
+  checksum to workaround a potential false-negative detection of L4 checksum
+  error indication from HW. Instead, set it to RTE_MBUF_F_RX_L4_CKSUM_UNKNOWN
+  to fallback to re-evaluating the calculation by the application. (v22.03)
+
+Minor Changes:
+* Remove unused enumeration and offload variables. (v22.03)
+
 #### v20.11.4
 Bug fixes:
 * Fix offloads capabilities verification. Take into consideration capabilities
@@ -470,6 +515,19 @@ Bug fixes:
 * Validate Rx requested ID upon acquiring descriptor instead of doing that each
   time it's being used in the driver code. As a result this value is validated
   only once and a driver code could be simplified. (v21.02)
+
+#### v19.11.12
+Bug Fixes:
+* Stop timer if the reset was already triggered to improve the handling of
+  missing reset handlers from applications. (v22.03)
+* Fix meta descriptor's DF flag setup for the IPv6 packets. (v22.03)
+* Avoid setting RTE_MBUF_F_RX_L4_CKSUM_BAD mbuf ol_flag in case of invalid L4
+  checksum to workaround a potential false-negative detection of L4 checksum
+  error indication from HW. Instead, set it to RTE_MBUF_F_RX_L4_CKSUM_UNKNOWN
+  to fallback to re-evaluating the calculation by the application. (v22.03)
+
+Minor Changes:
+* Remove unused enumeration and offload variables. (v22.03)
 
 #### v19.11.11
 Bug fixes:

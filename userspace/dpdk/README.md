@@ -98,6 +98,7 @@ with the ENA PMD releases.
 | 21.08        | 2.4.0            |
 | 21.11        | 2.5.0            |
 | 22.03        | 2.6.0            |
+| 22.07        | 2.7.0            |
 
 ## 3. ENA PMD backports
 
@@ -360,6 +361,24 @@ ENA supports below devargs:
     - _Minimal_ - `0` (disables Tx completions check feature)
     - _Maximal_ - `60`
     - _Default_ - `5`
+
+- **enable_llq**
+
+  Control whether the LLQ (Low Latency Queue) mode should be used or not. The
+  LLQ requires the user to enable the WC (Write Combining) for the supported
+  `igb_uio`/`vfio-pci` modules.
+
+  Changing the default value of this option may be useful for very specific use
+  cases, where the user cannot enable the WC.
+
+  **Caution**: it's not recommended to disable the LLQ, as it won't result in
+  the performance improvement and on the 6th generation AWS instances the
+  lack of LLQ can have a huge negative impact on hardware performance.
+
+  - **First appeared in:** _DPDK v22.07_
+  - **Valid values**:
+    - `0` - the LLQ mode is disabled
+    - `1` _(default)_ - the LLQ mode is turned on
 
 ### 5.2. Makefile (deprecated starting from v20.11)
 
@@ -1164,6 +1183,10 @@ the
   100 Gbps and do not call Tx burst function if this rate is exceeded. ENAv2
   hardware can accept packets beyond the link limit, but they will be simply
   dropped and the hardware will waste time processing those unsent packets.
+- Use the
+  [`RTE_ETH_TX_OFFLOAD_MBUF_FAST_FREE` Tx offload](https://doc.dpdk.org/api/rte__ethdev_8h.html#a43f198c6b59d965130d56fd8f40ceac1)
+  when possible, to reduce the PMD overhead upon releasing the Tx mbufs.
+  Supported in ENA PMD since DPDK v22.07.
 
 ### 12.2. Rx path
 
