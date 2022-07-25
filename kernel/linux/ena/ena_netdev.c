@@ -1074,15 +1074,15 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag,
 	return skb;
 }
 
-static bool ena_try_rx_buf_page_reuse(struct ena_rx_buffer *rx_info,
-				       u16 buf_len, u16 len)
+static bool ena_try_rx_buf_page_reuse(struct ena_rx_buffer *rx_info, u16 buf_len,
+				      u16 len, int pkt_offset)
 {
 	struct ena_com_buf *ena_buf = &rx_info->ena_buf;
 
 	/* More than ENA_MIN_RX_BUF_SIZE left in the reused buffer
-	 * for data + headroom + tailroom
+	 * for data + headroom + tailroom.
 	 */
-	if (SKB_DATA_ALIGN(len) + ENA_MIN_RX_BUF_SIZE <= ena_buf->len) {
+	if (SKB_DATA_ALIGN(len + pkt_offset) + ENA_MIN_RX_BUF_SIZE <= ena_buf->len) {
 		page_ref_inc(rx_info->page);
 		rx_info->page_offset += buf_len;
 		ena_buf->paddr += buf_len;
@@ -1133,6 +1133,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		  rx_info, rx_info->page);
 
 	buf_offset = rx_info->buf_offset;
+	pkt_offset = buf_offset - rx_ring->rx_headroom;
 	page_offset = rx_info->page_offset;
 	buf_addr = page_address(rx_info->page) + page_offset;
 
@@ -1140,8 +1141,6 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		skb = ena_alloc_skb(rx_ring, NULL, len);
 		if (unlikely(!skb))
 			return NULL;
-
-		pkt_offset = buf_offset - rx_ring->rx_headroom;
 
 		/* sync this buffer for CPU use */
 		dma_sync_single_for_cpu(rx_ring->dev,
@@ -1171,7 +1170,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 
 	/* If XDP isn't loaded try to reuse part of the RX buffer */
 	reuse_rx_buf_page = !is_xdp_loaded &&
-			    ena_try_rx_buf_page_reuse(rx_info, buf_len, len);
+			    ena_try_rx_buf_page_reuse(rx_info, buf_len, len, pkt_offset);
 
 	if (!reuse_rx_buf_page)
 		ena_unmap_rx_buff(rx_ring, rx_info);
@@ -1223,11 +1222,12 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 
 		/* rx_info->buf_offset includes rx_ring->rx_headroom */
 		buf_offset = rx_info->buf_offset;
+		pkt_offset = buf_offset - rx_ring->rx_headroom;
 		buf_len = SKB_DATA_ALIGN(len + buf_offset + tailroom);
 		page_offset = rx_info->page_offset;
 
 		reuse_rx_buf_page = !is_xdp_loaded &&
-				    ena_try_rx_buf_page_reuse(rx_info, buf_len, len);
+				    ena_try_rx_buf_page_reuse(rx_info, buf_len, len, pkt_offset);
 
 		if (!reuse_rx_buf_page)
 			ena_unmap_rx_buff(rx_ring, rx_info);
