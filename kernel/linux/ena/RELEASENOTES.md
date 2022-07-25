@@ -32,6 +32,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.7.4 release notes
+**Bug Fixes**
+* Fix remaining space check in DRB
+
 ## r2.7.3 release notes
 **Changes**
 * Make AF XDP native support experimental
