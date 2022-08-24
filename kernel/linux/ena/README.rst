@@ -223,7 +223,7 @@ Disable Predictable Network Names:
 
 When predictable network naming is enabled, Linux might change the
 device name and affect the network configuration.
-This can lead to a lost of network on boot.
+This can lead to a loss of network on boot.
 To disable this feature add :code:`net.ifnames=0` to the kernel boot params.
 
 
