@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "kcompat.h"
@@ -20,6 +20,7 @@
 #endif
 
 #include "efa.h"
+#include "efa_io_defs.h"
 
 #ifdef HAVE_EFA_P2P
 #include "efa_p2p.h"
@@ -343,6 +344,7 @@ int efa_query_device(struct ib_device *ibdev,
 		resp.max_rq_wr = dev_attr->max_rq_depth;
 		resp.max_rdma_size = dev_attr->max_rdma_size;
 
+		resp.device_caps |= EFA_QUERY_DEVICE_CAPS_CQ_WITH_SGID;
 		if (EFA_DEV_CAP(dev, RDMA_READ))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RDMA_READ;
 
@@ -1388,6 +1390,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct efa_ibv_create_cq cmd = {};
 	struct efa_cq *cq = to_ecq(ibcq);
 	int entries = attr->cqe;
+	bool set_src_addr;
 	int err;
 
 	ibdev_dbg(ibdev, "create_cq entries %d\n", entries);
@@ -1441,7 +1444,9 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		goto err_out;
 	}
 
-	if (!cmd.cq_entry_size) {
+	set_src_addr = !!(cmd.flags & EFA_CREATE_CQ_WITH_SGID);
+	if ((cmd.cq_entry_size != sizeof(struct efa_io_rx_cdesc_ex)) &&
+		(set_src_addr || cmd.cq_entry_size != sizeof(struct efa_io_rx_cdesc))) {
 		ibdev_dbg(ibdev,
 			  "Invalid entry size [%u]\n", cmd.cq_entry_size);
 		err = -EINVAL;
@@ -1470,6 +1475,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	params.dma_addr = cq->dma_addr;
 	params.entry_size_in_bytes = cmd.cq_entry_size;
 	params.num_sub_cqs = cmd.num_sub_cqs;
+	params.set_src_addr = set_src_addr;
 	if (cmd.flags & EFA_CREATE_CQ_WITH_COMPLETION_CHANNEL) {
 		cq->eq = efa_vec2eq(dev, attr->comp_vector);
 		params.eqn = cq->eq->eeq.eqn;

@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Amazon.com, Inc. or its affiliates. All rights reserved
+# Copyright 2019-2022 Amazon.com, Inc. or its affiliates. All rights reserved
 
 %define name			efa
 %define driver_name		efa
@@ -78,6 +78,7 @@ install -m 644 efa_admin_defs.h 	%{buildroot}%{install_path}/src
 install -m 644 efa_com_cmd.h		%{buildroot}%{install_path}/src
 install -m 644 efa_com.h		%{buildroot}%{install_path}/src
 install -m 644 efa_common_defs.h	%{buildroot}%{install_path}/src
+install -m 644 efa_io_defs.h		%{buildroot}%{install_path}/src
 install -m 644 efa.h			%{buildroot}%{install_path}/src
 install -m 644 efa_regs_defs.h		%{buildroot}%{install_path}/src
 install -m 644 efa_sysfs.h		%{buildroot}%{install_path}/src

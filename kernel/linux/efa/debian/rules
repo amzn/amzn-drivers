@@ -45,6 +45,7 @@ override_dh_auto_install:
 	install -m 644 src/efa_com_cmd.h	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_com.h		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_common_defs.h	${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_io_defs.h	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa.h		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_regs_defs.h	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_sysfs.h		${DESTDIR}/${INSTALL_PATH}/src
