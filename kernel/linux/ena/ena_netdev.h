@@ -19,6 +19,9 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#ifdef HAS_BPF_HEADER
+#include <uapi/linux/bpf.h>
+#endif
 #include <linux/u64_stats_sync.h>
 
 #include "ena_com.h"

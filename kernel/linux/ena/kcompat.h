@@ -930,4 +930,8 @@ static inline int netif_xmit_stopped(const struct netdev_queue *dev_queue)
 #define bpf_warn_invalid_xdp_action(netdev, xdp_prog, verdict) \
 	bpf_warn_invalid_xdp_action(verdict)
 #endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
+#define HAS_BPF_HEADER
+#endif
 #endif /* _KCOMPAT_H_ */
