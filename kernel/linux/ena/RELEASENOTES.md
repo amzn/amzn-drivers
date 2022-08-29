@@ -32,6 +32,40 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.0 release notes
+**Notes**
+* The driver is now dependent on the ptp module for loading
+  See README for more details.
+
+**New Features**
+* Add support for PTP HW clock
+* Add support for SRD metrics
+  Feature's enablement and documentation would be in future release
+
+**Bug Fixes**
+* Fix potential sign extension issue
+* Reduce memory footprint of some structs
+* Fix updating rx_copybreak issue
+* Fix xdp drops handling due to multibuf packets
+* Handle ena_calc_io_queue_size() possible errors
+* Destroy correct amount of xdp queues upon failure
+
+**Minor Changes**
+* Remove wide LLQ comment on supported versions
+* Backport uapi/bpf.h inclusion
+* Add a counter for driver's reset failures
+* Take xdp packets stats into account in ena_get_stats64()
+* Make queue stats code cleaner by removing if block
+* Remove redundant empty line
+* Remove confusing comment
+* Remove flag reading code duplication
+* Replace ENA local ENA_NAPI_BUDGET to global NAPI_POLL_WEIGHT
+* Change default print level for netif_ prints
+* Relocate skb_tx_timestamp() to improve time stamping accuracy
+* Backport bpf_warn_invalid_xdp_action() change
+* Fix incorrect indentation using spaces
+* Driver now compiles with Linux kernel 5.19
+
 ## r2.7.4 release notes
 **Bug Fixes**
 * Fix remaining space check in DRB

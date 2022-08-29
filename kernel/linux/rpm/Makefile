@@ -3,7 +3,7 @@
 # Author: Cristian Gafton <gafton@amazon.com>
 
 NAME	= ena
-VERSION	= 2.7.4
+VERSION	= 2.8.0
 
 TOPDIR	:= $(shell git rev-parse --show-toplevel)
 
