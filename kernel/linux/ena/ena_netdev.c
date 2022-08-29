@@ -82,7 +82,7 @@ MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
 static void check_for_admin_com_state(struct ena_adapter *adapter);
-static void ena_calc_io_queue_size(struct ena_adapter *adapter,
+static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 				   struct ena_com_dev_get_features_ctx *get_feat_ctx);
 static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
 				 struct net_device *netdev);
@@ -3566,7 +3566,9 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 		goto err_admin_init;
 	}
 
-	ena_calc_io_queue_size(adapter, get_feat_ctx);
+	rc = ena_calc_io_queue_size(adapter, get_feat_ctx);
+	if (unlikely(rc))
+		goto err_admin_init;
 
 	/* Turned on features shouldn't change due to reset. */
 	prev_netdev_features = adapter->netdev->features;
@@ -3575,6 +3577,8 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	return 0;
 
 err_admin_init:
+	ena_com_abort_admin_commands(ena_dev);
+	ena_com_wait_for_abort_completion(ena_dev);
 	ena_com_delete_host_info(ena_dev);
 	ena_com_admin_destroy(ena_dev);
 err_mmio_read_less:
@@ -4263,7 +4267,7 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 }
 
 
-static void ena_calc_io_queue_size(struct ena_adapter *adapter,
+static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 				   struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
 	struct ena_admin_feature_llq_desc *llq = &get_feat_ctx->llq;
@@ -4323,6 +4327,18 @@ static void ena_calc_io_queue_size(struct ena_adapter *adapter,
 	max_tx_queue_size = rounddown_pow_of_two(max_tx_queue_size);
 	max_rx_queue_size = rounddown_pow_of_two(max_rx_queue_size);
 
+	if (max_tx_queue_size < ENA_MIN_RING_SIZE) {
+		netdev_err(adapter->netdev, "Device max TX queue size: %d < minimum: %d\n",
+			   max_tx_queue_size, ENA_MIN_RING_SIZE);
+		return -EFAULT;
+	}
+
+	if (max_rx_queue_size < ENA_MIN_RING_SIZE) {
+		netdev_err(adapter->netdev, "Device max RX queue size: %d < minimum: %d\n",
+			   max_rx_queue_size, ENA_MIN_RING_SIZE);
+		return -EFAULT;
+	}
+
 	/* When forcing large headers, we multiply the entry size by 2,
 	 * and therefore divide the queue size by 2, leaving the amount
 	 * of memory used by the queues unchanged.
@@ -4353,6 +4369,8 @@ static void ena_calc_io_queue_size(struct ena_adapter *adapter,
 	adapter->max_rx_ring_size = max_rx_queue_size;
 	adapter->requested_tx_ring_size = tx_queue_size;
 	adapter->requested_rx_ring_size = rx_queue_size;
+
+	return 0;
 }
 
 /* ena_probe - Device Initialization Routine
