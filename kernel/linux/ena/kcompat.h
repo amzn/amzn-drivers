@@ -921,4 +921,9 @@ static inline int netif_xmit_stopped(const struct netdev_queue *dev_queue)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #define NAPIF_STATE_SCHED BIT(NAPI_STATE_SCHED)
 #endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+#define bpf_warn_invalid_xdp_action(netdev, xdp_prog, verdict) \
+	bpf_warn_invalid_xdp_action(verdict)
+#endif
 #endif /* _KCOMPAT_H_ */
