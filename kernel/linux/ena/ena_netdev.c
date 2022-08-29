@@ -2508,8 +2508,6 @@ void ena_down(struct ena_adapter *adapter)
 	/* After this point the napi handler won't enable the tx queue */
 	ena_napi_disable_in_range(adapter, 0, io_queue_count);
 
-	/* After destroy the queue there won't be any new interrupts */
-
 	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags)) {
 		int rc;
 
