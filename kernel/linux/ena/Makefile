@@ -52,7 +52,7 @@ ifdef UBUNTU_ABI
 endif
 
 ifdef TEST_AF_XDP
-       ccflags-y += -DENA_TEST_AF_XDP
+	ccflags-y += -DENA_TEST_AF_XDP
 endif
 
 all:

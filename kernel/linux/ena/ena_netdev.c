@@ -1088,7 +1088,7 @@ static bool ena_try_rx_buf_page_reuse(struct ena_rx_buffer *rx_info, u16 buf_len
 		ena_buf->paddr += buf_len;
 		ena_buf->len -= buf_len;
 		return true;
-        }
+	}
 
 	return false;
 }
