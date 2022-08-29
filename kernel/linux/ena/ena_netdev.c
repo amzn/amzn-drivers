@@ -29,6 +29,7 @@
 
 #include "ena_lpc.h"
 
+#include "ena_phc.h"
 #include "ena_devlink.h"
 
 static char version[] = DEVICE_NAME " v" DRV_MODULE_GENERATION "\n";
@@ -3602,6 +3603,13 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	prev_netdev_features = adapter->netdev->features;
 	ena_set_dev_offloads(get_feat_ctx, adapter->netdev);
 	adapter->netdev->features = prev_netdev_features;
+
+	rc = ena_phc_init(adapter);
+	if (unlikely(rc && (rc != -EOPNOTSUPP))) {
+		netdev_err(netdev, "Failed initiating PHC, error: %d\n", rc);
+		goto err_admin_init;
+	}
+
 	return 0;
 
 err_admin_init:
@@ -3686,6 +3694,8 @@ int ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 
 	ena_com_admin_destroy(ena_dev);
 
+	ena_phc_destroy(adapter);
+
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 
 	/* return reset reason to default value */
@@ -3758,6 +3768,7 @@ err_device_destroy:
 	ena_com_wait_for_abort_completion(ena_dev);
 	ena_com_admin_destroy(ena_dev);
 	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_DRIVER_INVALID_STATE);
+	ena_phc_destroy(adapter);
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 err:
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);

@@ -125,6 +125,8 @@
 
 struct ena_page_cache;
 
+struct ena_phc_info;
+
 struct ena_irq {
 	irq_handler_t handler;
 	void *data;
@@ -454,6 +456,8 @@ struct ena_adapter {
 #endif
 	u32 xdp_first_ring;
 	u32 xdp_num_queues;
+
+	struct ena_phc_info *phc_info;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
