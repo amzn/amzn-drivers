@@ -250,6 +250,7 @@ ena_ethtool.c       ethtool callbacks.
 ena_devlink.[ch]    devlink files (see `devlink support`_ for more info)
 ena_xdp.[ch]        XDP files
 ena_pci_id_tbl.h    Supported device IDs.
+ena_phc.[ch]        PTP hardware clock infrastructure (see `PHC`_ for more info)
 =================   ======================================================
 
 Management Interface:
@@ -452,6 +453,26 @@ The cache usage for each queue can be monitored using :code:`ethtool -S` counter
 Note that ``lpc_size`` is set to 2 by default and cannot exceed 32. Also LPC is
 disabled when using XDP or when using less than 16 queue pairs. Increasing the
 cache size might result in higher memory usage, and should be handled with care.
+
+.. _`PHC`:
+PTP Hardware Clock (PHC)
+======================
+
+ENA Linux driver support PTP hardware clock providing timestamp reference to achieve nanosecond accuracy.
+
+PHC support can be verified using ethtool,
+e.g.
+
+.. code-block:: shell
+
+  ethtool -T eth0
+
+PHC can be monitored using :code:`ethtool -S` counters. Where:
+
+- ``phc_cnt`` - number of successful retrieved timestamps (not exceeding expire timeout)
+- ``phc_exp`` - number of expired retrieved timestamps (passing expire timeout)
+- ``phc_skp`` - number of skipped get time attempts (during block period)
+- ``phc_err`` - number of failed get time attempts
 
 Statistics
 ==========

@@ -4,6 +4,7 @@ obj-m += ena.o
 ena-objs := ena_netdev.o \
 		ena_ethtool.o \
 		ena_lpc.o	\
+		ena_phc.o \
 		ena_xdp.o \
 		dim.o \
 		ena_devlink.o \
