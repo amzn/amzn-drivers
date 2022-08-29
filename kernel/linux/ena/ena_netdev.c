@@ -46,7 +46,7 @@ MODULE_VERSION(DRV_MODULE_GENERATION);
 #define ENA_NAPI_BUDGET 64
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
-		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
+		NETIF_MSG_IFDOWN | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
 #ifndef ENA_LINEAR_FRAG_SUPPORTED
 
 #define ENA_SKB_PULL_MIN_LEN 64
@@ -2497,7 +2497,7 @@ void ena_down(struct ena_adapter *adapter)
 {
 	int io_queue_count = adapter->num_io_queues + adapter->xdp_num_queues;
 
-	netif_info(adapter, ifdown, adapter->netdev, "%s\n", __func__);
+	netif_dbg(adapter, ifdown, adapter->netdev, "%s\n", __func__);
 
 	clear_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 
