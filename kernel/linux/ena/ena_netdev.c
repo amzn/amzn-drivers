@@ -2902,8 +2902,6 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(rc))
 		goto error_drop_packet;
 
-	skb_tx_timestamp(skb);
-
 	next_to_use = tx_ring->next_to_use;
 	req_id = tx_ring->free_ids[next_to_use];
 	tx_info = &tx_ring->tx_buffer_info[req_id];
@@ -2967,6 +2965,8 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					  &tx_ring->syncp);
 		}
 	}
+
+	skb_tx_timestamp(skb);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 #ifdef HAVE_NETDEV_XMIT_MORE
