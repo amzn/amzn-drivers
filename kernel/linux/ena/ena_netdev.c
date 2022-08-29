@@ -1058,7 +1058,7 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag,
 	else
 		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
 						ENA_SKB_PULL_MIN_LEN);
-#endif
+#endif /* ENA_LINEAR_FRAG_SUPPORTED */
 
 	if (unlikely(!skb)) {
 		ena_increase_stat(&rx_ring->rx_stats.skb_alloc_fail, 1,
