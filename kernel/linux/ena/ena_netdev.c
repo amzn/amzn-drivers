@@ -3636,7 +3636,7 @@ void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 	if (!graceful)
 		ena_com_set_admin_running_state(ena_dev, false);
 
-	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+	if (dev_up)
 		ena_down(adapter);
 
 	/* Stop the device from sending AENQ events (in case reset flag is set
