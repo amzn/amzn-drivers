@@ -55,7 +55,6 @@ static ssize_t ena_show_rx_copybreak(struct device *dev,
 static DEVICE_ATTR(rx_copybreak, S_IRUGO | S_IWUSR, ena_show_rx_copybreak,
 		   ena_store_rx_copybreak);
 
-
 /******************************************************************************
  *****************************************************************************/
 int ena_sysfs_init(struct device *dev)
