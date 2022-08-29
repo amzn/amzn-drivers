@@ -934,4 +934,54 @@ static inline int netif_xmit_stopped(const struct netdev_queue *dev_queue)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 #define HAS_BPF_HEADER
 #endif
+
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)) && \
+	!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 7))))
+static inline int ktime_compare(const ktime_t cmp1, const ktime_t cmp2)
+{
+	if (cmp1.tv64 < cmp2.tv64)
+		return -1;
+	if (cmp1.tv64 > cmp2.tv64)
+		return 1;
+	return 0;
+}
+#endif
+
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)) && \
+	!(RHEL_RELEASE_CODE && \
+	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 7)) && \
+	(RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 0)) && \
+	(RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1))))
+static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
+{
+	return ktime_compare(cmp1, cmp2) > 0;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)) || \
+	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 4))
+#define ENA_PHC_SUPPORT
+#endif /* ENA_PHC_SUPPORT */
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) || \
+	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2))
+#define ENA_PHC_SUPPORT_GETTIME64
+#endif /* ENA_PHC_SUPPORT_GETTIME64 */
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)) || \
+	(RHEL_RELEASE_CODE && \
+	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 7)) && \
+	(RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(8, 0)))
+#define ENA_PHC_SUPPORT_GETTIME64_EXTENDED
+#endif /* ENA_PHC_SUPPORT_GETTIME64_EXTENDED */
+
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)) && \
+	!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 4))))
+#define ptp_clock_register(info, parent) ptp_clock_register(info)
+#endif
+
+#endif /* CONFIG_PTP_1588_CLOCK */
+
 #endif /* _KCOMPAT_H_ */
