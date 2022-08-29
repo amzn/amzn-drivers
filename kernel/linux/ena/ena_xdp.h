@@ -96,6 +96,11 @@ static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
 	return rc;
 }
 
+static inline u64 ena_ring_xdp_drops_cnt(struct ena_ring *rx_ring)
+{
+	return rx_ring->rx_stats.xdp_drop;
+}
+
 #ifdef ENA_AF_XDP_SUPPORT
 static inline bool ena_is_zc_q_exist(struct ena_adapter *adapter)
 {
@@ -189,6 +194,11 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 static inline bool ena_xdp_present_ring(struct ena_ring *ring)
 {
 	return false;
+}
+
+static inline u64 ena_ring_xdp_drops_cnt(struct ena_ring *rx_ring)
+{
+	return 0;
 }
 
 static inline int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)

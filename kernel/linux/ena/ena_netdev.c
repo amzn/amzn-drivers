@@ -3166,6 +3166,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	struct ena_ring *rx_ring, *tx_ring;
+	u64 xdp_rx_drops = 0;
 	unsigned int start;
 	u64 rx_drops;
 	u64 tx_drops;
@@ -3178,7 +3179,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 		return NULL;
 #endif
 
-	for (i = 0; i < adapter->num_io_queues; i++) {
+	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
 		u64 bytes, packets;
 
 		tx_ring = &adapter->tx_ring[i];
@@ -3192,12 +3193,17 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 		stats->tx_packets += packets;
 		stats->tx_bytes += bytes;
 
+		/* In XDP there isn't an RX queue counterpart */
+		if (ENA_IS_XDP_INDEX(adapter, i))
+			continue;
+
 		rx_ring = &adapter->rx_ring[i];
 
 		do {
 			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
 			packets = rx_ring->rx_stats.cnt;
 			bytes = rx_ring->rx_stats.bytes;
+			xdp_rx_drops += ena_ring_xdp_drops_cnt(rx_ring);
 		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
 
 		stats->rx_packets += packets;
@@ -3210,7 +3216,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 		tx_drops = adapter->dev_stats.tx_drops;
 	} while (u64_stats_fetch_retry_irq(&adapter->syncp, start));
 
-	stats->rx_dropped = rx_drops;
+	stats->rx_dropped = rx_drops + xdp_rx_drops;
 	stats->tx_dropped = tx_drops;
 
 	stats->multicast = 0;
