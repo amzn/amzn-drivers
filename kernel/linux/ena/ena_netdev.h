@@ -349,6 +349,7 @@ struct ena_stats_dev {
 	u64 admin_q_pause;
 	u64 rx_drops;
 	u64 tx_drops;
+	u64 reset_fail;
 };
 
 enum ena_flags_t {
@@ -558,7 +559,7 @@ static inline void ena_reset_device(struct ena_adapter *adapter,
  */
 struct page *ena_alloc_map_page(struct ena_ring *rx_ring, dma_addr_t *dma);
 
-void ena_destroy_device(struct ena_adapter *adapter, bool graceful);
+int ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 int ena_restore_device(struct ena_adapter *adapter);
 int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
 			  struct ena_tx_buffer *tx_info, bool is_xdp);
