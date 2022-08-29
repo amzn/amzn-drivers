@@ -43,8 +43,6 @@ MODULE_VERSION(DRV_MODULE_GENERATION);
 
 #define ENA_MAX_RINGS min_t(unsigned int, ENA_MAX_NUM_IO_QUEUES, num_possible_cpus())
 
-#define ENA_NAPI_BUDGET 64
-
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
 		NETIF_MSG_IFDOWN | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
 #ifndef ENA_LINEAR_FRAG_SUPPORTED
@@ -2036,7 +2034,7 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 		netif_napi_add(adapter->netdev,
 			       &napi->napi,
 			       napi_handler,
-			       ENA_NAPI_BUDGET);
+			       NAPI_POLL_WEIGHT);
 
 #ifdef ENA_BUSY_POLL_SUPPORT
 		napi_hash_add(&adapter->ena_napi[i].napi);

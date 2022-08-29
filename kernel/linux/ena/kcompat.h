@@ -839,6 +839,10 @@ static inline int numa_mem_id(void)
 #define fallthrough do {} while (0)  /* fallthrough */
 #endif
 
+#ifndef NAPI_POLL_WEIGHT
+#define NAPI_POLL_WEIGHT 64
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
 #define AF_XDP_BUSY_POLL_SUPPORTED
 #endif
