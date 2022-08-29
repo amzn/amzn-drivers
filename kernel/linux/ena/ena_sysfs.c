@@ -19,26 +19,23 @@ static ssize_t ena_store_rx_copybreak(struct device *dev,
 {
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 	unsigned long rx_copybreak;
-	struct ena_ring *rx_ring;
-	int err, i;
+	int rc;
 
-	err = kstrtoul(buf, 10, &rx_copybreak);
-	if (err < 0)
-		return err;
-
-	if (rx_copybreak > min_t(u16, adapter->netdev->mtu, ENA_PAGE_SIZE))
-		return -EINVAL;
+	rc = kstrtoul(buf, 10, &rx_copybreak);
+	if (rc < 0)
+		goto exit;
 
 	rtnl_lock();
-	adapter->rx_copybreak = rx_copybreak;
-
-	for (i = 0; i < adapter->num_io_queues; i++) {
-		rx_ring = &adapter->rx_ring[i];
-		rx_ring->rx_copybreak = rx_copybreak;
-	}
+	rc = ena_set_rx_copybreak(adapter, rx_copybreak);
+	if (rc)
+		goto unlock;
 	rtnl_unlock();
 
 	return len;
+unlock:
+	rtnl_unlock();
+exit:
+	return rc;
 }
 
 #define ENA_RX_COPYBREAK_STR_MAX_LEN 7
