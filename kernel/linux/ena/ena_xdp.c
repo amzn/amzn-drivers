@@ -190,7 +190,8 @@ int ena_setup_and_create_all_xdp_queues(struct ena_adapter *adapter)
 	return 0;
 
 create_err:
-	ena_free_all_io_tx_resources(adapter);
+	ena_free_all_io_tx_resources_in_range(adapter, adapter->xdp_first_ring,
+					      adapter->xdp_num_queues);
 setup_err:
 	return rc;
 }
