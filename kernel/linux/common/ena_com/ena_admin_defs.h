@@ -50,6 +50,7 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_AENQ_CONFIG                       = 26,
 	ENA_ADMIN_LINK_CONFIG                       = 27,
 	ENA_ADMIN_HOST_ATTR_CONFIG                  = 28,
+	ENA_ADMIN_PHC_CONFIG                        = 29,
 	ENA_ADMIN_FEATURES_OPCODE_NUM               = 32,
 };
 
@@ -109,6 +110,10 @@ enum ena_admin_get_stats_type {
 enum ena_admin_get_stats_scope {
 	ENA_ADMIN_SPECIFIC_QUEUE                    = 0,
 	ENA_ADMIN_ETH_TRAFFIC                       = 1,
+};
+
+enum ena_admin_get_phc_type {
+	ENA_ADMIN_PHC_TYPE_READLESS                 = 0,
 };
 
 struct ena_admin_aq_common_desc {
@@ -970,6 +975,43 @@ struct ena_admin_queue_ext_feature_desc {
 	};
 };
 
+struct ena_admin_feature_phc_desc {
+	/* PHC type as defined in enum ena_admin_get_phc_type,
+	 * used only for GET command.
+	 */
+	u8 type;
+
+	/* Reserved - MBZ */
+	u8 reserved1[3];
+
+	/* PHC doorbell address as an offset to PCIe MMIO REG BAR,
+	 * used only for GET command.
+	 */
+	u32 doorbell_offset;
+
+	/* Max time for valid PHC retrieval, passing this threshold will
+	 * fail the get-time request and block PHC requests for
+	 * block_timeout_usec, used only for GET command.
+	 */
+	u32 expire_timeout_usec;
+
+	/* PHC requests block period, blocking starts if PHC request expired
+	 * in order to prevent floods on busy device,
+	 * used only for GET command.
+	 */
+	u32 block_timeout_usec;
+
+	/* Shared PHC physical address (ena_admin_phc_resp),
+	 * used only for SET command.
+	 */
+	struct ena_common_mem_addr output_address;
+
+	/* Shared PHC Size (ena_admin_phc_resp),
+	 * used only for SET command.
+	 */
+	u32 output_length;
+};
+
 struct ena_admin_get_feat_resp {
 	struct ena_admin_acq_common_desc acq_common_desc;
 
@@ -999,6 +1041,8 @@ struct ena_admin_get_feat_resp {
 		struct ena_admin_feature_intr_moder_desc intr_moderation;
 
 		struct ena_admin_ena_hw_hints hw_hints;
+
+		struct ena_admin_feature_phc_desc phc;
 
 		struct ena_admin_get_extra_properties_strings_desc extra_properties_strings;
 
@@ -1036,6 +1080,9 @@ struct ena_admin_set_feat_cmd {
 
 		/* LLQ configuration */
 		struct ena_admin_feature_llq_desc llq;
+
+		/* PHC configuration */
+		struct ena_admin_feature_phc_desc phc;
 	} u;
 };
 
@@ -1112,6 +1159,16 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 
 	/* value is valid when poll is cleared */
 	u32 reg_val;
+};
+
+struct ena_admin_phc_resp {
+	u16 req_id;
+
+	u8 reserved1[6];
+
+	u64 timestamp;
+
+	u8 reserved2[48];
 };
 
 /* aq_common_desc */
