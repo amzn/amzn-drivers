@@ -105,9 +105,15 @@ The exceptions are:
 
 Loading driver:
 ---------------
+If the driver was compiled using ENA_PHC_INCLUDE environment variable set then
+ptp module might need to be loaded prior to loading the driver (see `PHC`_ for
+more info).
+
+ENA driver can be (re)loaded using:
+
 .. code-block:: shell
 
-  sudo modprobe -r ena && sudo insmod ena.ko
+  sudo rmmod ena && sudo insmod ena.ko
 
 
 Please note, the following messages might appear during OS boot::
@@ -170,7 +176,7 @@ Installing Driver with dkms:
   PACKAGE_NAME="ena"
   PACKAGE_VERSION="1.0.0"
   CLEAN="make -C kernel/linux/ena clean"
-  MAKE="make -C kernel/linux/ena/ BUILD_KERNEL=${kernelver}"
+  MAKE="ENA_PHC_INCLUDE=1 make -C kernel/linux/ena/ BUILD_KERNEL=${kernelver}"
   BUILT_MODULE_NAME[0]="ena"
   BUILT_MODULE_LOCATION="kernel/linux/ena"
   DEST_MODULE_LOCATION[0]="/updates"
@@ -473,6 +479,31 @@ PHC can be monitored using :code:`ethtool -S` counters. Where:
 - ``phc_exp`` - number of expired retrieved timestamps (passing expire timeout)
 - ``phc_skp`` - number of skipped get time attempts (during block period)
 - ``phc_err`` - number of failed get time attempts
+
+**Note** that this feature depends on the ptp module, which needs to be either loaded as a module or
+compiled into the kernel. One way to verify if the PTP module is present:
+
+.. code-block:: shell
+
+  $ grep -w '^CONFIG_PTP_1588_CLOCK=[ym]' /boot/config-`uname -r`
+
+If no output is provided, the ENA driver cannot be loaded with support for PHC.
+
+If the configuration has the 'm' letter, the ptp module needs to be loaded prior
+to loading ENA driver:
+
+.. code-block:: shell
+
+  $ sudo modprobe ptp
+
+If the configuration has the 'y' letter the step above isn't needed.
+
+To avoid confusion, this feature is enabled only with the ENA_PHC_INCLUDE
+environment variable set when compiling the driver, e.g.
+
+.. code-block:: shell
+
+  $ ENA_PHC_INCLUDE=1 make
 
 Statistics
 ==========

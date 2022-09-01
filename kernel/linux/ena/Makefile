@@ -56,6 +56,10 @@ ifdef TEST_AF_XDP
 	ccflags-y += -DENA_TEST_AF_XDP
 endif
 
+ifdef ENA_PHC_INCLUDE
+	ccflags-y += -DENA_PHC_INCLUDE
+endif
+
 all:
 	$(MAKE) -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) modules
 

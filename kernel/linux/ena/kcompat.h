@@ -960,8 +960,8 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)) || \
-	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 4))
+#if defined(ENA_PHC_INCLUDE) && ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)) || \
+	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 4)))
 #define ENA_PHC_SUPPORT
 #endif /* ENA_PHC_SUPPORT */
 
