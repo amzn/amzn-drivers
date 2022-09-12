@@ -63,7 +63,7 @@ for flavor in %flavors_to_build; do
 		cp $symvers obj/$flavor/%{kmod_kbuild_dir}/Module.symvers
 	fi
 
-	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor/%{kmod_kbuild_dir} \
+	ENA_PHC_INCLUDE=1 make -C %{kernel_source $flavor} M=$PWD/obj/$flavor/%{kmod_kbuild_dir} \
 		NOSTDINC_FLAGS="-I $PWD/obj/$flavor/include"
 
 	# mark modules executable so that strip-to-file can strip them
