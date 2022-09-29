@@ -57,7 +57,7 @@ MODULE_PARM_DESC(debug, "Debug level (-1=default,0=none,...,16=all)");
 
 static int rx_queue_size = ENA_DEFAULT_RING_SIZE;
 module_param(rx_queue_size, int, 0444);
-MODULE_PARM_DESC(rx_queue_size, "Rx queue size. The size should be a power of 2. Max value is 8K\n");
+MODULE_PARM_DESC(rx_queue_size, "Rx queue size. The size should be a power of 2. Depending on instance type, max value can be up to 16K\n");
 
 static int force_large_llq_header = 0;
 module_param(force_large_llq_header, int, 0444);
