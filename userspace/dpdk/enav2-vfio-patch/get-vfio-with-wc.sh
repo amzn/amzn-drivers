@@ -74,7 +74,7 @@ function download_kernel_src_apt {
 	green Done
 
 	bold "\nDownload Linux kernel source with vfio"
-	if ! apt-get -q -y source linux-image-$(uname -r); then
+	if ! apt-get -q -y source linux-image-unsigned-$(uname -r); then
 		err "Cannot download Linux kernel source.\nPlease uncomment appropriate 'deb-src' line in the /etc/apt/sources.list file"
 		exit 1
 	fi
