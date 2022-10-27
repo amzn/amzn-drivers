@@ -98,6 +98,11 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu Oct 27 2022 Michael Margolin <mrgolin@amazon.com> - 2.1.0
+- Add support for CQ receive entries with source GID
+- Add 0xefa2 device support
+- Fix sysfs show on older kernels
+
 * Mon Jan 24 2022 Firas Jahjah <firasj@amazon.com> - 1.16.0
 - Add CQ notifications
 - Add support for dmabuf

@@ -1,3 +1,10 @@
+efa (2.1.0-1.amzn1) unstable; urgency=medium
+  * Add support for CQ receive entries with source GID
+  * Add 0xefa2 device support
+  * Fix sysfs show on older kernels
+
+ -- Michael Margolin <mrgolin@amazon.com>  Thu, 27 Oct 2022 19:47:18 +0000
+
 efa (1.16.0-1.amzn1) unstable; urgency=medium
   * Add CQ notifications
   * Add support for dmabuf
