@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2021-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 function(config_define def)
   file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/config.h "#define ${def} 1")
@@ -431,6 +431,8 @@ struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length, 
   HAVE_MR_DMABUF "")
 
 try_compile("#include <rdma/ib_umem.h>" "ib_umem_dmabuf_get_pinned(NULL, 0, 0, 0, 0);" HAVE_IB_UMEM_DMABUF_PINNED "")
+
+try_compile("#include <linux/module.h>" "MODULE_IMPORT_NS(TEST);" HAVE_MODULE_IMPORT_NS "")
 
 wait_for_pids()
 message("-- Inspecting kernel - done")

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _KCOMPAT_H_
@@ -190,6 +190,10 @@ typedef u8 port_t;
 #include <linux/dma-buf.h>
 #include <linux/dma-resv.h>
 #include <rdma/ib_umem.h>
+
+#ifdef HAVE_MODULE_IMPORT_NS
+MODULE_IMPORT_NS(DMA_BUF);
+#endif
 
 static inline void
 ib_umem_dmabuf_unsupported_move_notify(struct dma_buf_attachment *attach)
