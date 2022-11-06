@@ -714,7 +714,8 @@ do {									\
 #endif
 
 #if defined(CONFIG_NET_DEVLINK) && \
-	(KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0))
+	(KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0) && \
+	!(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 4)))
 #define ENA_DEVLINK_RELOAD_ENABLING_REQUIRED
 #endif
 
@@ -728,15 +729,18 @@ do {									\
 #define ENA_DEVLINK_RELOAD_LIMIT_AND_ACTION_SUPPORT
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) || \
+	(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 4))
 #define ENA_DEVLINK_RECEIVES_DEVICE_ON_ALLOC
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0) || \
+	(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 4))
 #define ENA_DEVLINK_RELOAD_SUPPORT_ADVERTISEMENT_NEEDED
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0) && \
+	!(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 4))
 #define ENA_DEVLINK_CONFIGURE_AFTER_REGISTER
 #endif
 
@@ -907,7 +911,8 @@ xdp_prepare_buff(struct xdp_buff *xdp, unsigned char *hard_start,
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0) && \
-	!(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 6))
+	!(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 6)) && \
+	!(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 4))
 static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 {
 	memcpy(dev->dev_addr, addr, ETH_ALEN);
@@ -915,7 +920,8 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) || \
-	(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 6))
+	(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 6)) || \
+	(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 4))
 #define ENA_EXTENDED_COALESCE_UAPI_WITH_CQE_SUPPORTED
 #endif
 
