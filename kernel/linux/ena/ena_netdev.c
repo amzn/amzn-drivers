@@ -600,7 +600,8 @@ static void ena_free_all_io_rx_resources(struct ena_adapter *adapter)
 		ena_free_rx_resources(adapter, i);
 }
 
-struct page *ena_alloc_map_page(struct ena_ring *rx_ring, dma_addr_t *dma)
+struct page *ena_alloc_map_page(struct ena_ring *rx_ring,
+				dma_addr_t *dma)
 {
 	struct page *page;
 
