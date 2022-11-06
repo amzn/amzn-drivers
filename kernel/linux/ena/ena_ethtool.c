@@ -712,9 +712,9 @@ static void ena_get_drvinfo(struct net_device *dev,
 {
 	struct ena_adapter *adapter = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_GENERATION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(adapter->pdev),
+	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_MODULE_GENERATION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 
 	info->n_priv_flags = ENA_PRIV_FLAGS_NR;

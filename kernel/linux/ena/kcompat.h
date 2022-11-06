@@ -1013,4 +1013,13 @@ static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
 }
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)) && \
+	!(RHEL_RELEASE_CODE && \
+	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 7)))
+static inline ssize_t strscpy(char *dest, const char *src, size_t count)
+{
+	return (ssize_t)strlcpy(dest, src, count);
+}
+#endif
+
 #endif /* _KCOMPAT_H_ */
