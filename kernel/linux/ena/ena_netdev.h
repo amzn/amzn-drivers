@@ -383,10 +383,12 @@ struct ena_adapter {
 
 	u32 num_io_queues;
 	u32 max_num_io_queues;
+
 	/* Local page cache size when it's enabled */
 	u32 configured_lpc_size;
 	/* Current Local page cache size */
 	u32 used_lpc_size;
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
 	struct msix_entry *msix_entries;
 #endif
