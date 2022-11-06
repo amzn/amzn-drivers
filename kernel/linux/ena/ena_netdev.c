@@ -1051,15 +1051,15 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag,
 
 #ifdef ENA_LINEAR_FRAG_SUPPORTED
 	if (!first_frag)
-		skb = netdev_alloc_skb_ip_align(rx_ring->netdev, len);
+		skb = napi_alloc_skb(rx_ring->napi, len);
 	else
 		skb = ena_build_skb(first_frag, len);
 #else
 	if (!first_frag)
-		skb = netdev_alloc_skb_ip_align(rx_ring->netdev, len);
+		skb = napi_alloc_skb(rx_ring->napi, len);
 	else
-		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-						ENA_SKB_PULL_MIN_LEN);
+		skb = napi_alloc_skb(rx_ring->napi,
+				     ENA_SKB_PULL_MIN_LEN);
 #endif /* ENA_LINEAR_FRAG_SUPPORTED */
 
 	if (unlikely(!skb)) {

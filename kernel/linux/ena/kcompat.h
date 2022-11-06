@@ -1003,4 +1003,14 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 
 #endif /* CONFIG_PTP_1588_CLOCK */
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)) && \
+	!(RHEL_RELEASE_CODE && \
+	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)))
+static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
+					     unsigned int length)
+{
+	return netdev_alloc_skb_ip_align(napi->dev, length);
+}
+#endif
+
 #endif /* _KCOMPAT_H_ */
