@@ -1052,7 +1052,7 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag,
 	if (!first_frag)
 		skb = netdev_alloc_skb_ip_align(rx_ring->netdev, len);
 	else
-		skb = build_skb(first_frag, len);
+		skb = ena_build_skb(first_frag, len);
 #else
 	if (!first_frag)
 		skb = netdev_alloc_skb_ip_align(rx_ring->netdev, len);
