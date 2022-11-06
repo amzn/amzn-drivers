@@ -839,10 +839,6 @@ static inline int numa_mem_id(void)
 #define fallthrough do {} while (0)  /* fallthrough */
 #endif
 
-#ifndef NAPI_POLL_WEIGHT
-#define NAPI_POLL_WEIGHT 64
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
 #define AF_XDP_BUSY_POLL_SUPPORTED
 #endif
@@ -1021,5 +1017,19 @@ static inline ssize_t strscpy(char *dest, const char *src, size_t count)
 	return (ssize_t)strlcpy(dest, src, count);
 }
 #endif
+
+static inline void ena_netif_napi_add(struct net_device *dev,
+				      struct napi_struct *napi,
+				      int (*poll)(struct napi_struct *, int))
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
+#ifndef NAPI_POLL_WEIGHT
+#define NAPI_POLL_WEIGHT 64
+#endif
+	netif_napi_add(dev, napi, poll, NAPI_POLL_WEIGHT);
+#else
+	netif_napi_add(dev, napi, poll);
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0) */
+}
 
 #endif /* _KCOMPAT_H_ */
