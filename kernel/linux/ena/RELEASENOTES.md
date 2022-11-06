@@ -32,6 +32,24 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.1 release notes
+**New Features**
+* Add extended metrics mechanism support
+* Add conntrack customer metric to ethtool
+
+**Bug Fixes**
+* Fix compilation issues on SLES 15 SP4
+* Fix compilation errors in RHEL 8.7, 9.0
+* Configure TX rings mem policy in reset flow
+
+**Minor Changes**
+* Add napi_build_skb support
+* Add napi_consume_skb
+* Align ena_alloc_map_page signature
+* Move from strlcpy with unused retval to strscpy
+* Add status check for strscpy calls
+* Backport napi_alloc_skb usage
+
 ## r2.8.0 release notes
 **Notes**
 * The driver is now dependent on the ptp module for loading
