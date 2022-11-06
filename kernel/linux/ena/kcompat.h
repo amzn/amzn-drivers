@@ -851,6 +851,16 @@ static inline int numa_mem_id(void)
 #define ENA_LINEAR_FRAG_SUPPORTED
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && \
+	!(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 3)) && \
+	!(defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(4, 2, 0, 42))
+static __always_inline
+void napi_consume_skb(struct sk_buff *skb, int budget)
+{
+	dev_kfree_skb_any(skb);
+}
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 #define ENA_NETDEV_LOGS_WITHOUT_RV
 #endif
