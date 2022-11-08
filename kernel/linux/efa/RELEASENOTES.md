@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.1.1 release notes
+* Fix dmabuf backport for some kernels
+
 ## r2.1.0 release notes
 * Add support for CQ receive entries with source GID
 * Add 0xefa2 device support

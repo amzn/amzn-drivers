@@ -1,3 +1,8 @@
+efa (2.1.1-1.amzn1) unstable; urgency=medium
+  * Fix dmabuf backport for some kernels
+
+ -- Michael Margolin <mrgolin@amazon.com>  Tue, 08 Nov 2022 20:46:40 +0000
+
 efa (2.1.0-1.amzn1) unstable; urgency=medium
   * Add support for CQ receive entries with source GID
   * Add 0xefa2 device support
