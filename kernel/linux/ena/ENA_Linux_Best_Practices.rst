@@ -95,13 +95,11 @@ adjusted using :code:`ethtool -G` command.
 Rx ring sizes can vary between 256 to up to 16K entries (max value depends on
 instance type/size).
 Tx ring size varies between 256 to 1K entries.
-Ring size value must be a power of 2. Please run
+Ring size value must be a power of 2. Please run the following command to check the supported Tx/Rx rings max size.
 
 .. code-block:: bash
 
-     $ ethtool -g DEVNAME to see the
-
-to check the supported Tx/Rx rings max size.
+     $ ethtool -g DEVNAME
 
 **Q:** What offloads are enabled on an ENA device ?
 
