@@ -3,6 +3,8 @@
  * Copyright 2015-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
+#include "linux/pci.h"
+
 #include "ena_devlink.h"
 #ifdef ENA_DEVLINK_SUPPORT
 
