@@ -3197,10 +3197,10 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 		tx_ring = &adapter->tx_ring[i];
 
 		do {
-			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
+			start = ena_u64_stats_fetch_begin(&tx_ring->syncp);
 			packets = tx_ring->tx_stats.cnt;
 			bytes = tx_ring->tx_stats.bytes;
-		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+		} while (ena_u64_stats_fetch_retry(&tx_ring->syncp, start));
 
 		stats->tx_packets += packets;
 		stats->tx_bytes += bytes;
@@ -3212,21 +3212,21 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 		rx_ring = &adapter->rx_ring[i];
 
 		do {
-			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
+			start = ena_u64_stats_fetch_begin(&rx_ring->syncp);
 			packets = rx_ring->rx_stats.cnt;
 			bytes = rx_ring->rx_stats.bytes;
 			xdp_rx_drops += ena_ring_xdp_drops_cnt(rx_ring);
-		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
+		} while (ena_u64_stats_fetch_retry(&rx_ring->syncp, start));
 
 		stats->rx_packets += packets;
 		stats->rx_bytes += bytes;
 	}
 
 	do {
-		start = u64_stats_fetch_begin_irq(&adapter->syncp);
+		start = ena_u64_stats_fetch_begin(&adapter->syncp);
 		rx_drops = adapter->dev_stats.rx_drops;
 		tx_drops = adapter->dev_stats.tx_drops;
-	} while (u64_stats_fetch_retry_irq(&adapter->syncp, start));
+	} while (ena_u64_stats_fetch_retry(&adapter->syncp, start));
 
 	stats->rx_dropped = rx_drops + xdp_rx_drops;
 	stats->tx_dropped = tx_drops;
@@ -3263,10 +3263,10 @@ static struct net_device_stats *ena_get_stats(struct net_device *netdev)
 
 		tx_ring = &adapter->tx_ring[i];
 		do {
-			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
+			start = ena_u64_stats_fetch_begin(&tx_ring->syncp);
 			packets = (unsigned long)tx_ring->tx_stats.cnt;
 			bytes = (unsigned long)tx_ring->tx_stats.bytes;
-		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+		} while (ena_u64_stats_fetch_retry(&tx_ring->syncp, start));
 
 		stats->tx_packets += packets;
 		stats->tx_bytes += bytes;
@@ -3274,19 +3274,19 @@ static struct net_device_stats *ena_get_stats(struct net_device *netdev)
 		rx_ring = &adapter->rx_ring[i];
 
 		do {
-			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
+			start = ena_u64_stats_fetch_begin(&tx_ring->syncp);
 			packets = (unsigned long)rx_ring->rx_stats.cnt;
 			bytes = (unsigned long)rx_ring->rx_stats.bytes;
-		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+		} while (ena_u64_stats_fetch_retry(&tx_ring->syncp, start));
 
 		stats->rx_packets += packets;
 		stats->rx_bytes += bytes;
 	}
 
 	do {
-		start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
+		start = ena_u64_stats_fetch_begin(&tx_ring->syncp);
 		rx_drops = (unsigned long)adapter->dev_stats.rx_drops;
-	} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
+	} while (ena_u64_stats_fetch_retry(&tx_ring->syncp, start));
 
 	stats->rx_dropped = rx_drops;
 

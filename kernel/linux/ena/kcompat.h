@@ -73,6 +73,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/udp.h>
+#include <linux/u64_stats_sync.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 #include <linux/sizes.h>
@@ -502,6 +503,25 @@ static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync
 }
 
 #endif
+
+static inline bool ena_u64_stats_fetch_retry(const struct u64_stats_sync *syncp,
+					     unsigned int start)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
+	return u64_stats_fetch_retry_irq(syncp, start);
+#else
+	return u64_stats_fetch_retry(syncp, start);
+#endif
+}
+
+static inline unsigned int ena_u64_stats_fetch_begin(const struct u64_stats_sync *syncp)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
+	return u64_stats_fetch_begin_irq(syncp);
+#else
+	return u64_stats_fetch_begin(syncp);
+#endif
+}
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0) && \
       !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1))))

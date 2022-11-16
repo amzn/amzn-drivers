@@ -198,9 +198,9 @@ static void ena_safe_update_stat(u64 *src, u64 *dst,
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_irq(syncp);
+		start = ena_u64_stats_fetch_begin(syncp);
 		*(dst) = *src;
-	} while (u64_stats_fetch_retry_irq(syncp, start));
+	} while (ena_u64_stats_fetch_retry(syncp, start));
 }
 
 
