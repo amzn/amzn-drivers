@@ -2036,10 +2036,16 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 			napi_handler = ena_xdp_io_poll;
 #endif /* ENA_XDP_SUPPORT */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+		netif_napi_add(adapter->netdev,
+			       &napi->napi,
+			       napi_handler);
+#else
 		netif_napi_add(adapter->netdev,
 			       &napi->napi,
 			       napi_handler,
 			       NAPI_POLL_WEIGHT);
+#endif
 
 #ifdef ENA_BUSY_POLL_SUPPORT
 		napi_hash_add(&adapter->ena_napi[i].napi);
