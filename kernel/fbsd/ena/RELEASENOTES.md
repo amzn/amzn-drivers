@@ -2,12 +2,11 @@
 
 ## Supported Kernel Versions and Distributions
 
-ENA driver is supported on all FreeBSD releases starting from 11.2
+ENA driver is supported on all FreeBSD releases starting from 12.0
 
 The driver was verified on the following distributions:
 
 **Releases:**
-* FreeBSD 11.4
 * FreeBSD 12.3
 * FreeBSD 13.1
 

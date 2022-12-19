@@ -11,7 +11,6 @@ Supported FreeBSD Versions
 
 **amd64**
 
-* *FreeBSD 11.0* - *FreeBSD 11.4*
 * *FreeBSD 12* - starting from ``rS3091111``
 * *FreeBSD 13*
 * *FreeBSD 14*
@@ -91,11 +90,11 @@ Git
   # Getting sources may vary between system versions. The resources need
   # to be adjusted accordingly. Some of the examples can be found below.
 
-  # For stable 11:
-  git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch stable/11
+  # For stable 12:
+  git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch stable/12
 
-  # For release (FreeBSD 11.4)
-  git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch releng/11.4
+  # For release (FreeBSD 12.1)
+  git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch releng/12.1
 
   # For CURRENT (unstable)
   git clone https://git.FreeBSD.org/src.git /usr/src --single-branch --branch main
@@ -137,10 +136,10 @@ Subversion - legacy
   # to be adjusted accordingly. Some of the examples can be found below.
 
   # For stable:
-  svn checkout https://svn.freebsd.org/base/stable/11/ /usr/src
+  svn checkout https://svn.freebsd.org/base/stable/12/ /usr/src
 
-  # For release (FreeBSD 11.1)
-  svn checkout https://svn.freebsd.org/base/releng/11.1/ /usr/src
+  # For release (FreeBSD 12.1)
+  svn checkout https://svn.freebsd.org/base/releng/12.1/ /usr/src
 
   # For -CURRENT (unstable)
   svn checkout https://svn.freebsd.org/base/head /usr/src
@@ -858,5 +857,5 @@ Unsupported features
 Known issues
 ------------
 
-- ``FLOWTABLE`` option (per-CPU routing cache) leads to system crash on both
-  FreeBSD 11 and FreeBSD 12-CURRENT system versions.
+- ``FLOWTABLE`` option (per-CPU routing cache) leads to system crash on
+  FreeBSD 12.0.
