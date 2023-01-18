@@ -3517,6 +3517,15 @@ ena_reset_task(void *arg, int pending)
 	ENA_LOCK_UNLOCK();
 }
 
+static void
+ena_free_stats(struct ena_adapter *adapter)
+{
+	ena_free_counters((counter_u64_t *)&adapter->hw_stats,
+	    sizeof(struct ena_hw_stats));
+	ena_free_counters((counter_u64_t *)&adapter->dev_stats,
+	    sizeof(struct ena_stats_dev));
+
+}
 /**
  * ena_attach - Device Initialization Routine
  * @pdev: device information struct
@@ -3694,6 +3703,13 @@ ena_attach(device_t pdev)
 	/* initialize rings basic information */
 	ena_init_io_rings(adapter);
 
+	/* Initialize statistics */
+	ena_alloc_counters((counter_u64_t *)&adapter->dev_stats,
+	    sizeof(struct ena_stats_dev));
+	ena_alloc_counters((counter_u64_t *)&adapter->hw_stats,
+	    sizeof(struct ena_hw_stats));
+	ena_sysctl_add_nodes(adapter);
+
 	/* setup network interface */
 	rc = ena_setup_ifnet(pdev, adapter, &get_feat_ctx);
 	if (unlikely(rc != 0)) {
@@ -3714,13 +3730,6 @@ ena_attach(device_t pdev)
 	    M_WAITOK | M_ZERO, taskqueue_thread_enqueue, &adapter->metrics_tq);
 	taskqueue_start_threads(&adapter->metrics_tq, 1, PI_NET, "%s metricsq",
 	    device_get_nameunit(adapter->pdev));
-
-	/* Initialize statistics */
-	ena_alloc_counters((counter_u64_t *)&adapter->dev_stats,
-	    sizeof(struct ena_stats_dev));
-	ena_alloc_counters((counter_u64_t *)&adapter->hw_stats,
-	    sizeof(struct ena_hw_stats));
-	ena_sysctl_add_nodes(adapter);
 
 #ifdef DEV_NETMAP
 	rc = ena_netmap_attach(adapter);
@@ -3744,6 +3753,7 @@ err_detach:
 	ether_ifdetach(adapter->ifp);
 #endif /* DEV_NETMAP */
 err_msix_free:
+	ena_free_stats(adapter);
 	ena_com_dev_reset(adapter->ena_dev, ENA_REGS_RESET_INIT_ERR);
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
@@ -3816,10 +3826,7 @@ ena_detach(device_t pdev)
 	netmap_detach(adapter->ifp);
 #endif /* DEV_NETMAP */
 
-	ena_free_counters((counter_u64_t *)&adapter->hw_stats,
-	    sizeof(struct ena_hw_stats));
-	ena_free_counters((counter_u64_t *)&adapter->dev_stats,
-	    sizeof(struct ena_stats_dev));
+	ena_free_stats(adapter);
 
 	rc = ena_free_rx_dma_tag(adapter);
 	if (unlikely(rc != 0))
