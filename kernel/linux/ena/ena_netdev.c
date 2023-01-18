@@ -3717,6 +3717,7 @@ int ena_restore_device(struct ena_adapter *adapter)
 	for (i = 0 ; i < count; i++) {
 		txr = &adapter->tx_ring[i];
 		txr->tx_mem_queue_type = ena_dev->tx_mem_queue_type;
+		txr->tx_max_header_size = ena_dev->tx_max_header_size;
 	}
 
 	rc = ena_device_validate_params(adapter, &get_feat_ctx);
