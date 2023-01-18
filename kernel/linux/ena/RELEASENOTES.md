@@ -32,6 +32,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.2 release notes
+**Buf Fixes**
+* Fix devlink large LLQ config not fully applied
+
 ## r2.8.1 release notes
 **New Features**
 * Add extended metrics mechanism support

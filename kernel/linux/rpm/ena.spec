@@ -1,5 +1,5 @@
 %define kmod_name		ena
-%define kmod_driver_version	2.8.1
+%define kmod_driver_version	2.8.2
 %define kmod_rpm_release	1
 %define kmod_git_hash		3ac3e0bf079b2c0468f759f2213541e214a6dd77
 %define kmod_kbuild_dir		kernel/linux/ena
@@ -99,6 +99,9 @@ install -m 644 -D source/%{kmod_kbuild_dir}/RELEASENOTES.md $RPM_BUILD_ROOT/usr/
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Sun Jan 18 2023 David Arinzon darinzon@amazon.com - 2.8.2-1.41
+- Update ENA driver to version 2.8.2
+
 * Sun Nov 06 2022 Shahar Itzko itzko@amazon.com - 2.8.1-1.40
 - Update ENA driver to version 2.8.1
 
