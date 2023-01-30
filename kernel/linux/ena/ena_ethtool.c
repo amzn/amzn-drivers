@@ -342,9 +342,8 @@ static void ena_get_stats(struct ena_adapter *adapter,
 	ena_queue_stats(adapter, &data);
 	ena_com_admin_queue_stats(adapter, &data);
 
-	if (ena_phc_enabled(adapter)) {
+	if (ena_phc_is_active(adapter))
 		ena_com_phc_stats(adapter, &data);
-	}
 }
 
 static void ena_get_ethtool_stats(struct net_device *netdev,
@@ -377,7 +376,7 @@ static int ena_get_sw_stats_count(struct ena_adapter *adapter)
 		    + adapter->xdp_num_queues * ENA_STATS_ARRAY_TX
 		    + ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM_ADMIN;
 
-	if (ena_phc_enabled(adapter))
+	if (ena_phc_is_active(adapter))
 		count += ENA_STATS_ARRAY_ENA_COM_PHC;
 
 	return count;
@@ -515,9 +514,8 @@ static void ena_get_strings(struct ena_adapter *adapter,
 	ena_queue_strings(adapter, &data);
 	ena_com_admin_strings(&data);
 
-	if (ena_phc_enabled(adapter)) {
+	if (ena_phc_is_active(adapter))
 		ena_com_phc_strings(&data);
-	}
 }
 
 static void ena_get_ethtool_strings(struct net_device *netdev,

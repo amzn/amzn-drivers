@@ -24,7 +24,7 @@ struct ena_phc_info {
 	spinlock_t lock;
 };
 
-bool ena_phc_enabled(struct ena_adapter *adapter);
+bool ena_phc_is_active(struct ena_adapter *adapter);
 int ena_phc_get_index(struct ena_adapter *adapter);
 int ena_phc_init(struct ena_adapter *adapter);
 void ena_phc_destroy(struct ena_adapter *adapter);
@@ -32,7 +32,7 @@ int ena_phc_alloc(struct ena_adapter *adapter);
 void ena_phc_free(struct ena_adapter *adapter);
 #else /* ENA_PHC_SUPPORT */
 
-static inline bool ena_phc_enabled(struct ena_adapter *adapter) {return false; }
+static inline bool ena_phc_is_active(struct ena_adapter *adapter) { return false; }
 static inline int ena_phc_get_index(struct ena_adapter *adapter) { return -1; }
 static inline int ena_phc_init(struct ena_adapter *adapter) { return 0; }
 static inline void ena_phc_destroy(struct ena_adapter *adapter) { }

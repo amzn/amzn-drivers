@@ -17,7 +17,8 @@ static int ena_phc_adjtime(struct ptp_clock_info *clock_info, s64 delta)
 	return -EOPNOTSUPP;
 }
 
-static int ena_phc_enable(struct ptp_clock_info *clock_info, struct ptp_clock_request *rq, int on)
+static int ena_phc_feature_enable(struct ptp_clock_info *clock_info, struct ptp_clock_request *rq,
+				  int on)
 {
 	return -EOPNOTSUPP;
 }
@@ -120,8 +121,14 @@ static struct ptp_clock_info ena_ptp_clock_info = {
 	.gettime	= ena_phc_gettime,
 	.settime	= ena_phc_settime,
 #endif /* ENA_PHC_SUPPORT_GETTIME64 */
-	.enable		= ena_phc_enable,
+	.enable		= ena_phc_feature_enable,
 };
+
+/* PHC is activated if ptp clock is registered in the kernel */
+bool ena_phc_is_active(struct ena_adapter *adapter)
+{
+	return adapter->phc_info.clock;
+}
 
 static int ena_phc_register(struct ena_adapter *adapter)
 {
@@ -154,16 +161,11 @@ static int ena_phc_register(struct ena_adapter *adapter)
 	return rc;
 }
 
-bool ena_phc_enabled(struct ena_adapter *adapter)
-{
-	return adapter->phc_info.clock;
-}
-
 static void ena_phc_unregister(struct ena_adapter *adapter)
 {
 	struct ena_phc_info *phc_info = adapter->phc_info;
 
-	if (ena_phc_enabled(adapter)) {
+	if (ena_phc_is_active(adapter)) {
 		ptp_clock_unregister(phc_info->clock);
 		phc_info->clock = NULL;
 	}
@@ -238,7 +240,7 @@ void ena_phc_destroy(struct ena_adapter *adapter)
 
 int ena_phc_get_index(struct ena_adapter *adapter)
 {
-	if (ena_phc_enabled(adapter))
+	if (ena_phc_is_active(adapter))
 		return ptp_clock_index(adapter->phc_info->clock);
 
 	return -1;
