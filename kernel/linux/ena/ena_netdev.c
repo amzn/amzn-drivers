@@ -1109,6 +1109,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 	struct ena_rx_buffer *rx_info;
 	struct ena_adapter *adapter;
 	int page_offset, pkt_offset;
+	dma_addr_t pre_reuse_paddr;
 	u16 len, req_id, buf = 0;
 	bool reuse_rx_buf_page;
 	struct sk_buff *skb;
@@ -1174,12 +1175,19 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 
 	buf_len = SKB_DATA_ALIGN(len + buf_offset + tailroom);
 
+	pre_reuse_paddr = dma_unmap_addr(&rx_info->ena_buf, paddr);
+
 	/* If XDP isn't loaded try to reuse part of the RX buffer */
 	reuse_rx_buf_page = !is_xdp_loaded &&
 			    ena_try_rx_buf_page_reuse(rx_info, buf_len, len, pkt_offset);
 
 	if (!reuse_rx_buf_page)
 		ena_unmap_rx_buff(rx_ring, rx_info);
+	else
+		dma_sync_single_for_cpu(rx_ring->dev,
+					pre_reuse_paddr + pkt_offset,
+					len,
+					DMA_FROM_DEVICE);
 
 	skb = ena_alloc_skb(rx_ring, buf_addr, buf_len);
 	if (unlikely(!skb))
@@ -1232,11 +1240,18 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		buf_len = SKB_DATA_ALIGN(len + buf_offset + tailroom);
 		page_offset = rx_info->page_offset;
 
+		pre_reuse_paddr = dma_unmap_addr(&rx_info->ena_buf, paddr);
+
 		reuse_rx_buf_page = !is_xdp_loaded &&
 				    ena_try_rx_buf_page_reuse(rx_info, buf_len, len, pkt_offset);
 
 		if (!reuse_rx_buf_page)
 			ena_unmap_rx_buff(rx_ring, rx_info);
+		else
+			dma_sync_single_for_cpu(rx_ring->dev,
+						pre_reuse_paddr + pkt_offset,
+						len,
+						DMA_FROM_DEVICE);
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_info->page,
 				page_offset + buf_offset, len, buf_len);
