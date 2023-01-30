@@ -325,8 +325,10 @@ void ena_init_io_rings(struct ena_adapter *adapter,
 		txr->tx_mem_queue_type = ena_dev->tx_mem_queue_type;
 		txr->sgl_size = adapter->max_tx_sgl_size;
 		txr->enable_bql = enable_bql;
-		txr->smoothed_interval =
+		txr->interrupt_interval =
 			ena_com_get_nonadaptive_moderation_interval_tx(ena_dev);
+		/* Initial value, mark as true */
+		txr->interrupt_interval_changed = true;
 		txr->disable_meta_caching = adapter->disable_meta_caching;
 #ifdef ENA_XDP_SUPPORT
 		spin_lock_init(&txr->xdp_tx_lock);
@@ -341,8 +343,10 @@ void ena_init_io_rings(struct ena_adapter *adapter,
 			rxr->ring_size = adapter->requested_rx_ring_size;
 			rxr->rx_copybreak = adapter->rx_copybreak;
 			rxr->sgl_size = adapter->max_rx_sgl_size;
-			rxr->smoothed_interval =
+			rxr->interrupt_interval =
 				ena_com_get_nonadaptive_moderation_interval_rx(ena_dev);
+			/* Initial value, mark as true */
+			rxr->interrupt_interval_changed = true;
 			rxr->empty_rx_queue = 0;
 			rxr->rx_headroom = NET_SKB_PAD;
 			adapter->ena_napi[i].dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
@@ -1566,7 +1570,10 @@ static void ena_dim_work(struct work_struct *w)
 		net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
 	struct ena_napi *ena_napi = container_of(dim, struct ena_napi, dim);
 
-	ena_napi->rx_ring->smoothed_interval = cur_moder.usec;
+	ena_napi->rx_ring->interrupt_interval = cur_moder.usec;
+	/* DIM will schedule the work in case there was a change in the profile. */
+	ena_napi->rx_ring->interrupt_interval_changed = true;
+
 	dim->state = DIM_START_MEASURE;
 }
 
@@ -1593,24 +1600,33 @@ static void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
 void ena_unmask_interrupt(struct ena_ring *tx_ring,
 			  struct ena_ring *rx_ring)
 {
-	u32 rx_interval = tx_ring->smoothed_interval;
+	u32 rx_interval = tx_ring->interrupt_interval;
 	struct ena_eth_io_intr_reg intr_reg;
+	bool no_moderation_update = true;
 
 	/* Rx ring can be NULL when for XDP tx queues which don't have an
 	 * accompanying rx_ring pair.
 	 */
-	if (rx_ring)
+	if (rx_ring) {
 		rx_interval = ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev) ?
-			rx_ring->smoothed_interval :
+			rx_ring->interrupt_interval :
 			ena_com_get_nonadaptive_moderation_interval_rx(rx_ring->ena_dev);
+
+		no_moderation_update &= !rx_ring->interrupt_interval_changed;
+		rx_ring->interrupt_interval_changed = false;
+	}
+
+	no_moderation_update &= !tx_ring->interrupt_interval_changed;
+	tx_ring->interrupt_interval_changed = false;
 
 	/* Update intr register: rx intr delay,
 	 * tx intr delay and interrupt unmask
 	 */
 	ena_com_update_intr_reg(&intr_reg,
 				rx_interval,
-				tx_ring->smoothed_interval,
-				true);
+				tx_ring->interrupt_interval,
+				true,
+				no_moderation_update);
 
 	ena_increase_stat(&tx_ring->tx_stats.unmask_interrupt, 1,
 			  &tx_ring->syncp);

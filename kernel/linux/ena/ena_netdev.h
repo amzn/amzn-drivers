@@ -322,8 +322,13 @@ struct ena_ring {
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
-	u32  smoothed_interval;
-	u32  per_napi_packets;
+	u32 interrupt_interval;
+	/* Indicates whether interrupt interval has changed since previous set.
+	 * This flag will be kept up, until cleared by the routine which updates
+	 * the device with the modified interrupt interval value.
+	 */
+	bool interrupt_interval_changed;
+	u32 per_napi_packets;
 	u16 non_empty_napi_events;
 	struct u64_stats_sync syncp;
 	union {

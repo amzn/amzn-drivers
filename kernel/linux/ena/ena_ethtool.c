@@ -635,8 +635,11 @@ static void ena_update_tx_rings_nonadaptive_intr_moderation(struct ena_adapter *
 
 	val = ena_com_get_nonadaptive_moderation_interval_tx(adapter->ena_dev);
 
-	for (i = 0; i < adapter->num_io_queues; i++)
-		adapter->tx_ring[i].smoothed_interval = val;
+	for (i = 0; i < adapter->num_io_queues; i++) {
+		adapter->tx_ring[i].interrupt_interval_changed =
+			adapter->tx_ring[i].interrupt_interval != val;
+		adapter->tx_ring[i].interrupt_interval = val;
+	}
 }
 
 static void ena_update_rx_rings_nonadaptive_intr_moderation(struct ena_adapter *adapter)
@@ -646,8 +649,11 @@ static void ena_update_rx_rings_nonadaptive_intr_moderation(struct ena_adapter *
 
 	val = ena_com_get_nonadaptive_moderation_interval_rx(adapter->ena_dev);
 
-	for (i = 0; i < adapter->num_io_queues; i++)
-		adapter->rx_ring[i].smoothed_interval = val;
+	for (i = 0; i < adapter->num_io_queues; i++) {
+		adapter->rx_ring[i].interrupt_interval_changed =
+			adapter->rx_ring[i].interrupt_interval != val;
+		adapter->rx_ring[i].interrupt_interval = val;
+	}
 }
 
 static int ena_set_coalesce(struct net_device *net_dev,
