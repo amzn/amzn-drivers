@@ -567,6 +567,7 @@ RSS
   indirection table through `ethtool(8)`.
 
 .. _`devlink support`:
+
 DEVLINK SUPPORT
 ===============
 .. _`devlink`: https://www.kernel.org/doc/html/latest/networking/devlink/index.html
