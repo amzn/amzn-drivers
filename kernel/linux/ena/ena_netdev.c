@@ -4388,10 +4388,12 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 		if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) &&
 		    (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
 			max_tx_queue_size /= 2;
-			dev_info(&adapter->pdev->dev, "Forcing large headers and decreasing maximum TX queue size to %d\n",
+			dev_info(&adapter->pdev->dev,
+				 "Forcing large headers and decreasing maximum TX queue size to %d\n",
 				 max_tx_queue_size);
 		} else {
-			dev_err(&adapter->pdev->dev, "Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
+			dev_err(&adapter->pdev->dev,
+				"Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
 
 			adapter->large_llq_header_enabled = false;
 			ena_devlink_disable_large_llq_header_param(adapter->devlink);
