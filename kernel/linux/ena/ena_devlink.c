@@ -164,11 +164,11 @@ static int ena_devlink_reload_up(struct devlink *devlink,
 	rtnl_lock();
 	/* Check that no other routine initialized the device (e.g.
 	 * ena_fw_reset_device()). Also we're under devlink_mutex here,
-	 * so devink (and ena_adapter with it) isn't freed under our
-	 * feet.
+	 * so devlink isn't freed under our feet.
 	 */
 	if (!test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
 		err = ena_restore_device(adapter);
+
 	rtnl_unlock();
 
 #ifdef ENA_DEVLINK_RELOAD_LIMIT_AND_ACTION_SUPPORT
