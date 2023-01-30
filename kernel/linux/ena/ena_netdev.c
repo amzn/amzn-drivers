@@ -3409,7 +3409,7 @@ static void set_default_llq_configurations(struct ena_adapter *adapter,
 			ENA_ADMIN_LIST_ENTRY_SIZE_256B);
 
 	if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) &&
-		adapter->large_llq_header_enabled) {
+	    adapter->large_llq_header_enabled) {
 		llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
 		llq_config->llq_ring_entry_size_value = 256;
 	} else {

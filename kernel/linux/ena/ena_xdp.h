@@ -40,6 +40,7 @@ enum ENA_XDP_ACTIONS {
 	ENA_XDP_REDIRECT	= BIT(1),
 	ENA_XDP_DROP		= BIT(2)
 };
+
 #define ENA_XDP_FORWARDED (ENA_XDP_TX | ENA_XDP_REDIRECT)
 
 int ena_setup_and_create_all_xdp_queues(struct ena_adapter *adapter);
