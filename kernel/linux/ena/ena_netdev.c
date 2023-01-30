@@ -1572,12 +1572,9 @@ static void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
 void ena_unmask_interrupt(struct ena_ring *tx_ring,
 			  struct ena_ring *rx_ring)
 {
-	struct ena_eth_io_intr_reg intr_reg;
-#ifdef ENA_XDP_SUPPORT
 	u32 rx_interval = tx_ring->smoothed_interval;
-#else
-	u32 rx_interval = 0;
-#endif
+	struct ena_eth_io_intr_reg intr_reg;
+
 	/* Rx ring can be NULL when for XDP tx queues which don't have an
 	 * accompanying rx_ring pair.
 	 */
