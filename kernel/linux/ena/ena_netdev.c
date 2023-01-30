@@ -75,6 +75,12 @@ static int lpc_size = ENA_LPC_DEFAULT_MULTIPLIER;
 module_param(lpc_size, uint, 0444);
 MODULE_PARM_DESC(lpc_size, "Each local page cache (lpc) holds N * 1024 pages. This parameter sets N which is rounded up to a multiplier of 2. If zero, the page cache is disabled. Max: 32\n");
 
+#ifdef ENA_PHC_SUPPORT
+static int phc_enable = 0;
+module_param(phc_enable, uint, 0444);
+MODULE_PARM_DESC(phc_enable, "Enable PHC.\n");
+
+#endif /* ENA_PHC_SUPPORT */
 static struct ena_aenq_handlers aenq_handlers;
 
 static struct workqueue_struct *ena_wq;
@@ -4524,6 +4530,10 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->large_llq_header_enabled = !!force_large_llq_header;
 
+#ifdef ENA_PHC_SUPPORT
+	ena_phc_enable(adapter, !!phc_enable);
+
+#endif /* ENA_PHC_SUPPORT */
 	rc = ena_com_allocate_customer_metrics_buffer(ena_dev);
 	if (rc) {
 		netdev_err(netdev, "ena_com_allocate_customer_metrics_buffer failed\n");

@@ -222,6 +222,10 @@ Module Parameters
   disables it completely. The default value is 2. See LPC section in this README
   for a description of this system.
 
+:phc_enable
+  Controls the enablement of the PHC feature. The default value is 0 (Disabled).
+  Notice that PHC must be supported by the device.
+
 Disable Predictable Network Names:
 ==================================
 
@@ -502,6 +506,13 @@ environment variable set when compiling the driver, e.g.
 .. code-block:: shell
 
   $ ENA_PHC_INCLUDE=1 make
+
+The feature is turned off by default, in order to turn the feature on, the ENA driver
+can be loaded either via module parameter:
+
+.. code-block:: shell
+
+  $ sudo insmod ena_drv.ko phc_enable=1
 
 Statistics
 ==========

@@ -124,10 +124,33 @@ static struct ptp_clock_info ena_ptp_clock_info = {
 	.enable		= ena_phc_feature_enable,
 };
 
+/* Enable/Disable PHC by the kernel, affects on the next init flow */
+void ena_phc_enable(struct ena_adapter *adapter, bool enable)
+{
+	struct ena_phc_info *phc_info = adapter->phc_info;
+
+	if (!phc_info) {
+		netdev_err(adapter->netdev, "phc_info is not allocated\n");
+		return;
+	}
+
+	phc_info->enabled = enable;
+}
+
+/* Check if PHC is enabled by the kernel */
+bool ena_phc_is_enabled(struct ena_adapter *adapter)
+{
+	struct ena_phc_info *phc_info = adapter->phc_info;
+
+	return (phc_info && phc_info->enabled);
+}
+
 /* PHC is activated if ptp clock is registered in the kernel */
 bool ena_phc_is_active(struct ena_adapter *adapter)
 {
-	return adapter->phc_info.clock;
+	struct ena_phc_info *phc_info = adapter->phc_info;
+
+	return (phc_info && phc_info->clock);
 }
 
 static int ena_phc_register(struct ena_adapter *adapter)
@@ -197,9 +220,15 @@ int ena_phc_init(struct ena_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	int rc = -EOPNOTSUPP;
 
-	/* Validate phc feature is supported in the device */
+	/* Validate PHC feature is supported in the device */
 	if (!ena_com_phc_supported(ena_dev)) {
-		netdev_dbg(netdev, "PHC feature is not supported\n");
+		netdev_dbg(netdev, "PHC feature is not supported by the device\n");
+		goto err_ena_com_phc_init;
+	}
+
+	/* Validate PHC feature is enabled by the kernel */
+	if (!ena_phc_is_enabled(adapter)) {
+		netdev_dbg(netdev, "PHC feature is not enabled by the kernel\n");
 		goto err_ena_com_phc_init;
 	}
 
@@ -229,6 +258,7 @@ int ena_phc_init(struct ena_adapter *adapter)
 err_ena_com_phc_config:
 	ena_com_phc_destroy(ena_dev);
 err_ena_com_phc_init:
+	ena_phc_enable(adapter, false);
 	return rc;
 }
 
