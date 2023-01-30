@@ -224,6 +224,10 @@ static int ena_devlink_configure_params(struct devlink *devlink)
 	devlink_set_features(devlink, DEVLINK_F_RELOAD);
 
 #endif
+#ifdef ENA_DEVLINK_PUBLISH_REQUIRED
+	devlink_params_publish(devlink);
+
+#endif
 #ifdef ENA_DEVLINK_RELOAD_ENABLING_REQUIRED
 	devlink_reload_enable(devlink);
 
@@ -269,6 +273,10 @@ static void ena_devlink_configure_params_clean(struct devlink *devlink)
 {
 #ifdef ENA_DEVLINK_RELOAD_ENABLING_REQUIRED
 	devlink_reload_disable(devlink);
+
+#endif
+#ifdef ENA_DEVLINK_PUBLISH_REQUIRED
+	devlink_params_unpublish(devlink);
 
 #endif
 	devlink_params_unregister(devlink, ena_devlink_params,
