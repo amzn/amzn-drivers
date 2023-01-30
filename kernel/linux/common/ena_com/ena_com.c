@@ -1823,8 +1823,8 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev)
 		return ret;
 	}
 
-	phc->enabled = true;
-	netdev_dbg(ena_dev->net_device, "PHC is enabled\n");
+	phc->active = true;
+	netdev_dbg(ena_dev->net_device, "PHC is active in the device\n");
 
 	return ret;
 }
@@ -1833,7 +1833,7 @@ void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_phc_info *phc = &ena_dev->phc;
 
-	phc->enabled = false;
+	phc->active = false;
 
 	/* In case PHC is not supported by the device, silently exiting */
 	if (!phc->virt_addr)
@@ -1855,8 +1855,9 @@ int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
 	ktime_t block_time;
 	int ret = 0;
 
-	if (!phc->enabled) {
-		netdev_err(ena_dev->net_device, "PHC feature is not enabled\n");
+	if (!phc->active) {
+		netdev_err(ena_dev->net_device,
+			   "PHC feature is not active in the device\n");
 		return -EOPNOTSUPP;
 	}
 

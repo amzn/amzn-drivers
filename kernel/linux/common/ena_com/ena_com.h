@@ -302,8 +302,8 @@ struct ena_com_phc_info {
 	/* Request id sent to the device */
 	u16 req_id;
 
-	/* True if PHC is enabled */
-	bool enabled;
+	/* True if PHC is active in the device */
+	bool active;
 
 	/* PHC shared memory - memory handle */
 
