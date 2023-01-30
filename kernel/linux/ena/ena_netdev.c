@@ -4702,12 +4702,12 @@ err_device_destroy:
 	ena_com_admin_destroy(ena_dev);
 err_devlink_destroy:
 	ena_devlink_free(devlink);
-err_netdev_destroy:
-	free_netdev(netdev);
 err_metrics_destroy:
 	ena_com_delete_customer_metrics_buffer(ena_dev);
 err_free_phc:
 	ena_phc_free(adapter);
+err_netdev_destroy:
+	free_netdev(netdev);
 err_free_region:
 	ena_release_bars(ena_dev, pdev);
 err_free_ena_dev:
