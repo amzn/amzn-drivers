@@ -261,7 +261,8 @@ struct ena_eth_io_intr_reg {
 	/* 14:0 : rx_intr_delay
 	 * 29:15 : tx_intr_delay
 	 * 30 : intr_unmask
-	 * 31 : reserved
+	 * 31 : no_moderation_update - 0 - moderation
+	 *    updated, 1 - moderation not updated
 	 */
 	u32 intr_control;
 };
@@ -381,6 +382,8 @@ struct ena_eth_io_numa_node_cfg_reg {
 #define ENA_ETH_IO_INTR_REG_TX_INTR_DELAY_MASK              GENMASK(29, 15)
 #define ENA_ETH_IO_INTR_REG_INTR_UNMASK_SHIFT               30
 #define ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK                BIT(30)
+#define ENA_ETH_IO_INTR_REG_NO_MODERATION_UPDATE_SHIFT      31
+#define ENA_ETH_IO_INTR_REG_NO_MODERATION_UPDATE_MASK       BIT(31)
 
 /* numa_node_cfg_reg */
 #define ENA_ETH_IO_NUMA_NODE_CFG_REG_NUMA_MASK              GENMASK(7, 0)
