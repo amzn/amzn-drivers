@@ -3915,8 +3915,6 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 				reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
 			}
 
-			missed_tx++;
-
 			if (tx_buf->print_once)
 				continue;
 
@@ -3924,6 +3922,7 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 				     "TX hasn't completed, qid %d, index %d. %u usecs from last napi execution, napi scheduled: %d\n",
 				     tx_ring->qid, i, time_since_last_napi, napi_scheduled);
 
+			missed_tx++;
 			tx_buf->print_once = 1;
 		}
 	}
