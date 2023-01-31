@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2015-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2015-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "linux/pci.h"
