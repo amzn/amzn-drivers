@@ -125,8 +125,10 @@
 
 struct ena_page_cache;
 
+#ifdef ENA_PHC_SUPPORT
 struct ena_phc_info;
 
+#endif
 struct ena_irq {
 	irq_handler_t handler;
 	void *data;
@@ -421,6 +423,10 @@ struct ena_adapter {
 	unsigned long missing_tx_completion_to;
 
 	char name[ENA_NAME_MAX_LEN];
+#ifdef ENA_PHC_SUPPORT
+
+	struct ena_phc_info *phc_info;
+#endif
 
 	unsigned long flags;
 	/* TX */
@@ -459,8 +465,6 @@ struct ena_adapter {
 #endif
 	u32 xdp_first_ring;
 	u32 xdp_num_queues;
-
-	struct ena_phc_info *phc_info;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);

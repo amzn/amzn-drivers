@@ -4516,12 +4516,18 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, adapter);
 
+	rc = ena_phc_alloc(adapter);
+	if (rc) {
+		netdev_err(netdev, "ena_phc_alloc failed\n");
+		goto err_netdev_destroy;
+	}
+
 	adapter->large_llq_header_enabled = !!force_large_llq_header;
 
 	rc = ena_com_allocate_customer_metrics_buffer(ena_dev);
 	if (rc) {
 		netdev_err(netdev, "ena_com_allocate_customer_metrics_buffer failed\n");
-		goto err_netdev_destroy;
+		goto err_free_phc;
 	}
 
 	devlink = ena_devlink_alloc(adapter);
@@ -4690,6 +4696,8 @@ err_netdev_destroy:
 	free_netdev(netdev);
 err_metrics_destroy:
 	ena_com_delete_customer_metrics_buffer(ena_dev);
+err_free_phc:
+	ena_phc_free(adapter);
 err_free_region:
 	ena_release_bars(ena_dev, pdev);
 err_free_ena_dev:
@@ -4757,6 +4765,8 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	ena_com_delete_host_info(ena_dev);
 
 	ena_com_delete_customer_metrics_buffer(ena_dev);
+
+	ena_phc_free(adapter);
 
 	ena_release_bars(ena_dev, pdev);
 

@@ -156,17 +156,37 @@ static int ena_phc_register(struct ena_adapter *adapter)
 
 bool ena_phc_enabled(struct ena_adapter *adapter)
 {
-	struct ena_phc_info *phc_info = adapter->phc_info;
-
-	return (phc_info && phc_info->clock);
+	return adapter->phc_info.clock;
 }
 
 static void ena_phc_unregister(struct ena_adapter *adapter)
 {
 	struct ena_phc_info *phc_info = adapter->phc_info;
 
-	if (ena_phc_enabled(adapter))
+	if (ena_phc_enabled(adapter)) {
 		ptp_clock_unregister(phc_info->clock);
+		phc_info->clock = NULL;
+	}
+}
+
+int ena_phc_alloc(struct ena_adapter *adapter)
+{
+	/* Allocate driver specific PHC info */
+	adapter->phc_info = vzalloc(sizeof(*adapter->phc_info));
+	if (unlikely(!adapter->phc_info)) {
+		netdev_err(adapter->netdev, "Failed to alloc phc_info\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void ena_phc_free(struct ena_adapter *adapter)
+{
+	if (adapter->phc_info) {
+		vfree(adapter->phc_info);
+		adapter->phc_info = NULL;
+	}
 }
 
 int ena_phc_init(struct ena_adapter *adapter)
@@ -181,7 +201,7 @@ int ena_phc_init(struct ena_adapter *adapter)
 		goto err_ena_com_phc_init;
 	}
 
-	/* Allocate and initialize device specific PHC info */
+	/* Initialize device specific PHC info */
 	rc = ena_com_phc_init(ena_dev);
 	if (unlikely(rc)) {
 		netdev_err(netdev, "Failed to init phc, error: %d\n", rc);
@@ -195,26 +215,15 @@ int ena_phc_init(struct ena_adapter *adapter)
 		goto err_ena_com_phc_config;
 	}
 
-	/* Allocate and initialize driver specific PHC info */
-	adapter->phc_info = vzalloc(sizeof(*adapter->phc_info));
-	if (unlikely(!adapter->phc_info)) {
-		rc = -ENOMEM;
-		netdev_err(netdev, "Failed to alloc phc_info, error: %d\n", rc);
-		goto err_ena_com_phc_config;
-	}
-
 	/* Register to PTP class driver */
 	rc = ena_phc_register(adapter);
 	if (unlikely(rc)) {
 		netdev_err(netdev, "Failed to register phc, error: %d\n", rc);
-		goto err_ena_phc_register;
+		goto err_ena_com_phc_config;
 	}
 
 	return 0;
 
-err_ena_phc_register:
-	vfree(adapter->phc_info);
-	adapter->phc_info = NULL;
 err_ena_com_phc_config:
 	ena_com_phc_destroy(ena_dev);
 err_ena_com_phc_init:
@@ -224,21 +233,13 @@ err_ena_com_phc_init:
 void ena_phc_destroy(struct ena_adapter *adapter)
 {
 	ena_phc_unregister(adapter);
-
-	if (likely(adapter->phc_info)) {
-		vfree(adapter->phc_info);
-		adapter->phc_info = NULL;
-	}
-
 	ena_com_phc_destroy(adapter->ena_dev);
 }
 
 int ena_phc_get_index(struct ena_adapter *adapter)
 {
-	struct ena_phc_info *phc_info = adapter->phc_info;
-
 	if (ena_phc_enabled(adapter))
-		return ptp_clock_index(phc_info->clock);
+		return ptp_clock_index(adapter->phc_info->clock);
 
 	return -1;
 }
