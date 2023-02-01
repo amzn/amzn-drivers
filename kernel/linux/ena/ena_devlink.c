@@ -7,6 +7,13 @@
 
 #include "ena_devlink.h"
 #ifdef ENA_DEVLINK_SUPPORT
+#ifdef ENA_PHC_SUPPORT
+#include "ena_phc.h"
+
+static int ena_devlink_phc_enable_validate(struct devlink *devlink, u32 id,
+					   union devlink_param_value val,
+					   struct netlink_ext_ack *extack);
+#endif /* ENA_PHC_SUPPORT */
 
 static int ena_devlink_llq_header_validate(struct devlink *devlink, u32 id,
 					   union devlink_param_value val,
@@ -15,6 +22,9 @@ static int ena_devlink_llq_header_validate(struct devlink *devlink, u32 id,
 enum ena_devlink_param_id {
 	ENA_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
 	ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
+#ifdef ENA_PHC_SUPPORT
+	ENA_DEVLINK_PARAM_ID_PHC_ENABLE,
+#endif /* ENA_PHC_SUPPORT */
 };
 
 static const struct devlink_param ena_devlink_params[] = {
@@ -22,6 +32,12 @@ static const struct devlink_param ena_devlink_params[] = {
 			     "large_llq_header", DEVLINK_PARAM_TYPE_BOOL,
 			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			     NULL, NULL, ena_devlink_llq_header_validate),
+#ifdef ENA_PHC_SUPPORT
+	DEVLINK_PARAM_DRIVER(ENA_DEVLINK_PARAM_ID_PHC_ENABLE,
+			     "phc_enable", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			     NULL, NULL, ena_devlink_phc_enable_validate),
+ #endif /* ENA_PHC_SUPPORT */
 };
 
 static int ena_devlink_llq_header_validate(struct devlink *devlink, u32 id,
@@ -47,6 +63,25 @@ static int ena_devlink_llq_header_validate(struct devlink *devlink, u32 id,
 	return 0;
 }
 
+#ifdef ENA_PHC_SUPPORT
+static int ena_devlink_phc_enable_validate(struct devlink *devlink, u32 id,
+					   union devlink_param_value val,
+					   struct netlink_ext_ack *extack)
+{
+	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
+
+	if (!val.vbool)
+		return 0;
+
+	if (!ena_com_phc_supported(adapter->ena_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support PHC");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+#endif /* ENA_PHC_SUPPORT */
 #ifdef ENA_DEVLINK_CONFIGURE_AFTER_REGISTER
 /* Determines if ena_devlink_register has been called.
  * Prefer to check if the driver enabled reloading capabilities, but fallback
@@ -82,6 +117,16 @@ void ena_devlink_params_get(struct devlink *devlink)
 	}
 
 	adapter->large_llq_header_enabled = val.vbool;
+#ifdef ENA_PHC_SUPPORT
+
+	err = devlink_param_driverinit_value_get(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, &val);
+	if (err) {
+		netdev_err(adapter->netdev, "Failed to query PHC param\n");
+		return;
+	}
+
+	ena_phc_enable(adapter, val.vbool);
+#endif /* ENA_PHC_SUPPORT */
 }
 
 void ena_devlink_disable_large_llq_header_param(struct devlink *devlink)
@@ -100,6 +145,22 @@ void ena_devlink_disable_large_llq_header_param(struct devlink *devlink)
 					   value);
 }
 
+#ifdef ENA_PHC_SUPPORT
+void ena_devlink_disable_phc_param(struct devlink *devlink)
+{
+	union devlink_param_value value;
+
+#ifdef ENA_DEVLINK_CONFIGURE_AFTER_REGISTER
+	/* If devlink params aren't registered, don't access them */
+	if (!ena_is_devlink_params_registered(devlink))
+		return;
+
+#endif
+	value.vbool = false;
+	devlink_param_driverinit_value_set(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, value);
+}
+
+#endif /* ENA_PHC_SUPPORT */
 static int ena_devlink_reload_down(struct devlink *devlink,
 #ifdef ENA_DEVLINK_RELOAD_NS_CHANGE_SUPPORT
 				   bool netns_change,
@@ -220,6 +281,11 @@ static int ena_devlink_configure_params(struct devlink *devlink)
 					   ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
 					   value);
 
+#ifdef ENA_PHC_SUPPORT
+	value.vbool = ena_phc_is_enabled(adapter);
+	devlink_param_driverinit_value_set(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, value);
+
+#endif /* ENA_PHC_SUPPORT */
 #ifdef ENA_DEVLINK_RELOAD_SUPPORT_ADVERTISEMENT_NEEDED
 	devlink_set_features(devlink, DEVLINK_F_RELOAD);
 

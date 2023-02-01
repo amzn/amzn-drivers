@@ -3,6 +3,7 @@
  * Copyright 2015-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
+#include "ena_devlink.h"
 #include "ena_phc.h"
 
 #ifdef ENA_PHC_SUPPORT
@@ -259,6 +260,7 @@ err_ena_com_phc_config:
 	ena_com_phc_destroy(ena_dev);
 err_ena_com_phc_init:
 	ena_phc_enable(adapter, false);
+	ena_devlink_disable_phc_param(adapter->devlink);
 	return rc;
 }
 

@@ -508,11 +508,16 @@ environment variable set when compiling the driver, e.g.
   $ ENA_PHC_INCLUDE=1 make
 
 The feature is turned off by default, in order to turn the feature on, the ENA driver
-can be loaded either via module parameter:
+can be loaded either via module parameter or via devlink:
 
 .. code-block:: shell
 
   $ sudo insmod ena_drv.ko phc_enable=1
+
+.. code-block:: shell
+
+  $ sudo devlink dev param set pci/<pci-address> name phc_enable value true cmode driverinit
+  $ sudo devlink dev reload pci/<pci-address>
 
 Statistics
 ==========
