@@ -32,6 +32,26 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.3 release notes
+**New Features**
+* PHC module param enablement
+* PHC devlink param enablement
+* Add hint for interrupt moderation for the device
+* Change initial static RX interrupt moderation interval
+* Enable DIM by default on all CPU Architectures
+
+**Buf Fixes**
+* DMA sync for CPU before accessing buffer
+* Fix ena_probe destroy order
+* Validate completion descriptors consistency
+* Fix TX packets missing completion counter
+
+**Minor Changes**
+* Compilation fixes for RHEL 9.0, 9.1 and SLES 15SP4
+* PHC info dynamic allocation
+* Publish devlink reload for RHEL 9.0 and 9.1
+* Add ENA Express documentation
+
 ## r2.8.2 release notes
 **Buf Fixes**
 * Fix devlink large LLQ config not fully applied
