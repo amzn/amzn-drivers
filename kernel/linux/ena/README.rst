@@ -86,8 +86,8 @@ Run
 
   make [UBUNTU_ABI=<ABI>]
 
-in the `kernel/linux/ena/` folder.
-*ena.ko* is created inside the folder
+in the **kernel/linux/ena/** folder.
+**ena.ko** is created inside the folder
 
 **Optional compilation parameters:**
 
@@ -100,12 +100,12 @@ The exceptions are:
    kernel version string. To see the kernel version you can run :code:`uname -r`.
 
    Example:
-   if :code:`uname -r` yields the output `3.13.0-29-generic`, then the ABI is 29,
+   if :code:`uname -r` yields the output ``3.13.0-29-generic``, then the ABI is 29,
    and the compilation command is :code:`make UBUNTU_ABI=29`.
 
 Loading driver:
 ---------------
-If the driver was compiled using ENA_PHC_INCLUDE environment variable set then
+If the driver was compiled using ``ENA_PHC_INCLUDE`` environment variable set then
 ptp module might need to be loaded prior to loading the driver (see `PHC`_ for
 more info).
 
@@ -197,7 +197,7 @@ Module Parameters
   where rx drops are observed in loaded systems with NAPI not scheduled
   fast enough. The value provided will be rounded down to a power of 2.
   Default value 1024. Max value is up to 16K (16384), depending on the
-  instance type, and the actual value can be seen by running ethtool -g.
+  instance type, and the actual value can be seen by running :code:`ethtool -g`.
   The Min value is 256. The actual number of entries in the queues is
   negotiated with the device.
 
@@ -222,7 +222,7 @@ Module Parameters
   disables it completely. The default value is 2. See LPC section in this README
   for a description of this system.
 
-:phc_enable
+:phc_enable:
   Controls the enablement of the PHC feature. The default value is 0 (Disabled).
   Notice that PHC must be supported by the device.
 
@@ -235,7 +235,7 @@ This can lead to a loss of network on boot.
 To disable this feature add :code:`net.ifnames=0` to the kernel boot params.
 
 
-Edit `/etc/default/grub` and add `net.ifnames=0` to `GRUB_CMDLINE_LINUX`.
+Edit **/etc/default/grub** and add ``net.ifnames=0`` to ``GRUB_CMDLINE_LINUX``.
 On Ubuntu run :code:`update-grub` as well
 
 ENA Source Code Directory Structure
@@ -293,7 +293,7 @@ The following admin queue commands are supported:
 - Configure AENQ
 - Get statistics
 
-Refer to ena_admin_defs.h for the list of supported Get/Set Feature
+Refer to **ena_admin_defs.h** for the list of supported Get/Set Feature
 properties.
 
 The Asynchronous Event Notification Queue (AENQ) is a uni-directional
@@ -342,8 +342,8 @@ The ENA driver supports two Queue Operation modes for Tx SQs:
   In this mode the driver pushes the transmit descriptors and the
   first few bytes of the packet (negotiable parameter)
   directly to the ENA device memory space.
-  The rest of the packet payload is fetched by the
-  device. For this operation mode, the driver uses a dedicated PCI
+  The rest of the packet payload is fetched by the device.
+  For this operation mode, the driver uses a dedicated PCI
   device memory BAR, which is mapped with write-combine capability.
 
   **Note that** not all ENA devices support LLQ, and this feature is negotiated
@@ -398,14 +398,14 @@ moderation mode.
 
 **In conventional mode** the driver instructs device to postpone interrupt
 posting according to static interrupt delay value. The interrupt delay
-value can be configured through `ethtool(8)`. The following `ethtool`
+value can be configured through ``ethtool(8)``. The following ``ethtool``
 parameters are supported by the driver: ``tx-usecs``, ``rx-usecs``
 
 **In adaptive interrupt** moderation mode the interrupt delay value is
 updated by the driver dynamically and adjusted every NAPI cycle
 according to the traffic nature.
 
-Adaptive coalescing can be switched on/off through `ethtool(8)`'s
+Adaptive coalescing can be switched on/off through ``ethtool(8)`` using
 :code:`adaptive_rx on|off` parameter.
 
 More information about Adaptive Interrupt Moderation (DIM) can be found in
@@ -416,10 +416,10 @@ RX copybreak
 ============
 
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
-and can be configured using ethtool --set-tunable.
+and can be configured using :code:`ethtool --set-tunable`.
 This option is supported for kernel versions 3.18 and newer.
 Alternatively copybreak values can be configured by the sysfs path
-/sys/bus/pci/devices/<domain:bus:slot.function>/rx_copybreak.
+``/sys/bus/pci/devices/<domain:bus:slot.function>/rx_copybreak``.
 
 This option controls the maximum packet length for which the RX
 descriptor it was received on would be recycled. When a packet smaller
@@ -436,7 +436,7 @@ allocating Rx buffers from a page cache rather than from Linux memory system
 pages allocated for the queue are stored in the cache (up to cache maximum
 size).
 
-To set the cache size, one can specify *lpc_size* module parameter, which would
+To set the cache size, one can specify ``lpc_size`` module parameter, which would
 create a cache that can hold up to ``lpc_size * 1024`` pages for each Rx queue.
 Setting it to 0, would disable this feature completely (fallback to regular page
 allocations).
@@ -500,7 +500,7 @@ to loading ENA driver:
 
 If the configuration has the 'y' letter the step above isn't needed.
 
-To avoid confusion, this feature is enabled only with the ENA_PHC_INCLUDE
+To avoid confusion, this feature is enabled only with the ``ENA_PHC_INCLUDE``
 environment variable set when compiling the driver, e.g.
 
 .. code-block:: shell
@@ -521,25 +521,26 @@ can be loaded either via module parameter or via devlink:
 
 Statistics
 ==========
+.. _`ena-express-monitor`: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html#ena-express-monitor
 
-The user can obtain ENA device and driver statistics using `ethtool`.
+The user can obtain ENA device and driver statistics using ``ethtool``.
 The driver can collect regular or extended statistics (including
 per-queue stats) from the device.
 
 In addition the driver logs the stats to syslog upon device reset.
 
 On supported instance types, the statistics will also include the
-ENA Express data (fields prefixed with `ena_srd`). For a complete
-documentation of ENA Express data refer to
-https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html#ena-express-monitor
+ENA Express data (fields prefixed with ``ena_srd``). For a complete
+documentation of ENA Express data refer to `ena-express-monitor`_
+
 
 MTU
 ===
 
 The driver supports an arbitrarily large MTU with a maximum that is
 negotiated with the device. The driver configures MTU using the
-SetFeature command (ENA_ADMIN_MTU property). The user can change MTU
-via `ip(8)` and similar legacy tools.
+SetFeature command (``ENA_ADMIN_MTU`` property). The user can change MTU
+via ``ip(8)`` and similar legacy tools.
 
 Stateless Offloads
 ==================
@@ -558,13 +559,13 @@ RSS
 - Different combinations of L2/L3/L4 fields can be configured as
   inputs for hash functions.
 - The driver configures RSS settings using the AQ SetFeature command
-  (ENA_ADMIN_RSS_HASH_FUNCTION, ENA_ADMIN_RSS_HASH_INPUT and
-  ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG properties).
-- If the NETIF_F_RXHASH flag is set, the 32-bit result of the hash
+  (``ENA_ADMIN_RSS_HASH_FUNCTION``, ``ENA_ADMIN_RSS_HASH_INPUT`` and
+  ``ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG`` properties).
+- If the ``NETIF_F_RXHASH`` flag is set, the 32-bit result of the hash
   function delivered in the Rx CQ descriptor is set in the received
-  `skb`.
+  ``skb``.
 - The user can provide a hash key, hash function, and configure the
-  indirection table through `ethtool(8)`.
+  indirection table through ``ethtool(8)``.
 
 .. _`devlink support`:
 
@@ -579,8 +580,7 @@ which sometimes is not enough (e.g. when using tunneling).
 Increasing LLQ entry size to 256 bytes, allows a maximum header size of 224
 bytes. This comes with the penalty of reducing the number of LLQ entries in the
 TX queue by 2 (i.e. from 1024 to 512).
-This feature is supported on EC2 4th and 5th generation instance-types, with 6th
-generation coming soon.
+This feature is supported from EC2 4th generation instance-types.
 
 The entry size can be toggled by enabling/disabling the large_llq_header devlink
 param and reloading the driver to make it take effect, e.g.
@@ -647,16 +647,16 @@ Rx
 - :code:`ena_rx_skb()` checks packet length:
 
   * If the packet is small (len < rx_copybreak), the driver allocates
-    an `skb` for the new packet, and copies the packet's payload into the
-    SKB's linear part.
+    an ``skb`` for the new packet, and copies the packet's payload into the
+    ``skb``'s linear part.
 
     - In this way the original data buffer is not passed to the stack
       and is reused for future Rx packets.
 
-  * Otherwise the function unmaps the Rx buffer, sets the first descriptor as `skb`'s linear part
-    and the other descriptors as the `skb`'s frags.
+  * Otherwise the function unmaps the Rx buffer, sets the first descriptor as ``skb``'s linear part
+    and the other descriptors as the ``skb``'s frags.
 
-- The new `skb` is updated with the necessary information (protocol,
+- The new ``skb`` is updated with the necessary information (protocol,
   checksum hw verify result, etc), and then passed to the network
   stack, using the NAPI interface function :code:`napi_gro_receive()`.
 
@@ -674,17 +674,17 @@ A simple example of this mechanism is the following sequence of events:
 ::
 
         1. Buffer allocates page-sized RX buffer and passes it to hardware
-                +----------------------+
-                |4KB RX Buffer         |
-                +----------------------+
+           +----------------------------+
+           | 4096 Bytes RX Buffer       |
+           +----------------------------+
 
         2. A 300Bytes packet is received on this buffer
 
-        3. The driver increases the ref count on this page and returns it back to
-           HW as an RX buffer of size 4KB - 300Bytes = 3796 Bytes
-               +-----+-------------------+
-               |****|3796 Bytes RX Buffer|
-               +-----+-------------------+
+        3. The driver increases the ref count on this page and returns it back to the
+           HW as an RX buffer of size 3796 Bytes (4096 - 300)
+           +-----+----------------------+
+           |*****| 3796 Bytes RX Buffer |
+           +-----+----------------------+
 
 This mechanism isn't used when an XDP program is loaded, or when the
 RX packet is less than rx_copybreak bytes (in which case the packet is
