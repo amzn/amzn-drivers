@@ -254,7 +254,7 @@ mean?
 4. Make sure vCPUs handling ENA IRQs are not overloaded with other unrelated
    tasks (use `taskset`_ or `numactl`_ to move heavy tasks to other vCPUs)
 
-5. Disable DIM (Dynamic Interrupt Moderation):
+5. Disable interrupt moderation:
 
    .. code-block:: bash
 
