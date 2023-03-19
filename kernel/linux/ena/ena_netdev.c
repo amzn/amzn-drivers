@@ -880,7 +880,7 @@ static void ena_free_tx_bufs(struct ena_ring *tx_ring)
 
 		ena_unmap_tx_buff(tx_ring, tx_info);
 
-		napi_consume_skb(tx_info->skb, 0);
+		dev_kfree_skb_any(tx_info->skb);
 	}
 	netdev_tx_reset_queue(netdev_get_tx_queue(tx_ring->netdev,
 						  tx_ring->qid));
@@ -1012,7 +1012,7 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 			  skb);
 
 		tx_bytes += tx_info->total_tx_size;
-		napi_consume_skb(skb, budget);
+		dev_kfree_skb(skb);
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
 
@@ -1063,7 +1063,7 @@ static struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag,
 	if (!first_frag)
 		skb = napi_alloc_skb(rx_ring->napi, len);
 	else
-		skb = ena_build_skb(first_frag, len);
+		skb = build_skb(first_frag, len);
 #else
 	if (!first_frag)
 		skb = napi_alloc_skb(rx_ring->napi, len);
@@ -3038,7 +3038,7 @@ error_unmap_dma:
 	tx_info->skb = NULL;
 
 error_drop_packet:
-	napi_consume_skb(skb, 0);
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 

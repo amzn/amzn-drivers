@@ -881,25 +881,6 @@ static inline int numa_mem_id(void)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 #define ENA_LINEAR_FRAG_SUPPORTED
-static __always_inline struct sk_buff*
-ena_build_skb(void *data, unsigned int frag_size)
-{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
-	return napi_build_skb(data, frag_size);
-#else
-	return build_skb(data, frag_size);
-#endif
-}
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && \
-	!(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 3)) && \
-	!(defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(4, 2, 0, 42))
-static __always_inline
-void napi_consume_skb(struct sk_buff *skb, int budget)
-{
-	dev_kfree_skb_any(skb);
-}
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
