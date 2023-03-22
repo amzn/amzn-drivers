@@ -40,7 +40,7 @@ The driver was verified on the following distributions:
 * Change initial static RX interrupt moderation interval
 * Enable DIM by default on all CPU Architectures
 
-**Buf Fixes**
+**Bug Fixes**
 * DMA sync for CPU before accessing buffer
 * Fix ena_probe destroy order
 * Validate completion descriptors consistency
