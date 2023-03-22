@@ -32,6 +32,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.4 release notes
+**Bug fixes**
+* Revert napi_consume_skb() and napi_build_skb() usage
+
 ## r2.8.3 release notes
 **New Features**
 * PHC module param enablement
