@@ -36,6 +36,13 @@ ifneq ($(strip $(GENERATED_EXISTS)),)
   endif
 endif
 
+get_suse_kernel_subversions = $(shell \
+  subversions_array=(`uname -r | sed 's/[^0-9]\+/ /g ; s/\s$$//'`) && \
+  for (( i = 0; i < 6; i++ )); do \
+    subversions_array[$$i]="SUSE_KERNEL_SUBVERSION_$$(($$i+1))=$${subversions_array[$$i]:-0}"; \
+  done && \
+  echo $${subversions_array[*]})
+
 ifneq ("$(wildcard /etc/os-release)","")
   IS_DEBIAN=$(shell grep Debian /etc/os-release)
 
@@ -46,6 +53,14 @@ ifneq ("$(wildcard /etc/os-release)","")
     DEBIAN_VERSION = $(subst VERSION_ID,,$(REMOVE_EQUAL_SIGN))
     ccflags-y += -DDEBIAN_VERSION=$(DEBIAN_VERSION)
   endif
+
+  IS_SUSE=$(shell grep SUSE /etc/os-release)
+
+  ifneq ($(strip $(IS_SUSE)),)
+    SUSE_KERNEL_SUBVERSIONS := $(call get_suse_kernel_subversions)
+    $(foreach subversion,$(SUSE_KERNEL_SUBVERSIONS),$(eval ccflags-y += -D$(subversion)))
+  endif
+
 endif
 
 ifdef UBUNTU_ABI
