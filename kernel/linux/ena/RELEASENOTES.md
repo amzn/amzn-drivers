@@ -32,6 +32,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.5 release notes
+**Minor Changes**
+* Compilation fixes for SLES 15SP3
+
 ## r2.8.4 release notes
 **Bug fixes**
 * Revert napi_consume_skb() and napi_build_skb() usage
