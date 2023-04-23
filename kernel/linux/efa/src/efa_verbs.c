@@ -354,6 +354,9 @@ int efa_query_device(struct ib_device *ibdev,
 		if (EFA_DEV_CAP(dev, DATA_POLLING_128))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_DATA_POLLING_128;
 
+		if (EFA_DEV_CAP(dev, RDMA_WRITE))
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RDMA_WRITE;
+
 		if (dev->neqs)
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_CQ_NOTIFICATIONS;
 
@@ -2132,7 +2135,8 @@ static struct efa_mr *efa_alloc_mr(struct ib_pd *ibpd, int access_flags,
 
 	supp_access_flags =
 		IB_ACCESS_LOCAL_WRITE |
-		(EFA_DEV_CAP(dev, RDMA_READ) ? IB_ACCESS_REMOTE_READ : 0);
+		(EFA_DEV_CAP(dev, RDMA_READ) ? IB_ACCESS_REMOTE_READ : 0) |
+		(EFA_DEV_CAP(dev, RDMA_WRITE) ? IB_ACCESS_REMOTE_WRITE : 0);
 
 #ifdef HAVE_IB_ACCESS_OPTIONAL
 	access_flags &= ~IB_ACCESS_OPTIONAL;
