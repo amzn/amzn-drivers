@@ -1,0 +1,49 @@
+name: Feature Request
+description: Request new feature and code enhancement
+title: "[Feature request]: "
+labels: ["feature request", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: We appreciate you taking the time to submit your feature request and code enhancement.
+  - type: checkboxes
+    id: preliminary_actions
+    attributes:
+      label: Preliminary Actions
+      options:
+      - label: I have searched the existing [issues](https://github.com/amzn/amzn-drivers/issues) and didn't find a duplicate.
+        required: true
+  - type: dropdown
+    id: driver_type
+    attributes:
+      label: Driver Type
+      description: What driver type are you running?
+      options:
+        - Linux kernel driver for Elastic Network Adapter (ENA)
+        - FreeBSD kernel driver for Elastic Network Adapter (ENA)
+        - DPDK PMD for Elastic Network Adapter (ENA)
+        - Linux kernel driver for Elastic Fabric Adapter (EFA)
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Describe the motivations for this enhancement
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution
+      description: Describe the proposed solution, add related materials/links
+    validations:
+      required: true
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Details
+      description: How can we get in touch with you if we need more info?
+      placeholder: email@example.com
+    validations:
+      required: false

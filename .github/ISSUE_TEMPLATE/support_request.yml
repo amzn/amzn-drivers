@@ -1,0 +1,84 @@
+name: Support Request
+description: Ask a question or request support
+title: "[Support]: "
+labels: ["support", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We appreciate you taking the time to submit your support request.
+
+        While filing issues directly can be an effective way to report bugs or suggest new features,
+        we recommend reaching out to our [customer support](https://aws.amazon.com/contact-us/) in certain situations for more effective assistance.
+        In the scope of this repository, we can address issues related to the drivers themselves such as compilation, features, etc.
+        rather than addressing general network-related AWS aspects like performance issues.
+        For such cases, we advise referring to AWS documentation or contacting our customer support which has the necessary resources
+        and expertise to investigate and diagnose issues in greater depth and higher priority to help you effectively address the issue.
+
+        ---
+  - type: checkboxes
+    id: preliminary_actions
+    attributes:
+      label: Preliminary Actions
+      options:
+      - label: I have searched the existing [issues](https://github.com/amzn/amzn-drivers/issues) and didn't find a duplicate.
+        required: true
+      - label: I have followed the [AWS official troubleshoot documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/troubleshooting-ena.html).
+        required: true
+      - label: I have followed the driver [readme](https://github.com/amzn/amzn-drivers) and [best practices](https://github.com/amzn/amzn-drivers/blob/master/kernel/linux/ena/ENA_Linux_Best_Practices.rst).
+        required: true
+  - type: dropdown
+    id: driver_type
+    attributes:
+      label: Driver Type
+      description: What driver type are you running?
+      options:
+        - Linux kernel driver for Elastic Network Adapter (ENA)
+        - FreeBSD kernel driver for Elastic Network Adapter (ENA)
+        - DPDK PMD for Elastic Network Adapter (ENA)
+        - Linux kernel driver for Elastic Fabric Adapter (EFA)
+    validations:
+      required: true
+  - type: input
+    id: driver_tag
+    attributes:
+      label: Driver Tag/Commit
+      placeholder: "ena_linux_2.8.5-1-g22fca73"
+      description: |
+        You can check current driver tag/commit using "git describe --tags"
+        Please test using the latest version to make sure your issue has not already been fixed
+    validations:
+      required: true
+  - type: dropdown
+    id: Code
+    attributes:
+      label: Custom Code
+      description: Driver code was customized
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+  - type: textarea
+    id: os_version
+    attributes:
+      label: OS Platform and Distribution
+      placeholder: "Linux 5.10.157-139.675.amzn2.x86_64"
+      description: To check OS version run "uname -a"
+    validations:
+      required: true
+  - type: textarea
+    id: support_request
+    attributes:
+      label: Support request
+      description: Ask a question regarding driver build/compilation/installation/run
+    validations:
+      required: true
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Details
+      description: How can we get in touch with you if we need more info?
+      placeholder: email@example.com
+    validations:
+      required: false
