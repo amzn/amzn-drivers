@@ -98,6 +98,10 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu May 04 2023 Michael Margolin <mrgolin@amazon.com> - 2.4.0
+- Add data polling support
+- Add RDMA write support
+
 * Tue Nov 08 2022 Michael Margolin <mrgolin@amazon.com> - 2.1.1
 - Fix dmabuf backport for some kernels
 

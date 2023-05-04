@@ -3,6 +3,10 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.4.0 release notes
+* Add data polling support
+* Add RDMA write support
+
 ## r2.1.1 release notes
 * Fix dmabuf backport for some kernels
 
