@@ -1087,7 +1087,8 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0) */
 }
 
-#if RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 4))
+#if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 4))) || \
+    (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(4, 5, 0, 0))
 static inline void dma_unmap_page_attrs(struct device *dev,
 					dma_addr_t addr, size_t size,
 					enum dma_data_direction dir,
@@ -1104,7 +1105,8 @@ static inline void dma_unmap_page_attrs(struct device *dev,
 
 #if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 9)) && \
      (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 0)) && \
-     (LINUX_VERSION_CODE != KERNEL_VERSION(4, 14, 0)))
+     (LINUX_VERSION_CODE != KERNEL_VERSION(4, 14, 0))) || \
+    (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(4, 5, 0, 0))
 #define ENA_DMA_ATTR_SKIP_CPU_SYNC (1 << DMA_ATTR_SKIP_CPU_SYNC)
 #elif (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(6, 10)))
 #define	ENA_DMA_ATTR_SKIP_CPU_SYNC 0
@@ -1118,7 +1120,8 @@ static inline void ena_dma_unmap_page_attrs(struct device *dev,
 					    unsigned long attrs)
 {
 #if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 9)) && \
-     (LINUX_VERSION_CODE != KERNEL_VERSION(4, 14, 0)))
+     (LINUX_VERSION_CODE != KERNEL_VERSION(4, 14, 0))) || \
+    (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(4, 5, 0, 0))
 	struct dma_attrs dma_attrs;
 
 	init_dma_attrs(&dma_attrs);
