@@ -701,8 +701,8 @@ static void ena_unmap_rx_buff_attrs(struct ena_ring *rx_ring,
 	if (rx_info->is_lpc_page)
 		return;
 
-	dma_unmap_page_attrs(rx_ring->dev, rx_info->dma_addr, ENA_PAGE_SIZE,
-			     DMA_BIDIRECTIONAL, attrs);
+	ena_dma_unmap_page_attrs(rx_ring->dev, rx_info->dma_addr, ENA_PAGE_SIZE,
+				 DMA_BIDIRECTIONAL, attrs);
 }
 
 static void ena_unmap_rx_buff(struct ena_ring *rx_ring,
@@ -1197,7 +1197,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 				DMA_FROM_DEVICE);
 
 	if (!reuse_rx_buf_page)
-		ena_unmap_rx_buff_attrs(rx_ring, rx_info, DMA_ATTR_SKIP_CPU_SYNC);
+		ena_unmap_rx_buff_attrs(rx_ring, rx_info, ENA_DMA_ATTR_SKIP_CPU_SYNC);
 
 
 	skb = ena_alloc_skb(rx_ring, buf_addr, buf_len);
@@ -1262,7 +1262,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 					DMA_FROM_DEVICE);
 
 		if (!reuse_rx_buf_page)
-			ena_unmap_rx_buff_attrs(rx_ring, rx_info, DMA_ATTR_SKIP_CPU_SYNC);
+			ena_unmap_rx_buff_attrs(rx_ring, rx_info, ENA_DMA_ATTR_SKIP_CPU_SYNC);
 
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_info->page,
