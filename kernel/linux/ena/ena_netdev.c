@@ -693,16 +693,22 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 	return 0;
 }
 
-static void ena_unmap_rx_buff(struct ena_ring *rx_ring,
-			      struct ena_rx_buffer *rx_info)
+static void ena_unmap_rx_buff_attrs(struct ena_ring *rx_ring,
+				    struct ena_rx_buffer *rx_info,
+				    unsigned long attrs)
 {
 	/* LPC pages are unmapped at cache destruction */
 	if (rx_info->is_lpc_page)
 		return;
 
-	dma_unmap_page(rx_ring->dev, rx_info->dma_addr,
-		       ENA_PAGE_SIZE,
-		       DMA_BIDIRECTIONAL);
+	dma_unmap_page_attrs(rx_ring->dev, rx_info->dma_addr, ENA_PAGE_SIZE,
+			     DMA_BIDIRECTIONAL, attrs);
+}
+
+static void ena_unmap_rx_buff(struct ena_ring *rx_ring,
+			      struct ena_rx_buffer *rx_info)
+{
+	ena_unmap_rx_buff_attrs(rx_ring, rx_info, 0);
 }
 
 static void ena_free_rx_page(struct ena_ring *rx_ring,
@@ -1185,13 +1191,14 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 	reuse_rx_buf_page = !is_xdp_loaded &&
 			    ena_try_rx_buf_page_reuse(rx_info, buf_len, len, pkt_offset);
 
+	dma_sync_single_for_cpu(rx_ring->dev,
+				pre_reuse_paddr + pkt_offset,
+				len,
+				DMA_FROM_DEVICE);
+
 	if (!reuse_rx_buf_page)
-		ena_unmap_rx_buff(rx_ring, rx_info);
-	else
-		dma_sync_single_for_cpu(rx_ring->dev,
-					pre_reuse_paddr + pkt_offset,
-					len,
-					DMA_FROM_DEVICE);
+		ena_unmap_rx_buff_attrs(rx_ring, rx_info, DMA_ATTR_SKIP_CPU_SYNC);
+
 
 	skb = ena_alloc_skb(rx_ring, buf_addr, buf_len);
 	if (unlikely(!skb))
@@ -1249,13 +1256,14 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		reuse_rx_buf_page = !is_xdp_loaded &&
 				    ena_try_rx_buf_page_reuse(rx_info, buf_len, len, pkt_offset);
 
+		dma_sync_single_for_cpu(rx_ring->dev,
+					pre_reuse_paddr + pkt_offset,
+					len,
+					DMA_FROM_DEVICE);
+
 		if (!reuse_rx_buf_page)
-			ena_unmap_rx_buff(rx_ring, rx_info);
-		else
-			dma_sync_single_for_cpu(rx_ring->dev,
-						pre_reuse_paddr + pkt_offset,
-						len,
-						DMA_FROM_DEVICE);
+			ena_unmap_rx_buff_attrs(rx_ring, rx_info, DMA_ATTR_SKIP_CPU_SYNC);
+
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_info->page,
 				page_offset + buf_offset, len, buf_len);
