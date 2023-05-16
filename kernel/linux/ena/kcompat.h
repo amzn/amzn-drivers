@@ -107,6 +107,33 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 	LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 #define ENA_BUSY_POLL_SUPPORT
 #endif
+
+/* Distribution kernel version comparison macros.
+ * Distribution kernel versioning format may be A.B.C-D.E.F and standard
+ * KERNEL_VERSION macro covers only the first 3 subversions.
+ * Using 20bit per subversion, as in some cases, subversion D may be a large
+ * number (6 digits).
+ */
+#define ENA_KERNEL_VERSION_16BIT(SV1, SV2, SV3) ((SV1 << 40) | (SV2 << 20) | (SV3))
+#define ENA_KERNEL_VERSION_MAJOR(SV1, SV2, SV3) ENA_KERNEL_VERSION_16BIT(SV1, SV2, SV3)
+#define ENA_KERNEL_VERSION_MINOR(SV1, SV2, SV3) ENA_KERNEL_VERSION_16BIT(SV1, SV2, SV3)
+
+#define ENA_KERNEL_VERSION_GTE(SV1, SV2, SV3, SV4, SV5, SV6) \
+	((ENA_KERNEL_VERSION_MAJOR(ENA_KERNEL_SUBVERSION_1, ENA_KERNEL_SUBVERSION_2, ENA_KERNEL_SUBVERSION_3) > \
+	  ENA_KERNEL_VERSION_MAJOR((SV1), (SV2), (SV3))) || \
+	 (ENA_KERNEL_VERSION_MAJOR(ENA_KERNEL_SUBVERSION_1, ENA_KERNEL_SUBVERSION_2, ENA_KERNEL_SUBVERSION_3) == \
+	  ENA_KERNEL_VERSION_MAJOR((SV1), (SV2), (SV3)) && \
+	  ENA_KERNEL_VERSION_MINOR(ENA_KERNEL_SUBVERSION_4, ENA_KERNEL_SUBVERSION_5, ENA_KERNEL_SUBVERSION_6) >= \
+	  ENA_KERNEL_VERSION_MINOR((SV4), (SV5), (SV6))))
+
+#define ENA_KERNEL_VERSION_LTE(SV1, SV2, SV3, SV4, SV5, SV6) \
+	((ENA_KERNEL_VERSION_MAJOR(ENA_KERNEL_SUBVERSION_1, ENA_KERNEL_SUBVERSION_2, ENA_KERNEL_SUBVERSION_3) < \
+	  ENA_KERNEL_VERSION_MAJOR((SV1), (SV2), (SV3))) || \
+	 (ENA_KERNEL_VERSION_MAJOR(ENA_KERNEL_SUBVERSION_1, ENA_KERNEL_SUBVERSION_2, ENA_KERNEL_SUBVERSION_3) == \
+	  ENA_KERNEL_VERSION_MAJOR((SV1), (SV2), (SV3)) && \
+	  ENA_KERNEL_VERSION_MINOR(ENA_KERNEL_SUBVERSION_4, ENA_KERNEL_SUBVERSION_5, ENA_KERNEL_SUBVERSION_6) <= \
+	  ENA_KERNEL_VERSION_MINOR((SV4), (SV5), (SV6))))
+
 /******************************************************************************/
 /************************** Ubuntu macros *************************************/
 /******************************************************************************/
@@ -176,32 +203,6 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #ifndef SUSE_VERSION
 #define SUSE_VERSION 0
 #endif /* SUSE_VERSION */
-
-/* SUSE kernel version comparison macros.
- * SUSE kernel versioning format may be A.B.C-D.E.F and standard KERNEL_VERSION
- * macro covers only the first 3 subversions.
- * Using 20bit per subversion, as in some cases, subversion D may be a large
- * number (6 digits).
- */
-#define SUSE_KERNEL_VERSION_16BIT(SV1, SV2, SV3) ((SV1 << 40) | (SV2 << 20) | (SV3))
-#define SUSE_KERNEL_VERSION_MAJOR(SV1, SV2, SV3) SUSE_KERNEL_VERSION_16BIT(SV1, SV2, SV3)
-#define SUSE_KERNEL_VERSION_MINOR(SV1, SV2, SV3) SUSE_KERNEL_VERSION_16BIT(SV1, SV2, SV3)
-
-#define SUSE_KERNEL_VERSION_GTE(SV1, SV2, SV3, SV4, SV5, SV6) \
-	((SUSE_KERNEL_VERSION_MAJOR(SUSE_KERNEL_SUBVERSION_1, SUSE_KERNEL_SUBVERSION_2, SUSE_KERNEL_SUBVERSION_3) > \
-	  SUSE_KERNEL_VERSION_MAJOR((SV1), (SV2), (SV3))) || \
-	 (SUSE_KERNEL_VERSION_MAJOR(SUSE_KERNEL_SUBVERSION_1, SUSE_KERNEL_SUBVERSION_2, SUSE_KERNEL_SUBVERSION_3) == \
-	  SUSE_KERNEL_VERSION_MAJOR((SV1), (SV2), (SV3)) && \
-	  SUSE_KERNEL_VERSION_MINOR(SUSE_KERNEL_SUBVERSION_4, SUSE_KERNEL_SUBVERSION_5, SUSE_KERNEL_SUBVERSION_6) >= \
-	  SUSE_KERNEL_VERSION_MINOR((SV4), (SV5), (SV6))))
-
-#define SUSE_KERNEL_VERSION_LTE(SV1, SV2, SV3, SV4, SV5, SV6) \
-	((SUSE_KERNEL_VERSION_MAJOR(SUSE_KERNEL_SUBVERSION_1, SUSE_KERNEL_SUBVERSION_2, SUSE_KERNEL_SUBVERSION_3) < \
-	  SUSE_KERNEL_VERSION_MAJOR((SV1), (SV2), (SV3))) || \
-	 (SUSE_KERNEL_VERSION_MAJOR(SUSE_KERNEL_SUBVERSION_1, SUSE_KERNEL_SUBVERSION_2, SUSE_KERNEL_SUBVERSION_3) == \
-	  SUSE_KERNEL_VERSION_MAJOR((SV1), (SV2), (SV3)) && \
-	  SUSE_KERNEL_VERSION_MINOR(SUSE_KERNEL_SUBVERSION_4, SUSE_KERNEL_SUBVERSION_5, SUSE_KERNEL_SUBVERSION_6) <= \
-	  SUSE_KERNEL_VERSION_MINOR((SV4), (SV5), (SV6))))
 
 /******************************************************************************/
 /**************************** RHEL macros *************************************/
@@ -915,7 +916,7 @@ static inline int numa_mem_id(void)
 #if defined(ENA_XDP_SUPPORT) && \
 	(LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0) && \
 	!(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL == 3) && \
-	 SUSE_KERNEL_VERSION_GTE(5, 3, 18, 150300, 59, 49)))
+	 ENA_KERNEL_VERSION_GTE(5, 3, 18, 150300, 59, 49)))
 static __always_inline void
 xdp_init_buff(struct xdp_buff *xdp, u32 frame_sz, struct xdp_rxq_info *rxq)
 {
@@ -955,7 +956,7 @@ xdp_prepare_buff(struct xdp_buff *xdp, unsigned char *hard_start,
 	!(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 6)) && \
 	!(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 4)) && \
 	!(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL == 3) && \
-	  SUSE_KERNEL_VERSION_GTE(5, 3, 18, 150300, 59, 43))
+	  ENA_KERNEL_VERSION_GTE(5, 3, 18, 150300, 59, 43))
 static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 {
 	memcpy(dev->dev_addr, addr, ETH_ALEN);

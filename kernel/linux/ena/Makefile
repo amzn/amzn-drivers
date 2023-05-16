@@ -36,10 +36,10 @@ ifneq ($(strip $(GENERATED_EXISTS)),)
   endif
 endif
 
-get_suse_kernel_subversions = $(shell \
-  subversions_array=(`uname -r | sed 's/[^0-9]\+/ /g ; s/\s$$//'`) && \
+get_kernel_subversions = $(shell \
+  subversions_array_tmp=(`uname -r | sed 's/[^0-9]\+/ /g ; s/\s$$//'`) && \
   for (( i = 0; i < 6; i++ )); do \
-    subversions_array[$$i]="SUSE_KERNEL_SUBVERSION_$$(($$i+1))=$${subversions_array[$$i]:-0}"; \
+    subversions_array[$$i]="ENA_KERNEL_SUBVERSION_$$(($$i+1))=$${subversions_array_tmp[$$i]:-0}"; \
   done && \
   echo $${subversions_array[*]})
 
@@ -55,10 +55,16 @@ ifneq ("$(wildcard /etc/os-release)","")
   endif
 
   IS_SUSE=$(shell grep SUSE /etc/os-release)
+  IS_UEK=$(shell uname -r | grep uek)
+  IS_KERNEL_SUBVERSIONS_NEEDED=$(IS_SUSE)$(IS_UEK)
 
-  ifneq ($(strip $(IS_SUSE)),)
-    SUSE_KERNEL_SUBVERSIONS := $(call get_suse_kernel_subversions)
-    $(foreach subversion,$(SUSE_KERNEL_SUBVERSIONS),$(eval ccflags-y += -D$(subversion)))
+  ifneq ($(strip $(IS_KERNEL_SUBVERSIONS_NEEDED)),)
+    ifneq ($(strip $(IS_UEK)),)
+      ccflags-y += -DIS_UEK
+    endif
+
+    ENA_KERNEL_SUBVERSIONS := $(call get_kernel_subversions)
+    $(foreach subversion,$(ENA_KERNEL_SUBVERSIONS),$(eval ccflags-y += -D$(subversion)))
   endif
 
 endif
