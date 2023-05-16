@@ -1103,8 +1103,11 @@ static inline void dma_unmap_page_attrs(struct device *dev,
 #endif /* RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 4)) */
 
 #if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 9)) && \
+     (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 0)) && \
      (LINUX_VERSION_CODE != KERNEL_VERSION(4, 14, 0)))
 #define ENA_DMA_ATTR_SKIP_CPU_SYNC (1 << DMA_ATTR_SKIP_CPU_SYNC)
+#elif (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(6, 10)))
+#define	ENA_DMA_ATTR_SKIP_CPU_SYNC 0
 #else
 #define ENA_DMA_ATTR_SKIP_CPU_SYNC DMA_ATTR_SKIP_CPU_SYNC
 #endif
@@ -1125,6 +1128,5 @@ static inline void ena_dma_unmap_page_attrs(struct device *dev,
 	dma_unmap_page_attrs(dev, addr, size, dir, attrs);
 #endif
 }
-
 
 #endif /* _KCOMPAT_H_ */
