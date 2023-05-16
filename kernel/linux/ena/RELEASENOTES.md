@@ -32,6 +32,11 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.6 release notes
+**Bug fixes**
+* Fix incorrect dma sync when SWIOTLB is on
+* Fix compilation issues in RHEL 9.2
+
 ## r2.8.5 release notes
 **Minor Changes**
 * Compilation fixes for SLES 15SP3
