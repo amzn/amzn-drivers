@@ -2399,7 +2399,7 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 	if_setdev(ifp, pdev);
 	if_setsoftc(ifp, adapter);
 
-#if __FreeBSD_version > 1300081
+#if __FreeBSD_version > 1300081 && __FreeBSD_version <= 1400086
 	if_setflags(ifp,
 	    IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_KNOWSEPOCH);
 #else
