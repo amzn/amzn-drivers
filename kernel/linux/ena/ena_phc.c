@@ -7,11 +7,12 @@
 #include "ena_phc.h"
 
 #ifdef ENA_PHC_SUPPORT
-
+#ifdef ENA_PHC_SUPPORT_ADJFREQ
 static int ena_phc_adjfreq(struct ptp_clock_info *clock_info, s32 ppb)
 {
 	return -EOPNOTSUPP;
 }
+#endif /* ENA_PHC_SUPPORT_ADJFREQ */
 
 static int ena_phc_adjtime(struct ptp_clock_info *clock_info, s64 delta)
 {
@@ -109,7 +110,9 @@ static struct ptp_clock_info ena_ptp_clock_info = {
 	.n_ext_ts	= 0,
 	.n_per_out	= 0,
 	.pps		= 0,
+#ifdef ENA_PHC_SUPPORT_ADJFREQ
 	.adjfreq	= ena_phc_adjfreq,
+#endif /* ENA_PHC_SUPPORT_ADJFREQ */
 	.adjtime	= ena_phc_adjtime,
 #ifdef ENA_PHC_SUPPORT_GETTIME64
 #ifdef ENA_PHC_SUPPORT_GETTIME64_EXTENDED

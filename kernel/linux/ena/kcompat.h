@@ -1062,6 +1062,10 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 #define ENA_PHC_SUPPORT_GETTIME64_EXTENDED
 #endif /* ENA_PHC_SUPPORT_GETTIME64_EXTENDED */
 
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)))
+#define ENA_PHC_SUPPORT_ADJFREQ
+#endif /* ENA_PHC_SUPPORT_ADJFREQ */
+
 #if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)) && \
 	!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 4))))
 #define ptp_clock_register(info, parent) ptp_clock_register(info)
