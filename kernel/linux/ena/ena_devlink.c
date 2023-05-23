@@ -108,9 +108,9 @@ void ena_devlink_params_get(struct devlink *devlink)
 	if (!ena_is_devlink_params_registered(devlink))
 		return;
 #endif
-	err = devlink_param_driverinit_value_get(devlink,
-						 ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
-						 &val);
+	err = devl_param_driverinit_value_get(devlink,
+					      ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
+					      &val);
 	if (err) {
 		netdev_err(adapter->netdev, "Failed to query LLQ header size param\n");
 		return;
@@ -119,7 +119,7 @@ void ena_devlink_params_get(struct devlink *devlink)
 	adapter->large_llq_header_enabled = val.vbool;
 #ifdef ENA_PHC_SUPPORT
 
-	err = devlink_param_driverinit_value_get(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, &val);
+	err = devl_param_driverinit_value_get(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, &val);
 	if (err) {
 		netdev_err(adapter->netdev, "Failed to query PHC param\n");
 		return;
@@ -140,9 +140,9 @@ void ena_devlink_disable_large_llq_header_param(struct devlink *devlink)
 
 #endif
 	value.vbool = false;
-	devlink_param_driverinit_value_set(devlink,
-					   ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
+					value);
 }
 
 #ifdef ENA_PHC_SUPPORT
@@ -157,7 +157,7 @@ void ena_devlink_disable_phc_param(struct devlink *devlink)
 
 #endif
 	value.vbool = false;
-	devlink_param_driverinit_value_set(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, value);
+	devl_param_driverinit_value_set(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, value);
 }
 
 #endif /* ENA_PHC_SUPPORT */
@@ -277,13 +277,13 @@ static int ena_devlink_configure_params(struct devlink *devlink)
 	}
 
 	value.vbool = adapter->large_llq_header_enabled;
-	devlink_param_driverinit_value_set(devlink,
-					   ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
+					value);
 
 #ifdef ENA_PHC_SUPPORT
 	value.vbool = ena_phc_is_enabled(adapter);
-	devlink_param_driverinit_value_set(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, value);
+	devl_param_driverinit_value_set(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, value);
 
 #endif /* ENA_PHC_SUPPORT */
 #ifdef ENA_DEVLINK_RELOAD_SUPPORT_ADVERTISEMENT_NEEDED

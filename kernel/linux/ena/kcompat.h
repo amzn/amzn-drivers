@@ -1103,6 +1103,11 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0) */
 }
 
+#if defined(ENA_DEVLINK_SUPPORT) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
+#define devl_param_driverinit_value_get devlink_param_driverinit_value_get
+#define devl_param_driverinit_value_set devlink_param_driverinit_value_set
+#endif
+
 #if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 4))) || \
     (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(4, 5, 0, 0)) || \
     (defined(IS_UEK) && !ENA_KERNEL_VERSION_GTE(4, 1, 12, 105, 0, 0))
