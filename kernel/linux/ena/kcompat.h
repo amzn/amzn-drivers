@@ -1097,7 +1097,10 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 				      int (*poll)(struct napi_struct *, int))
 {
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)) && \
-	!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 2)))
+	!(RHEL_RELEASE_CODE && \
+	  ((RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 8)) && \
+	   (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(9, 0))) || \
+	  (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 2)))
 #ifndef NAPI_POLL_WEIGHT
 #define NAPI_POLL_WEIGHT 64
 #endif
