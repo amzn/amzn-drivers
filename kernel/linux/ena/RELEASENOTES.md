@@ -32,6 +32,11 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.7 release notes
+**Bug fixes**
+* Add support for Kernels 6.2-6.3 (Devlink and PTP changes)
+* Fix compilation issues in RHEL 8.8
+
 ## r2.8.6 release notes
 **Bug fixes**
 * Fix incorrect dma sync when SWIOTLB is on
