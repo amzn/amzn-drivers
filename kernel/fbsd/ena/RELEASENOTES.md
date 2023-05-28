@@ -7,8 +7,8 @@ ENA driver is supported on all FreeBSD releases starting from 12.0
 The driver was verified on the following distributions:
 
 **Releases:**
-* FreeBSD 12.3
-* FreeBSD 13.1
+* FreeBSD 12.4
+* FreeBSD 13.2
 
 **Development:**
 +-----------+-------------+
@@ -18,6 +18,15 @@ The driver was verified on the following distributions:
 | stable/13 | 185159f77c9 |
 | HEAD      | 8020c05683f |
 +-----------+-------------+
+
+## r2.6.3 release notes
+**Bug Fixes**
+* Initialize statistics before the interface is available
+* Fix driver unload crash
+
+**Minor Changes**
+* Mechanically convert ena(4) to DrvAPI
+* Remove usage of IFF_KNOWSEPOCH
 
 ## r2.6.2 release notes
 **Bug Fixes**
