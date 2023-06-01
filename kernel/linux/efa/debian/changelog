@@ -1,3 +1,8 @@
+efa (2.4.1-1.amzn1) unstable; urgency=medium
+  * Fix memory registration for systems with PAGE_SIZE > 4K
+
+ -- Michael Margolin <mrgolin@amazon.com>  Thu, 01 Jun 2023 09:35:00 +0000
+
 efa (2.4.0-1.amzn1) unstable; urgency=medium
   * Add data polling support
   * Add RDMA write support

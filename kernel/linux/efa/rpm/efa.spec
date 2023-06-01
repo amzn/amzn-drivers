@@ -1,4 +1,4 @@
-# Copyright 2019-2022 Amazon.com, Inc. or its affiliates. All rights reserved
+# Copyright 2019-2023 Amazon.com, Inc. or its affiliates. All rights reserved
 
 %define name			efa
 %define driver_name		efa
@@ -98,6 +98,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu Jun 01 2023 Michael Margolin <mrgolin@amazon.com> - 2.4.1
+- Fix memory registration for systems with PAGE_SIZE > 4K
+
 * Thu May 04 2023 Michael Margolin <mrgolin@amazon.com> - 2.4.0
 - Add data polling support
 - Add RDMA write support

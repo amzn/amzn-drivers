@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -33,7 +33,7 @@ static const struct pci_device_id efa_pci_tbl[] = {
 
 #define DRV_MODULE_VER_MAJOR           2
 #define DRV_MODULE_VER_MINOR           4
-#define DRV_MODULE_VER_SUBMINOR        0
+#define DRV_MODULE_VER_SUBMINOR        1
 
 #ifndef DRV_MODULE_VERSION
 #define DRV_MODULE_VERSION \
