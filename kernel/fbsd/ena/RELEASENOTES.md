@@ -19,6 +19,14 @@ The driver was verified on the following distributions:
 | HEAD      | 8020c05683f |
 +-----------+-------------+
 
+## r2.6.2 release notes
+**Bug Fixes**
+* Remove timer service re-arm on ena_restore_device failure.
+* Re-Enable per-packet missing tx completion print
+
+**Minor Changes**
+* Remove support for FreeBSD 11 from README and RELEASE_NOTES.
+
 ## r2.6.1 release notes
 **Bug Fixes**
 * Fix KASAN and KMSAN kernel sanitizers build errors, by changing the
