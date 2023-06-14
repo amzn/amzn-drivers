@@ -559,4 +559,10 @@ ena_ring_tx_doorbell(struct ena_ring *tx_ring)
 	tx_ring->acum_pkts = 0;
 }
 
+
+#if __FreeBSD_version <= 1200066
+#define TICKS_2_MSEC(t) max(1, (uint32_t)(hz == 1000) ? \
+            (t) : (((uint64_t)(t) * (uint64_t)1000)/(uint64_t)hz))
+
+#endif
 #endif /* !(ENA_H) */

@@ -3138,18 +3138,13 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		if (unlikely(time_offset > adapter->missing_tx_timeout)) {
 
 			if (tx_buf->print_once) {
-#if __FreeBSD_version > 1200066
-				time_since_last_cleanup = TICKS_2_USEC(ticks -
+				time_since_last_cleanup = TICKS_2_MSEC(ticks -
 				    tx_ring->tx_last_cleanup_ticks);
-#else
-				time_since_last_cleanup = 1000000 * (ticks -
-				    tx_ring->tx_last_cleanup_ticks) / hz;
-#endif
 				missing_tx_comp_to = sbttoms(
 				    adapter->missing_tx_timeout);
 				ena_log(pdev, WARN,
 				    "Found a Tx that wasn't completed on time, qid %d, index %d. "
-				    "%d usecs have passed since last cleanup. Missing Tx timeout value %d msecs.\n",
+				    "%d msecs have passed since last cleanup. Missing Tx timeout value %d msecs.\n",
 				    tx_ring->qid, i, time_since_last_cleanup,
 				    missing_tx_comp_to);
 			}
