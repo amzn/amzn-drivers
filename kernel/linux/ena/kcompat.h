@@ -866,8 +866,8 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
  * UEK            ***********|--------------|--------|------|
  */
 #if (defined(IS_UEK) && !ENA_KERNEL_VERSION_GTE(4, 1, 12, 124, 43, 1)) || \
-    (defined(ubuntu)) || \
-    (!defined(IS_UEK) && !defined(ubuntu) && \
+    (defined(UBUNTU_VERSION_CODE)) || \
+    (!defined(IS_UEK) && !defined(UBUNTU_VERSION_CODE) && \
      !(KERNEL_VERSION(4, 4, 216) <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)))
 static inline int page_ref_count(struct page *page)
 {
