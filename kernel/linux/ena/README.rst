@@ -533,7 +533,6 @@ On supported instance types, the statistics will also include the
 ENA Express data (fields prefixed with ``ena_srd``). For a complete
 documentation of ENA Express data refer to `ena-express-monitor`_
 
-
 MTU
 ===
 

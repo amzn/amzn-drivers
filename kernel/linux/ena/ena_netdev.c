@@ -46,6 +46,8 @@ MODULE_VERSION(DRV_MODULE_GENERATION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
 		NETIF_MSG_IFDOWN | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
+
+#define ENA_HIGH_LOW_TO_U64(high, low) ((((u64)(high)) << 32) | (low))
 #ifndef ENA_LINEAR_FRAG_SUPPORTED
 
 #define ENA_SKB_PULL_MIN_LEN 64
@@ -3222,6 +3224,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 	struct ena_ring *rx_ring, *tx_ring;
 	u64 xdp_rx_drops = 0;
 	unsigned int start;
+	u64 rx_overruns;
 	u64 rx_drops;
 	u64 tx_drops;
 	int i;
@@ -3268,6 +3271,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 		start = ena_u64_stats_fetch_begin(&adapter->syncp);
 		rx_drops = adapter->dev_stats.rx_drops;
 		tx_drops = adapter->dev_stats.tx_drops;
+		rx_overruns = adapter->dev_stats.rx_overruns;
 	} while (ena_u64_stats_fetch_retry(&adapter->syncp, start));
 
 	stats->rx_dropped = rx_drops + xdp_rx_drops;
@@ -3282,8 +3286,9 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 	stats->rx_fifo_errors = 0;
 	stats->rx_missed_errors = 0;
 	stats->tx_window_errors = 0;
+	stats->rx_over_errors = rx_overruns;
 
-	stats->rx_errors = 0;
+	stats->rx_errors = stats->rx_over_errors;
 	stats->tx_errors = 0;
 #ifndef NDO_GET_STATS_64_V2
 		return stats;
@@ -4987,14 +4992,16 @@ static void ena_keep_alive_wd(void *adapter_data,
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
 	struct ena_admin_aenq_keep_alive_desc *desc;
+	u64 rx_overruns;
 	u64 rx_drops;
 	u64 tx_drops;
 
 	desc = (struct ena_admin_aenq_keep_alive_desc *)aenq_e;
 	adapter->last_keep_alive_jiffies = jiffies;
 
-	rx_drops = ((u64)desc->rx_drops_high << 32) | desc->rx_drops_low;
-	tx_drops = ((u64)desc->tx_drops_high << 32) | desc->tx_drops_low;
+	rx_drops = ENA_HIGH_LOW_TO_U64(desc->rx_drops_high, desc->rx_drops_low);
+	tx_drops = ENA_HIGH_LOW_TO_U64(desc->tx_drops_high, desc->tx_drops_low);
+	rx_overruns = ENA_HIGH_LOW_TO_U64(desc->rx_overruns_high, desc->rx_overruns_low);
 
 	u64_stats_update_begin(&adapter->syncp);
 	/* These stats are accumulated by the device, so the counters indicate
@@ -5002,6 +5009,7 @@ static void ena_keep_alive_wd(void *adapter_data,
 	 */
 	adapter->dev_stats.rx_drops = rx_drops;
 	adapter->dev_stats.tx_drops = tx_drops;
+	adapter->dev_stats.rx_overruns = rx_overruns;
 	u64_stats_update_end(&adapter->syncp);
 }
 
