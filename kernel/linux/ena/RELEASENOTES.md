@@ -32,6 +32,13 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.8 release notes
+**New Features**
+* Report RX overrun errors via net device stats
+
+**Bug fixes**
+* Fix compilation issue on ubuntu 16.04 instances
+
 ## r2.8.7 release notes
 **Bug fixes**
 * Add support for Kernels 6.2-6.3 (Devlink and PTP changes)
