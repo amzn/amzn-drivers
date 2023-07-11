@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.5.0 release notes
+* Add RDMA write statistics
+
 ## r2.4.1 release notes
 * Fix memory registration for systems with PAGE_SIZE > 4K
 

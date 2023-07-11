@@ -2,7 +2,7 @@
 
 NAME = efa
 SPEC = $(NAME).spec
-VERSION	= 2.4.1
+VERSION	= 2.5.0
 
 TOPDIR  := $(shell git rev-parse --show-toplevel)
 TAG	?= HEAD

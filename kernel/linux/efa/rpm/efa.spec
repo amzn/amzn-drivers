@@ -98,6 +98,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Tue Jul 11 2023 Michael Margolin <mrgolin@amazon.com> - 2.5.0
+- Add RDMA write statistics
+
 * Thu Jun 01 2023 Michael Margolin <mrgolin@amazon.com> - 2.4.1
 - Fix memory registration for systems with PAGE_SIZE > 4K
 
