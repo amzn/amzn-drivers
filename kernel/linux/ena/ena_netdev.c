@@ -2630,6 +2630,7 @@ static int ena_open(struct net_device *netdev)
 static int ena_close(struct net_device *netdev)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
+	u8 *debug_area;
 
 	netif_dbg(adapter, ifdown, netdev, "%s\n", __func__);
 
@@ -2644,6 +2645,10 @@ static int ena_close(struct net_device *netdev)
 	if (unlikely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
 		netif_err(adapter, ifdown, adapter->netdev,
 			  "Destroy failure, restarting device\n");
+
+		debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
+		if (debug_area)
+			ena_dump_stats_to_buf(adapter, debug_area);
 		ena_dump_stats_to_dmesg(adapter);
 		/* rtnl lock already obtained in dev_ioctl() layer */
 		ena_destroy_device(adapter, false);
