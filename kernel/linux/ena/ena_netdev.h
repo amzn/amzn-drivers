@@ -182,7 +182,7 @@ struct ena_tx_buffer {
 	 * a given packet is not expected to be handled by ena_start_xmit
 	 * and by napi/timer_service at the same time.
 	 */
-	unsigned long last_jiffies;
+	unsigned long tx_sent_jiffies;
 	struct ena_com_buf bufs[ENA_PKT_MAX_BUFS];
 } ____cacheline_aligned;
 
@@ -426,7 +426,7 @@ struct ena_adapter {
 	u8 mac_addr[ETH_ALEN];
 
 	unsigned long keep_alive_timeout;
-	unsigned long missing_tx_completion_to;
+	unsigned long missing_tx_completion_to_jiffies;
 
 	char name[ENA_NAME_MAX_LEN];
 #ifdef ENA_PHC_SUPPORT

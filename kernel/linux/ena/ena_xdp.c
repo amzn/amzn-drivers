@@ -247,10 +247,10 @@ void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring)
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		struct ena_tx_buffer *tx_info = &tx_ring->tx_buffer_info[i];
 
-		if (tx_info->last_jiffies)
+		if (tx_info->tx_sent_jiffies)
 			xsk_frames++;
 
-		tx_info->last_jiffies = 0;
+		tx_info->tx_sent_jiffies = 0;
 	}
 
 	if (xsk_frames)
@@ -587,7 +587,7 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 
 		tx_info = &tx_ring->tx_buffer_info[req_id];
 
-		tx_info->last_jiffies = 0;
+		tx_info->tx_sent_jiffies = 0;
 
 		if (!is_zc_q) {
 			xdpf = tx_info->xdpf;
