@@ -4025,6 +4025,31 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 	return 0;
 }
 
+enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter *adapter,
+						      struct ena_ring *tx_ring)
+{
+	struct net_device *netdev = adapter->netdev;
+	u16 req_id;
+	int rc;
+
+	rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq, &req_id);
+
+	/* TX CQ is empty */
+	if (rc == -EAGAIN) {
+		netif_err(adapter, tx_err, netdev,
+			  "No completion descriptors found in CQ %d",
+			  tx_ring->qid);
+
+		return ENA_REGS_RESET_MISS_TX_CMPL;
+	}
+
+	/* TX CQ has cdescs */
+	netif_err(adapter, tx_err, netdev,
+		  "Completion descriptors found in CQ %d", tx_ring->qid);
+
+	return ENA_REGS_RESET_MISS_INTERRUPT;
+}
+
 static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct ena_ring *tx_ring)
 {
 	unsigned long miss_tx_comp_to_jiffies = adapter->missing_tx_completion_to_jiffies;
@@ -4106,7 +4131,16 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 			  jiffies_to_msecs(jiffies_since_last_intr),
 			  jiffies_to_msecs(jiffies_since_last_napi));
 		netif_err(adapter, tx_err, netdev, "Resetting the device\n");
-
+		/* Set the reset flag to prevent NAPI from running */
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+		/* Need to make sure that reset reason is visible to ena_io_poll to prevent it
+		 * from accessing CQ concurrently with check_cdesc_in_tx_cq()
+		 */
+		smp_mb();
+		napi_scheduled = !!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED);
+		if (!napi_scheduled)
+			reset_reason = check_cdesc_in_tx_cq(adapter, tx_ring);
+		/* Update reset reason */
 		ena_reset_device(adapter, reset_reason);
 		rc = -EIO;
 	}
