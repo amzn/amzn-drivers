@@ -896,6 +896,9 @@ skip_xdp_prog:
 			ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1,
 					  &rx_ring->syncp);
 			ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
+		} else if (rc == -EFAULT) {
+			ena_reset_device(adapter,
+					 ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
 		}
 
 		return 0;
