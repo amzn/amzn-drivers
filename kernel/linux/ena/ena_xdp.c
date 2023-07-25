@@ -411,10 +411,10 @@ static int ena_xsk_pool_enable(struct ena_adapter *adapter,
 	bool dev_was_up = false;
 	int err;
 
-	if (!ena_xdp_legal_queue_count(adapter, qid)) {
+	if (qid >= adapter->num_io_queues) {
 		netdev_err(adapter->netdev,
 			   "Max qid for XSK pool is %d (received %d)\n",
-			   adapter->max_num_io_queues >> 1, qid);
+			   adapter->num_io_queues, qid);
 		return -EINVAL;
 	}
 
