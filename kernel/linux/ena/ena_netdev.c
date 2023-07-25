@@ -3875,16 +3875,13 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 {
 	struct ena_napi *ena_napi = container_of(tx_ring->napi, struct ena_napi, napi);
 	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
-	unsigned int time_since_last_napi;
-	unsigned int missing_tx_comp_to;
+	unsigned long time_since_last_napi;
 	bool is_tx_comp_time_expired;
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
 	int napi_scheduled;
 	u32 missed_tx = 0;
 	int i, rc = 0;
-
-	missing_tx_comp_to = jiffies_to_msecs(adapter->missing_tx_completion_to);
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
@@ -3913,10 +3910,11 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 
 		if (unlikely(is_tx_comp_time_expired)) {
 
-			time_since_last_napi = jiffies_to_usecs(jiffies - tx_ring->tx_stats.last_napi_jiffies);
+			time_since_last_napi = jiffies - tx_ring->tx_stats.last_napi_jiffies;
 			napi_scheduled = !!(ena_napi->napi.state & NAPIF_STATE_SCHED);
 
-			if (missing_tx_comp_to < time_since_last_napi && napi_scheduled) {
+			if (adapter->missing_tx_completion_to < time_since_last_napi &&
+			    napi_scheduled) {
 				/* We suspect napi isn't called because the
 				 * bottom half is not run. Require a bigger
 				 * timeout for these cases
@@ -3933,7 +3931,8 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 
 			netif_notice(adapter, tx_err, adapter->netdev,
 				     "TX hasn't completed, qid %d, index %d. %u usecs from last napi execution, napi scheduled: %d\n",
-				     tx_ring->qid, i, time_since_last_napi, napi_scheduled);
+				     tx_ring->qid, i, jiffies_to_usecs(time_since_last_napi),
+				     napi_scheduled);
 
 			missed_tx++;
 			tx_buf->print_once = 1;
@@ -3945,7 +3944,7 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			  "Lost TX completions are above the threshold (%d > %d). Completion transmission timeout: %u.\n",
 			  missed_tx,
 			  adapter->missing_tx_completion_threshold,
-			  missing_tx_comp_to);
+			  jiffies_to_msecs(adapter->missing_tx_completion_to));
 		netif_err(adapter, tx_err, adapter->netdev,
 			  "Resetting the device\n");
 
