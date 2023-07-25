@@ -69,6 +69,15 @@ Ubuntu
   sudo apt install linux-headers-$(uname -r)
   sudo apt-get install make gcc
 
+SLES
+````
+.. code-block:: shell
+
+  sudo zypper update
+  sudo reboot
+  sudo zypper install make gcc kernel-default-devel git
+
+
 CentOS
 ```````
 .. code-block:: shell
@@ -147,6 +156,7 @@ RHEL
 ````
 .. code-block:: shell
 
+  # Replace the 7 with the RHEL version you have (For example - for RHEL 9 use 9)
   sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
   sudo yum install dkms
 
@@ -156,12 +166,30 @@ Ubuntu
 
   sudo apt-get install dkms
 
+SLES 15
+```````
+.. code-block:: shell
+
+  # Replace the 15.4 with the correct SLES 15 version
+  # For arm instances replace x86_64 with aarch64
+  sudo SUSEConnect --product PackageHub/15.4/x86_64
+  sudo zypper refresh
+  sudo zypper install dkms
+
 CentOS
 ```````
 .. code-block:: shell
 
   sudo yum install --enablerepo=extras epel-release
   sudo yum install dkms
+
+Installation from Source Code
+`````````````````````````````
+.. code-block:: shell
+
+  git clone https://github.com/dell/dkms.git
+  cd dmks
+  sudo make install
 
 Installing Driver with dkms:
 ----------------------------
@@ -171,7 +199,7 @@ Installing Driver with dkms:
   sudo mv amzn-drivers /usr/src/amzn-drivers-X.Y.Z (X.Y.Z = driver version)
   sudo vi /usr/src/amzn-drivers-X.Y.Z/dkms.conf
 
-  # paste this
+  # Paste the following and save the file:
 
   PACKAGE_NAME="ena"
   PACKAGE_VERSION="1.0.0"
@@ -181,12 +209,50 @@ Installing Driver with dkms:
   BUILT_MODULE_LOCATION="kernel/linux/ena"
   DEST_MODULE_LOCATION[0]="/updates"
   DEST_MODULE_NAME[0]="ena"
+  REMAKE_INITRD="yes"
   AUTOINSTALL="yes"
 
   sudo dkms add -m amzn-drivers -v X.Y.Z
   sudo dkms build -m amzn-drivers -v X.Y.Z
   sudo dkms install -m amzn-drivers -v X.Y.Z
+
+  # NOTE - To have the driver installation retain across reboots
+  # please go over the next section as well.
+
+Making Sure the Installed Driver is Loaded During Boot:
+-------------------------------------------------------
+In some cases it is necessary to perform some extra steps to make
+sure that the installed driver loads during boot.
+
+RHEL and SLES 12
+````````````````
+.. code-block:: shell
+
+  sudo dracut -f -v
+
+SLES
+````
+.. code-block:: shell
+
+  sudo vi /etc/modprobe.d/10-unsupported-modules.conf
+
+  # Paste the following into file and save it:
+
+  allow_unsupported_modules 1
+
+Loading the Newly Installed Driver:
+-----------------------------------
+You can either reboot the instance:
+
+.. code-block:: shell
+
   sudo reboot
+
+Or simply reload the driver:
+
+.. code-block:: shell
+
+  sudo modprobe -r ena; sudo modprobe ena
 
 Module Parameters
 =================
