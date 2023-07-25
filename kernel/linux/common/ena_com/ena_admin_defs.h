@@ -69,6 +69,14 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_FEATURES_OPCODE_NUM               = 32,
 };
 
+/* feature version for the set/get ENA_ADMIN_LLQ feature admin commands */
+enum ena_admin_llq_feature_version {
+	/* legacy base version in older drivers */
+	ENA_ADMIN_LLQ_FEATURE_VERSION_0_LEGACY      = 0,
+	/* support entry_size recommendation by device */
+	ENA_ADMIN_LLQ_FEATURE_VERSION_1             = 1,
+};
+
 /* device capabilities */
 enum ena_admin_aq_caps_id {
 	ENA_ADMIN_ENI_STATS                         = 0,
@@ -671,8 +679,17 @@ struct ena_admin_feature_llq_desc {
 	/* the stride control the driver selected to use */
 	u16 descriptors_stride_ctrl_enabled;
 
+	/* feature version of device resp to either GET/SET commands. */
+	u8 feature_version;
+
+	/* llq entry size recommended by the device,
+	 * values correlated to enum ena_admin_llq_ring_entry_size.
+	 * used only for GET command.
+	 */
+	u8 entry_size_recommended;
+
 	/* reserved */
-	u32 reserved1;
+	u8 reserved1[2];
 
 	/* accelerated low latency queues requirement. driver needs to
 	 * support those requirements in order to use accelerated llq

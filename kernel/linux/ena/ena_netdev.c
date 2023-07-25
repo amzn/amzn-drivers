@@ -61,7 +61,8 @@ static int rx_queue_size = ENA_DEFAULT_RING_SIZE;
 module_param(rx_queue_size, int, 0444);
 MODULE_PARM_DESC(rx_queue_size, "Rx queue size. The size should be a power of 2. Depending on instance type, max value can be up to 16K\n");
 
-static int force_large_llq_header = 0;
+#define FORCE_LARGE_LLQ_HEADER_UNINIT_VALUE 0xFFFF
+static int force_large_llq_header = FORCE_LARGE_LLQ_HEADER_UNINIT_VALUE;
 module_param(force_large_llq_header, int, 0444);
 MODULE_PARM_DESC(force_large_llq_header, "Increases maximum supported header size in LLQ mode to 224 bytes, while reducing the maximum TX queue size by half.\n");
 
@@ -3437,11 +3438,24 @@ static int ena_device_validate_params(struct ena_adapter *adapter,
 	return 0;
 }
 
-static void set_default_llq_configurations(struct ena_adapter *adapter,
-					   struct ena_llq_configurations *llq_config,
-					   struct ena_admin_feature_llq_desc *llq)
+static void ena_set_forced_llq_size_policy(struct ena_adapter *adapter)
+{
+	/* policy will be set according to device recommendation unless user
+	 * forced either large/normal size
+	 */
+	if (force_large_llq_header != FORCE_LARGE_LLQ_HEADER_UNINIT_VALUE) {
+		/* user selection is prioritized on top of device recommendation */
+		adapter->llq_policy = force_large_llq_header ? ENA_LLQ_HEADER_SIZE_POLICY_LARGE :
+							       ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
+	}
+}
+
+static int ena_set_llq_configurations(struct ena_adapter *adapter,
+				      struct ena_llq_configurations *llq_config,
+				      struct ena_admin_feature_llq_desc *llq)
 {
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	bool use_large_llq;
 
 	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;
 	llq_config->llq_stride_ctrl = ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY;
@@ -3453,14 +3467,23 @@ static void set_default_llq_configurations(struct ena_adapter *adapter,
 		!!(llq->entry_size_ctrl_supported &
 			ENA_ADMIN_LIST_ENTRY_SIZE_256B);
 
-	if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) &&
-	    adapter->large_llq_header_enabled) {
-		llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
-		llq_config->llq_ring_entry_size_value = 256;
-	} else {
+	use_large_llq = adapter->llq_policy != ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
+	use_large_llq &= adapter->large_llq_header_supported;
+
+	if (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_UNSPECIFIED)
+		use_large_llq &= (llq->entry_size_recommended == ENA_ADMIN_LIST_ENTRY_SIZE_256B);
+
+	if (!use_large_llq) {
 		llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
 		llq_config->llq_ring_entry_size_value = 128;
+		adapter->llq_policy = ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
+	} else {
+		llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
+		llq_config->llq_ring_entry_size_value = 256;
+		adapter->llq_policy = ENA_LLQ_HEADER_SIZE_POLICY_LARGE;
 	}
+
+	return 0;
 }
 
 static int ena_set_queues_placement_policy(struct pci_dev *pdev,
@@ -3622,7 +3645,11 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 
 	*wd_state = !!(aenq_groups & BIT(ENA_ADMIN_KEEP_ALIVE));
 
-	set_default_llq_configurations(adapter, &llq_config, &get_feat_ctx->llq);
+	rc = ena_set_llq_configurations(adapter, &llq_config, &get_feat_ctx->llq);
+	if (rc) {
+		netdev_err(netdev, "Cannot set llq configuration rc= %d\n", rc);
+		goto err_admin_init;
+	}
 
 	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx->llq,
 					     &llq_config);
@@ -4426,9 +4453,8 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 	 * and therefore divide the queue size by 2, leaving the amount
 	 * of memory used by the queues unchanged.
 	 */
-	if (adapter->large_llq_header_enabled) {
-		if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) &&
-		    (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
+	if (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE) {
+		if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
 			max_tx_queue_size /= 2;
 			dev_info(&adapter->pdev->dev,
 				 "Forcing large headers and decreasing maximum TX queue size to %d\n",
@@ -4437,7 +4463,7 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 			dev_err(&adapter->pdev->dev,
 				"Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
 
-			adapter->large_llq_header_enabled = false;
+			adapter->llq_policy = ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
 			ena_devlink_disable_large_llq_header_param(adapter->devlink);
 		}
 	}
@@ -4564,7 +4590,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_netdev_destroy;
 	}
 
-	adapter->large_llq_header_enabled = !!force_large_llq_header;
+	ena_set_forced_llq_size_policy(adapter);
 
 #ifdef ENA_PHC_SUPPORT
 	ena_phc_enable(adapter, !!phc_enable);

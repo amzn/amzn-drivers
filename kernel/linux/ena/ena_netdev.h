@@ -374,6 +374,17 @@ enum ena_flags_t {
 	ENA_FLAG_ONGOING_RESET
 };
 
+enum ena_llq_header_size_policy_t {
+	/* Intermediate policy until llq configuration is initialized
+	 * to either NORMAL or LARGE
+	 */
+	ENA_LLQ_HEADER_SIZE_POLICY_UNSPECIFIED = 0,
+	/* Policy for Normal size LLQ entry (128B) */
+	ENA_LLQ_HEADER_SIZE_POLICY_NORMAL,
+	/* Policy for Large size LLQ entry (256B) */
+	ENA_LLQ_HEADER_SIZE_POLICY_LARGE
+};
+
 /* adapter specific private data structure */
 struct ena_adapter {
 	struct ena_com_dev *ena_dev;
@@ -412,12 +423,12 @@ struct ena_adapter {
 
 	u32 msg_enable;
 
-	/* The flag is used for two purposes:
-	 * 1. Indicates that large LLQ has been requested.
+	/* The policy is used for two purposes:
+	 * 1. Indicates who decided on LLQ entry size (user / device)
 	 * 2. Indicates whether large LLQ is set or not after device
 	 *    initialization / configuration.
 	 */
-	bool large_llq_header_enabled;
+	enum ena_llq_header_size_policy_t llq_policy;
 	bool large_llq_header_supported;
 
 	u16 max_tx_sgl_size;

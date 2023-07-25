@@ -116,7 +116,8 @@ void ena_devlink_params_get(struct devlink *devlink)
 		return;
 	}
 
-	adapter->large_llq_header_enabled = val.vbool;
+	adapter->llq_policy = val.vbool ? ENA_LLQ_HEADER_SIZE_POLICY_LARGE :
+					  ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
 #ifdef ENA_PHC_SUPPORT
 
 	err = devl_param_driverinit_value_get(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, &val);
@@ -276,7 +277,7 @@ static int ena_devlink_configure_params(struct devlink *devlink)
 		return rc;
 	}
 
-	value.vbool = adapter->large_llq_header_enabled;
+	value.vbool = (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE);
 	devl_param_driverinit_value_set(devlink,
 					ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
 					value);
