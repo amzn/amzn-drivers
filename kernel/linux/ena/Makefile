@@ -19,6 +19,8 @@ ccflags-y += -I$(src)/$(ENA_COM_PATH)/
 
 
 BUILD_KERNEL ?= $(shell uname -r)
+# allow user to override the build directory
+KERNEL_BUILD_DIR ?= /lib/modules/$(BUILD_KERNEL)/build
 
 ccflags-y += -Wfatal-errors
 
@@ -87,7 +89,7 @@ ifdef ENA_PHC_INCLUDE
 endif
 
 all:
-	$(MAKE) -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) modules
+	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(CURDIR) modules
 
 clean:
-	$(MAKE) -C /lib/modules/$(BUILD_KERNEL)/build M=$(CURDIR) clean
+	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(CURDIR) clean
