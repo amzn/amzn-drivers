@@ -2,13 +2,12 @@
 
 ## Supported Kernel Versions and Distributions
 
-ENA driver is supported on kernels 3.2 and above
-with an addition of kernel 2.6.32.
+ENA driver is supported on kernels 3.10 and above.
 
 The driver was verified on the following distributions:
 
 **RedHat:**
-* RedHat Enterprise Linux 6.7 or newer
+* RedHat Enterprise Linux 7.0 or newer
 
 **Ubuntu:**
 * Ubuntu Trusty 14.04 amd64 server
@@ -22,14 +21,14 @@ The driver was verified on the following distributions:
 * Amazon Linux AMI 2017.03
 * Amazon Linux AMI 2017.09
 * Amazon Linux AMI 2018.03
-* Amazon Linux AMI 2 or newer
+* Amazon Linux AMI 2
+* Amazon Linux AMI 2023
 
 **CentOS:**
-* CentOS 6.7 or newer
+* CentOS 7.0 or newer
 
 **SUSE:**
-* SUSE Linux Enterprise Server 12 SP2
-* SUSE Linux Enterprise Server 12 SP3
+* SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
 ## r2.8.9 release notes
