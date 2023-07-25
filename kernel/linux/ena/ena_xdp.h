@@ -209,6 +209,16 @@ static inline int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 
 static inline void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring) {}
 
+static inline bool ena_xdp_legal_queue_count(struct ena_adapter *adapter,
+					     u32 queues)
+{
+	return false;
+}
+
+static inline bool ena_xdp_present(struct ena_adapter *adapter)
+{
+	return false;
+}
 #endif /* ENA_XDP_SUPPORT */
 #ifndef ENA_AF_XDP_SUPPORT /* stabs for AF XDP code */
 

@@ -1127,6 +1127,13 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 #define devl_param_driverinit_value_set devlink_param_driverinit_value_set
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
+#define xdp_features_set_redirect_target(netdev, xdp_xmit_supported)
+#define xdp_features_clear_redirect_target(netdev)
+#define xdp_clear_features_flag(netdev)
+#define xdp_set_features_flag(netdev, features)
+#endif
+
 #if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 4))) || \
     (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(4, 5, 0, 0)) || \
     (defined(IS_UEK) && !ENA_KERNEL_VERSION_GTE(4, 1, 12, 105, 0, 0))
