@@ -189,6 +189,7 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 #else /* ENA_XDP_SUPPORT */
 
 #define ENA_IS_XDP_INDEX(adapter, index) (false)
+#define xdp_return_frame(frame) do {} while (0)
 
 static inline bool ena_xdp_present_ring(struct ena_ring *ring)
 {
