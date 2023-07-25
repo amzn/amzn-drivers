@@ -706,12 +706,6 @@ static void ena_unmap_rx_buff_attrs(struct ena_ring *rx_ring,
 				 DMA_BIDIRECTIONAL, attrs);
 }
 
-static void ena_unmap_rx_buff(struct ena_ring *rx_ring,
-			      struct ena_rx_buffer *rx_info)
-{
-	ena_unmap_rx_buff_attrs(rx_ring, rx_info, 0);
-}
-
 static void ena_free_rx_page(struct ena_ring *rx_ring,
 			     struct ena_rx_buffer *rx_info)
 {
@@ -723,7 +717,7 @@ static void ena_free_rx_page(struct ena_ring *rx_ring,
 		return;
 	}
 
-	ena_unmap_rx_buff(rx_ring, rx_info);
+	ena_unmap_rx_buff_attrs(rx_ring, rx_info, 0);
 
 	__free_page(page);
 	rx_info->page = NULL;
@@ -1497,8 +1491,9 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 				 * from RX side.
 				 */
 				if (xdp_verdict & ENA_XDP_FORWARDED) {
-					ena_unmap_rx_buff(rx_ring,
-							  &rx_ring->rx_buffer_info[req_id]);
+					ena_unmap_rx_buff_attrs(rx_ring,
+								&rx_ring->rx_buffer_info[req_id],
+								0);
 					rx_ring->rx_buffer_info[req_id].page = NULL;
 				}
 #endif /* ENA_XDP_SUPPORT */
