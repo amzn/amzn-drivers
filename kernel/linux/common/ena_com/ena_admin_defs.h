@@ -1214,7 +1214,8 @@ enum ena_admin_aenq_group {
 	ENA_ADMIN_NOTIFICATION                      = 3,
 	ENA_ADMIN_KEEP_ALIVE                        = 4,
 	ENA_ADMIN_REFRESH_CAPABILITIES              = 5,
-	ENA_ADMIN_AENQ_GROUPS_NUM                   = 6,
+	ENA_ADMIN_CONF_NOTIFICATIONS		    = 6,
+	ENA_ADMIN_AENQ_GROUPS_NUM                   = 7,
 };
 
 enum ena_admin_aenq_notification_syndrome {
@@ -1249,6 +1250,14 @@ struct ena_admin_aenq_keep_alive_desc {
 	u32 rx_overruns_low;
 
 	u32 rx_overruns_high;
+};
+
+struct ena_admin_aenq_conf_notifications_desc {
+	struct ena_admin_aenq_common_desc aenq_common_desc;
+
+	u64 notifications_bitmap;
+
+	u64 reserved;
 };
 
 struct ena_admin_ena_mmio_req_read_less_resp {

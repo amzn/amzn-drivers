@@ -3772,7 +3772,8 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 		BIT(ENA_ADMIN_FATAL_ERROR) |
 		BIT(ENA_ADMIN_WARNING) |
 		BIT(ENA_ADMIN_NOTIFICATION) |
-		BIT(ENA_ADMIN_KEEP_ALIVE);
+		BIT(ENA_ADMIN_KEEP_ALIVE) |
+		BIT(ENA_ADMIN_CONF_NOTIFICATIONS);
 
 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
 
@@ -5149,6 +5150,31 @@ static void ena_refresh_fw_capabilites(void *adapter_data,
 	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 }
 
+
+static void ena_conf_notification(void *adapter_data,
+				  struct ena_admin_aenq_entry *aenq_e)
+{
+	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
+	struct ena_admin_aenq_conf_notifications_desc *desc;
+	u64 bitmap;
+	int bit;
+
+	desc = (struct ena_admin_aenq_conf_notifications_desc *)aenq_e;
+	bitmap = desc->notifications_bitmap;
+
+	if (bitmap == 0) {
+		netif_dbg(adapter, drv, adapter->netdev,
+			  "Empty configuration notification bitmap\n");
+		return;
+	}
+
+	for_each_set_bit(bit, (unsigned long *)&bitmap, BITS_PER_TYPE(bitmap)) {
+		netif_info(adapter, drv, adapter->netdev,
+			  "Sub-optimal configuration notification code: %d. Refer to AWS ENA documentation for additional details and mitigation options.\n",
+			  bit + 1);
+	}
+}
+
 /* This handler will called for unknown event group or unimplemented handlers*/
 static void unimplemented_aenq_handler(void *data,
 				       struct ena_admin_aenq_entry *aenq_e)
@@ -5164,6 +5190,7 @@ static struct ena_aenq_handlers aenq_handlers = {
 		[ENA_ADMIN_LINK_CHANGE] = ena_update_on_link_change,
 		[ENA_ADMIN_NOTIFICATION] = ena_notification,
 		[ENA_ADMIN_KEEP_ALIVE] = ena_keep_alive_wd,
+		[ENA_ADMIN_CONF_NOTIFICATIONS] = ena_conf_notification,
 		[ENA_ADMIN_REFRESH_CAPABILITIES] = ena_refresh_fw_capabilites,
 	},
 	.unimplemented_handler = unimplemented_aenq_handler
