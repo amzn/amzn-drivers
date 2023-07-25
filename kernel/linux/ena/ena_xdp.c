@@ -562,8 +562,6 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 	u16 req_id;
 	int rc;
 
-	if (unlikely(!tx_ring))
-		return 0;
 	next_to_clean = tx_ring->next_to_clean;
 
 	while (tx_pkts < budget) {
