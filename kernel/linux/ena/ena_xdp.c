@@ -75,8 +75,7 @@ error_report_dma_error:
 
 int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 		       struct ena_adapter *adapter,
-		       struct xdp_frame *xdpf,
-		       int flags)
+		       struct xdp_frame *xdpf)
 {
 	struct ena_com_tx_ctx ena_tx_ctx = {};
 	struct ena_tx_buffer *tx_info;
@@ -102,12 +101,6 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 			     xdpf->len);
 	if (rc)
 		goto error_unmap_dma;
-
-	/* trigger the dma engine. ena_ring_tx_doorbell()
-	 * calls a memory barrier inside it.
-	 */
-	if (flags & XDP_XMIT_FLUSH)
-		ena_ring_tx_doorbell(tx_ring);
 
 	return rc;
 
@@ -142,7 +135,7 @@ int ena_xdp_xmit(struct net_device *dev, int n,
 	spin_lock(&tx_ring->xdp_tx_lock);
 
 	for (i = 0; i < n; i++) {
-		if (ena_xdp_xmit_frame(tx_ring, adapter, frames[i], 0))
+		if (ena_xdp_xmit_frame(tx_ring, adapter, frames[i]))
 			break;
 		nxmit++;
 	}
