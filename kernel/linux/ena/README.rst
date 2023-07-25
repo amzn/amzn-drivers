@@ -621,8 +621,11 @@ RSS
 - The ENA device supports RSS that allows flexible Rx traffic
   steering.
 - Toeplitz and CRC32 hash functions are supported.
-- Different combinations of L2/L3/L4 fields can be configured as
-  inputs for hash functions.
+- The input to the RSS hash function is {Hash key, Source IP, Destination IP,
+  Source Port, Destination Port} (ports are used only for packets that
+  have a Transport layer).
+- The input to the RSS hash function is not configurable (other than changing
+  the hash key for drivers and devices that support it).
 - The driver configures RSS settings using the AQ SetFeature command
   (``ENA_ADMIN_RSS_HASH_FUNCTION``, ``ENA_ADMIN_RSS_HASH_INPUT`` and
   ``ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG`` properties).
