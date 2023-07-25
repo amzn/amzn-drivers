@@ -31,6 +31,28 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.9.0 release notes
+**New Features**
+* Advertise TX push support on ethtool
+* Sub-optimal configuration notification support
+* Add ethtool support for modifying large LLQ
+* Support LLQ entry size recommendation from device
+
+**Bug fixes**
+* Fix out of bound recorded RX queue
+* Fix incorrect descriptor free behavior in XDP
+* Fix incorrect range check when setting an XSK pool
+* Fix different measurement units in comparison
+* Fix wrong missing IO completions check order
+* Missing TX completions mechanism rework
+
+**Minor Changes**
+* Update kernel version and distributions support
+* Allow custom kernel header path for driver compilation
+* Improve XDP_TX throughput by using batching
+* Update dkms documentation
+* Add msecs since last interrupt info for debug
+
 ## r2.8.9 release notes
 **Bug fixes**
 * Fix compilation issues in SLES 15 SP5

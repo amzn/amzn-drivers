@@ -28,8 +28,8 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_GEN_MAJOR	2
-#define DRV_MODULE_GEN_MINOR	8
-#define DRV_MODULE_GEN_SUBMINOR 9
+#define DRV_MODULE_GEN_MINOR	9
+#define DRV_MODULE_GEN_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_GENERATION
