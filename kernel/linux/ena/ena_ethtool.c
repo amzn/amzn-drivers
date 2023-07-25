@@ -753,12 +753,14 @@ static void ena_get_ringparam(struct net_device *netdev,
 	if (adapter->ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
 		bool large_llq_supported = adapter->large_llq_header_supported;
 
+		kernel_ring->tx_push = true;
 		kernel_ring->tx_push_buf_len = adapter->ena_dev->tx_max_header_size;
 		if (large_llq_supported)
 			kernel_ring->tx_push_buf_max_len = ENA_LLQ_LARGE_HEADER;
 		else
 			kernel_ring->tx_push_buf_max_len = ENA_LLQ_HEADER;
 	} else {
+		kernel_ring->tx_push = false;
 		kernel_ring->tx_push_buf_max_len = 0;
 		kernel_ring->tx_push_buf_len = 0;
 	}
@@ -798,6 +800,12 @@ static int ena_set_ringparam(struct net_device *netdev,
 	/* This value is ignored if LLQ is not supported */
 	new_tx_push_buf_len = adapter->ena_dev->tx_max_header_size;
 #ifdef ENA_LARGE_LLQ_ETHTOOL
+
+	if ((adapter->ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) !=
+	    kernel_ring->tx_push) {
+		NL_SET_ERR_MSG_MOD(extack, "Push mode state cannot be modified");
+		return -EINVAL;
+	}
 
 	/* Validate that the push buffer is supported on the underlying device */
 	if (kernel_ring->tx_push_buf_len) {
@@ -1342,7 +1350,8 @@ static const struct ethtool_ops ena_ethtool_ops = {
 				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 #endif
 #ifdef ENA_LARGE_LLQ_ETHTOOL
-	.supported_ring_params	= ETHTOOL_RING_USE_TX_PUSH_BUF_LEN,
+	.supported_ring_params	= ETHTOOL_RING_USE_TX_PUSH_BUF_LEN |
+				  ETHTOOL_RING_USE_TX_PUSH,
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
 	.get_link_ksettings	= ena_get_link_ksettings,
