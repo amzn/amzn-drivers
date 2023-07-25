@@ -719,19 +719,19 @@ static void ena_get_drvinfo(struct net_device *dev,
 
 	ret = strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 	if (ret < 0)
-		netif_info(adapter, drv, dev,
-			   "module name will be truncated, status = %zd\n", ret);
+		netif_dbg(adapter, drv, dev,
+			  "module name will be truncated, status = %zd\n", ret);
 
 	ret = strscpy(info->version, DRV_MODULE_GENERATION, sizeof(info->version));
 	if (ret < 0)
-		netif_info(adapter, drv, dev,
-			   "module version will be truncated, status = %zd\n", ret);
+		netif_dbg(adapter, drv, dev,
+			  "module version will be truncated, status = %zd\n", ret);
 
 	ret = strscpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 	if (ret < 0)
-		netif_info(adapter, drv, dev,
-			   "bus info will be truncated, status = %zd\n", ret);
+		netif_dbg(adapter, drv, dev,
+			  "bus info will be truncated, status = %zd\n", ret);
 
 	info->n_priv_flags = ENA_PRIV_FLAGS_NR;
 }

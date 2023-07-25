@@ -3175,8 +3175,8 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 	ret = strscpy(host_info->kernel_ver_str, utsname()->version,
 		sizeof(host_info->kernel_ver_str) - 1);
 	if (ret < 0)
-		dev_info(dev,
-			 "kernel version string will be truncated, status = %zd\n", ret);
+		dev_dbg(dev,
+			"kernel version string will be truncated, status = %zd\n", ret);
 	host_info->os_dist = 0;
 	strncpy(host_info->os_dist_str, utsname()->release,
 		sizeof(host_info->os_dist_str) - 1);
