@@ -264,6 +264,16 @@ static const struct devlink_ops ena_devlink_ops = {
 #endif
 };
 
+void ena_devlink_set_large_llq_param(struct ena_adapter *adapter, bool enable)
+{
+	union devlink_param_value value;
+
+	value.vbool = enable;
+	devlink_param_driverinit_value_set(adapter->devlink,
+					   ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
+					   value);
+}
+
 static int ena_devlink_configure_params(struct devlink *devlink)
 {
 	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);

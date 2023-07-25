@@ -22,6 +22,7 @@ void ena_devlink_unregister(struct devlink *devlink);
 void ena_devlink_params_get(struct devlink *devlink);
 void ena_devlink_disable_large_llq_header_param(struct devlink *devlink);
 void ena_devlink_disable_phc_param(struct devlink *devlink);
+void ena_devlink_set_large_llq_param(struct ena_adapter *adapter, bool enable);
 
 #else /* ENA_DEVLINK_SUPPORT */
 #ifdef ENA_NO_DEVLINK_HEADERS
@@ -39,6 +40,7 @@ static inline void ena_devlink_unregister(struct devlink *devlink) { }
 static inline void ena_devlink_params_get(struct devlink *devlink) { }
 static inline void ena_devlink_disable_large_llq_header_param(struct devlink *devlink) { }
 static inline void ena_devlink_disable_phc_param(struct devlink *devlink) { }
+static inline void ena_devlink_set_large_llq_param(struct ena_adapter *adapter, bool enable) { }
 
 #endif /* ENA_DEVLINK_SUPPORT */
 #endif /* DEVLINK_H */
