@@ -2407,6 +2407,7 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 		      enum ena_regs_reset_reason_types reset_reason)
 {
+	u32 reset_reason_msb, reset_reason_lsb;
 	u32 stat, timeout, cap, reset_val;
 	int rc;
 
@@ -2434,8 +2435,28 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 
 	/* start reset */
 	reset_val = ENA_REGS_DEV_CTL_DEV_RESET_MASK;
-	reset_val |= (reset_reason << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT) &
-		     ENA_REGS_DEV_CTL_RESET_REASON_MASK;
+
+	/* For backward compatibility, device will interpret
+	 * bits 24-27 as MSB, bits 28-31 as LSB
+	 */
+	reset_reason_lsb = ENA_FIELD_GET(reset_reason, ENA_RESET_REASON_LSB_MASK,
+					 ENA_RESET_REASON_LSB_OFFSET);
+
+	reset_reason_msb = ENA_FIELD_GET(reset_reason, ENA_RESET_REASON_MSB_MASK,
+					 ENA_RESET_REASON_MSB_OFFSET);
+
+	reset_val |= reset_reason_lsb << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT;
+
+	if (ena_com_get_cap(ena_dev, ENA_ADMIN_EXTENDED_RESET_REASONS))
+		reset_val |= reset_reason_msb << ENA_REGS_DEV_CTL_RESET_REASON_EXT_SHIFT;
+	else if (reset_reason_msb) {
+		/* In case the device does not support intended
+		 * extended reset reason fallback to generic
+		 */
+		reset_val = ENA_REGS_DEV_CTL_DEV_RESET_MASK;
+		reset_val |= (ENA_REGS_RESET_GENERIC << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT) &
+			      ENA_REGS_DEV_CTL_RESET_REASON_MASK;
+	}
 	writel(reset_val, ena_dev->reg_bar + ENA_REGS_DEV_CTL_OFF);
 
 	/* Write again the MMIO read request address */

@@ -1122,6 +1122,13 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 #define ENA_LARGE_LLQ_ETHTOOL
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+#include <linux/bitfield.h>
+#define ENA_FIELD_GET(value, mask, offset) FIELD_GET(mask, value)
+#else
+#define ENA_FIELD_GET(value, mask, offset) ((typeof(mask))((value & mask) >> offset))
+#endif
+
 #if defined(ENA_DEVLINK_SUPPORT) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
 #define devl_param_driverinit_value_get devlink_param_driverinit_value_get
 #define devl_param_driverinit_value_set devlink_param_driverinit_value_set
