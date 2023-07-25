@@ -478,6 +478,7 @@ More information about Adaptive Interrupt Moderation (DIM) can be found in
 https://elixir.bootlin.com/linux/latest/source/Documentation/networking/net_dim.rst
 
 .. _`RX copybreak`:
+
 RX copybreak
 ============
 
@@ -493,6 +494,7 @@ than RX copybreak bytes is received, it is copied into a new memory
 buffer and the RX descriptor is returned to HW.
 
 .. _`LPC`:
+
 Local Page Cache (LPC)
 ======================
 
@@ -529,6 +531,7 @@ disabled when using XDP or when using less than 16 queue pairs. Increasing the
 cache size might result in higher memory usage, and should be handled with care.
 
 .. _`PHC`:
+
 PTP Hardware Clock (PHC)
 ======================
 
