@@ -139,7 +139,7 @@ struct ena_irq {
 };
 
 struct ena_napi {
-	u8 first_interrupt ____cacheline_aligned;
+	unsigned long last_intr_jiffies ____cacheline_aligned;
 	u8 interrupts_masked;
 	struct napi_struct napi;
 	struct ena_ring *tx_ring;

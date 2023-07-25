@@ -1792,7 +1792,7 @@ static irqreturn_t ena_intr_msix_io(int irq, void *data)
 	struct ena_napi *ena_napi = data;
 
 	/* Used to check HW health */
-	WRITE_ONCE(ena_napi->first_interrupt, true);
+	WRITE_ONCE(ena_napi->last_intr_jiffies, jiffies);
 
 	WRITE_ONCE(ena_napi->interrupts_masked, true);
 	smp_wmb(); /* write interrupts_masked before calling napi */
@@ -3877,7 +3877,7 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 {
 	struct ena_napi *ena_napi = container_of(rx_ring->napi, struct ena_napi, napi);
 
-	if (likely(READ_ONCE(ena_napi->first_interrupt)))
+	if (likely(READ_ONCE(ena_napi->last_intr_jiffies) != 0))
 		return 0;
 
 	if (ena_com_cq_empty(rx_ring->ena_com_io_cq))
@@ -3899,12 +3899,13 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 
 static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct ena_ring *tx_ring)
 {
+	unsigned long miss_tx_comp_to_jiffies = adapter->missing_tx_completion_to_jiffies;
 	struct ena_napi *ena_napi = container_of(tx_ring->napi, struct ena_napi, napi);
 	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
-	unsigned long miss_tx_comp_to_jiffies = adapter->missing_tx_completion_to_jiffies;
 	u32 missed_tx_thresh = adapter->missing_tx_completion_threshold;
 	struct net_device *netdev = adapter->netdev;
 	unsigned long jiffies_since_last_napi;
+	unsigned long jiffies_since_last_intr;
 	unsigned long graceful_timeout;
 	struct ena_tx_buffer *tx_buf;
 	unsigned long timeout;
@@ -3924,7 +3925,7 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 
 		/* Checking if current TX ring didn't get first interrupt */
 		is_expired = time_is_before_jiffies(graceful_timeout);
-		if (unlikely(!READ_ONCE(ena_napi->first_interrupt) && is_expired)) {
+		if (unlikely(READ_ONCE(ena_napi->last_intr_jiffies) == 0 && is_expired)) {
 			/* If first interrupt is still not received, schedule a reset */
 			netif_err(adapter, tx_err, netdev,
 				  "Potential MSIX issue on Tx side Queue = %d. Reset the device\n",
@@ -3937,7 +3938,10 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 		is_expired = time_is_before_jiffies(timeout);
 		if (unlikely(is_expired)) {
 			/* Checking if current TX ring got NAPI timeout */
-			jiffies_since_last_napi = jiffies - tx_ring->tx_stats.last_napi_jiffies;
+			unsigned long last_napi = READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
+
+			jiffies_since_last_napi = jiffies - last_napi;
+			jiffies_since_last_intr = jiffies - READ_ONCE(ena_napi->last_intr_jiffies);
 			napi_scheduled = !!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED);
 			if (jiffies_since_last_napi > miss_tx_comp_to_jiffies && napi_scheduled) {
 				/* We suspect napi isn't called because the bottom half is not run.
@@ -3953,9 +3957,9 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 				continue;
 
 			netif_notice(adapter, tx_err, netdev,
-				     "TX hasn't completed, qid %d, index %d. %u msecs from last napi execution, napi scheduled: %d\n",
-				     tx_ring->qid, i, jiffies_to_msecs(jiffies_since_last_napi),
-				     napi_scheduled);
+				     "TX hasn't completed, qid %d, index %d. %u msecs since last interrupt, %u msecs since last napi execution, napi scheduled: %d\n",
+				     tx_ring->qid, i, jiffies_to_msecs(jiffies_since_last_intr),
+				     jiffies_to_msecs(jiffies_since_last_napi), napi_scheduled);
 
 			missed_tx++;
 			tx_buf->print_once = 1;
@@ -3964,9 +3968,15 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 
 	/* Checking if this TX ring got to max missing TX completes */
 	if (unlikely(missed_tx > missed_tx_thresh)) {
+		jiffies_since_last_intr = jiffies - READ_ONCE(ena_napi->last_intr_jiffies);
+		jiffies_since_last_napi = jiffies - READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
 		netif_err(adapter, tx_err, netdev,
-			  "Lost TX completions are above the threshold (%d > %d). Completion transmission timeout: %u (msec)\n",
-			  missed_tx, missed_tx_thresh, jiffies_to_msecs(miss_tx_comp_to_jiffies));
+			  "Lost TX completions are above the threshold (%d > %d). Completion transmission timeout: %u (msec). %u msecs since last interrupt, %u msecs since last napi execution.\n",
+			  missed_tx,
+			  missed_tx_thresh,
+			  jiffies_to_msecs(miss_tx_comp_to_jiffies),
+			  jiffies_to_msecs(jiffies_since_last_intr),
+			  jiffies_to_msecs(jiffies_since_last_napi));
 		netif_err(adapter, tx_err, netdev, "Resetting the device\n");
 
 		ena_reset_device(adapter, reset_reason);
