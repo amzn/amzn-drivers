@@ -3113,9 +3113,11 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb)
 	 * want to loop incoming skb rx to tx in normal user generated traffic,
 	 * most probably we will not get to this
 	 */
-	if (skb_rx_queue_recorded(skb))
+	if (skb_rx_queue_recorded(skb)) {
 		qid = skb_get_rx_queue(skb);
-	else
+		if (qid >= dev->real_num_tx_queues)
+			qid %= dev->real_num_tx_queues;
+	} else {
 #if (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V3)
 		qid = netdev_pick_tx(dev, skb, NULL);
 #elif (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2)
@@ -3127,6 +3129,7 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb)
 #else
 		qid = skb_tx_hash(dev, skb);
 #endif /* HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2 */
+	}
 
 	return qid;
 }
