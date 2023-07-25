@@ -558,7 +558,6 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 	u32 total_done = 0;
 	u16 next_to_clean;
 	bool needs_wakeup;
-	u32 tx_bytes = 0;
 	int tx_pkts = 0;
 	u16 req_id;
 	int rc;
@@ -599,7 +598,6 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
 			  "tx_poll: q %d pkt #%d req_id %d\n", tx_ring->qid, tx_pkts, req_id);
 
-		tx_bytes += tx_info->total_tx_size;
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
 
