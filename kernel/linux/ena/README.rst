@@ -741,7 +741,7 @@ A simple example of this mechanism is the following sequence of events:
 
 ::
 
-        1. Buffer allocates page-sized RX buffer and passes it to hardware
+        1. Driver allocates page-sized RX buffer and passes it to hardware
            +----------------------------+
            | 4096 Bytes RX Buffer       |
            +----------------------------+
