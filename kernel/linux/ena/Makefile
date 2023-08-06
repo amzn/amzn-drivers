@@ -56,6 +56,11 @@ ifneq ("$(wildcard /etc/os-release)","")
 
   IS_SUSE=$(shell grep SUSE /etc/os-release)
   IS_UEK=$(shell uname -r | grep uek)
+  IS_FEDORA=$(shell grep Fedora /etc/os-release)
+  ifneq ($(strip $(IS_FEDORA)),)
+    ccflags-y += -DFEDORA_RELEASE
+  endif
+
   IS_KERNEL_SUBVERSIONS_NEEDED=$(IS_SUSE)$(IS_UEK)
 
   ifneq ($(strip $(IS_KERNEL_SUBVERSIONS_NEEDED)),)
