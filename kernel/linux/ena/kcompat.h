@@ -989,7 +989,8 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0) || \
 	(defined(RHEL_RELEASE_CODE) && \
 	RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 7) && \
-	RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(9, 0))
+	RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(9, 0)) || \
+	(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 5))
 #define ENA_ETHTOOL_RX_BUFF_SIZE_CHANGE
 #endif
 
