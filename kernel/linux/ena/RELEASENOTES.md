@@ -32,6 +32,12 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP3
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.8.9 release notes
+**Bug fixes**
+* Fix compilation issues in SLES 15 SP5
+* Fix compilation issues in Fedora 37 and 38
+* Fix compilation issues in kernel 5.4 and 5.10 backports
+
 ## r2.8.8 release notes
 **New Features**
 * Report RX overrun errors via net device stats
