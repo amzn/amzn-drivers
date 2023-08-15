@@ -4878,12 +4878,12 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	struct net_device *netdev;
 	struct devlink *devlink;
 
-	ena_dev = adapter->ena_dev;
-	netdev = adapter->netdev;
-
 	devlink = adapter->devlink;
 	ena_devlink_unregister(devlink);
 	ena_devlink_free(devlink);
+
+        ena_dev = adapter->ena_dev;
+        netdev = adapter->netdev;
 
 #ifdef CONFIG_RFS_ACCEL
 	if ((adapter->msix_vecs >= 1) && (netdev->rx_cpu_rmap)) {
