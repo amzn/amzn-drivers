@@ -51,7 +51,11 @@ introduced:
 * Amazon Linux - 4.14.186
 * RHEL8.3 - 4.18.0-240.1.1.el8_3
 * Ubuntu 20.04 - 5.4.0-1025-aws
-* SLES 15 - 5.3.18-24.15
+* SLE 12 SP4 kernel 4.12.14-95.99.3
+* SLE 12 SP5 kernel 4.12.14-122.116.1
+* SLE 15 kernel 4.12.14-150000.150.92.2
+* SLE 15 SP1 kernel 4.12.14-150100.197.114.2
+* SLE 15 SP2 kernel 5.3.18-24.15.1
 
 **Q:** How do I make sure I’m using the latest/correct driver?
 
