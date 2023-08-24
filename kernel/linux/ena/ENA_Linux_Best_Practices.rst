@@ -75,7 +75,7 @@ Submission and Completion ring
 **A:** It depends on the instance type and instance size you are using. Usually the
 number of queues exposed per ENI is calculated as :code:`MIN(MAX_NUM_QUEUES_PER_ENI, NUM_OF_VCPUS)`
 MAX_NUM_QUEUES_PER_ENI is 8 for most of the instance types and
-is 32 only for network accelerated instances.
+up to 32 for network accelerated instances.
 
 **Q:** What is ENA LLQ aka ENAv2?
 
