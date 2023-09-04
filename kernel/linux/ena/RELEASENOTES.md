@@ -31,6 +31,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.9.1 release notes
+**Bug fixes**
+* Fix compilation issues on kernels >= 6.3
+
 ## r2.9.0 release notes
 **New Features**
 * Advertise TX push support on ethtool
