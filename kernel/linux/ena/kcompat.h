@@ -1139,6 +1139,8 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 #define xdp_features_clear_redirect_target(netdev)
 #define xdp_clear_features_flag(netdev)
 #define xdp_set_features_flag(netdev, features)
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0) */
+#define ENA_XDP_NETLINK_ADVERTISEMENT
 #endif
 
 #if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(7, 4))) || \
