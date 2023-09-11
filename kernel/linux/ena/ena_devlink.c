@@ -287,6 +287,7 @@ static int ena_devlink_configure_params(struct devlink *devlink)
 		return rc;
 	}
 
+	devl_lock(devlink);
 	value.vbool = (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE);
 	devl_param_driverinit_value_set(devlink,
 					ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
@@ -297,6 +298,7 @@ static int ena_devlink_configure_params(struct devlink *devlink)
 	devl_param_driverinit_value_set(devlink, ENA_DEVLINK_PARAM_ID_PHC_ENABLE, value);
 
 #endif /* ENA_PHC_SUPPORT */
+	devl_unlock(devlink);
 #ifdef ENA_DEVLINK_RELOAD_SUPPORT_ADVERTISEMENT_NEEDED
 	devlink_set_features(devlink, DEVLINK_F_RELOAD);
 
