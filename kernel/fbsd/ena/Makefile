@@ -35,7 +35,7 @@
 .include <bsd.own.mk>
 
 .PATH:  ${.CURDIR}
-.PATH:  ${.CURDIR}/ena_com
+.PATH:  ${.CURDIR}/ena-com
 KMOD    = if_ena
 
 # Shared source
@@ -44,7 +44,7 @@ SRCS	+= ena_com.c ena_eth_com.c
 SRCS	+= ena.c ena_sysctl.c ena_datapath.c ena_netmap.c ena_rss.c
 
 CFLAGS  += -DSMP -O2
-CFLAGS  += -I${.CURDIR}/ena_com
+CFLAGS  += -I${.CURDIR}/ena-com
 
 .if defined(DEBUG)
 # Enable debug messages and sysctls

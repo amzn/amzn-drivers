@@ -35,8 +35,8 @@
 #define ENA_H
 
 
-#include "ena_com/ena_com.h"
-#include "ena_com/ena_eth_com.h"
+#include "ena-com/ena_com.h"
+#include "ena-com/ena_eth_com.h"
 
 #define ENA_DRV_MODULE_VER_MAJOR	2
 #define ENA_DRV_MODULE_VER_MINOR	6
