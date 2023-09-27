@@ -28,7 +28,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
+#if __FreeBSD_version <= 1302507
 __FBSDID("$FreeBSD$");
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>

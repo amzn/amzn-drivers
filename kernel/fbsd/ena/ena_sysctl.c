@@ -29,7 +29,9 @@
  */
 #include <sys/cdefs.h>
 #include <sys/param.h>
+#if __FreeBSD_version <= 1302507
 __FBSDID("$FreeBSD$");
+#endif
 
 #include "ena_rss.h"
 #include "ena_sysctl.h"

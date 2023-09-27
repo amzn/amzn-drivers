@@ -65,7 +65,9 @@
 #endif
 
 #include <sys/cdefs.h>
+#if __FreeBSD_version <= 1302507
 __FBSDID("$FreeBSD$");
+#endif
 
 #include "ena_rss.h"
 

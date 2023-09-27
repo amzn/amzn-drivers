@@ -28,8 +28,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
+#if __FreeBSD_version <= 1302507
 __FBSDID("$FreeBSD$");
-
+#endif
 #ifdef DEV_NETMAP
 
 #include "ena.h"
