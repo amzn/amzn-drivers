@@ -366,6 +366,17 @@ struct ena_stats_dev {
 	u64 tx_drops;
 	u64 rx_overruns;
 	u64 reset_fail;
+	u64 total_resets;
+	u64 bad_tx_req_id;
+	u64 bad_rx_req_id;
+	u64 bad_rx_desc_num;
+	u64 missing_intr;
+	u64 suspected_poll_starvation;
+	u64 missing_tx_cmpl;
+	u64 rx_desc_malformed;
+	u64 tx_desc_malformed;
+	u64 invalid_state;
+	u64 os_netdev_wd;
 };
 
 enum ena_flags_t {
@@ -487,6 +498,32 @@ struct ena_adapter {
 	u32 xdp_num_queues;
 };
 
+#define ENA_RESET_STATS_ENTRY(reset_reason, stat) \
+	[reset_reason] = { \
+	.stat_offset = offsetof(struct ena_stats_dev, stat) / sizeof(u64), \
+	.has_counter = true \
+}
+
+struct ena_reset_stats_offset {
+	int stat_offset;
+	bool has_counter;
+};
+
+static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_RESET_LAST] = {
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_KEEP_ALIVE_TO, wd_expired),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_q_pause),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_TX_CMPL, missing_tx_cmpl),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_TX_REQ_ID, bad_tx_req_id),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TOO_MANY_RX_DESCS, bad_rx_desc_num),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_OS_NETDEV_WD, os_netdev_wd),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_INTERRUPT, missing_intr),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_SUSPECTED_POLL_STARVATION, suspected_poll_starvation),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
+};
+
 void ena_set_ethtool_ops(struct net_device *netdev);
 
 void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
@@ -504,6 +541,15 @@ int ena_update_queue_params(struct ena_adapter *adapter,
 int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count);
 
 int ena_set_rx_copybreak(struct ena_adapter *adapter, u32 rx_copybreak);
+
+/* Increase a stat by cnt while holding syncp seqlock on 32bit machines */
+static inline void ena_increase_stat(u64 *statp, u64 cnt,
+			      struct u64_stats_sync *syncp)
+{
+	u64_stats_update_begin(syncp);
+	(*statp) += cnt;
+	u64_stats_update_end(syncp);
+}
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
 #ifdef ENA_BUSY_POLL_SUPPORT
@@ -579,6 +625,16 @@ static inline bool ena_bp_disable(struct ena_ring *rx_ring)
 static inline void ena_reset_device(struct ena_adapter *adapter,
 				    enum ena_regs_reset_reason_types reset_reason)
 {
+	const struct ena_reset_stats_offset *ena_reset_stats_offset =
+		&resets_to_stats_offset_map[reset_reason];
+
+	if (ena_reset_stats_offset->has_counter) {
+		u64 *stat_ptr = (u64 *)&adapter->dev_stats + ena_reset_stats_offset->stat_offset;
+
+		ena_increase_stat(stat_ptr, 1, &adapter->syncp);
+	}
+
+	ena_increase_stat(&adapter->dev_stats.total_resets, 1, &adapter->syncp);
 	adapter->reset_reason = reset_reason;
 	/* Make sure reset reason is set before triggering the reset */
 	smp_mb__before_atomic();
@@ -597,15 +653,6 @@ int ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 int ena_restore_device(struct ena_adapter *adapter);
 int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
 			  struct ena_tx_buffer *tx_info, bool is_xdp);
-
-/* Increase a stat by cnt while holding syncp seqlock on 32bit machines */
-static inline void ena_increase_stat(u64 *statp, u64 cnt,
-			      struct u64_stats_sync *syncp)
-{
-	u64_stats_update_begin(syncp);
-	(*statp) += cnt;
-	u64_stats_update_end(syncp);
-}
 
 static inline void ena_ring_tx_doorbell(struct ena_ring *tx_ring)
 {

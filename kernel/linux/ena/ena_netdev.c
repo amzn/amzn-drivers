@@ -4290,8 +4290,6 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 	if (unlikely(time_is_before_jiffies(keep_alive_expired))) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Keep alive watchdog timeout.\n");
-		ena_increase_stat(&adapter->dev_stats.wd_expired, 1,
-				  &adapter->syncp);
 		ena_reset_device(adapter, ENA_REGS_RESET_KEEP_ALIVE_TO);
 	}
 }
@@ -4301,8 +4299,6 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 	if (unlikely(!ena_com_get_admin_running_state(adapter->ena_dev))) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "ENA admin queue is not in running state!\n");
-		ena_increase_stat(&adapter->dev_stats.admin_q_pause, 1,
-				  &adapter->syncp);
 		ena_reset_device(adapter, ENA_REGS_RESET_ADMIN_TO);
 	}
 }

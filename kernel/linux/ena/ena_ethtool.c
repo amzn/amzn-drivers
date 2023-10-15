@@ -65,14 +65,25 @@ struct ena_hw_metrics {
 }
 
 static const struct ena_stats ena_stats_global_strings[] = {
+	ENA_STAT_GLOBAL_ENTRY(total_resets),
+	ENA_STAT_GLOBAL_ENTRY(reset_fail),
 	ENA_STAT_GLOBAL_ENTRY(tx_timeout),
+	ENA_STAT_GLOBAL_ENTRY(wd_expired),
+	ENA_STAT_GLOBAL_ENTRY(admin_q_pause),
+	ENA_STAT_GLOBAL_ENTRY(bad_tx_req_id),
+	ENA_STAT_GLOBAL_ENTRY(bad_rx_req_id),
+	ENA_STAT_GLOBAL_ENTRY(bad_rx_desc_num),
+	ENA_STAT_GLOBAL_ENTRY(missing_intr),
+	ENA_STAT_GLOBAL_ENTRY(suspected_poll_starvation),
+	ENA_STAT_GLOBAL_ENTRY(missing_tx_cmpl),
+	ENA_STAT_GLOBAL_ENTRY(rx_desc_malformed),
+	ENA_STAT_GLOBAL_ENTRY(tx_desc_malformed),
+	ENA_STAT_GLOBAL_ENTRY(invalid_state),
+	ENA_STAT_GLOBAL_ENTRY(os_netdev_wd),
 	ENA_STAT_GLOBAL_ENTRY(suspend),
 	ENA_STAT_GLOBAL_ENTRY(resume),
-	ENA_STAT_GLOBAL_ENTRY(wd_expired),
-	ENA_STAT_GLOBAL_ENTRY(interface_up),
 	ENA_STAT_GLOBAL_ENTRY(interface_down),
-	ENA_STAT_GLOBAL_ENTRY(admin_q_pause),
-	ENA_STAT_GLOBAL_ENTRY(reset_fail),
+	ENA_STAT_GLOBAL_ENTRY(interface_up),
 };
 
 /* A partial list of hw stats. Used when admin command
