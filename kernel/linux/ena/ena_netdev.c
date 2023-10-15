@@ -1187,8 +1187,13 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 	reuse_rx_buf_page = !is_xdp_loaded &&
 			    ena_try_rx_buf_page_reuse(rx_info, buf_len, len, pkt_offset);
 
-	if (!reuse_rx_buf_page)
+	if (!reuse_rx_buf_page) {
 		ena_unmap_rx_buff_attrs(rx_ring, rx_info, ENA_DMA_ATTR_SKIP_CPU_SYNC);
+		/* Make sure buf_len represents the actual size used
+		 * by the buffer as expected from skb->truesize
+		 */
+		buf_len = ENA_PAGE_SIZE - page_offset;
+	}
 
 
 	skb = ena_alloc_skb(rx_ring, buf_addr, buf_len);
@@ -1252,8 +1257,13 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 					len,
 					DMA_FROM_DEVICE);
 
-		if (!reuse_rx_buf_page)
+		if (!reuse_rx_buf_page) {
 			ena_unmap_rx_buff_attrs(rx_ring, rx_info, ENA_DMA_ATTR_SKIP_CPU_SYNC);
+			/* Make sure buf_len represents the actual size used
+			 * by the buffer as expected from skb->truesize
+			 */
+			buf_len = ENA_PAGE_SIZE - page_offset;
+		}
 
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_info->page,
