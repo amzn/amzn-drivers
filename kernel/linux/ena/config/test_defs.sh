@@ -18,3 +18,9 @@
 # The 'config.h' is used by the ENA driver to determine which API should be
 # used.
 #
+
+try_compile_async "#include <linux/pci.h>"               \
+                  "pci_dev_id(NULL);"                    \
+                  "ENA_HAVE_PCI_DEV_ID"                  \
+                  ""                                     \
+                  "5.2.0 <= LINUX_VERSION_CODE"
