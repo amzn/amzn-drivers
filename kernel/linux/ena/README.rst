@@ -528,6 +528,70 @@ Note that ``lpc_size`` is set to 2 by default and cannot exceed 32. Also LPC is
 disabled when using XDP or when using less than 16 queue pairs. Increasing the
 cache size might result in higher memory usage, and should be handled with care.
 
+.. _`Large LLQ`:
+
+Large Low-Latency Queue (Large LLQ)
+===================================
+
+The standard LLQ entry size of 128 bytes allows for a maximum of 96 bytes of
+packet header size which sometimes is not enough (e.g. when using tunneling).
+Enabling large LLQ by increasing LLQ entry size to 256 bytes, allows a maximum
+header size of 224 bytes.
+This comes with the penalty of reducing the number of LLQ entries in the
+TX queue by 2 (i.e. from 1024 to 512).
+
+This feature is supported from EC2 4th generation instance-types.
+
+Large LLQ configuration
+-----------------------
+
+Large LLQ can be configured in several ways:
+
+- **module parameter:**
+
+.. code-block:: shell
+
+  sudo insmod ena.ko force_large_llq_header=1
+
+- **ethtool:**
+
+.. code-block:: shell
+
+  ethtool -G [interface] tx-push-buf-len [number of bytes: 96 or 224]
+
+Note that the minimal requirements for using ethtool are Linux Kernel v6.3 and
+above and ethtool v6.4 and above.
+
+- **sysfs:**
+
+.. code-block:: shell
+
+  echo 1 | sudo tee /sys/bus/pci/devices/<domain:bus:slot.function>/large_llq_header
+  # for example:
+  echo 1 | sudo tee /sys/bus/pci/devices/0000:00:06.0/large_llq_header
+
+Large LLQ query
+---------------
+
+Large LLQ can be queried in two ways:
+
+- **ethtool:**
+
+Verify that the TX queue entry size has indeed increased by checking that the
+maximum TX queue depth is 512.
+
+.. code-block:: shell
+
+  ethtool -g [interface]
+
+- **sysfs:**
+
+.. code-block:: shell
+
+  cat /sys/bus/pci/devices/<domain:bus:slot.function>/large_llq_header
+  # for example:
+  cat /sys/bus/pci/devices/0000:00:06.0/large_llq_header
+
 .. _`PHC`:
 
 PTP Hardware Clock (PHC)

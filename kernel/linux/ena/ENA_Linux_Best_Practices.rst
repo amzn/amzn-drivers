@@ -275,8 +275,8 @@ header with options. I suspect my Tx packets are not sent out.
 
 **A:** ENA LLQs in default mode support network headers size up to 96 bytes. If
 header size is larger, the packet will be dropped.
-To resolve this issue, we recommend to reload the ENA driver with module
-parameter ``force_large_llq_header=1``. This will increase the supported header
+To resolve this issue, we recommend enabling large LLQ by using the different
+methods available in the ENA driver documentation. This will increase the supported header
 size to a maximum of 224 bytes. Please note that this option reduces the max Tx
 ring size form 1K to 512.
 An example of such use case is IPv6 protocol with TCP SACK enabled, which might
