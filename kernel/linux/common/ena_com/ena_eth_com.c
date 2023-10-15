@@ -237,6 +237,7 @@ static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 				    u16 *first_cdesc_idx,
 				    u16 *num_descs)
 {
+	struct ena_com_dev *dev = ena_com_io_cq_to_ena_dev(io_cq);
 	u16 count = io_cq->cur_rx_pkt_cdesc_count, head_masked;
 	struct ena_eth_io_rx_cdesc_base *cdesc;
 	u32 last = 0;
@@ -251,14 +252,23 @@ static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 
 		ena_com_cq_inc_head(io_cq);
 		if (unlikely((status & ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK) >>
-		    ENA_ETH_IO_RX_CDESC_BASE_FIRST_SHIFT && count != 0)) {
-			struct ena_com_dev *dev = ena_com_io_cq_to_ena_dev(io_cq);
-
+				     ENA_ETH_IO_RX_CDESC_BASE_FIRST_SHIFT &&
+			     count != 0)) {
 			netdev_err(dev->net_device,
 				   "First bit is on in descriptor #%d on q_id: %d, req_id: %u\n",
 				   count, io_cq->qid, cdesc->req_id);
 			return -EFAULT;
 		}
+
+		if (unlikely((status & (ENA_ETH_IO_RX_CDESC_BASE_MBZ7_MASK |
+					ENA_ETH_IO_RX_CDESC_BASE_MBZ17_MASK)) &&
+			     ena_com_get_cap(dev, ENA_ADMIN_CDESC_MBZ))) {
+			netdev_err(dev->net_device,
+				   "Corrupted RX descriptor #%d on q_id: %d, req_id: %u\n",
+				   count, io_cq->qid, cdesc->req_id);
+			return -EFAULT;
+		}
+
 		count++;
 		last = (status & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
 			ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;

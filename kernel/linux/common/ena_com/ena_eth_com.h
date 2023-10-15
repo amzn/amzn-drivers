@@ -201,9 +201,11 @@ static inline void ena_com_cq_inc_head(struct ena_com_io_cq *io_cq)
 static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
 					     u16 *req_id)
 {
+	struct ena_com_dev *dev = ena_com_io_cq_to_ena_dev(io_cq);
 	u8 expected_phase, cdesc_phase;
 	struct ena_eth_io_tx_cdesc *cdesc;
 	u16 masked_head;
+	u8 flags;
 
 	masked_head = io_cq->head & (io_cq->q_depth - 1);
 	expected_phase = io_cq->phase;
@@ -212,13 +214,23 @@ static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
 		((uintptr_t)io_cq->cdesc_addr.virt_addr +
 		(masked_head * io_cq->cdesc_entry_size_in_bytes));
 
+	flags = READ_ONCE(cdesc->flags);
+
 	/* When the current completion descriptor phase isn't the same as the
 	 * expected, it mean that the device still didn't update
 	 * this completion.
 	 */
-	cdesc_phase = READ_ONCE(cdesc->flags) & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
+	cdesc_phase = flags & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
 	if (cdesc_phase != expected_phase)
 		return -EAGAIN;
+
+	if (unlikely((flags & ENA_ETH_IO_TX_CDESC_MBZ6_MASK) &&
+		     ena_com_get_cap(dev, ENA_ADMIN_CDESC_MBZ))) {
+		netdev_err(dev->net_device,
+			   "Corrupted TX descriptor on q_id: %d, req_id: %u\n",
+			   io_cq->qid, cdesc->req_id);
+		return -EFAULT;
+	}
 
 	dma_rmb();
 
