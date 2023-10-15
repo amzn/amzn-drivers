@@ -1128,4 +1128,8 @@ static inline void ena_dma_unmap_page_attrs(struct device *dev,
 #define pci_dev_id(pdev) ((((u16)(pdev->bus->number)) << 8) | (pdev->devfn))
 #endif /* ENA_HAVE_PCI_DEV_ID */
 
+#ifndef ENA_HAVE_XDP_DO_FLUSH
+#define xdp_do_flush xdp_do_flush_map
+#endif /* ENA_HAVE_XDP_DO_FLUSH */
+
 #endif /* _KCOMPAT_H_ */

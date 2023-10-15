@@ -870,7 +870,7 @@ skip_xdp_prog:
 	rx_ring->next_to_clean = next_to_clean;
 
 	if (xdp_flags & ENA_XDP_REDIRECT)
-		xdp_do_flush_map();
+		xdp_do_flush();
 
 	refill_required = ena_com_free_q_entries(rx_ring->ena_com_io_sq);
 	refill_threshold =

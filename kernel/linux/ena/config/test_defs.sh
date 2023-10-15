@@ -24,3 +24,9 @@ try_compile_async "#include <linux/pci.h>"               \
                   "ENA_HAVE_PCI_DEV_ID"                  \
                   ""                                     \
                   "5.2.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/filter.h>"            \
+                  "xdp_do_flush();"                      \
+                  "ENA_HAVE_XDP_DO_FLUSH"                \
+                  ""                                     \
+                  "5.6.0 <= LINUX_VERSION_CODE"
