@@ -624,9 +624,8 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 	if (unlikely(!ena_com_sq_have_enough_space(io_sq, 1)))
 		return -ENOSPC;
 
-	desc = get_sq_desc(io_sq);
-	if (unlikely(!desc))
-		return -EFAULT;
+	/* virt_addr allocation success is checked before calling this function */
+	desc = get_sq_desc_regular_queue(io_sq);
 
 	memset(desc, 0x0, sizeof(struct ena_eth_io_rx_desc));
 
