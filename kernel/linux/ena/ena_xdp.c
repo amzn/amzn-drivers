@@ -200,13 +200,14 @@ int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 
 #ifdef AF_XDP_BUSY_POLL_SUPPORTED
 	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid,
-			      rx_ring->napi->napi_id < 0);
+			      rx_ring->napi->napi_id);
 #else
 	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid);
 #endif
 
-	netif_dbg(rx_ring->adapter, ifup, rx_ring->netdev, "Registering RX info for queue %d",
-		  rx_ring->qid);
+	netif_dbg(rx_ring->adapter, ifup, rx_ring->netdev,
+		  "Registering RX info for queue %d with napi id %d\n",
+		  rx_ring->qid, rx_ring->napi->napi_id);
 	if (rc) {
 		netif_err(rx_ring->adapter, ifup, rx_ring->netdev,
 			  "Failed to register xdp rx queue info. RX queue num %d rc: %d\n",
