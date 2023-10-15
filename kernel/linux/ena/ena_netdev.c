@@ -2724,12 +2724,11 @@ int ena_update_queue_params(struct ena_adapter *adapter,
 #endif /* ENA_LARGE_LLQ_ETHTOOL */
 	/* a check that the configuration is valid is done by caller */
 	if (large_llq_changed) {
-		bool large_llq_used;
+		bool large_llq_requested = new_llq_header_len == ENA_LLQ_LARGE_HEADER;
 
-		large_llq_used = (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE);
-
-		/* devlink can modify this value so let it know about the change */
-		ena_devlink_set_large_llq_param(adapter, !large_llq_used);
+		adapter->llq_policy = large_llq_requested ?
+					ENA_LLQ_HEADER_SIZE_POLICY_LARGE :
+					ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
 
 		ena_destroy_device(adapter, false);
 		rc = ena_restore_device(adapter);
