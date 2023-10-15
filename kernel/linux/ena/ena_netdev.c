@@ -4658,6 +4658,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_netdev_destroy;
 	}
 
+	adapter->llq_policy = ENA_LLQ_HEADER_SIZE_POLICY_UNSPECIFIED;
 	ena_set_forced_llq_size_policy(adapter);
 
 #ifdef ENA_PHC_SUPPORT
