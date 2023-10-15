@@ -406,8 +406,6 @@ struct ena_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 
-	struct devlink *devlink;
-
 	/* rx packets that are shorter than this len will be copied to the skb
 	 * header
 	 */

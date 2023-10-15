@@ -8,7 +8,6 @@ $(DRIVER_NAME)-srcs := ena_netdev.c \
 		ena_phc.c \
 		ena_xdp.c \
 		dim.c \
-		ena_devlink.c \
 		net_dim.c \
 		$(ENA_COM_PATH)/ena_com.c \
 		$(ENA_COM_PATH)/ena_eth_com.c
