@@ -31,6 +31,37 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.10.0 release notes
+**Notes**
+* Devlink support has been removed from the driver. Please consult the
+  documentation on the different methods available for enabling Large LLQ.
+* Build system has been updated with the introduction of ECC (ENA Compatibility
+  Check). The build command remained as is.
+
+**New Features**
+* ECC (ENA Compatibility Check) build system update
+* Add TX/RX descriptor corruption check
+* Activate PHC on supported devices and retrieve PHC timestamp
+  and error bound values.
+* Remove devlink support
+* Allow modifying large LLQ entry with sysfs
+
+**Bug fixes**
+* Fix DMA syncing in XDP path when SWIOTLB is on
+* Delete double counting in ena_tx_map_skb error flow
+* Remove wrong napi id assignment in AF_XDP
+* Initialize llq_policy field for all cases
+* Fix skb truesize in case the RX buffer is not reused
+* Correct the Makefile dependency list
+* Fix crash when interrupt arrives after admin command timeout
+* Fix large LLQ in ethtool when devlink is disabled
+
+**Minor Changes**
+* Add skb submission print time when freeing TX buffers
+* Add TX IPv6 checksum offload support indication
+* Improve reset reason statistics
+* Add Large LLQ enablement documentation
+
 ## r2.9.1 release notes
 **Bug fixes**
 * Fix compilation issues on kernels >= 6.3
