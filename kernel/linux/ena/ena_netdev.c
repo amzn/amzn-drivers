@@ -1009,7 +1009,7 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 
 		/* validate that the request id points to a valid skb */
 		rc = validate_tx_req_id(tx_ring, req_id);
-		if (rc)
+		if (unlikely(rc))
 			break;
 
 		tx_info = &tx_ring->tx_buffer_info[req_id];
@@ -2169,7 +2169,7 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 	/* In case the RSS table wasn't initialized by probe */
 	if (!ena_dev->rss.tbl_log_size) {
 		rc = ena_rss_init_default(adapter);
-		if (rc && (rc != -EOPNOTSUPP)) {
+		if (unlikely(rc && (rc != -EOPNOTSUPP))) {
 			netif_err(adapter, ifup, adapter->netdev,
 				  "Failed to init RSS rc: %d\n", rc);
 			return rc;
@@ -2199,7 +2199,7 @@ static int ena_up_complete(struct ena_adapter *adapter)
 	int rc;
 
 	rc = ena_rss_configure(adapter);
-	if (rc)
+	if (unlikely(rc))
 		return rc;
 
 	ena_change_mtu(adapter->netdev, adapter->netdev->mtu);
@@ -2241,7 +2241,7 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 	ctx.numa_node = tx_ring->numa_node;
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
-	if (rc) {
+	if (unlikely(rc)) {
 		netif_err(adapter, ifup, adapter->netdev,
 			  "Failed to create I/O TX queue num %d rc: %d\n",
 			  qid, rc);
@@ -2251,7 +2251,7 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 	rc = ena_com_get_io_handlers(ena_dev, ena_qid,
 				     &tx_ring->ena_com_io_sq,
 				     &tx_ring->ena_com_io_cq);
-	if (rc) {
+	if (unlikely(rc)) {
 		netif_err(adapter, ifup, adapter->netdev,
 			  "Failed to get TX queue handlers. TX queue num %d rc: %d\n",
 			  qid, rc);
@@ -2271,7 +2271,7 @@ int ena_create_io_tx_queues_in_range(struct ena_adapter *adapter,
 
 	for (i = first_index; i < first_index + count; i++) {
 		rc = ena_create_io_tx_queue(adapter, i);
-		if (rc)
+		if (unlikely(rc))
 			goto create_err;
 	}
 
@@ -2309,7 +2309,7 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 	ctx.numa_node = rx_ring->numa_node;
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
-	if (rc) {
+	if (unlikely(rc)) {
 		netif_err(adapter, ifup, adapter->netdev,
 			  "Failed to create I/O RX queue num %d rc: %d\n",
 			  qid, rc);
@@ -2319,7 +2319,7 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 	rc = ena_com_get_io_handlers(ena_dev, ena_qid,
 				     &rx_ring->ena_com_io_sq,
 				     &rx_ring->ena_com_io_cq);
-	if (rc) {
+	if (unlikely(rc)) {
 		netif_err(adapter, ifup, adapter->netdev,
 			  "Failed to get RX queue handlers. RX queue num %d rc: %d\n",
 			  qid, rc);
@@ -2341,7 +2341,7 @@ static int ena_create_all_io_rx_queues(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_io_queues; i++) {
 		rc = ena_create_io_rx_queue(adapter, i);
-		if (rc)
+		if (unlikely(rc))
 			goto create_err;
 		INIT_WORK(&adapter->ena_napi[i].dim.work, ena_dim_work);
 
@@ -2514,7 +2514,7 @@ int ena_up(struct ena_adapter *adapter)
 		goto err_create_queues_with_backoff;
 
 	rc = ena_up_complete(adapter);
-	if (rc)
+	if (unlikely(rc))
 		goto err_up;
 
 	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
@@ -3031,7 +3031,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			     &ena_tx_ctx,
 			     next_to_use,
 			     skb->len);
-	if (rc)
+	if (unlikely(rc))
 		goto error_unmap_dma;
 
 	if (tx_ring->enable_bql)
@@ -3169,7 +3169,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 
 	/* Allocate only the host info */
 	rc = ena_com_allocate_host_info(ena_dev);
-	if (rc) {
+	if (unlikely(rc)) {
 		dev_err(dev, "Cannot allocate host info\n");
 		return;
 	}
@@ -3204,7 +3204,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 		ENA_ADMIN_HOST_INFO_PHC_MASK;
 
 	rc = ena_com_set_host_attributes(ena_dev);
-	if (rc) {
+	if (unlikely(rc)) {
 		if (rc == -EOPNOTSUPP)
 			dev_warn(dev, "Cannot set host attributes\n");
 		else
@@ -3235,14 +3235,14 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
 	debug_area_size = ss_count * ETH_GSTRING_LEN + sizeof(u64) * ss_count;
 
 	rc = ena_com_allocate_debug_area(adapter->ena_dev, debug_area_size);
-	if (rc) {
+	if (unlikely(rc)) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Cannot allocate debug area\n");
 		return;
 	}
 
 	rc = ena_com_set_host_attributes(adapter->ena_dev);
-	if (rc) {
+	if (unlikely(rc)) {
 		if (rc == -EOPNOTSUPP)
 			netif_warn(adapter, drv, adapter->netdev,
 				   "Cannot set host attributes\n");
@@ -3702,7 +3702,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	int rc;
 
 	rc = ena_com_mmio_reg_read_request_init(ena_dev);
-	if (rc) {
+	if (unlikely(rc)) {
 		dev_err(dev, "Failed to init mmio read less\n");
 		return rc;
 	}
@@ -3726,7 +3726,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	}
 
 	dma_width = ena_com_get_dma_width(ena_dev);
-	if (dma_width < 0) {
+	if (unlikely(dma_width < 0)) {
 		dev_err(dev, "Invalid dma width value %d", dma_width);
 		rc = dma_width;
 		goto err_mmio_read_less;
@@ -3757,7 +3757,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 
 	/* ENA admin level init */
 	rc = ena_com_admin_init(ena_dev, &aenq_handlers);
-	if (rc) {
+	if (unlikely(rc)) {
 		dev_err(dev,
 			"Can not initialize ena admin queue with device\n");
 		goto err_mmio_read_less;
@@ -4681,7 +4681,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #endif /* ENA_PHC_SUPPORT */
 	rc = ena_com_allocate_customer_metrics_buffer(ena_dev);
-	if (rc) {
+	if (unlikely(rc)) {
 		netdev_err(netdev, "ena_com_allocate_customer_metrics_buffer failed\n");
 		goto err_free_phc;
 	}
@@ -4783,7 +4783,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_free_msix;
 	}
 	rc = ena_rss_init_default(adapter);
-	if (rc && (rc != -EOPNOTSUPP)) {
+	if (unlikely(rc && (rc != -EOPNOTSUPP))) {
 		dev_err(&pdev->dev, "Cannot init RSS rc: %d\n", rc);
 		goto err_terminate_sysfs;
 	}

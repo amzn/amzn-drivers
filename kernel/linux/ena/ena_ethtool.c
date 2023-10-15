@@ -942,7 +942,7 @@ static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 	}
 
 	rc = ena_com_get_hash_ctrl(ena_dev, proto, &hash_fields);
-	if (rc)
+	if (unlikely(rc))
 		return rc;
 
 	cmd->data = ena_flow_hash_to_flow_type(hash_fields);
@@ -1094,7 +1094,7 @@ static int ena_indirection_table_get(struct ena_adapter *adapter, u32 *indir)
 		return 0;
 
 	rc = ena_com_indirect_table_get(ena_dev, indir);
-	if (rc)
+	if (unlikely(rc))
 		return rc;
 
 	/* Our internal representation of the indices is: even indices
@@ -1117,7 +1117,7 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	int rc;
 
 	rc = ena_indirection_table_get(adapter, indir);
-	if (rc)
+	if (unlikely(rc))
 		return rc;
 
 	/* We call this function in order to check if the device
@@ -1161,7 +1161,7 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
 	int rc;
 
 	rc = ena_indirection_table_get(adapter, indir);
-	if (rc)
+	if (unlikely(rc))
 		return rc;
 
 	/* We call this function in order to check if the device
