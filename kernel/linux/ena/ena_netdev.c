@@ -867,19 +867,21 @@ static void ena_free_tx_bufs(struct ena_ring *tx_ring)
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		struct ena_tx_buffer *tx_info = &tx_ring->tx_buffer_info[i];
+		unsigned long jiffies_since_submitted;
 
 		if (!tx_info->skb)
 			continue;
 
+		jiffies_since_submitted = jiffies - tx_info->tx_sent_jiffies;
 		if (print_once) {
 			netif_notice(tx_ring->adapter, ifdown, tx_ring->netdev,
-				     "Free uncompleted tx skb qid %d idx 0x%x\n",
-				     tx_ring->qid, i);
+				     "Free uncompleted tx skb qid %d, idx 0x%x, %u msecs since submission\n",
+				     tx_ring->qid, i, jiffies_to_msecs(jiffies_since_submitted));
 			print_once = false;
 		} else {
 			netif_dbg(tx_ring->adapter, ifdown, tx_ring->netdev,
-				  "Free uncompleted tx skb qid %d idx 0x%x\n",
-				  tx_ring->qid, i);
+				  "Free uncompleted tx skb qid %d, idx 0x%x, %u msecs since submission\n",
+				  tx_ring->qid, i, jiffies_to_msecs(jiffies_since_submitted));
 		}
 
 		ena_unmap_tx_buff(tx_ring, tx_info);
