@@ -19,6 +19,9 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#ifdef ENA_XDP_SUPPORT
+#include <net/xdp.h>
+#endif
 #ifdef HAS_BPF_HEADER
 #include <uapi/linux/bpf.h>
 #endif
