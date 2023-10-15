@@ -1855,12 +1855,11 @@ void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
 int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 {
 	volatile struct ena_admin_phc_resp *read_resp = ena_dev->phc.virt_addr;
+	const ktime_t zero_system_time = ktime_set(0, 0);
 	struct ena_com_phc_info *phc = &ena_dev->phc;
-	ktime_t initial_time = ktime_set(0, 0);
-	static ktime_t start_time;
-	unsigned long flags = 0;
 	ktime_t expire_time;
 	ktime_t block_time;
+	unsigned long flags = 0;
 	int ret = 0;
 
 	if (!phc->active) {
@@ -1872,9 +1871,10 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 	spin_lock_irqsave(&phc->lock, flags);
 
 	/* Check if PHC is in blocked state */
-	if (unlikely(ktime_compare(start_time, initial_time))) {
+	if (unlikely(ktime_compare(phc->system_time, zero_system_time))) {
 		/* Check if blocking time expired */
-		block_time = ktime_add_us(start_time, phc->block_timeout_usec);
+		block_time =
+			ktime_add_us(phc->system_time, phc->block_timeout_usec);
 		if (!ktime_after(ktime_get(), block_time)) {
 			/* PHC is still in blocked state, skip PHC request */
 			phc->stats.phc_skp++;
@@ -1896,9 +1896,9 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 	}
 
 	/* Setting relative timeouts */
-	start_time = ktime_get();
-	block_time = ktime_add_us(start_time, phc->block_timeout_usec);
-	expire_time = ktime_add_us(start_time, phc->expire_timeout_usec);
+	phc->system_time = ktime_get();
+	block_time = ktime_add_us(phc->system_time, phc->block_timeout_usec);
+	expire_time = ktime_add_us(phc->system_time, phc->expire_timeout_usec);
 
 	/* We expect the device to return this req_id once the new PHC timestamp is updated */
 	phc->req_id++;
@@ -1954,7 +1954,7 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 		phc->stats.phc_cnt++;
 
 		/* This indicates PHC state is active */
-		start_time = initial_time;
+		phc->system_time = zero_system_time;
 		break;
 	}
 

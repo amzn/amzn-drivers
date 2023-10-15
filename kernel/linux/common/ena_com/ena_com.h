@@ -288,6 +288,9 @@ struct ena_com_phc_info {
 	/* PHC shared memory - virtual address */
 	struct ena_admin_phc_resp *virt_addr;
 
+	/* System time of last PHC request */
+	ktime_t system_time;
+
 	/* Spin lock to ensure a single outstanding PHC read */
 	spinlock_t lock;
 
@@ -307,6 +310,9 @@ struct ena_com_phc_info {
 	 */
 	u32 block_timeout_usec;
 
+	/* PHC shared memory - physical address */
+	dma_addr_t phys_addr;
+
 	/* Cached error bound per timestamp sample */
 	u32 error_bound;
 
@@ -315,9 +321,6 @@ struct ena_com_phc_info {
 
 	/* True if PHC is active in the device */
 	bool active;
-
-	/* PHC shared memory - physical address */
-	dma_addr_t phys_addr;
 };
 
 struct ena_rss {
