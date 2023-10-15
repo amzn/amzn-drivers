@@ -3880,7 +3880,6 @@ int ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 
 	dev_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 	adapter->dev_up_before_reset = dev_up;
-	ena_sysfs_terminate(&adapter->pdev->dev);
 	if (!graceful)
 		ena_com_set_admin_running_state(ena_dev, false);
 
@@ -3951,17 +3950,13 @@ int ena_restore_device(struct ena_adapter *adapter)
 		dev_err(&pdev->dev, "Enable MSI-X failed\n");
 		goto err_device_destroy;
 	}
-	rc = ena_sysfs_init(&pdev->dev);
-	if (rc) {
-		dev_err(&pdev->dev, "Cannot initialize sysfs\n");
-		goto err_disable_msix;
-	}
+
 	/* If the interface was up before the reset bring it up */
 	if (adapter->dev_up_before_reset) {
 		rc = ena_up(adapter);
 		if (rc) {
 			dev_err(&pdev->dev, "Failed to create I/O queues\n");
-			goto err_sysfs_terminate;
+			goto err_disable_msix;
 		}
 	}
 
@@ -3975,8 +3970,6 @@ int ena_restore_device(struct ena_adapter *adapter)
 	adapter->last_keep_alive_jiffies = jiffies;
 
 	return rc;
-err_sysfs_terminate:
-	ena_sysfs_terminate(&pdev->dev);
 err_disable_msix:
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
@@ -4879,6 +4872,7 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	}
 
 #endif /* CONFIG_RFS_ACCEL */
+	ena_sysfs_terminate(&adapter->pdev->dev);
 	/* Make sure timer and reset routine won't be called after
 	 * freeing device resources.
 	 */
