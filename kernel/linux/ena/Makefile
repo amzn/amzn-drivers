@@ -105,3 +105,4 @@ clean:
 	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(CURDIR) clean
 	rm -f config.h
 	rm -rf cc_test
+	rm -f $(ENA_COM_PATH)/*.o $(ENA_COM_PATH)/.*.o.cmd
