@@ -36,6 +36,8 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #ifndef _KCOMPAT_H_
 #define _KCOMPAT_H_
 
+#include "config.h"
+
 #ifndef LINUX_VERSION_CODE
 #include <linux/version.h>
 #endif
@@ -728,8 +730,8 @@ do {									\
 #define XDP_CONVERT_TO_FRAME_NAME_CHANGED
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
-#define ENA_XDP_QUERY_IN_KERNEL
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
+#define ENA_XDP_QUERY_IN_DRIVER
 #endif
 
 #endif

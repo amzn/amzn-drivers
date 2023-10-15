@@ -493,10 +493,10 @@ static int ena_xsk_pool_setup(struct ena_adapter *adapter,
  */
 int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 {
-#if !defined(ENA_XDP_QUERY_IN_KERNEL) || defined(ENA_AF_XDP_SUPPORT)
+#if defined(ENA_XDP_QUERY_IN_DRIVER) || defined(ENA_AF_XDP_SUPPORT)
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-#endif /* ENA_XDP_QUERY_IN_KERNEL || ENA_AF_XDP_SUPPORT */
+#endif /* ENA_XDP_QUERY_IN_DRIVER || ENA_AF_XDP_SUPPORT */
 	switch (bpf->command) {
 	case XDP_SETUP_PROG:
 		return ena_xdp_set(netdev, bpf);
@@ -504,7 +504,7 @@ int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 	case XDP_SETUP_XSK_POOL:
 		return ena_xsk_pool_setup(adapter, bpf->xsk.pool, bpf->xsk.queue_id);
 #endif /* ENA_AF_XDP_SUPPORT */
-#ifndef ENA_XDP_QUERY_IN_KERNEL
+#ifdef ENA_XDP_QUERY_IN_DRIVER
 	case XDP_QUERY_PROG:
 		bpf->prog_id = adapter->xdp_bpf_prog ?
 			adapter->xdp_bpf_prog->aux->id : 0;

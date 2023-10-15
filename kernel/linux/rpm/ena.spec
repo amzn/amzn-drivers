@@ -63,6 +63,10 @@ for flavor in %flavors_to_build; do
 		cp $symvers obj/$flavor/%{kmod_kbuild_dir}/Module.symvers
 	fi
 
+	cd $PWD/obj/$flavor/%{kmod_kbuild_dir}
+	./configure.sh --kernel-dir %{kernel_source $flavor}
+	cd -
+
 	ENA_PHC_INCLUDE=1 make -C %{kernel_source $flavor} M=$PWD/obj/$flavor/%{kmod_kbuild_dir} \
 		NOSTDINC_FLAGS="-I $PWD/obj/$flavor/include"
 

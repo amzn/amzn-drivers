@@ -1,18 +1,23 @@
 ENA_COM_PATH=../common/ena_com/
 
-obj-m += ena.o
-ena-objs := ena_netdev.o \
-		ena_ethtool.o \
-		ena_lpc.o	\
-		ena_phc.o \
-		ena_xdp.o \
-		dim.o \
-		ena_devlink.o \
-		net_dim.o \
-		$(ENA_COM_PATH)/ena_com.o \
-		$(ENA_COM_PATH)/ena_eth_com.o
+DRIVER_NAME := ena
 
-ena-$(CONFIG_SYSFS) += ena_sysfs.o
+$(DRIVER_NAME)-srcs := ena_netdev.c \
+		ena_ethtool.c \
+		ena_lpc.c	\
+		ena_phc.c \
+		ena_xdp.c \
+		dim.c \
+		ena_devlink.c \
+		net_dim.c \
+		$(ENA_COM_PATH)/ena_com.c \
+		$(ENA_COM_PATH)/ena_eth_com.c
+
+$(DRIVER_NAME)-sysfs-srcs := ena_sysfs.c
+
+obj-m += $(DRIVER_NAME).o
+$(DRIVER_NAME)-objs := $(patsubst %.c,%.o,$($(DRIVER_NAME)-srcs))
+$(DRIVER_NAME)-$(CONFIG_SYSFS) += $(patsubst %.c,%.o,$($(DRIVER_NAME)-sysfs-srcs))
 
 ccflags-y := -I$(src)
 ccflags-y += -I$(src)/$(ENA_COM_PATH)/
@@ -88,8 +93,15 @@ ifdef ENA_PHC_INCLUDE
 	ccflags-y += -DENA_PHC_INCLUDE
 endif
 
-all:
+all: $(DRIVER_NAME).ko
+
+$(DRIVER_NAME).ko: config.h $($(DRIVER_NAME)-srcs) $($(DRIVER_NAME)-sysfs-srcs)
 	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(CURDIR) modules
+
+config.h:
+	./configure.sh --kernel-dir $(KERNEL_BUILD_DIR) --verbose
 
 clean:
 	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(CURDIR) clean
+	rm -f config.h
+	rm -rf cc_test
