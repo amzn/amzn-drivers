@@ -3192,7 +3192,8 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 		ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK |
 		ENA_ADMIN_HOST_INFO_RX_BUF_MIRRORING_MASK |
 		ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK |
-		ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK;
+		ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK |
+		ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK;
 
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (rc) {
