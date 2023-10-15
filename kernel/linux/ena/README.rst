@@ -115,8 +115,7 @@ The exceptions are:
 Loading driver:
 ---------------
 If the driver was compiled using ``ENA_PHC_INCLUDE`` environment variable set then
-ptp module might need to be loaded prior to loading the driver (see `PHC`_ for
-more info).
+ptp module might need to be loaded prior to loading the driver (see `PHC`_ for more info).
 
 ENA driver can be (re)loaded using:
 
@@ -204,7 +203,7 @@ Installing Driver with dkms:
   PACKAGE_NAME="ena"
   PACKAGE_VERSION="1.0.0"
   CLEAN="make -C kernel/linux/ena clean"
-  MAKE="ENA_PHC_INCLUDE=1 make -C kernel/linux/ena/ BUILD_KERNEL=${kernelver}"
+  MAKE="make -C kernel/linux/ena/ BUILD_KERNEL=${kernelver}"
   BUILT_MODULE_NAME[0]="ena"
   BUILT_MODULE_LOCATION="kernel/linux/ena"
   DEST_MODULE_LOCATION[0]="/updates"
@@ -290,7 +289,7 @@ Module Parameters
 
 :phc_enable:
   Controls the enablement of the PHC feature. The default value is 0 (Disabled).
-  Notice that PHC must be supported by the device.
+  Notice that PHC must be supported by the kernel and the device.
 
 Disable Predictable Network Names:
 ==================================
@@ -534,59 +533,126 @@ cache size might result in higher memory usage, and should be handled with care.
 
 PTP Hardware Clock (PHC)
 ======================
+.. _`ptp-userspace-api`: https://docs.kernel.org/driver-api/ptp.html#ptp-hardware-clock-user-space-api
+.. _`testptp`: https://elixir.bootlin.com/linux/latest/source/tools/testing/selftests/ptp/testptp.c
 
 ENA Linux driver support PTP hardware clock providing timestamp reference to achieve nanosecond accuracy.
 
-PHC support can be verified using ethtool,
-e.g.
+**PHC support**
 
-.. code-block:: shell
+PHC depends on the PTP module, which needs to be either loaded as a module or compiled into the kernel.
 
-  ethtool -T eth0
-
-PHC can be monitored using :code:`ethtool -S` counters. Where:
-
-- ``phc_cnt`` - number of successful retrieved timestamps (not exceeding expire timeout)
-- ``phc_exp`` - number of expired retrieved timestamps (passing expire timeout)
-- ``phc_skp`` - number of skipped get time attempts (during block period)
-- ``phc_err`` - number of failed get time attempts
-
-**Note** that this feature depends on the ptp module, which needs to be either loaded as a module or
-compiled into the kernel. One way to verify if the PTP module is present:
+Verify if the PTP module is present:
 
 .. code-block:: shell
 
   $ grep -w '^CONFIG_PTP_1588_CLOCK=[ym]' /boot/config-`uname -r`
 
-If no output is provided, the ENA driver cannot be loaded with support for PHC.
+- If no output is provided, the ENA driver cannot be loaded with PHC support.
 
-If the configuration has the 'm' letter, the ptp module needs to be loaded prior
-to loading ENA driver:
+- ``CONFIG_PTP_1588_CLOCK=y``: the PTP module is already compiled and loaded inside the kernel binary file.
+
+- ``CONFIG_PTP_1588_CLOCK=m``: the PTP module needs to be loaded prior to loading the ENA driver:
 
 .. code-block:: shell
 
   $ sudo modprobe ptp
 
-If the configuration has the 'y' letter the step above isn't needed.
+**PHC compilation**
 
-To avoid confusion, this feature is enabled only with the ``ENA_PHC_INCLUDE``
-environment variable set when compiling the driver, e.g.
+This feature is enabled only with the ``ENA_PHC_INCLUDE`` environment variable set when compiling
+the driver:
 
 .. code-block:: shell
 
   $ ENA_PHC_INCLUDE=1 make
 
+**PHC activation**
+
 The feature is turned off by default, in order to turn the feature on, the ENA driver
-can be loaded either via module parameter or via devlink:
+can be loaded in 2 ways:
+
+- module parameter:
 
 .. code-block:: shell
 
-  $ sudo insmod ena_drv.ko phc_enable=1
+  $ sudo insmod ena.ko phc_enable=1
+
+- devlink:
 
 .. code-block:: shell
 
   $ sudo devlink dev param set pci/<pci-address> name phc_enable value true cmode driverinit
   $ sudo devlink dev reload pci/<pci-address>
+
+All available PTP clock sources can be tracked here:
+
+.. code-block:: shell
+
+  $ ls /sys/class/ptp
+
+PHC support and capabilities can be verified using ethtool:
+
+.. code-block:: shell
+
+  ethtool -T <interface>
+
+**PHC timestamp**
+
+To retrieve PHC timestamp, use `ptp-userspace-api`_, usage example using `testptp`_:
+
+.. code-block:: shell
+
+  $ ~/linux/tools/testing/selftests/ptp/testptp -d /dev/ptp0 -k 1
+
+**Notice**: PHC get time requests should be within reasonable bounds, avoid excessive utilization to ensure optimal performance and efficiency.
+
+**PHC error bound**
+
+PTP HW clock error bound refers to the maximum allowable difference
+between the clock of the device and the reference clock.
+The error bound is used to ensure that the clock of the device
+remains within a certain level of accuracy relative to the reference
+clock. The error bound (expressed in nanoseconds) is calculated by
+the device and is retrieved and cached by the driver upon every get PHC
+timestamp request.
+
+To retrieve the cached PHC error bound value, use the following:
+
+devlink runtime param:
+
+.. code-block:: shell
+
+  devlink dev param show pci/<domain:bus:slot.function> name phc_error_bound
+
+sysfs:
+
+.. code-block:: shell
+
+  cat /sys/bus/pci/devices/<domain:bus:slot.function>/phc_error_bound
+
+**PHC statistics**
+
+PHC can be monitored using :code:`ethtool -S` counters:
+
+=================   ======================================================
+**phc_cnt**         number of successful retrieved timestamps (below expire timeout)
+**phc_exp**         number of expired retrieved timestamps (above expire timeout)
+**phc_skp**         number of skipped get time attempts (during block period)
+**phc_err**         number of failed get time attempts due to timestamp/error bound errors
+                    (entering into block state)
+                    must remain below 1% of all PHC requests to maintain the desired level of
+                    accuracy and reliability
+=================   ======================================================
+
+PHC timeouts:
+
+=================   ======================================================
+**expire**          max time for a valid timestamp retrieval, passing this threshold will fail
+                    the get time request and block new requests until block timeout
+**block**           blocking period starts once get time request expires or fails, all get time
+                    requests during block period will be skipped
+=================   ======================================================
 
 Statistics
 ==========

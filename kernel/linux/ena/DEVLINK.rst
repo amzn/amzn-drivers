@@ -28,3 +28,7 @@ The ``ena`` driver implements the following driver-specific parameters.
      - Boolean
      - driverinit
      - enables/disables the PHC feature
+   * - ``phc_error_bound``
+     - U32
+     - runtime
+     - retrieve cached PHC error bound
