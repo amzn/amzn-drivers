@@ -94,10 +94,6 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #define SZ_16K 0x00004000
 #endif
 
-#ifdef HAVE_POLL_CONTROLLER
-#define CONFIG_NET_POLL_CONTROLLER
-#endif
-
 #ifndef __GFP_COLD
 #define __GFP_COLD 0
 #endif
