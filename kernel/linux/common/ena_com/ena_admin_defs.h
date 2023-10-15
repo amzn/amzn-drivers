@@ -144,8 +144,9 @@ enum ena_admin_get_stats_scope {
 	ENA_ADMIN_ETH_TRAFFIC                       = 1,
 };
 
-enum ena_admin_phc_type {
-	ENA_ADMIN_PHC_TYPE_READLESS                 = 0,
+enum ena_admin_phc_feature_version {
+	/* Readless with error_bound */
+	ENA_ADMIN_PHC_FEATURE_VERSION_0             = 0,
 };
 
 enum ena_admin_phc_error_flags {
@@ -992,7 +993,8 @@ struct ena_admin_host_info {
 	 * 5 : reserved
 	 * 6 : rx_page_reuse
 	 * 7 : tx_ipv6_csum_offload
-	 * 31:8 : reserved
+	 * 8 : phc
+	 * 31:9 : reserved
 	 */
 	u32 driver_supported_features;
 };
@@ -1078,10 +1080,10 @@ struct ena_admin_queue_ext_feature_desc {
 };
 
 struct ena_admin_feature_phc_desc {
-	/* PHC type as defined in enum ena_admin_get_phc_type,
-	 * used only for GET command.
+	/* PHC version as defined in enum ena_admin_phc_feature_version,
+	 * used only for GET command as max supported PHC version by the device.
 	 */
-	u8 type;
+	u8 version;
 
 	/* Reserved - MBZ */
 	u8 reserved1[3];
@@ -1396,6 +1398,8 @@ struct ena_admin_phc_resp {
 #define ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK              BIT(6)
 #define ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_SHIFT      7
 #define ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK       BIT(7)
+#define ENA_ADMIN_HOST_INFO_PHC_SHIFT                       8
+#define ENA_ADMIN_HOST_INFO_PHC_MASK                        BIT(8)
 
 /* feature_rss_ind_table */
 #define ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK BIT(0)
