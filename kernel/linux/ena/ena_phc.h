@@ -35,6 +35,7 @@ int ena_phc_init(struct ena_adapter *adapter);
 void ena_phc_destroy(struct ena_adapter *adapter);
 int ena_phc_alloc(struct ena_adapter *adapter);
 void ena_phc_free(struct ena_adapter *adapter);
+int ena_phc_get_error_bound(struct ena_adapter *adapter, u32 *error_bound);
 #else /* ENA_PHC_SUPPORT */
 
 static inline void ena_phc_enable(struct ena_adapter *adapter, bool enable) { }
@@ -45,6 +46,10 @@ static inline int ena_phc_init(struct ena_adapter *adapter) { return 0; }
 static inline void ena_phc_destroy(struct ena_adapter *adapter) { }
 static inline int ena_phc_alloc(struct ena_adapter *adapter) { return 0; }
 static inline void ena_phc_free(struct ena_adapter *adapter) { }
+static inline int ena_phc_get_error_bound(struct ena_adapter *adapter, u32 *error_bound)
+{
+	return 0;
+}
 #endif /* ENA_PHC_SUPPORT */
 
 #endif /* ENA_PHC_H */

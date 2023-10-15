@@ -39,7 +39,7 @@ static int ena_phc_gettimex64(struct ptp_clock_info *clock_info, struct timespec
 
 	ptp_read_system_prets(sts);
 
-	rc = ena_com_phc_get(phc_info->adapter->ena_dev, &timestamp_nsec);
+	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev, &timestamp_nsec);
 
 	ptp_read_system_postts(sts);
 
@@ -60,7 +60,7 @@ static int ena_phc_gettime64(struct ptp_clock_info *clock_info, struct timespec6
 
 	spin_lock_irqsave(&phc_info->lock, flags);
 
-	rc = ena_com_phc_get(phc_info->adapter->ena_dev, &timestamp_nsec);
+	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev, &timestamp_nsec);
 
 	spin_unlock_irqrestore(&phc_info->lock, flags);
 
@@ -87,7 +87,7 @@ static int ena_phc_gettime(struct ptp_clock_info *clock_info, struct timespec *t
 
 	spin_lock_irqsave(&phc_info->lock, flags);
 
-	rc = ena_com_phc_get(phc_info->adapter->ena_dev, &timestamp_nsec);
+	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev, &timestamp_nsec);
 
 	spin_unlock_irqrestore(&phc_info->lock, flags);
 
@@ -281,4 +281,11 @@ int ena_phc_get_index(struct ena_adapter *adapter)
 	return -1;
 }
 
+int ena_phc_get_error_bound(struct ena_adapter *adapter, u32 *error_bound_nsec)
+{
+	if (!ena_phc_is_active(adapter))
+		return -EOPNOTSUPP;
+
+	return ena_com_phc_get_error_bound(adapter->ena_dev, error_bound_nsec);
+}
 #endif /* ENA_PHC_SUPPORT */

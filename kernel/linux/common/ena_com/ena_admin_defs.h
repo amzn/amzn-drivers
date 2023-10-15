@@ -144,8 +144,13 @@ enum ena_admin_get_stats_scope {
 	ENA_ADMIN_ETH_TRAFFIC                       = 1,
 };
 
-enum ena_admin_get_phc_type {
+enum ena_admin_phc_type {
 	ENA_ADMIN_PHC_TYPE_READLESS                 = 0,
+};
+
+enum ena_admin_phc_error_flags {
+	ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP   = BIT(0),
+	ENA_ADMIN_PHC_ERROR_FLAG_ERROR_BOUND = BIT(1),
 };
 
 /* ENA SRD configuration for ENI */
@@ -1272,13 +1277,23 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 };
 
 struct ena_admin_phc_resp {
+	/* Request Id, received from DB register */
 	u16 req_id;
 
 	u8 reserved1[6];
 
+	/* PHC timestamp (nsec) */
 	u64 timestamp;
 
-	u8 reserved2[48];
+	u8 reserved2[8];
+
+	/* Timestamp error limit (nsec) */
+	u32 error_bound;
+
+	/* Bit field of enum ena_admin_phc_error_flags */
+	u32 error_flags;
+
+	u8 reserved3[32];
 };
 
 /* aq_common_desc */

@@ -13,6 +13,12 @@
 static int ena_devlink_phc_enable_validate(struct devlink *devlink, u32 id,
 					   union devlink_param_value val,
 					   struct netlink_ext_ack *extack);
+
+static int ena_devlink_phc_error_bound_get(struct devlink *devlink, u32 id,
+					   struct devlink_param_gset_ctx *ctx);
+
+static int ena_devlink_phc_error_bound_set(struct devlink *devlink, u32 id,
+					   struct devlink_param_gset_ctx *ctx);
 #endif /* ENA_PHC_SUPPORT */
 
 static int ena_devlink_llq_header_validate(struct devlink *devlink, u32 id,
@@ -24,6 +30,7 @@ enum ena_devlink_param_id {
 	ENA_DEVLINK_PARAM_ID_LLQ_HEADER_SIZE,
 #ifdef ENA_PHC_SUPPORT
 	ENA_DEVLINK_PARAM_ID_PHC_ENABLE,
+	ENA_DEVLINK_PARAM_ID_PHC_ERROR_BOUND,
 #endif /* ENA_PHC_SUPPORT */
 };
 
@@ -37,6 +44,12 @@ static const struct devlink_param ena_devlink_params[] = {
 			     "phc_enable", DEVLINK_PARAM_TYPE_BOOL,
 			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			     NULL, NULL, ena_devlink_phc_enable_validate),
+	DEVLINK_PARAM_DRIVER(ENA_DEVLINK_PARAM_ID_PHC_ERROR_BOUND,
+			     "phc_error_bound", DEVLINK_PARAM_TYPE_U32,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     ena_devlink_phc_error_bound_get,
+			     ena_devlink_phc_error_bound_set,
+			     NULL),
  #endif /* ENA_PHC_SUPPORT */
 };
 
@@ -79,6 +92,29 @@ static int ena_devlink_phc_enable_validate(struct devlink *devlink, u32 id,
 	}
 
 	return 0;
+}
+
+static int ena_devlink_phc_error_bound_get(struct devlink *devlink, u32 id,
+					   struct devlink_param_gset_ctx *ctx)
+{
+	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
+	u32 error_bound_nsec = 0;
+	int rc = 0;
+
+	if (id != ENA_DEVLINK_PARAM_ID_PHC_ERROR_BOUND)
+		return -EOPNOTSUPP;
+
+	rc = ena_phc_get_error_bound(adapter, &error_bound_nsec);
+	if (rc == 0)
+		ctx->val.vu32 = error_bound_nsec;
+
+	return rc;
+}
+
+static int ena_devlink_phc_error_bound_set(struct devlink *devlink, u32 id,
+					   struct devlink_param_gset_ctx *ctx)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif /* ENA_PHC_SUPPORT */
