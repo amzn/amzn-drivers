@@ -572,6 +572,11 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 			if (unlikely(rc == -EINVAL))
 				handle_invalid_req_id(tx_ring, req_id, NULL,
 						      true);
+			else if (unlikely(rc == -EFAULT)) {
+				ena_reset_device(
+					tx_ring->adapter,
+					ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
+			}
 			break;
 		}
 
