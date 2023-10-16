@@ -46,6 +46,9 @@ SRCS	+= ena.c ena_sysctl.c ena_datapath.c ena_netmap.c ena_rss.c
 CFLAGS  += -DSMP -O2
 CFLAGS  += -I${.CURDIR}/ena-com
 
+KERNEL_VERSION := `sysctl -n kern.osreldate`
+CFLAGS  += -D__FreeBSD_version=$(KERNEL_VERSION)
+
 .if defined(DEBUG)
 # Enable debug messages and sysctls
 CFLAGS  += -DENA_DEBUG
