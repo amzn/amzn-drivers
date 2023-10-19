@@ -187,7 +187,7 @@ Installation from Source Code
 .. code-block:: shell
 
   git clone https://github.com/dell/dkms.git
-  cd dmks
+  cd dkms
   sudo make install
 
 Installing Driver with dkms:
