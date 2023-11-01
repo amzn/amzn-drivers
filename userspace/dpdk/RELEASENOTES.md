@@ -4,8 +4,28 @@ ___
 
 ### Normal releases
 
+#### v23.11
+_Release of the new version of the driver - v2.8.0_
+
+New Features:
+* Reworked the mechanism that queries the performance metrics from the device.
+* Added support for the connection tracking allowance utilization metric (_Conntrack_allowance_available_) that allows monitoring the available tracked connections that can be established before the interface exceeds its allowance.
+* Added support for a new statistic (_rx_overrun_) that counts the number of packets that arrived but there was
+not enough free buffers in the Rx ring to receive it.
+* Added support for Scalable Reliable Datagram (SRD) metrics from ENA Express:
+   * _ena_srd_mode_ – Describes which ENA-express features are enabled.
+   * _ena_srd_eligible_tx_pkts_ – The number of network packets sent within a given time period that meet SRD requirements for eligibility.
+   * _ena_srd_tx_pkts_ – The number of SRD packets transmitted within a given time period.
+   * _ena_srd_rx_pkts_ – The number of SRD packets received within a given time period.
+   * _ena_srd_resource_utilization_ – The percentage of the maximum allowed memory utilization for concurrent SRD connections that the instance has consumed
+* Added support for new reset reasons for a suspected CPU starvation and for completion descriptor inconsistency.
+
+Minor Changes:
+* Aligned all ENA HAL return error code to a common notation.
+* Removed an obsolete queue tail pointer update API.
+
 #### v22.07
-_Release of the new version of the driver - r2.7.0_
+_Release of the new version of the driver - v2.7.0_
 
 New Features:
 * Add support for the RTE_ETH_TX_OFFLOAD_MBUF_FAST_FREE offload, which allows
@@ -21,7 +41,7 @@ Minor Changes:
   is already verifying the provided value.
 
 #### v22.03
-_Release of the new version of the driver - r2.6.0_
+_Release of the new version of the driver - v2.6.0_
 
 New Features:
 * Modify Rx checksum related xstats:
@@ -64,7 +84,7 @@ Minor Changes:
 * Extend logs for the resets because of the invalid Tx request ID.
 
 #### v21.11
-_Release of the new version of the driver - r2.5.0_
+_Release of the new version of the driver - v2.5.0_
 
 New Features:
 * Support tx_free_thresh and rx_free_thresh configuration parameters.
@@ -84,7 +104,7 @@ Minor Changes:
   setup code.
 
 #### v21.08
-_Release of the new version of the driver - r2.4.0_
+_Release of the new version of the driver - v2.4.0_
 
 New Features:
 * Full RSS reconfiguration support. PMD now allows the users to change the RSS
@@ -109,7 +129,7 @@ Minor Changes:
   also those flags wraps the IO code used only for debugging.
 
 #### v21.05
-_Release of the new version of the driver - r2.3.0_
+_Release of the new version of the driver - v2.3.0_
 
 Bug Fixes:
 * Disable ops not supported by the secondary process, to give more verbose
@@ -136,7 +156,7 @@ Minor Changes:
 * Update ena_com to version from 18.09.2020.
 
 #### v21.02
-_Release of the new version of the driver - r2.2.1_
+_Release of the new version of the driver - v2.2.1_
 
 Bug Fixes:
 * Prevent driver from calling doorbell twice on Tx path when Tx burst doorbell
@@ -155,7 +175,7 @@ Bug Fixes:
   only once and a driver code could be simplified.
 
 #### v20.11
-_Release of the new version of the driver - r2.2.0_
+_Release of the new version of the driver - v2.2.0_
 
 New Features:
 * Expose Elastic Network Interface (ENI) metrics via extended statistics
@@ -180,7 +200,7 @@ Minor Changes:
 * Update ena_com to version from 26.04.2020.
 
 #### v20.05
-_Release of the new version of the driver - r2.1.0_
+_Release of the new version of the driver - v2.1.0_
 
 New Features:
 * Support large LLQ headers for use cases like IPv6 with multiple extensions,
@@ -212,7 +232,7 @@ Minor Changes:
   threshold value was set as 256.
 
 #### v20.02
-_Release of the new version of the driver - r2.0.3_
+_Release of the new version of the driver - v2.0.3_
 
 New Features:
 * Add support for 'Rx offsets' - some HW append data to the mbuf in the given
@@ -222,7 +242,7 @@ New Features:
 * Update ena_com to version from 20.03.2019.
 
 #### v19.11
-_Release of the new version of the driver - r2.0.2._
+_Release of the new version of the driver - v2.0.2._
 
 Bug Fixes:
 * Fix indication of bad L4 Rx checksum. If the packet was fragmented, the L4
@@ -234,7 +254,7 @@ Minor Changes:
 * Use dynamic log type for debug logging.
 
 #### v19.08
-_Release of the new version of the driver - r2.0.1._
+_Release of the new version of the driver - v2.0.1._
 
 Bug Fixes:
 * Don't count Tx packets by summing up the number of buffers. It could cause
@@ -256,7 +276,7 @@ Bug Fixes:
   for the multithread applications.
 
 #### v19.02
-_Release of the new version of the driver - r2.0.0._
+_Release of the new version of the driver - v2.0.0._
 
 New Features:
 * Add Low Latency Queue v2 (LLQv2). This feature reduces the latency
@@ -291,7 +311,7 @@ Minor Changes:
 * Adjust new line characters in log messages.
 
 #### v18.11
-_Release of the new version of the driver - r1.1.1._
+_Release of the new version of the driver - v1.1.1._
 
 Bug fixes:
 * Fix out of order (OOO) completion.
@@ -304,7 +324,7 @@ Bug fixes:
   buffers properly
 
 #### v18.08
-_Release of the new version of the driver - r1.1.0._
+_Release of the new version of the driver - v1.1.0._
 
 New Features:
 * Handle admin queue using interrupts
@@ -401,7 +421,7 @@ Bug Fixes:
 * Improve safety of string handling.
 
 #### v16.07
-_Release of the new version of the driver - r1.0.0._
+_Release of the new version of the driver - v1.0.0._
 
 New Features:
 * Configure debug memory area in the ENA which can be used for storing
