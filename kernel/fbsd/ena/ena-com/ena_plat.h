@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2023 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,42 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#include "ena_fbsd_log.h"
+enum ena_log_t {
+	ENA_ERR = 0,
+	ENA_WARN,
+	ENA_INFO,
+	ENA_DBG,
+};
+
+extern int ena_log_level;
+
+#define ena_log(dev, level, fmt, args...)			\
+	do {							\
+		if (ENA_ ## level <= ena_log_level)		\
+			device_printf((dev), fmt, ##args);	\
+	} while (0)
+
+#define ena_log_raw(level, fmt, args...)			\
+	do {							\
+		if (ENA_ ## level <= ena_log_level)		\
+			printf(fmt, ##args);			\
+	} while (0)
+
+#define ena_log_unused(dev, level, fmt, args...)		\
+	do {							\
+		(void)(dev);					\
+	} while (0)
+
+#ifdef ENA_LOG_IO_ENABLE
+#define ena_log_io(dev, level, fmt, args...)			\
+	ena_log((dev), level, fmt, ##args)
+#else
+#define ena_log_io(dev, level, fmt, args...)			\
+	ena_log_unused((dev), level, fmt, ##args)
+#endif
+
+#define ena_log_nm(dev, level, fmt, args...)			\
+	ena_log((dev), level, "[nm] " fmt, ##args)
 
 extern struct ena_bus_space ebs;
 
@@ -154,7 +189,7 @@ static inline long PTR_ERR(const void *ptr)
 #define GENMASK(h, l)	(((~0U) - (1U << (l)) + 1) & (~0U >> (32 - 1 - (h))))
 #define GENMASK_ULL(h, l)	(((~0ULL) << (l)) & (~0ULL >> (64 - 1 - (h))))
 #define BIT(x)			(1UL << (x))
-
+#define BIT64(x)		BIT(x)
 #define ENA_ABORT() 		BUG()
 #define BUG() 			panic("ENA BUG")
 
@@ -172,6 +207,7 @@ static inline long PTR_ERR(const void *ptr)
 #define	ENA_COM_PERMISSION	EPERM
 #define ENA_COM_TIMER_EXPIRED	ETIMEDOUT
 #define ENA_COM_EIO		EIO
+#define ENA_COM_DEVICE_BUSY	EBUSY
 
 #define ENA_NODE_ANY		(-1)
 
@@ -181,6 +217,13 @@ static inline long PTR_ERR(const void *ptr)
 #define ENA_GET_SYSTEM_TIMEOUT(timeout_us) \
     ((long)cputick2usec(cpu_ticks()) + (timeout_us))
 #define ENA_TIME_EXPIRE(timeout)  ((timeout) < cputick2usec(cpu_ticks()))
+#define ENA_TIME_EXPIRE_HIGH_RES ENA_TIME_EXPIRE
+#define ENA_TIME_INIT_HIGH_RES() (0)
+#define ENA_TIME_COMPARE_HIGH_RES(time1, time2)			\
+	((time1 < time2) ? -1 : ((time1 > time2) ? 1 : 0))
+#define ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(current_time, timeout_us)	\
+    ((long)cputick2usec(cpu_ticks()) + (timeout_us))
+#define ENA_GET_SYSTEM_TIME_HIGH_RES() ENA_GET_SYSTEM_TIMEOUT(0)
 #define ENA_MIGHT_SLEEP()
 
 #define min_t(type, _x, _y) ((type)(_x) < (type)(_y) ? (type)(_x) : (type)(_y))
@@ -277,6 +320,7 @@ typedef uint32_t ena_atomic32_t;
 #define ENA_PRIu64 PRIu64
 
 typedef uint64_t ena_time_t;
+typedef uint64_t ena_time_high_res_t;
 typedef struct ifnet ena_netdev;
 
 void	ena_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nseg,
@@ -313,15 +357,14 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 		    M_NOWAIT | M_ZERO);					\
 		(void)(dev_node);					\
 	} while (0)
-#else
-#define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) (virt = NULL)
-#endif
 
+#endif
 #define ENA_MEM_FREE(dmadev, ptr, size)					\
 	do { 								\
 		(void)(size);						\
 		free(ptr, M_DEVBUF);					\
 	} while (0)
+
 #if __FreeBSD_version > 1200055
 #define ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt, phys,	\
     dma, node, dev_node, alignment) 					\
@@ -332,15 +375,8 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 		(phys) = (dma).paddr;					\
 		(void)(dev_node);					\
 	} while (0)
-#else
-#define ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt, phys,	\
-    dma, node, dev_node, alignment) 					\
-	do {								\
-		((virt) = NULL);					\
-		(void)(dev_node);					\
-	} while(0)
-#endif
 
+#endif
 #define ENA_MEM_ALLOC_COHERENT_NODE(dmadev, size, virt, phys, handle,	\
     node, dev_node)							\
 	ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt,		\
@@ -441,5 +477,7 @@ void	ena_rss_key_fill(void *key, size_t size);
 #define ENA_RSS_FILL_KEY(key, size) ena_rss_key_fill(key, size)
 
 #include "ena_defs/ena_includes.h"
+
+#define ENA_BITS_PER_U64(bitmap) (bitcount64(bitmap))
 
 #endif /* ENA_PLAT_H_ */
