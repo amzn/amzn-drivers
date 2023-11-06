@@ -406,37 +406,72 @@ Example:
 
     sysctl dev.ena.0.buf_ring_size=2048
 
-Interval in seconds for updating ENI metrics
+Interval in seconds for updating ENA metrics
 """"""""""""""""""""""""""""""""""""""""""""
 
 Scope:
   Local for the interface ``X`` (``X`` is the interface number)
 Node:
-  ``dev.ena.X.eni_metrics.sample_interval``
+  ``dev.ena.X.sample_interval``
 Input values:
   ``[0; 3600]``
 Default value:
   ``0``
 Description:
-  Determines how often (if ever) the ENI metrics should be updated.
-  The ENI metrics are being updated asynchronously in a timer
+  Determines how often (if ever) all the ENA metrics should be updated.
+  ENA metrics are being updated asynchronously in a timer
   service in order to avoid admin queue overload by sysctl node
   reading. The value in this node controls the interval between
-  issuing admin command to the device which will update the ENI
+  issuing admin command to the device which will update the ENA
   metrics value.
 
-  If some application is periodically monitoring the eni_metrics,
-  then the ENI metrics interval can be adjusted accordingly.
+  If some application is periodically monitoring the different metrics,
+  then the ENA metrics interval can be adjusted accordingly.
   ``0`` turns off the update totally. ``1`` is the minimum interval
   and is equal to 1 second. The maximum allowed update interval is
   1 hour.
 Example:
-  To update of the ENI metrics for the device ``ena1`` every 10 seconds,
+  To update of the ENA metrics for the device ``ena1`` every 10 seconds,
   the below command should be used:
 
   .. code-block:: sh
 
-    sysctl dev.ena.1.eni_metrics.sample_interval=10
+    sysctl dev.ena.1.stats_sample_interval=10
+
+IO IRQ affinity
+"""""""""""""""
+
+Scope:
+  Local for the interface ``X`` (``X`` is the interface number)
+Nodes:
+  ``dev.ena.X.irq_affinity.base_cpu``
+  ``dev.ena.X.irq_affinity.cpu_stride``
+Input values:
+  ``[0; #hw_cpus]``
+Default value:
+  ``0``
+Description:
+  Determines on which CPU each IO IRQ will be received.
+  These two parameters allow spreading IO IRQs over
+  different CPUs.
+  base_cpu serves as the first CPU to which the first IO IRQ
+  will be bound to.
+  cpu_stride sets the distance between every two CPUs to which every
+  two consecutive IO IRQs are bound.
+Example:
+  For doing the following IO IRQs / CPU binding:
+  IRQ idx |  CPU
+  ----------------
+    1     |   0
+    2     |   2
+    3     |   4
+    4     |   6
+  the below command should be used:
+
+  .. code-block:: sh
+
+    sysctl dev.ena.1.irq_affinity.base_cpu=0
+    sysctl dev.ena.1.irq_affinity.cpu_stride=2
 
 RSS indirection table size
 """"""""""""""""""""""""""
