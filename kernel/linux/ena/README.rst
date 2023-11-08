@@ -570,15 +570,20 @@ above and ethtool v6.4 and above.
   # for example:
   echo 1 | sudo tee /sys/bus/pci/devices/0000:00:06.0/large_llq_header
 
+After changing LLQ configuration, a log will be printed to indicate whether Large LLQ is enabled or disabled:
+
+.. code-block:: shell
+
+  ENA Large is LLQ enabled/disabled
+
 Large LLQ query
 ---------------
 
-Large LLQ can be queried in two ways:
+Large LLQ can be queried in several ways:
 
 - **ethtool:**
 
-Verify that the TX queue entry size has indeed increased by checking that the
-maximum TX queue depth is 512.
+Check the value of ``TX push buff len`` under ``Current hardware settings``
 
 .. code-block:: shell
 

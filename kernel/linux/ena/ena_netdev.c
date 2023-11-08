@@ -3824,6 +3824,11 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	if (unlikely(rc))
 		goto err_admin_init;
 
+	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		dev_info(&pdev->dev, "ENA Large LLQ is %s\n",
+			adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE ?
+			"enabled" : "disabled");
+
 	/* Turned on features shouldn't change due to reset. */
 	prev_netdev_features = adapter->netdev->features;
 	ena_set_dev_offloads(get_feat_ctx, adapter->netdev);
