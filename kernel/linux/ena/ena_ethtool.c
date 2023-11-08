@@ -1287,7 +1287,6 @@ static int ena_set_channels(struct net_device *netdev,
 				      NETDEV_XDP_ACT_REDIRECT);
 	}
 
-
 	if (count > adapter->max_num_io_queues)
 		return -EINVAL;
 	if (count != adapter->num_io_queues && ena_is_zc_q_exist(adapter)) {
