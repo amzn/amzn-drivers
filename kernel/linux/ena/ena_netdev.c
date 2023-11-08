@@ -4070,11 +4070,11 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 	struct net_device *netdev = adapter->netdev;
 	unsigned long jiffies_since_last_napi;
 	unsigned long jiffies_since_last_intr;
+	u32 missed_tx = 0, new_missed_tx = 0;
 	unsigned long graceful_timeout;
 	struct ena_tx_buffer *tx_buf;
 	unsigned long timeout;
 	int napi_scheduled;
-	u32 missed_tx = 0;
 	bool is_expired;
 	int i, rc = 0;
 
@@ -4117,20 +4117,24 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 				reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
 			}
 
+			missed_tx++;
+
 			if (tx_buf->print_once)
 				continue;
+
+			/* Add new TX completions which are missed */
+			new_missed_tx++;
 
 			netif_notice(adapter, tx_err, netdev,
 				     "TX hasn't completed, qid %d, index %d. %u msecs since last interrupt, %u msecs since last napi execution, napi scheduled: %d\n",
 				     tx_ring->qid, i, jiffies_to_msecs(jiffies_since_last_intr),
 				     jiffies_to_msecs(jiffies_since_last_napi), napi_scheduled);
 
-			missed_tx++;
 			tx_buf->print_once = 1;
 		}
 	}
 
-	/* Checking if this TX ring got to max missing TX completes */
+	/* Checking if this TX ring missing TX completions have passed the threshold */
 	if (unlikely(missed_tx > missed_tx_thresh)) {
 		jiffies_since_last_intr = jiffies - READ_ONCE(ena_napi->last_intr_jiffies);
 		jiffies_since_last_napi = jiffies - READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
@@ -4156,7 +4160,8 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 		rc = -EIO;
 	}
 
-	ena_increase_stat(&tx_ring->tx_stats.missed_tx, missed_tx, &tx_ring->syncp);
+	/* Add the newly discovered missing TX completions */
+	ena_increase_stat(&tx_ring->tx_stats.missed_tx, new_missed_tx, &tx_ring->syncp);
 
 	return rc;
 }
