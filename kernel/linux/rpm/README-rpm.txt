@@ -2,7 +2,7 @@ This directory includes a Makefile and scripts necessary to create a
 source rpm (src.rpm) kmod package for installing the Amazon Elastic
 Adapter kernel driver on a Red Hat Enterprise Linux (RHEL) compatible
 distribution. Currently this script supports building source rpms
-which build and install on RHEL version 6.x and 7.x.
+which build and install on RHEL versions 7.x, 8.x and 9.x.
 
 
 PRE-REQUISITES
@@ -25,6 +25,11 @@ following pre-requisites installed on your RHEL build environment:
 
    bash$ sudo yum -y install gcc make rpm-build
 
+   for RHEL 8.x also install:
+   bash$ sudo dnf install kernel-abi-whitelists kernel-rpm-macros
+
+   for RHEL 9.x also install:
+   bash$ sudo dnf install kernel-abi-stablelists kernel-rpm-macros
 
 BUILDING A SOURCE RPM
 

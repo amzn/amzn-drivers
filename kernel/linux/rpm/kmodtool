@@ -137,6 +137,7 @@ get_rpmtemplate ()
     local variant="${1}"
     local dashvariant="${variant:+-${variant}}"
     local dotvariant="${variant:+.${variant}}"
+    local rhel_version=$(rpm -q --queryformat '%{VERSION}' $(rpm -q --whatprovides redhat-release))
 
     echo "%package       -n kmod-${kmod_name}${dashvariant}"
 
@@ -161,8 +162,13 @@ get_rpmtemplate ()
     cat <<EOF
 Provides:         kernel-modules = ${verrel_dep}${dotvariant}
 Provides:         ${kmod_name}-kmod = %{?epoch:%{epoch}:}%{version}-%{release}
+%if 0%{?rhel} >= 8
+Requires(post):   /usr/sbin/depmod
+Requires(postun): /usr/sbin/depmod
+%else
 Requires(post):   /sbin/depmod
 Requires(postun): /sbin/depmod
+%endif
 EOF
 
     if [ "yes" != "$nobuildreqs" ]
@@ -190,7 +196,11 @@ EOF
 cat <<EOF
 %post          -n kmod-${kmod_name}${dashvariant}
 if [ -e "/boot/System.map-${verrel}${dotvariant}" ]; then
-    /sbin/depmod -aeF "/boot/System.map-${verrel}${dotvariant}" "${verrel}${dotvariant}" > /dev/null || :
+    if [ "$rhel_version" -ge 8 ]; then
+        /usr/sbin/depmod -aeF "/boot/System.map-${verrel}${dotvariant}" "${verrel}${dotvariant}" > /dev/null || :
+    else
+        /sbin/depmod -aeF "/boot/System.map-${verrel}${dotvariant}" "${verrel}${dotvariant}" > /dev/null || :
+    fi
 fi
 
 modules=( \$(find /lib/modules/${verrel}${dotvariant}/extra/${kmod_name} | grep '\.ko$') )
@@ -208,7 +218,11 @@ EOF
 cat <<EOF
 %postun        -n kmod-${kmod_name}${dashvariant}
 if [ -e "/boot/System.map-${verrel}${dotvariant}" ]; then
-    /sbin/depmod -aeF "/boot/System.map-${verrel}${dotvariant}" "${verrel}${dotvariant}" > /dev/null || :
+    if [ "$rhel_version" -ge 8 ]; then
+        /usr/sbin/depmod -aeF "/boot/System.map-${verrel}${dotvariant}" "${verrel}${dotvariant}" > /dev/null || :
+    else
+        /sbin/depmod -aeF "/boot/System.map-${verrel}${dotvariant}" "${verrel}${dotvariant}" > /dev/null || :
+    fi
 fi
 
 modules=( \$(cat /var/run/rpm-kmod-${kmod_name}${dashvariant}-modules) )
