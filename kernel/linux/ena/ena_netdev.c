@@ -3462,15 +3462,21 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 {
 	struct ena_admin_feature_llq_desc *llq = &get_feat_ctx->llq;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
-	u32 tx_queue_size = ENA_DEFAULT_RING_SIZE;
 	u32 max_tx_queue_size;
 	u32 max_rx_queue_size;
+	u32 tx_queue_size;
 
 	/* If this function is called after driver load, the ring sizes have already
 	 * been configured. Take it into account when recalculating ring size.
 	 */
-	if (adapter->tx_ring->ring_size)
+	if (adapter->tx_ring->ring_size) {
 		tx_queue_size = adapter->tx_ring->ring_size;
+	} else if (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE &&
+		   ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+		tx_queue_size = ENA_DEFAULT_WIDE_LLQ_RING_SIZE;
+	} else {
+		tx_queue_size = ENA_DEFAULT_RING_SIZE;
+	}
 
 	if (adapter->rx_ring->ring_size)
 		rx_queue_size = adapter->rx_ring->ring_size;
@@ -3513,6 +3519,33 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 						 max_queues->max_packet_rx_descs);
 	}
 
+	if (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE) {
+		if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+			u32 max_wide_llq_size = max_tx_queue_size;
+
+			if (llq->max_wide_llq_depth == 0) {
+				/* if there is no large llq max depth from device, we divide
+				 * the queue size by 2, leaving the amount of memory
+				 * used by the queues unchanged.
+				 */
+				max_wide_llq_size /= 2;
+			} else if (llq->max_wide_llq_depth < max_wide_llq_size) {
+				max_wide_llq_size = llq->max_wide_llq_depth;
+			}
+			if (max_wide_llq_size != max_tx_queue_size) {
+				max_tx_queue_size = max_wide_llq_size;
+				dev_info(&adapter->pdev->dev,
+					 "Forcing large headers and decreasing maximum TX queue size to %d\n",
+					 max_tx_queue_size);
+			}
+		} else {
+			dev_err(&adapter->pdev->dev,
+				"Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
+
+			adapter->llq_policy = ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
+		}
+	}
+
 	max_tx_queue_size = rounddown_pow_of_two(max_tx_queue_size);
 	max_rx_queue_size = rounddown_pow_of_two(max_rx_queue_size);
 
@@ -3526,23 +3559,6 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 		netdev_err(adapter->netdev, "Device max RX queue size: %d < minimum: %d\n",
 			   max_rx_queue_size, ENA_MIN_RING_SIZE);
 		return -EFAULT;
-	}
-
-	/* When forcing large headers, we multiply the entry size by 2, and therefore divide
-	 * the queue size by 2, leaving the amount of memory used by the queues unchanged.
-	 */
-	if (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE) {
-		if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-			max_tx_queue_size /= 2;
-			dev_info(&adapter->pdev->dev,
-				 "Forcing large headers and decreasing maximum TX queue size to %d\n",
-				 max_tx_queue_size);
-		} else {
-			dev_err(&adapter->pdev->dev,
-				"Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
-
-			adapter->llq_policy = ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
-		}
 	}
 
 	tx_queue_size = clamp_val(tx_queue_size, ENA_MIN_RING_SIZE,
