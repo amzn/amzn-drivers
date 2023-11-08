@@ -31,6 +31,20 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.11.0 release notes
+**New Features**
+* Support max wide LLQ depth from device
+
+**Bug fixes**
+* Count all currently missing TX completions in check
+* Fix compilation issues in Oracle Linux 8 and 9
+* ECC random number generation
+* Fix compilation issues in Red Hat 9.3
+
+**Minor Changes**
+* Add reset reason for missing admin interrupt
+* Fix rpm installation for RHEL 8.x and 9.x
+
 ## r2.10.0 release notes
 **Notes**
 * Devlink support has been removed from the driver. Please consult the
