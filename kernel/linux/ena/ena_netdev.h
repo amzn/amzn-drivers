@@ -377,6 +377,8 @@ struct ena_stats_dev {
 	u64 tx_desc_malformed;
 	u64 invalid_state;
 	u64 os_netdev_wd;
+	u64 missing_admin_interrupt;
+	u64 admin_to;
 };
 
 enum ena_flags_t {
@@ -509,7 +511,7 @@ struct ena_reset_stats_offset {
 
 static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_RESET_LAST] = {
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_KEEP_ALIVE_TO, wd_expired),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_q_pause),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_to),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_TX_CMPL, missing_tx_cmpl),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_TX_REQ_ID, bad_tx_req_id),
@@ -520,6 +522,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_SUSPECTED_POLL_STARVATION, suspected_poll_starvation),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT, missing_admin_interrupt),
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);

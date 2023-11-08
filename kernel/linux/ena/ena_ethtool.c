@@ -80,6 +80,8 @@ static const struct ena_stats ena_stats_global_strings[] = {
 	ENA_STAT_GLOBAL_ENTRY(tx_desc_malformed),
 	ENA_STAT_GLOBAL_ENTRY(invalid_state),
 	ENA_STAT_GLOBAL_ENTRY(os_netdev_wd),
+	ENA_STAT_GLOBAL_ENTRY(missing_admin_interrupt),
+	ENA_STAT_GLOBAL_ENTRY(admin_to),
 	ENA_STAT_GLOBAL_ENTRY(suspend),
 	ENA_STAT_GLOBAL_ENTRY(resume),
 	ENA_STAT_GLOBAL_ENTRY(interface_down),

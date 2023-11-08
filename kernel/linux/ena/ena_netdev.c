@@ -4293,7 +4293,12 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 	if (unlikely(!ena_com_get_admin_running_state(adapter->ena_dev))) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "ENA admin queue is not in running state!\n");
-		ena_reset_device(adapter, ENA_REGS_RESET_ADMIN_TO);
+		ena_increase_stat(&adapter->dev_stats.admin_q_pause, 1,
+				  &adapter->syncp);
+		if (ena_com_get_missing_admin_interrupt(adapter->ena_dev))
+			ena_reset_device(adapter, ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT);
+		else
+			ena_reset_device(adapter, ENA_REGS_RESET_ADMIN_TO);
 	}
 }
 
