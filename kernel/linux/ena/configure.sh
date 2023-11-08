@@ -113,9 +113,10 @@ prepare_variables() {
 	esac
 }
 
-# Get random 10-character string
+# Get random string consist of current epoch time concatented with random generated number (0-32767)
 get_random_string() {
-	cat /dev/urandom | tr -dc '[:alnum:]' | fold -w 10 | head -n 1
+	NOW=`date +%s%3N`
+	echo ${NOW}_${RANDOM}
 }
 
 # Get number of CPUs available
