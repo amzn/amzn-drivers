@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2019-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2019-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -10,6 +10,23 @@
 
 #define GPU_PAGE_SHIFT 16
 #define GPU_PAGE_SIZE BIT_ULL(GPU_PAGE_SHIFT)
+
+int efa_nv_peermem_p2p_get_pages(u64 p2p_token, u32 va_space,
+				 u64 virtual_address, u64 length,
+				 struct nvidia_p2p_page_table **page_table,
+				 void (*free_callback)(void *data), void *data);
+
+int efa_nv_peermem_p2p_dma_map_pages(struct pci_dev *peer,
+				     struct nvidia_p2p_page_table *page_table,
+				     struct nvidia_p2p_dma_mapping **dma_mapping);
+
+int efa_nv_peermem_p2p_dma_unmap_pages(struct pci_dev *peer,
+				       struct nvidia_p2p_page_table *page_table,
+				       struct nvidia_p2p_dma_mapping *dma_mapping);
+
+int efa_nv_peermem_p2p_put_pages(u64 p2p_token,
+				 u32 va_space, u64 virtual_address,
+				 struct nvidia_p2p_page_table *page_table);
 
 struct efa_nvmem_ops {
 	int (*get_pages)(u64 p2p_token, u32 va_space, u64 virtual_address,
@@ -23,6 +40,7 @@ struct efa_nvmem_ops {
 	int (*dma_unmap_pages)(struct pci_dev *peer,
 			       struct nvidia_p2p_page_table *page_table,
 			       struct nvidia_p2p_dma_mapping *dma_mapping);
+	bool using_peermem_fp;
 };
 
 struct efa_nvmem {
@@ -51,22 +69,53 @@ static unsigned int nvmem_pgsz(struct efa_dev *dev, struct efa_p2pmem *p2pmem)
 	}
 }
 
-static int nvmem_get_fp(struct efa_nvmem *nvmem)
+static int nvmem_get_peermem_fp(struct efa_nvmem_ops *ops)
 {
-	nvmem->ops.get_pages = symbol_get(nvidia_p2p_get_pages);
-	if (!nvmem->ops.get_pages)
+	ops->get_pages = symbol_get(efa_nv_peermem_p2p_get_pages);
+	if (!ops->get_pages)
 		goto err_out;
 
-	nvmem->ops.put_pages = symbol_get(nvidia_p2p_put_pages);
-	if (!nvmem->ops.put_pages)
+	ops->put_pages = symbol_get(efa_nv_peermem_p2p_put_pages);
+	if (!ops->put_pages)
 		goto err_put_get_pages;
 
-	nvmem->ops.dma_map_pages = symbol_get(nvidia_p2p_dma_map_pages);
-	if (!nvmem->ops.dma_map_pages)
+	ops->dma_map_pages = symbol_get(efa_nv_peermem_p2p_dma_map_pages);
+	if (!ops->dma_map_pages)
 		goto err_put_put_pages;
 
-	nvmem->ops.dma_unmap_pages = symbol_get(nvidia_p2p_dma_unmap_pages);
-	if (!nvmem->ops.dma_unmap_pages)
+	ops->dma_unmap_pages = symbol_get(efa_nv_peermem_p2p_dma_unmap_pages);
+	if (!ops->dma_unmap_pages)
+		goto err_put_dma_map_pages;
+
+	ops->using_peermem_fp = true;
+	return 0;
+
+err_put_dma_map_pages:
+	symbol_put(efa_nv_peermem_p2p_dma_map_pages);
+err_put_put_pages:
+	symbol_put(efa_nv_peermem_p2p_put_pages);
+err_put_get_pages:
+	symbol_put(efa_nv_peermem_p2p_get_pages);
+err_out:
+	return -EINVAL;
+}
+
+static int nvmem_get_nvidia_fp(struct efa_nvmem_ops *ops)
+{
+	ops->get_pages = symbol_get(nvidia_p2p_get_pages);
+	if (!ops->get_pages)
+		goto err_out;
+
+	ops->put_pages = symbol_get(nvidia_p2p_put_pages);
+	if (!ops->put_pages)
+		goto err_put_get_pages;
+
+	ops->dma_map_pages = symbol_get(nvidia_p2p_dma_map_pages);
+	if (!ops->dma_map_pages)
+		goto err_put_put_pages;
+
+	ops->dma_unmap_pages = symbol_get(nvidia_p2p_dma_unmap_pages);
+	if (!ops->dma_unmap_pages)
 		goto err_put_dma_map_pages;
 
 	return 0;
@@ -81,8 +130,24 @@ err_out:
 	return -EINVAL;
 }
 
-static void nvmem_put_fp(void)
+static int nvmem_get_fp(struct efa_nvmem_ops *ops)
 {
+	if (!nvmem_get_peermem_fp(ops))
+		return 0;
+
+	return nvmem_get_nvidia_fp(ops);
+}
+
+static void nvmem_put_fp(struct efa_nvmem_ops *ops)
+{
+	if (ops->using_peermem_fp) {
+		symbol_put(efa_nv_peermem_p2p_dma_unmap_pages);
+		symbol_put(efa_nv_peermem_p2p_dma_map_pages);
+		symbol_put(efa_nv_peermem_p2p_put_pages);
+		symbol_put(efa_nv_peermem_p2p_get_pages);
+		return;
+	}
+
 	symbol_put(nvidia_p2p_dma_unmap_pages);
 	symbol_put(nvidia_p2p_dma_map_pages);
 	symbol_put(nvidia_p2p_put_pages);
@@ -160,7 +225,7 @@ static struct efa_p2pmem *nvmem_get(struct efa_dev *dev, u64 ticket, u64 start,
 	pinsz = virt_end - virt_start;
 	nvmem->virt_start = virt_start;
 
-	err = nvmem_get_fp(nvmem);
+	err = nvmem_get_fp(&nvmem->ops);
 	if (err)
 		/* Nvidia module is not loaded */
 		goto err_free;
@@ -179,7 +244,7 @@ static struct efa_p2pmem *nvmem_get(struct efa_dev *dev, u64 ticket, u64 start,
 err_put:
 	nvmem->ops.put_pages(0, 0, virt_start, nvmem->pgtbl);
 err_put_fp:
-	nvmem_put_fp();
+	nvmem_put_fp(&nvmem->ops);
 err_free:
 	kfree(nvmem);
 	return NULL;
@@ -214,17 +279,17 @@ static void nvmem_release(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
 		nvmem->ops.put_pages(0, 0, nvmem->virt_start, nvmem->pgtbl);
 	}
 
-	nvmem_put_fp();
+	nvmem_put_fp(&nvmem->ops);
 	kfree(nvmem);
 }
 
 bool nvmem_is_supported(void)
 {
-	struct efa_nvmem dummynv = {};
+	struct efa_nvmem_ops ops = {};
 
-	if (nvmem_get_fp(&dummynv))
+	if (nvmem_get_fp(&ops))
 		return false;
-	nvmem_put_fp();
+	nvmem_put_fp(&ops);
 
 	return true;
 }
@@ -247,5 +312,17 @@ static const struct nvmem_provider prov = {
 
 const struct efa_p2p_provider *nvmem_get_provider(void)
 {
+	struct efa_nvmem_ops ops = {};
+	int err;
+
+	err = request_module("nvidia");
+	if (!err) {
+		err = nvmem_get_nvidia_fp(&ops);
+		if (err)
+			request_module("efa_nv_peermem");
+		else
+			nvmem_put_fp(&ops);
+	}
+
 	return &prov.p2p;
 }
