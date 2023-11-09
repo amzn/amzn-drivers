@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_sysfs.h"
@@ -31,16 +31,13 @@ static int sysfs_emit(char *buf, const char *fmt, ...)
 #ifdef HAVE_EFA_P2P
 #include "efa_p2p.h"
 
-static ssize_t gdr_show(struct device *dev, struct device_attribute *attr,
+static ssize_t p2p_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	if (nvmem_is_supported())
-		return sysfs_emit(buf, "1\n");
-
-	return sysfs_emit(buf, "0\n");
+	return sysfs_emit(buf, "%s\n", efa_p2p_provider_string());
 }
 
-static DEVICE_ATTR_RO(gdr);
+static DEVICE_ATTR_RO(p2p);
 #endif
 
 int efa_sysfs_init(struct efa_dev *dev)
@@ -48,8 +45,8 @@ int efa_sysfs_init(struct efa_dev *dev)
 #ifdef HAVE_EFA_P2P
 	struct device *device = &dev->pdev->dev;
 
-	if (device_create_file(device, &dev_attr_gdr))
-		dev_err(device, "Failed to create GDR sysfs file\n");
+	if (device_create_file(device, &dev_attr_p2p))
+		dev_err(device, "Failed to create P2P sysfs file\n");
 #endif
 	return 0;
 }
@@ -57,6 +54,6 @@ int efa_sysfs_init(struct efa_dev *dev)
 void efa_sysfs_destroy(struct efa_dev *dev)
 {
 #ifdef HAVE_EFA_P2P
-	device_remove_file(&dev->pdev->dev, &dev_attr_gdr);
+	device_remove_file(&dev->pdev->dev, &dev_attr_p2p);
 #endif
 }

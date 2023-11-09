@@ -283,15 +283,18 @@ static void nvmem_release(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
 	kfree(nvmem);
 }
 
-bool nvmem_is_supported(void)
+static char *nvmem_provider_string(void)
 {
 	struct efa_nvmem_ops ops = {};
+	char *prov_string;
 
 	if (nvmem_get_fp(&ops))
-		return false;
+		return "";
+
+	prov_string = ops.using_peermem_fp ? "NVIDIA peermem" : "NVIDIA";
 	nvmem_put_fp(&ops);
 
-	return true;
+	return prov_string;
 }
 
 struct nvmem_provider {
@@ -301,6 +304,7 @@ struct nvmem_provider {
 static const struct nvmem_provider prov = {
 	.p2p = {
 		.ops = {
+			.get_provider_string = nvmem_provider_string,
 			.try_get = nvmem_get,
 			.to_page_list = nvmem_to_page_list,
 			.release = nvmem_release,
