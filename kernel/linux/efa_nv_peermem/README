@@ -1,0 +1,52 @@
+Linux kernel module for EFA support of Nvidia peermem
+=====================================================
+
+Overview
+========
+EFA NV Peermem kernel module is an extension module for the Elastic Fabric
+Adapter (EFA) that is serving as a link between Nvidia opensource drivers
+and the EFA driver for the needs of Cuda memory GPU direct support.
+
+For more information regarding GPUDirect RDMA, visit:
+https://docs.nvidia.com/cuda/gpudirect-rdma/index.html
+
+EFA NV Peermem supports Nvidia opensource drivers only and it is unable to
+load when such drivers are not avilable in the system.
+
+Driver compilation
+==================
+For list of supported kernels and distributions, please refer to the release
+notes documentation in the same directory.
+
+sudo yum update
+sudo yum install gcc
+sudo yum install kernel-devel-$(uname -r)
+
+Compilation:
+Run:
+mkdir build
+cd build
+cmake ..
+make
+
+efa_nv_peermem.ko is created inside the src/ folder.
+
+To build EFA NV Peermem RPMs run `make` in the rpm/ folder. Your environment
+will need to be setup to build RPMs. The EFA NV Peermem RPM will install the
+efa_nv_peermem kernel driver source, and setup DKMS in order to build the driver
+when the kernel is updated.
+
+Driver installation
+===================
+Loading driver
+--------------
+insmod efa_nv_peermem.ko
+
+EFA NV Peermem doesn't need to be automatically started upon the OS boot,
+and it will be requested by EFA driver whenever it is needed for P2P
+memory registration operations to work.
+
+EFA NV Peermem Source Code Directory Structure (under src/)
+===========================================================
+efa_nv_peermem_main.c - Main Linux kernel driver.
+nv-p2p.h              - NV P2P API

@@ -1,0 +1,12 @@
+Source: efa-nv-peermem
+Maintainer: ec2-efa-maintainers <ec2-efa-maintainers@amazon.com>
+Build-Depends: debhelper
+Standards-Version: 4.3.0
+Homepage: https://github.com/amzn/amzn-drivers
+
+Package: efa-nv-peermem
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, dkms, cmake
+Description: Linux kernel driver for EFA Nvidia peermem
+ Elastic Fabric Adapter (EFA) peermem provides an interface for nv-p2p
+ capabilities for the EFA driver use.

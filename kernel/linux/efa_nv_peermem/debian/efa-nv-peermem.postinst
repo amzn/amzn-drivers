@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -e
+
+NAME=efa-nv-peermem
+DRIVER_VERSION=1.1.0
+INSTALL_PATH=/usr/src/${NAME}-${DRIVER_VERSION}
+
+cd $INSTALL_PATH
+dkms add -m ${NAME} -v ${DRIVER_VERSION}
+for kernel in $(/bin/ls /lib/modules); do
+	if [ -e /lib/modules/$kernel/build/include ]; then
+		dkms build -m ${NAME} -v ${DRIVER_VERSION} -k $kernel
+		dkms install --force -m ${NAME} -v ${DRIVER_VERSION} -k $kernel
+	fi
+done
+
+#DEBHELPER#

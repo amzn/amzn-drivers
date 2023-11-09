@@ -1,0 +1,2 @@
+obj-m := efa_nv_peermem.o
+efa_nv_peermem-y := $(patsubst %.c,%.o, $(filter %.c, @efa_nv_peermem_sources_string@))

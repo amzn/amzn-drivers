@@ -1,0 +1,4 @@
+efa-nv-peermem (1.1.0-1.amzn1) unstable; urgency=medium
+  * Initial release of efa_nv_peermem kernel driver Debian package
+
+ -- Michael Margolin <mrgolin@amazon.com>  Wed, 25 Oct 2023 16:42:57 +0000
