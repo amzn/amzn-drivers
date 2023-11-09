@@ -98,6 +98,11 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu Nov 09 2023 Michael Margolin <mrgolin@amazon.com> - 2.6.0
+- Fix wrong resources destruction order
+- Enable Nvidia GDR using P2P on up-to-date kernels
+- Expose accelerator memory P2P provider in sysfs
+
 * Tue Jul 11 2023 Michael Margolin <mrgolin@amazon.com> - 2.5.0
 - Add RDMA write statistics
 

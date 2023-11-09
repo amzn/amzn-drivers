@@ -3,6 +3,11 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.6.0 release notes
+* Fix wrong resources destruction order
+* Enable Nvidia GDR using P2P on up-to-date kernels
+* Expose accelerator memory P2P provider in sysfs
+
 ## r2.5.0 release notes
 * Add RDMA write statistics
 

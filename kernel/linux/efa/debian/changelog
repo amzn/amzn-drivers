@@ -1,3 +1,10 @@
+efa (2.6.0-1.amzn1) unstable; urgency=medium
+  * Fix wrong resources destruction order
+  * Enable Nvidia GDR using P2P on up-to-date kernels
+  * Expose accelerator memory P2P provider in sysfs
+
+ -- Michael Margolin <mrgolin@amazon.com>  Thu, 09 Nov 2023 14:41:36 +0000
+
 efa (2.5.0-1.amzn1) unstable; urgency=medium
   * Add RDMA write statistics
 
