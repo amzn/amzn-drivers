@@ -98,6 +98,7 @@ struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start
 			       u64 length)
 {
 	const struct efa_p2p_provider *prov;
+	static bool message_printed;
 	struct efa_p2pmem *p2pmem;
 	u64 ticket;
 	int i;
@@ -117,6 +118,11 @@ struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start
 	p2pmem->ticket = ticket;
 	p2pmem->prov = prov;
 	mr->p2p_ticket = p2pmem->ticket;
+
+	if (!message_printed) {
+		pr_info("efa: Acquired peer memory using P2P");
+		message_printed = true;
+	}
 
 	mutex_lock(&p2p_list_lock);
 	list_add(&p2pmem->list, &p2p_list);
