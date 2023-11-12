@@ -1561,7 +1561,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 #ifdef ENA_XDP_SUPPORT
 	if (xdp_flags & ENA_XDP_REDIRECT)
-		xdp_do_flush_map();
+		xdp_do_flush();
 	if (xdp_flags & ENA_XDP_TX)
 		ena_ring_tx_doorbell(rx_ring->xdp_ring);
 #endif
