@@ -3,8 +3,10 @@
 - [1. Overview](#1-overview)
 - [2. ENA PMD versions and DPDK releases](#2-ena-pmd-versions-and-dpdk-releases)
 - [3. ENA PMD backports](#3-ena-pmd-backports)
-  - [3.1. Manual patching](#31-manual-patching)
-  - [3.2. Patching using script](#32-patching-using-script)
+  - [3.1. ENAv2.8.0 upgrade](#31-ENAv2.8.0-upgrade)
+  - [3.2. ENAv2.4.0 upgrade](#32-ENAv2.4.0-upgrade)
+  - [3.3. Manual patching](#33-anual-patching)
+  - [3.4. Patching using script](#34-patching-using-script)
 - [4. Quick start guide](#4-quick-start-guide)
   - [4.1. Install prerequisites](#41-install-prerequisites)
   - [4.2. `igb_uio` setup](#42-igb_uio-setup)
@@ -103,14 +105,19 @@ with the ENA PMD releases.
 
 ## 3. ENA PMD backports
 
-ENA PMD v2.4.0 from DPDK v21.08 was backported to the all LTS DPDK versions,
-since it was released.
+### 3.1. ENAv2.8.0 upgrade
+The entire ENA driver v2.8.0 from DPDK v23.11 was backported to the supported LTS DPDK versions:
+- v20.11.9 (v20.11 END OF LIFE	December 2023)
+- v21.11.5 (v21.11 END OF LIFE	December 2023)
+- v22.11.3 (v22.11 END OF LIFE	December 2024)
 
-- v16.11.11
-- v17.11.10
-- v18.11.11
-- v19.11.10
-- v20.11.3
+### 3.2. ENAv2.4.0 upgrade
+ENA PMD v2.4.0 from DPDK v21.08 was backported to the below LTS DPDK versions:
+- v16.11.11 (LTS reached END OF LIFE)
+- v17.11.10 (LTS reached END OF LIFE)
+- v18.11.11 (LTS reached END OF LIFE)
+- v19.11.10 (LTS reached END OF LIFE)
+- v20.11.3 (v20.11 END OF LIFE December 2023)
 
 ENA PMD backports are skipping DPDK features which aren't supported by the given
 DPDK version - for example v16.11.11 backport won't contain the reset device
@@ -140,7 +147,7 @@ ENA PMD patches are applied.
 The patches can be either applied manually, or by using the helper script. Full
 instruction can be found below.
 
-### 3.1. Manual patching
+### 3.3. Manual patching
 
 1. Clone the stable DPDK repository from the
    [stable DPDK source tree](https://git.dpdk.org/dpdk-stable/):
@@ -159,18 +166,19 @@ instruction can be found below.
 
    ```sh
    cd dpdk-stable
-   # <DPDK_VERSION> is one of the versions support by ENA, like v17.11.10
-   git checkout <DPDK_VERSION>
+   # <dpdk-stable version> is one of the versions support by ENA, like v20.11.9
+   git checkout <dpdk-stable version>
    ```
 
 4. Apply all required patches:
 
    ```sh
-   git am ../amzn-drivers/userspace/dpdk/<DPDK_VERSION>/*.patch
+   git am ../amzn-drivers/userspace/dpdk/backports/<driver version to backport>/<dpdk-stable version>/*.patch
    ```
 
-### 3.2. Patching using script
+### 3.4. Patching using script
 
+**Note that this option is available only for ENAv2.4.0 backports.**
 Patching using the script can be used instead of applying the patches manually.
 The script can detect DPDK version automatically and choose the right backports
 which should be applied.
