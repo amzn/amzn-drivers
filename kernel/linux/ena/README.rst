@@ -614,7 +614,7 @@ Verify if the PTP module is present:
 
 .. code-block:: shell
 
-  $ grep -w '^CONFIG_PTP_1588_CLOCK=[ym]' /boot/config-`uname -r`
+  grep -w '^CONFIG_PTP_1588_CLOCK=[ym]' /boot/config-`uname -r`
 
 - If no output is provided, the ENA driver cannot be loaded with PHC support.
 
@@ -624,7 +624,7 @@ Verify if the PTP module is present:
 
 .. code-block:: shell
 
-  $ sudo modprobe ptp
+  sudo modprobe ptp
 
 **PHC compilation**
 
@@ -633,7 +633,7 @@ the driver:
 
 .. code-block:: shell
 
-  $ ENA_PHC_INCLUDE=1 make
+  ENA_PHC_INCLUDE=1 make
 
 **PHC activation**
 
@@ -644,13 +644,13 @@ can be loaded in the following way:
 
 .. code-block:: shell
 
-  $ sudo insmod ena.ko phc_enable=1
+  sudo insmod ena.ko phc_enable=1
 
 All available PTP clock sources can be tracked here:
 
 .. code-block:: shell
 
-  $ ls /sys/class/ptp
+  ls /sys/class/ptp
 
 PHC support and capabilities can be verified using ethtool:
 
@@ -664,7 +664,7 @@ To retrieve PHC timestamp, use `ptp-userspace-api`_, usage example using `testpt
 
 .. code-block:: shell
 
-  $ ~/linux/tools/testing/selftests/ptp/testptp -d /dev/ptp0 -k 1
+  ~/linux/tools/testing/selftests/ptp/testptp -d /dev/ptp0 -k 1
 
 **Notice**: PHC get time requests should be within reasonable bounds, avoid excessive utilization to ensure optimal performance and efficiency.
 
