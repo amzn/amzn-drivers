@@ -2,7 +2,7 @@
 # Copyright 2021-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 function(config_define def)
-  file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/config.h "#define ${def} 1")
+  file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/config.h "#define ${def} 1\n")
 endfunction()
 
 function(set_conf_tmp_dir prologue body)
