@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
+#include "kcompat.h"
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
 
 #include <rdma/ib_user_verbs.h>
+#ifdef HAVE_IB_DEVICE_DRIVER_DEF
+#include <rdma/uverbs_ioctl.h>
+#endif
 
 #include "efa.h"
 #include "efa_sysfs.h"
@@ -59,6 +63,10 @@ MODULE_DEVICE_TABLE(pci, efa_pci_tbl);
 #define EFA_AENQ_ENABLED_GROUPS \
 	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
 	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
+
+#ifdef HAVE_IB_DEVICE_DRIVER_DEF
+extern const struct uapi_definition efa_uapi_defs[];
+#endif
 
 /* This handler will called for unknown event group or unimplemented handlers */
 static void unimplemented_aenq_handler(void *data,
@@ -588,6 +596,10 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.query_qp = efa_query_qp;
 	dev->ibdev.reg_user_mr = efa_reg_mr;
 	dev->ibdev.req_notify_cq = efa_req_notify_cq;
+#endif
+
+#ifdef HAVE_IB_DEVICE_DRIVER_DEF
+	dev->ibdev.driver_def = efa_uapi_defs;
 #endif
 
 #ifdef HAVE_IB_REGISTER_DEVICE_DMA_DEVICE_PARAM

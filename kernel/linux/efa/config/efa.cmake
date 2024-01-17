@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2021-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2021-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 function(config_define def)
   file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/config.h "#define ${def} 1\n")
@@ -280,6 +280,14 @@ struct ib_device_ops ops = {
 };
   "
   HAVE_CQ_CORE_ALLOCATION "")
+
+try_compile(""
+  "
+struct ib_device dev = {
+  .driver_def = 0,
+};
+  "
+  HAVE_IB_DEVICE_DRIVER_DEF "")
 
 try_compile("void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) {}"
   "int a = IB_PORT_PHYS_STATE_LINK_UP;"

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_H_
@@ -94,9 +94,19 @@ struct efa_pd {
 	u16 pdn;
 };
 
+struct efa_mr_interconnect_info {
+	u16 recv_ic_id;
+	u16 rdma_read_ic_id;
+	u16 rdma_recv_ic_id;
+	u8 recv_ic_id_valid : 1;
+	u8 rdma_read_ic_id_valid : 1;
+	u8 rdma_recv_ic_id_valid : 1;
+};
+
 struct efa_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
+	struct efa_mr_interconnect_info ic_info;
 #ifdef HAVE_EFA_P2P
 	struct efa_p2pmem *p2pmem;
 	u64 p2p_ticket;
