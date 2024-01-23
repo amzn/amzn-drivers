@@ -9,12 +9,12 @@ nvidia_path=$(find $dkms_source_tree -maxdepth 1 -type d -name '*nvidia-*' | sor
 if [ $nvidia_path ]; then
 	echo "== Building NVIDIA Module.symvers"
 	pushd $nvidia_path
-	make KERNEL_UNAME="$kernelver" clean || failed_nvidia=true
-	make KERNEL_UNAME="$kernelver" -j$(nproc) || failed_nvidia=true
+	make KERNEL_UNAME="$kernelver" clean &> nvidia.log || failed_nvidia=true
+	make KERNEL_UNAME="$kernelver" -j$(nproc) &>> nvidia.log || failed_nvidia=true
 	popd
 
 	if [ $failed_nvidia ]; then
-		echo "== Failed building NVIDIA Module.symvers, proceeding without"
+		echo "== Couldn't build NVIDIA Module.symvers, proceeding without. For additional info see $nvidia_path/nvidia.log"
 	else
 		echo "== Using NVIDIA driver path $nvidia_path"
 		extra_flags="-DNVIDIA_DIR=$nvidia_path"
