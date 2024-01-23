@@ -9,6 +9,7 @@ The following drivers are included:
 * [FreeBSD kernel driver](./kernel/fbsd/ena) for Elastic Network Adapter (ENA)
 * [DPDK userspace driver](./userspace/dpdk) for Elastic Network Adapter (ENA)
 * [Linux kernel driver](./kernel/linux/efa) for Elastic Fabric Adapter (EFA)
+* [Peer memory Linux kernel driver](./kernel/linux/efa_nv_peermem) for Elastic Fabric Adapter (EFA)
 
 For Linux driver SRPM build instruction available [here](./kernel/linux/rpm/README-rpm.txt)
 
