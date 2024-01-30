@@ -1109,7 +1109,48 @@ static int ena_indirection_table_get(struct ena_adapter *adapter, u32 *indir)
 	return rc;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+static int ena_get_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *param) {
+    struct ena_adapter *adapter = netdev_priv(netdev);
+	enum ena_admin_hash_functions ena_func;
+	int rc;
+
+	rc = ena_indirection_table_get(adapter, param->indir);
+	if (unlikely(rc))
+		return rc;
+
+	/* We call this function in order to check if the device
+	 * supports getting/setting the hash function.
+	 */
+	rc = ena_com_get_hash_function(adapter->ena_dev, &ena_func);
+	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			rc = 0;
+
+		return rc;
+	}
+
+	rc = ena_com_get_hash_key(adapter->ena_dev, param->key);
+	if (rc)
+		return rc;
+
+	switch (ena_func) {
+	case ENA_ADMIN_TOEPLITZ:
+		param->hfunc = ETH_RSS_HASH_TOP;
+		break;
+	case ENA_ADMIN_CRC32:
+		param->hfunc = ETH_RSS_HASH_CRC32;
+		break;
+	default:
+		netif_err(adapter, drv, netdev,
+			  "Command parameter is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+
+}
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
 static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 			u8 *hfunc)
 {
@@ -1192,7 +1233,9 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir)
 }
 #endif /* >= 3.8.0 */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+static int ena_set_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *param, struct netlink_ext_ack *extack)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
 static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 			const u8 *key, const u8 hfunc)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
@@ -1201,6 +1244,12 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+    const u32 *indir = param->indir;
+    const u8 hfunc = param->hfunc;
+    const u8 *key = param->key;
+
+#endif
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	enum ena_admin_hash_functions func = 0;
