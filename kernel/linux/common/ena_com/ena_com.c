@@ -808,6 +808,13 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 			ret = -ETIME;
 			goto err;
 		}
+	} else if (unlikely(comp_ctx->status == ENA_CMD_ABORTED)) {
+		netdev_err(admin_queue->ena_dev->net_device, "Command was aborted\n");
+		spin_lock_irqsave(&admin_queue->q_lock, flags);
+		admin_queue->stats.aborted_cmd++;
+		spin_unlock_irqrestore(&admin_queue->q_lock, flags);
+		ret = -ENODEV;
+		goto err;
 	}
 
 	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
