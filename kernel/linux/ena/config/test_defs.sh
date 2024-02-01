@@ -30,3 +30,15 @@ try_compile_async "#include <linux/filter.h>"            \
                   "ENA_HAVE_XDP_DO_FLUSH"                \
                   ""                                     \
                   "5.6.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/cpumask.h>"           \
+                  "cpumask_local_spread(0, 0);"          \
+                  "ENA_HAVE_CPUMASK_LOCAL_SPREAD"        \
+                  ""                                     \
+                  "4.1.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/interrupt.h>"         \
+                  "irq_update_affinity_hint(0, NULL);"   \
+                  "ENA_HAVE_UPDATE_AFFINITY_HINT"        \
+                  ""                                     \
+                  "5.17.0 <= LINUX_VERSION_CODE"

@@ -1135,4 +1135,42 @@ static inline void ena_dma_unmap_page_attrs(struct device *dev,
 #define xdp_do_flush xdp_do_flush_map
 #endif /* ENA_HAVE_XDP_DO_FLUSH */
 
+#ifndef ENA_HAVE_CPUMASK_LOCAL_SPREAD
+static inline unsigned int cpumask_local_spread(unsigned int i, int node)
+{
+	unsigned int cpu;
+
+	/* Wrap: we always want a cpu. */
+	i %= num_online_cpus();
+
+	if (node == NUMA_NO_NODE) {
+		for_each_cpu(cpu, cpu_online_mask)
+			if (i-- == 0)
+				return cpu;
+	} else {
+		/* NUMA first. */
+		for_each_cpu_and(cpu, cpumask_of_node(node), cpu_online_mask)
+			if (i-- == 0)
+				return cpu;
+
+		for_each_cpu(cpu, cpu_online_mask) {
+			/* Skip NUMA nodes, done above. */
+			if (cpumask_test_cpu(cpu, cpumask_of_node(node)))
+				continue;
+
+			if (i-- == 0)
+				return cpu;
+		}
+	}
+	return 0;
+}
+#endif /* ENA_HAVE_CPUMASK_LOCAL_SPREAD */
+
+#ifndef ENA_HAVE_UPDATE_AFFINITY_HINT
+static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumask *m)
+{
+	return 0;
+}
+#endif /* ENA_HAVE_UPDATE_AFFINITY_HINT */
+
 #endif /* _KCOMPAT_H_ */
