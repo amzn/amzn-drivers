@@ -2331,8 +2331,12 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 
 	/* Go over all the events */
 	while ((READ_ONCE(aenq_common->flags) & ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) == phase) {
-		/* Make sure the phase bit (ownership) is as expected before
-		 * reading the rest of the descriptor.
+		/* When the phase bit of the AENQ descriptor aligns with the driver's phase bit,
+		 * it signifies the readiness of the entire AENQ descriptor.
+		 * The driver should proceed to read the descriptor's data only after confirming
+		 * and synchronizing the phase bit.
+		 * This memory fence guarantees the correct sequence of accesses to the
+		 * descriptor's memory.
 		 */
 		dma_rmb();
 
