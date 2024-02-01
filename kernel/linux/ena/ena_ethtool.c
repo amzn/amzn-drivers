@@ -1310,12 +1310,15 @@ static int ena_set_channels(struct net_device *netdev,
 
 	if (count > adapter->max_num_io_queues)
 		return -EINVAL;
+
+#ifdef ENA_AF_XDP_SUPPORT
 	if (count != adapter->num_io_queues && ena_is_zc_q_exist(adapter)) {
 		netdev_err(adapter->netdev,
 			   "Changing channel count not supported with xsk pool loaded\n");
 		return -EOPNOTSUPP;
 	}
 
+#endif /* ENA_AF_XDP_SUPPORT */
 	return ena_update_queue_count(adapter, count);
 }
 #endif /* ETHTOOL_SCHANNELS */

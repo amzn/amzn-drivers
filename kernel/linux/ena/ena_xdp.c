@@ -11,7 +11,11 @@ static int validate_xdp_req_id(struct ena_ring *tx_ring, u16 req_id)
 	struct ena_tx_buffer *tx_info;
 
 	tx_info = &tx_ring->tx_buffer_info[req_id];
+#ifdef ENA_AF_XDP_SUPPORT
 	if (likely(tx_info->total_tx_size))
+#else
+	if (likely(tx_info->xdpf))
+#endif
 		return 0;
 
 	return handle_invalid_req_id(tx_ring, req_id, tx_info, true);
@@ -197,11 +201,15 @@ int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 	int rc;
 
 #ifdef AF_XDP_BUSY_POLL_SUPPORTED
+#ifdef ENA_AF_XDP_SUPPORT
 	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid,
 			      rx_ring->napi->napi_id);
 #else
+	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid, 0);
+#endif /* ENA_AF_XDP_SUPPORT */
+#else
 	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid);
-#endif
+#endif /* AF_XDP_BUSY_POLL_SUPPORTED */
 
 	netif_dbg(rx_ring->adapter, ifup, rx_ring->netdev,
 		  "Registering RX info for queue %d with napi id %d\n",
@@ -213,13 +221,16 @@ int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 		goto err;
 	}
 
+#ifdef ENA_AF_XDP_SUPPORT
 	if (ENA_IS_XSK_RING(rx_ring)) {
 		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_XSK_BUFF_POOL, NULL);
 		xsk_pool_set_rxq_info(rx_ring->xsk_pool, &rx_ring->xdp_rxq);
 	} else {
-		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_PAGE_SHARED,
-						NULL);
+		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_PAGE_SHARED, NULL);
 	}
+#else
+	rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_PAGE_SHARED, NULL);
+#endif /* ENA_AF_XDP_SUPPORT */
 
 	if (rc) {
 		netif_err(rx_ring->adapter, ifup, rx_ring->netdev,
@@ -545,13 +556,13 @@ int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags)
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */
-static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
+static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 {
-
+#ifdef ENA_AF_XDP_SUPPORT
 	bool is_zc_q = ENA_IS_XSK_RING(tx_ring);
+#endif /* ENA_AF_XDP_SUPPORT */
 	u32 total_done = 0;
 	u16 next_to_clean;
-	bool needs_wakeup;
 	int tx_pkts = 0;
 	u16 req_id;
 	int rc;
@@ -582,19 +593,25 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		tx_info = &tx_ring->tx_buffer_info[req_id];
 
 		tx_info->tx_sent_jiffies = 0;
+#ifdef ENA_AF_XDP_SUPPORT
 
-		if (!is_zc_q) {
-			xdpf = tx_info->xdpf;
-			tx_info->xdpf = NULL;
-			ena_unmap_tx_buff(tx_ring, tx_info);
-			xdp_return_frame(xdpf);
-		}
+		if (is_zc_q)
+			goto log_xdp_packet;
+#endif /* ENA_AF_XDP_SUPPORT */
 
+		xdpf = tx_info->xdpf;
+		tx_info->xdpf = NULL;
+		ena_unmap_tx_buff(tx_ring, tx_info);
+		xdp_return_frame(xdpf);
+
+#ifdef ENA_AF_XDP_SUPPORT
+log_xdp_packet:
+#endif /* ENA_AF_XDP_SUPPORT */
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
-
+#ifdef ENA_AF_XDP_SUPPORT
 		tx_info->total_tx_size = 0;
-
+#endif /* ENA_AF_XDP_SUPPORT */
 		tx_ring->free_ids[next_to_clean] = req_id;
 		next_to_clean = ENA_TX_RING_IDX_NEXT(next_to_clean,
 						     tx_ring->ring_size);
@@ -610,7 +627,6 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		  "tx_poll: q %d done. total pkts: %d\n",
 		  tx_ring->qid, tx_pkts);
 
-	needs_wakeup = tx_pkts < budget;
 #ifdef ENA_AF_XDP_SUPPORT
 	if (is_zc_q) {
 		struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
@@ -619,15 +635,16 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 			xsk_tx_completed(xsk_pool, tx_pkts);
 
 		if (xsk_uses_need_wakeup(xsk_pool)) {
+			bool needs_wakeup = tx_pkts < budget;
 			if (needs_wakeup)
 				xsk_set_tx_need_wakeup(xsk_pool);
 			else
 				xsk_clear_tx_need_wakeup(xsk_pool);
 		}
 	}
-#endif /* ENA_AF_XDP_SUPPORT */
 
-	return needs_wakeup;
+#endif /* ENA_AF_XDP_SUPPORT */
+	return tx_pkts;
 }
 
 #ifdef ENA_AF_XDP_SUPPORT
@@ -909,12 +926,14 @@ skip_xdp_prog:
 int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 {
 	struct ena_napi *ena_napi = container_of(napi, struct ena_napi, napi);
-	struct ena_ring *rx_ring, *tx_ring;
+	struct ena_ring *tx_ring;
+#ifdef ENA_AF_XDP_SUPPORT
+	struct ena_ring *rx_ring;
 	bool needs_wakeup = true;
-	u32 rx_work_done = 0;
+#endif /* ENA_AF_XDP_SUPPORT */
+	u32 work_done;
 	int ret;
 
-	rx_ring = ena_napi->rx_ring;
 	tx_ring = ena_napi->tx_ring;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags) ||
@@ -923,16 +942,21 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 		return 0;
 	}
 
-	needs_wakeup &= ena_clean_xdp_irq(tx_ring, budget);
+	work_done = ena_clean_xdp_irq(tx_ring, budget);
 
 #ifdef ENA_AF_XDP_SUPPORT
+	/* Take XDP work into account */
+	needs_wakeup &= work_done < budget;
+
 	if (!ENA_IS_XSK_RING(tx_ring))
 		goto polling_done;
 
+	rx_ring = ena_napi->rx_ring;
+
 	needs_wakeup &= ena_xdp_xmit_irq_zc(tx_ring, napi, budget);
 
-	rx_work_done = ena_xdp_clean_rx_irq_zc(rx_ring, napi, budget);
-	needs_wakeup &= rx_work_done < budget;
+	work_done = ena_xdp_clean_rx_irq_zc(rx_ring, napi, budget);
+	needs_wakeup &= work_done < budget;
 
 polling_done:
 #endif /* ENA_AF_XDP_SUPPORT */
@@ -942,25 +966,32 @@ polling_done:
 	if (unlikely(!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags))) {
 		napi_complete_done(napi, 0);
 		ret = 0;
+#ifdef ENA_AF_XDP_SUPPORT
 	} else if (needs_wakeup) {
+#else
+	} else if (budget > work_done) {
+#endif /* ENA_AF_XDP_SUPPORT */
 		ena_increase_stat(&tx_ring->tx_stats.napi_comp, 1,
 				  &tx_ring->syncp);
-		if (napi_complete_done(napi, rx_work_done) &&
+#ifdef ENA_AF_XDP_SUPPORT
+		if (napi_complete_done(napi, work_done) &&
 		    READ_ONCE(ena_napi->interrupts_masked)) {
 			smp_rmb(); /* make sure interrupts_masked is read */
 			WRITE_ONCE(ena_napi->interrupts_masked, false);
 			ena_unmask_interrupt(tx_ring, NULL);
-#ifdef ENA_AF_XDP_SUPPORT
 			/* Checking the tx_ring since for XDP channels
 			 * napi->rx_ring is NULL and for AF_XDP both are
 			 * xsk rings
 			 */
 			if (ENA_IS_XSK_RING(tx_ring))
 				ena_update_ring_numa_node(rx_ring);
-#endif
 		}
+#else
+		if (napi_complete_done(napi, work_done))
+			ena_unmask_interrupt(tx_ring, NULL);
+#endif /* ENA_AF_XDP_SUPPORT */
 
-		ret = rx_work_done;
+		ret = work_done;
 	} else {
 		ret = budget;
 	}

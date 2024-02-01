@@ -651,11 +651,8 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 	/* if previous allocated page is not used */
 	if (unlikely(rx_info->page))
 		return 0;
-
-	tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	ena_buf = &rx_info->ena_buf;
-
 #ifdef ENA_AF_XDP_SUPPORT
+
 	if (unlikely(ENA_IS_XSK_RING(rx_ring))) {
 		struct xdp_buff *xdp;
 
@@ -663,6 +660,7 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 		if (!xdp)
 			return -ENOMEM;
 
+		ena_buf = &rx_info->ena_buf;
 		ena_buf->paddr = xsk_buff_xdp_get_dma(xdp);
 		ena_buf->len = xsk_pool_get_rx_frame_size(rx_ring->xsk_pool);
 
@@ -680,9 +678,12 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 		  "Allocate page %p, rx_info %p\n", page, rx_info);
 
+	tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+
 	rx_info->page = page;
 	rx_info->dma_addr = dma;
 	rx_info->page_offset = 0;
+	ena_buf = &rx_info->ena_buf;
 	ena_buf->paddr = dma + headroom;
 	ena_buf->len = ENA_PAGE_SIZE - headroom - tailroom;
 
@@ -735,10 +736,14 @@ int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 
 		rc = ena_alloc_rx_buffer(rx_ring, rx_info);
 		if (unlikely(rc < 0)) {
-			if (!ENA_IS_XSK_RING(rx_ring))
-				netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
-					   "Failed to allocate buffer for rx queue %d\n",
-					   rx_ring->qid);
+#ifdef ENA_AF_XDP_SUPPORT
+			if (ENA_IS_XSK_RING(rx_ring))
+				break;
+
+#endif /* ENA_AF_XDP_SUPPORT */
+			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
+				   "Failed to allocate buffer for rx queue %d\n",
+				   rx_ring->qid);
 			break;
 		}
 		rc = ena_com_add_single_rx_desc(rx_ring->ena_com_io_sq,
@@ -757,12 +762,19 @@ int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 	if (unlikely(i < num)) {
 		ena_increase_stat(&rx_ring->rx_stats.refil_partial, 1,
 				  &rx_ring->syncp);
-		if (!ENA_IS_XSK_RING(rx_ring))
-			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
-				   "Refilled rx qid %d with only %d buffers (from %d)\n",
-				   rx_ring->qid, i, num);
+#ifdef ENA_AF_XDP_SUPPORT
+		if (ENA_IS_XSK_RING(rx_ring))
+			goto ring_doorbell;
+
+#endif /* ENA_AF_XDP_SUPPORT */
+		netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
+			   "Refilled rx qid %d with only %d buffers (from %d)\n",
+			   rx_ring->qid, i, num);
 	}
 
+#ifdef ENA_AF_XDP_SUPPORT
+ring_doorbell:
+#endif /* ENA_AF_XDP_SUPPORT */
 	/* ena_com_write_sq_doorbell issues a wmb() */
 	if (likely(i))
 		ena_com_write_sq_doorbell(rx_ring->ena_com_io_sq);
@@ -778,11 +790,13 @@ static void ena_free_rx_bufs(struct ena_adapter *adapter,
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
 	u32 i;
 
+#ifdef ENA_AF_XDP_SUPPORT
 	if (ENA_IS_XSK_RING(rx_ring)) {
 		ena_xdp_free_rx_bufs_zc(rx_ring);
 		return;
 	}
 
+#endif /* ENA_AF_XDP_SUPPORT */
 	for (i = 0; i < rx_ring->ring_size; i++) {
 		struct ena_rx_buffer *rx_info = &rx_ring->rx_buffer_info[i];
 
@@ -899,10 +913,12 @@ static void ena_free_all_tx_bufs(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
 		tx_ring = &adapter->tx_ring[i];
+#ifdef ENA_AF_XDP_SUPPORT
 		if (ENA_IS_XSK_RING(tx_ring)) {
 			ena_xdp_free_tx_bufs_zc(tx_ring);
 			continue;
 		}
+#endif /* ENA_AF_XDP_SUPPORT */
 		ena_free_tx_bufs(tx_ring);
 	}
 }
@@ -2088,7 +2104,11 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 
 		napi_handler = ena_io_poll;
 #ifdef ENA_XDP_SUPPORT
+#ifdef ENA_AF_XDP_SUPPORT
 		if (ENA_IS_XDP_INDEX(adapter, i) || ENA_IS_XSK_RING(rx_ring))
+#else
+		if (ENA_IS_XDP_INDEX(adapter, i))
+#endif /* ENA_AF_XDP_SUPPORT */
 			napi_handler = ena_xdp_io_poll;
 #endif /* ENA_XDP_SUPPORT */
 
@@ -4216,12 +4236,14 @@ static void check_for_empty_rx_ring(struct ena_adapter *adapter)
 
 	for (i = 0; i < adapter->num_io_queues; i++) {
 		rx_ring = &adapter->rx_ring[i];
+#ifdef ENA_AF_XDP_SUPPORT
 
 		/* If using UMEM, app might not provide RX buffers and the ring
 		 * can be empty
 		 */
 		if (ENA_IS_XSK_RING(rx_ring))
 			continue;
+#endif /* ENA_AF_XDP_SUPPORT */
 
 		refill_required = ena_com_free_q_entries(rx_ring->ena_com_io_sq);
 		if (unlikely(refill_required == (rx_ring->ring_size - 1))) {

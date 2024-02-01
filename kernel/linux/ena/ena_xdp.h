@@ -11,10 +11,9 @@
 #include <linux/bpf_trace.h>
 #ifdef ENA_AF_XDP_SUPPORT
 #include <net/xdp_sock_drv.h>
-#endif /* ENA_AF_XDP_SUPPORT */
 
-#ifdef ENA_AF_XDP_SUPPORT
 #define ENA_IS_XSK_RING(ring) (!!(ring)->xsk_pool)
+
 #endif /* ENA_AF_XDP_SUPPORT */
 
 /* The max MTU size is configured to be the ethernet frame size without
@@ -63,7 +62,7 @@ void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring);
 void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);
 void ena_xdp_free_rx_bufs_zc(struct ena_ring *rx_ring);
 int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags);
-#endif
+#endif /* ENA_AF_XDP_SUPPORT */
 
 enum ena_xdp_errors_t {
 	ENA_XDP_ALLOWED = 0,
@@ -212,23 +211,4 @@ static inline bool ena_xdp_present(struct ena_adapter *adapter)
 	return false;
 }
 #endif /* ENA_XDP_SUPPORT */
-#ifndef ENA_AF_XDP_SUPPORT /* stabs for AF XDP code */
-
-/* Define (or override if it's defined) these enum and function to make sure
- * that the code that uses them would always compile. If AF XDP isn't supported, it
- * won't be used anyway.
- */
-#define MEM_TYPE_XSK_BUFF_POOL 0
-#define xsk_pool_set_rxq_info(pool, rxq)
-
-static inline void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring) {}
-static inline void ena_xdp_free_rx_bufs_zc(struct ena_ring *rx_ring) {}
-
-#define ENA_IS_XSK_RING(ring) false
-
-static inline bool ena_is_zc_q_exist(struct ena_adapter *adapter)
-{
-	return false;
-}
-#endif /* ENA_AF_XDP_SUPPORT */
 #endif /* ENA_XDP_H */
