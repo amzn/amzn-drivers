@@ -3087,6 +3087,13 @@ error_unmap_dma:
 	tx_info->skb = NULL;
 
 error_drop_packet:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
+	if (!netdev_xmit_more() && ena_com_used_q_entries(tx_ring->ena_com_io_sq))
+#else
+	if (ena_com_used_q_entries(tx_ring->ena_com_io_sq))
+#endif
+		ena_ring_tx_doorbell(tx_ring);
+
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
