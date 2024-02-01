@@ -113,16 +113,16 @@ static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	napi_scheduled = !!(tx_ring->napi->state & NAPIF_STATE_SCHED);
 
 	netdev_err(dev,
-		  "TX q %d is paused for too long (threshold %u). Time since last napi %u usec. napi scheduled: %d\n",
-		  txqueue,
-		  threshold,
-		  time_since_last_napi,
-		  napi_scheduled);
+		   "TX q %d is paused for too long (threshold %u). Time since last napi %u usec. napi scheduled: %d\n",
+		   txqueue,
+		   threshold,
+		   time_since_last_napi,
+		   napi_scheduled);
 
 	if (threshold < time_since_last_napi && napi_scheduled) {
 		netdev_err(dev,
-			"napi handler hasn't been called for a long time but is scheduled\n");
-			reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
+			   "napi handler hasn't been called for a long time but is scheduled\n");
+			   reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
 	}
 schedule_reset:
 	/* Change the state of the device to trigger reset
