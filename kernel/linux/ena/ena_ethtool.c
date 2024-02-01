@@ -478,9 +478,7 @@ static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
 		for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
 			ena_stats = &ena_stats_rx_strings[j];
 
-			ethtool_sprintf(data,
-					"queue_%u_rx_%s", i,
-					ena_stats->name);
+			ethtool_sprintf(data, "queue_%u_rx_%s", i, ena_stats->name);
 		}
 	}
 }
