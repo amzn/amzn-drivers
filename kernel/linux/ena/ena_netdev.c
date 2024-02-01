@@ -3770,7 +3770,8 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 		BIT(ENA_ADMIN_WARNING) |
 		BIT(ENA_ADMIN_NOTIFICATION) |
 		BIT(ENA_ADMIN_KEEP_ALIVE) |
-		BIT(ENA_ADMIN_CONF_NOTIFICATIONS);
+		BIT(ENA_ADMIN_CONF_NOTIFICATIONS) |
+		BIT(ENA_ADMIN_DEVICE_REQUEST_RESET);
 
 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
 
@@ -5166,6 +5167,17 @@ static void ena_conf_notification(void *adapter_data,
 	}
 }
 
+static void ena_admin_device_request_reset(void *data,
+					   struct ena_admin_aenq_entry *aenq_e)
+{
+	struct ena_adapter *adapter = (struct ena_adapter *)data;
+
+	netdev_warn(adapter->netdev,
+		   "The device has detected an unhealthy state, reset is requested\n");
+
+	ena_reset_device(adapter, ENA_REGS_RESET_DEVICE_REQUEST);
+}
+
 /* This handler will called for unknown event group or unimplemented handlers*/
 static void unimplemented_aenq_handler(void *data,
 				       struct ena_admin_aenq_entry *aenq_e)
@@ -5182,6 +5194,7 @@ static struct ena_aenq_handlers aenq_handlers = {
 		[ENA_ADMIN_NOTIFICATION] = ena_notification,
 		[ENA_ADMIN_KEEP_ALIVE] = ena_keep_alive_wd,
 		[ENA_ADMIN_CONF_NOTIFICATIONS] = ena_conf_notification,
+		[ENA_ADMIN_DEVICE_REQUEST_RESET] = ena_admin_device_request_reset,
 		[ENA_ADMIN_REFRESH_CAPABILITIES] = ena_refresh_fw_capabilites,
 	},
 	.unimplemented_handler = unimplemented_aenq_handler
