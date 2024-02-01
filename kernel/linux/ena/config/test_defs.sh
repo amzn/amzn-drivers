@@ -42,3 +42,9 @@ try_compile_async "#include <linux/interrupt.h>"         \
                   "ENA_HAVE_UPDATE_AFFINITY_HINT"        \
                   ""                                     \
                   "5.17.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h>"           \
+                  "ethtool_puts(NULL, NULL);"            \
+                  "ENA_HAVE_ETHTOOL_PUTS"                \
+                  ""                                     \
+                  "6.8.0 <= LINUX_VERSION_CODE"

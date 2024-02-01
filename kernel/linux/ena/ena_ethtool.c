@@ -435,20 +435,20 @@ static void ena_metrics_stats_strings(struct ena_adapter *adapter, u8 **data)
 		for (i = 0; i < ENA_METRICS_ARRAY_ENI; i++) {
 			if (ena_com_get_customer_metric_support(dev, i)) {
 				ena_metrics = &ena_hw_stats_strings[i];
-				ethtool_sprintf(data, ena_metrics->name);
+				ethtool_puts(data, ena_metrics->name);
 			}
 		}
 	} else if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENI_STATS)) {
 		for (i = 0; i < ENA_STATS_ARRAY_ENI; i++) {
 			ena_stats = &ena_stats_eni_strings[i];
-			ethtool_sprintf(data, ena_stats->name);
+			ethtool_puts(data, ena_stats->name);
 		}
 	}
 
 	if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENA_SRD_INFO)) {
 		for (i = 0; i < ENA_STATS_ARRAY_ENA_SRD; i++) {
 			ena_stats = &ena_srd_info_strings[i];
-			ethtool_sprintf(data, ena_stats->name);
+			ethtool_puts(data, ena_stats->name);
 		}
 	}
 }
@@ -503,7 +503,7 @@ static void ena_com_phc_strings(u8 **data)
 
 	for (i = 0; i < ENA_STATS_ARRAY_ENA_COM_PHC; i++) {
 		ena_stats = &ena_stats_ena_com_phc_strings[i];
-		ethtool_sprintf(data, "%s", ena_stats->name);
+		ethtool_puts(data, ena_stats->name);
 	}
 }
 
@@ -516,7 +516,7 @@ static void ena_get_strings(struct ena_adapter *adapter,
 
 	for (i = 0; i < ENA_STATS_ARRAY_GLOBAL; i++) {
 		ena_stats = &ena_stats_global_strings[i];
-		ethtool_sprintf(&data, ena_stats->name);
+		ethtool_puts(&data, ena_stats->name);
 	}
 
 	if (hw_stats_needed)

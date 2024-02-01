@@ -1146,4 +1146,8 @@ static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumas
 }
 #endif /* ENA_HAVE_UPDATE_AFFINITY_HINT */
 
+#ifndef ENA_HAVE_ETHTOOL_PUTS
+#define ethtool_puts ethtool_sprintf
+#endif /* ENA_HAVE_ETHTOOL_PUTS */
+
 #endif /* _KCOMPAT_H_ */
