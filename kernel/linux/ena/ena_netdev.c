@@ -779,7 +779,7 @@ static void ena_free_rx_bufs(struct ena_adapter *adapter,
 	u32 i;
 
 	if (ENA_IS_XSK_RING(rx_ring)) {
-		ena_xdp_free_rx_bufs_zc(adapter, qid);
+		ena_xdp_free_rx_bufs_zc(rx_ring);
 		return;
 	}
 

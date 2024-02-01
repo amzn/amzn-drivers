@@ -251,9 +251,8 @@ void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring)
 		xsk_tx_completed(xsk_pool, xsk_frames);
 }
 
-void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid)
+void ena_xdp_free_rx_bufs_zc(struct ena_ring *rx_ring)
 {
-	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
 	int i = 0;
 
 	for (i = 0; i < rx_ring->ring_size; i++) {

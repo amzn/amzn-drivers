@@ -58,7 +58,7 @@ int ena_xdp_register_rxq_info(struct ena_ring *rx_ring);
 void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring);
 #ifdef ENA_AF_XDP_SUPPORT
 void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);
-void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid);
+void ena_xdp_free_rx_bufs_zc(struct ena_ring *rx_ring);
 int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags);
 #endif
 
@@ -229,7 +229,7 @@ static inline bool ena_xdp_present(struct ena_adapter *adapter)
 #define xsk_pool_set_rxq_info(pool, rxq)
 
 static inline void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring) {}
-static inline void ena_xdp_free_rx_bufs_zc(struct ena_adapter *adapter, u32 qid) {}
+static inline void ena_xdp_free_rx_bufs_zc(struct ena_ring *rx_ring) {}
 
 #define ENA_IS_XSK_RING(ring) false
 
