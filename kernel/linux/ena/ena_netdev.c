@@ -1569,6 +1569,11 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 	return work_done;
 
 error:
+#ifdef ENA_XDP_SUPPORT
+	if (xdp_flags & ENA_XDP_REDIRECT)
+		xdp_do_flush();
+
+#endif
 	adapter = netdev_priv(rx_ring->netdev);
 
 	if (rc == -ENOSPC) {
