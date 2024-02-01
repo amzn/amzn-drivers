@@ -809,8 +809,7 @@ static int ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 		/* XDP multi-buffer packets not supported */
 		if (unlikely(ena_rx_ctx.descs > 1)) {
 			netdev_err_once(rx_ring->adapter->netdev,
-					"xdp: dropped multi-buffer packets. RX packets must be < %lu\n",
-					ENA_XDP_MAX_MTU);
+					"xdp: dropped unsupported multi-buffer packets\n");
 			ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
 			xdp_verdict = ENA_XDP_DROP;
 			goto skip_xdp_prog;

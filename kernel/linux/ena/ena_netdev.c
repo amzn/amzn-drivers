@@ -1378,8 +1378,7 @@ static int ena_xdp_handle_buff(struct ena_ring *rx_ring, struct xdp_buff *xdp, u
 	/* XDP multi-buffer packets not supported */
 	if (unlikely(num_descs > 1)) {
 		netdev_err_once(rx_ring->adapter->netdev,
-				"xdp: dropped multi-buffer packets. RX packets must be < %lu\n",
-				ENA_XDP_MAX_MTU);
+				"xdp: dropped unsupported multi-buffer packets\n");
 		ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
 		return ENA_XDP_DROP;
 	}
