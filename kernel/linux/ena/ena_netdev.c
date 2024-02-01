@@ -4763,9 +4763,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef ENA_XDP_NETLINK_ADVERTISEMENT
 	if (ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
-		netdev->xdp_features = NETDEV_XDP_ACT_BASIC |
-				       NETDEV_XDP_ACT_REDIRECT;
-
+		netdev->xdp_features = ENA_XDP_FEATURES;
 #endif
 	memcpy(adapter->netdev->perm_addr, adapter->mac_addr, netdev->addr_len);
 

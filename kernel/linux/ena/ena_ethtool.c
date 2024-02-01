@@ -1282,9 +1282,7 @@ static int ena_set_channels(struct net_device *netdev,
 
 		xdp_clear_features_flag(netdev);
 	} else {
-		xdp_set_features_flag(netdev,
-				      NETDEV_XDP_ACT_BASIC |
-				      NETDEV_XDP_ACT_REDIRECT);
+		xdp_set_features_flag(netdev, ENA_XDP_FEATURES);
 	}
 
 	if (count > adapter->max_num_io_queues)
