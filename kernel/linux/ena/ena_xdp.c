@@ -591,9 +591,6 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 			xdp_return_frame(xdpf);
 		}
 
-		netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
-			  "tx_poll: q %d pkt #%d req_id %d\n", tx_ring->qid, tx_pkts, req_id);
-
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
 
@@ -602,6 +599,9 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		tx_ring->free_ids[next_to_clean] = req_id;
 		next_to_clean = ENA_TX_RING_IDX_NEXT(next_to_clean,
 						     tx_ring->ring_size);
+
+		netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
+			  "tx_poll: q %d pkt #%d req_id %d\n", tx_ring->qid, tx_pkts, req_id);
 	}
 
 	tx_ring->next_to_clean = next_to_clean;
