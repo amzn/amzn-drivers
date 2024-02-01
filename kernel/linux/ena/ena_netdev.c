@@ -3527,13 +3527,13 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 	if (max_tx_queue_size < ENA_MIN_RING_SIZE) {
 		netdev_err(adapter->netdev, "Device max TX queue size: %d < minimum: %d\n",
 			   max_tx_queue_size, ENA_MIN_RING_SIZE);
-		return -EFAULT;
+		return -EINVAL;
 	}
 
 	if (max_rx_queue_size < ENA_MIN_RING_SIZE) {
 		netdev_err(adapter->netdev, "Device max RX queue size: %d < minimum: %d\n",
 			   max_rx_queue_size, ENA_MIN_RING_SIZE);
-		return -EFAULT;
+		return -EINVAL;
 	}
 
 	tx_queue_size = clamp_val(tx_queue_size, ENA_MIN_RING_SIZE,
