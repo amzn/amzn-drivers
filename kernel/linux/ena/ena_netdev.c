@@ -1662,35 +1662,26 @@ void ena_unmask_interrupt(struct ena_ring *tx_ring,
 	ena_com_unmask_intr(tx_ring->ena_com_io_cq, &intr_reg);
 }
 
-void ena_update_ring_numa_node(struct ena_ring *tx_ring,
-			       struct ena_ring *rx_ring)
+void ena_update_ring_numa_node(struct ena_ring *rx_ring)
 {
 	int cpu = get_cpu();
 	int numa_node;
 
-	/* Check only one ring since the 2 rings are running on the same cpu */
-	if (likely(tx_ring->cpu == cpu))
+	if (likely(rx_ring->cpu == cpu))
 		goto out;
 
-	tx_ring->cpu = cpu;
-	if (rx_ring)
-		rx_ring->cpu = cpu;
+	rx_ring->cpu = cpu;
 
 	numa_node = cpu_to_node(cpu);
 
-	if (likely(tx_ring->numa_node == numa_node))
+	if (likely(rx_ring->numa_node == numa_node))
 		goto out;
 
 	put_cpu();
 
 	if (numa_node != NUMA_NO_NODE) {
-		ena_com_update_numa_node(tx_ring->ena_com_io_cq, numa_node);
-		tx_ring->numa_node = numa_node;
-		if (rx_ring) {
-			rx_ring->numa_node = numa_node;
-			ena_com_update_numa_node(rx_ring->ena_com_io_cq,
-						 numa_node);
-		}
+		ena_com_update_numa_node(rx_ring->ena_com_io_cq, numa_node);
+		rx_ring->numa_node = numa_node;
 	}
 
 	return;
@@ -1759,7 +1750,7 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 			if (ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev))
 				ena_adjust_adaptive_rx_intr_moderation(ena_napi);
 
-			ena_update_ring_numa_node(tx_ring, rx_ring);
+			ena_update_ring_numa_node(rx_ring);
 			ena_unmask_interrupt(tx_ring, rx_ring);
 		}
 
@@ -2262,7 +2253,6 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 		return rc;
 	}
 
-	ena_com_update_numa_node(tx_ring->ena_com_io_cq, ctx.numa_node);
 	return rc;
 }
 

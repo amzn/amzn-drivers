@@ -950,9 +950,16 @@ polling_done:
 			smp_rmb(); /* make sure interrupts_masked is read */
 			WRITE_ONCE(ena_napi->interrupts_masked, false);
 			ena_unmask_interrupt(tx_ring, NULL);
+#ifdef ENA_AF_XDP_SUPPORT
+			/* Checking the tx_ring since for XDP channels
+			 * napi->rx_ring is NULL and for AF_XDP both are
+			 * xsk rings
+			 */
+			if (ENA_IS_XSK_RING(tx_ring))
+				ena_update_ring_numa_node(rx_ring);
+#endif
 		}
 
-		ena_update_ring_numa_node(tx_ring, NULL);
 		ret = rx_work_done;
 	} else {
 		ret = budget;
