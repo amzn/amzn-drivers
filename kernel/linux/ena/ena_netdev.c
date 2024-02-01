@@ -234,11 +234,9 @@ int ena_xmit_common(struct ena_adapter *adapter,
 	if (unlikely(rc)) {
 		netif_err(adapter, tx_queued, adapter->netdev,
 			  "Failed to prepare tx bufs\n");
-		ena_increase_stat(&ring->tx_stats.prepare_ctx_err, 1,
-				  &ring->syncp);
+		ena_increase_stat(&ring->tx_stats.prepare_ctx_err, 1, &ring->syncp);
 		if (rc != -ENOMEM)
-			ena_reset_device(adapter,
-					 ENA_REGS_RESET_DRIVER_INVALID_STATE);
+			ena_reset_device(adapter, ENA_REGS_RESET_DRIVER_INVALID_STATE);
 		return rc;
 	}
 
@@ -619,8 +617,7 @@ struct page *ena_alloc_map_page(struct ena_ring *rx_ring,
 	 */
 	page = dev_alloc_page();
 	if (!page) {
-		ena_increase_stat(&rx_ring->rx_stats.page_alloc_fail, 1,
-				  &rx_ring->syncp);
+		ena_increase_stat(&rx_ring->rx_stats.page_alloc_fail, 1, &rx_ring->syncp);
 		return ERR_PTR(-ENOSPC);
 	}
 
@@ -995,12 +992,10 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 						&req_id);
 		if (rc) {
 			if (unlikely(rc == -EINVAL))
-				handle_invalid_req_id(tx_ring, req_id, NULL,
-						      false);
+				handle_invalid_req_id(tx_ring, req_id, NULL, false);
 			else if (unlikely(rc == -EFAULT)) {
-				ena_reset_device(
-					tx_ring->adapter,
-					ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
+				ena_reset_device(tx_ring->adapter,
+						 ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
 			}
 			break;
 		}
@@ -1578,8 +1573,7 @@ error:
 	adapter = netdev_priv(rx_ring->netdev);
 
 	if (rc == -ENOSPC) {
-		ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1,
-				  &rx_ring->syncp);
+		ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1, &rx_ring->syncp);
 		ena_reset_device(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
 	} else if (rc == -EFAULT) {
 		ena_reset_device(adapter, ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
@@ -2179,8 +2173,7 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 	if (!ena_dev->rss.tbl_log_size) {
 		rc = ena_rss_init_default(adapter);
 		if (unlikely(rc && (rc != -EOPNOTSUPP))) {
-			netif_err(adapter, ifup, adapter->netdev,
-				  "Failed to init RSS rc: %d\n", rc);
+			netif_err(adapter, ifup, adapter->netdev, "Failed to init RSS rc: %d\n", rc);
 			return rc;
 		}
 	}
@@ -3252,8 +3245,7 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
 	rc = ena_com_set_host_attributes(adapter->ena_dev);
 	if (unlikely(rc)) {
 		if (rc == -EOPNOTSUPP)
-			netif_warn(adapter, drv, adapter->netdev,
-				   "Cannot set host attributes\n");
+			netif_warn(adapter, drv, adapter->netdev, "Cannot set host attributes\n");
 		else
 			netif_err(adapter, drv, adapter->netdev,
 				  "Cannot set host attributes\n");
@@ -4079,8 +4071,7 @@ enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter *adapte
 
 	/* TX CQ is empty */
 	if (rc == -EAGAIN) {
-		netif_err(adapter, tx_err, netdev,
-			  "No completion descriptors found in CQ %d",
+		netif_err(adapter, tx_err, netdev, "No completion descriptors found in CQ %d",
 			  tx_ring->qid);
 
 		return ENA_REGS_RESET_MISS_TX_CMPL;
@@ -4575,8 +4566,8 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 		}
 	}
 
-	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ, NULL,
-					ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
+	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ, NULL, ENA_HASH_KEY_SIZE,
+					0xFFFFFFFF);
 	if (unlikely(rc && (rc != -EOPNOTSUPP))) {
 		dev_err(dev, "Cannot fill hash function\n");
 		goto err_fill_indir;

@@ -570,12 +570,10 @@ static bool ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 						&req_id);
 		if (rc) {
 			if (unlikely(rc == -EINVAL))
-				handle_invalid_req_id(tx_ring, req_id, NULL,
-						      true);
+				handle_invalid_req_id(tx_ring, req_id, NULL, true);
 			else if (unlikely(rc == -EFAULT)) {
-				ena_reset_device(
-					tx_ring->adapter,
-					ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
+				ena_reset_device(tx_ring->adapter,
+						 ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
 			}
 			break;
 		}
@@ -893,17 +891,13 @@ skip_xdp_prog:
 		struct ena_adapter *adapter = netdev_priv(rx_ring->netdev);
 
 		if (rc == -ENOSPC) {
-			ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1,
-					  &rx_ring->syncp);
-			ena_reset_device(adapter,
-					 ENA_REGS_RESET_TOO_MANY_RX_DESCS);
+			ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1, &rx_ring->syncp);
+			ena_reset_device(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
 		} else if (rc == -EIO) {
-			ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1,
-					  &rx_ring->syncp);
+			ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1, &rx_ring->syncp);
 			ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
 		} else if (rc == -EFAULT) {
-			ena_reset_device(adapter,
-					 ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
+			ena_reset_device(adapter, ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
 		}
 
 		return 0;
