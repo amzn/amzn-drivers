@@ -169,7 +169,7 @@ struct ena_tx_buffer {
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
 
-	/* Total size of all buffers */
+	/* Total size of all buffers in bytes */
 	u32 total_tx_size;
 
 	/* Indicate if bufs[0] map the linear data of the skb. */
