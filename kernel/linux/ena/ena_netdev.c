@@ -468,7 +468,7 @@ err_setup_tx:
 }
 
 void ena_free_all_io_tx_resources_in_range(struct ena_adapter *adapter,
-						  int first_index, int count)
+					   int first_index, int count)
 {
 	int i;
 
@@ -1428,6 +1428,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 #ifdef ENA_XDP_SUPPORT
 	int xdp_verdict;
 #endif /* ENA_XDP_SUPPORT */
+	u8 pkt_offset;
 	int rc = 0;
 	int i;
 
@@ -1458,7 +1459,8 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 		/* First descriptor might have an offset set by the device */
 		rx_info = &rx_ring->rx_buffer_info[rx_ring->ena_bufs[0].req_id];
-		rx_info->buf_offset += ena_rx_ctx.pkt_offset;
+		pkt_offset = ena_rx_ctx.pkt_offset;
+		rx_info->buf_offset += pkt_offset;
 
 		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 			  "rx_poll: q %d got packet from ena. descs #: %d l3 proto %d l4 proto %d hash: %x\n",
@@ -1466,7 +1468,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 			  ena_rx_ctx.l4_proto, ena_rx_ctx.hash);
 
 		dma_sync_single_for_cpu(rx_ring->dev,
-					dma_unmap_addr(&rx_info->ena_buf, paddr) + ena_rx_ctx.pkt_offset,
+					dma_unmap_addr(&rx_info->ena_buf, paddr) + pkt_offset,
 					rx_ring->ena_bufs[0].len,
 					DMA_FROM_DEVICE);
 
@@ -2087,8 +2089,8 @@ static void ena_del_napi_in_range(struct ena_adapter *adapter,
 static void ena_init_napi_in_range(struct ena_adapter *adapter,
 				   int first_index, int count)
 {
-	int i;
 	int (*napi_handler)(struct napi_struct *napi, int budget);
+	int i;
 
 	for (i = first_index; i < first_index + count; i++) {
 		struct ena_napi *napi = &adapter->ena_napi[i];

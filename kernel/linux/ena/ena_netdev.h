@@ -546,7 +546,7 @@ int ena_set_rx_copybreak(struct ena_adapter *adapter, u32 rx_copybreak);
 
 /* Increase a stat by cnt while holding syncp seqlock on 32bit machines */
 static inline void ena_increase_stat(u64 *statp, u64 cnt,
-			      struct u64_stats_sync *syncp)
+				     struct u64_stats_sync *syncp)
 {
 	u64_stats_update_begin(syncp);
 	(*statp) += cnt;
@@ -677,7 +677,7 @@ int ena_create_io_tx_queues_in_range(struct ena_adapter *adapter,
 int ena_setup_tx_resources_in_range(struct ena_adapter *adapter,
 				    int first_index, int count);
 void ena_free_all_io_tx_resources_in_range(struct ena_adapter *adapter,
-					int first_index, int count);
+					   int first_index, int count);
 void ena_free_all_io_tx_resources(struct ena_adapter *adapter);
 void ena_down(struct ena_adapter *adapter);
 int ena_up(struct ena_adapter *adapter);

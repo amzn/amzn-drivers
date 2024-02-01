@@ -113,7 +113,7 @@ err:
 }
 
 int ena_xdp_xmit(struct net_device *dev, int n,
-			struct xdp_frame **frames, u32 flags)
+		 struct xdp_frame **frames, u32 flags)
 {
 	struct ena_adapter *adapter = netdev_priv(dev);
 	struct ena_ring *tx_ring;
@@ -279,8 +279,8 @@ void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
 }
 
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
-						 struct bpf_prog *prog,
-						 int first, int count)
+					  struct bpf_prog *prog,
+					  int first, int count)
 {
 	struct bpf_prog *old_bpf_prog;
 	struct ena_ring *rx_ring;
