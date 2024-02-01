@@ -682,10 +682,10 @@ do {									\
 #endif
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)) || \
-	(RHEL_RELEASE_CODE && \
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0)) && \
+	!(RHEL_RELEASE_CODE && \
 	RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 2))
-#define HAVE_NETDEV_XMIT_MORE
+#define netdev_xmit_more() (skb->xmit_more)
 #endif
 
 #ifndef mmiowb

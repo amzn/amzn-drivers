@@ -3073,12 +3073,8 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
-#ifdef HAVE_NETDEV_XMIT_MORE
 	if (netif_xmit_stopped(txq) || !netdev_xmit_more())
-#else
-	if (netif_xmit_stopped(txq) || !skb->xmit_more)
-#endif /* HAVE_NETDEV_XMIT_MORE */
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0) */
+#endif
 		/* trigger the dma engine. ena_ring_tx_doorbell()
 		 * calls a memory barrier inside it.
 		 */
