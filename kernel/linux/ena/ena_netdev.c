@@ -3091,50 +3091,6 @@ error_drop_packet:
 	return NETDEV_TX_OK;
 }
 
-#if defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V3
-static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    struct net_device *sb_dev)
-#elif defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2
-static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    struct net_device *sb_dev,
-			    select_queue_fallback_t fallback)
-#elif defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V1
-static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv,
-			    select_queue_fallback_t fallback)
-#elif defined HAVE_NDO_SELECT_QUEUE_ACCEL
-/* Return subqueue id on this core (one per core). */
-static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv)
-#else
-static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb)
-#endif
-{
-	u16 qid;
-	/* we suspect that this is good for in--kernel network services that
-	 * want to loop incoming skb rx to tx in normal user generated traffic,
-	 * most probably we will not get to this
-	 */
-	if (skb_rx_queue_recorded(skb)) {
-		qid = skb_get_rx_queue(skb);
-		if (qid >= dev->real_num_tx_queues)
-			qid %= dev->real_num_tx_queues;
-	} else {
-#if (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V3)
-		qid = netdev_pick_tx(dev, skb, NULL);
-#elif (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2)
-		qid = fallback(dev, skb, NULL);
-#elif (defined HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V1)
-		qid = fallback(dev, skb);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
-		qid = __netdev_pick_tx(dev, skb);
-#else
-		qid = skb_tx_hash(dev, skb);
-#endif /* HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK_V2 */
-	}
-
-	return qid;
-}
 #ifdef HAVE_SET_RX_MODE
 
 /* Unicast, Multicast and Promiscuous mode set
@@ -3426,7 +3382,6 @@ static const struct net_device_ops ena_netdev_ops = {
 	.ndo_open		= ena_open,
 	.ndo_stop		= ena_close,
 	.ndo_start_xmit		= ena_start_xmit,
-	.ndo_select_queue	= ena_select_queue,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36))
 	.ndo_get_stats64	= ena_get_stats64,
 #else
