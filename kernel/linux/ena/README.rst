@@ -542,6 +542,12 @@ TX queue by 2 (i.e. from 1024 to 512).
 
 This feature is supported from EC2 4th generation instance-types.
 
+**Note:** Starting from ``2.9.0g`` release, large LLQ is enabled by default on all EC2 6th
+generation instance-types and on. Due to HW limitations, enabling large LLQ implies that the TX
+queue size is reduced to 512.
+Starting from EC2 7th generation instance-types, the Tx queue size may be increased back to 1024
+while large LLQ is enabled by invoking the relevant ``ethtool`` commands.
+
 Large LLQ configuration
 -----------------------
 
@@ -559,7 +565,7 @@ Large LLQ can be configured in several ways:
 
   ethtool -G [interface] tx-push-buf-len [number of bytes: 96 or 224]
 
-Note that the minimal requirements for using ethtool are Linux Kernel v6.3 and
+Note that the minimal requirements for using ethtool are Linux Kernel v6.4 and
 above and ethtool v6.4 and above.
 
 - **sysfs:**

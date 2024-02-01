@@ -290,6 +290,21 @@ An alternative solution for this particular use-case would be to disable TCP SAC
 Please also note that this feature is only supported by the GitHub version of
 ENA driver and by AL2 distro.
 
+**Q:** Tx ring size has been reduced to 512 and I am unable to increase it to 1024.
+
+**A:** Starting with ``2.9.0g`` release, large LLQ is enabled by default on all EC2 6th
+generation instance-types. This is done in order to prevent cases mentioned in the above
+question where packets are dropped due to the packet headers exceeding 96 bytes.
+For EC2 7th generation instance-types, large LLQ could be enabled with 1024 entries.
+As in the 6th generation instance-types, the recommended behavior is still large
+LLQ with 512 entries. However, you could change the Tx ring size to 1024.
+
+In order to increase the Tx ring size to 1024, please consult the documentation on how to perform
+the below steps:
+
+1. Disable large LLQ (If needed, required for EC2 6th generation instance-types only).
+2. Configure the Tx ring size to the desired size.
+
 CPU starvation
 ==============
 
