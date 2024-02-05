@@ -64,8 +64,13 @@ function(try_compile prologue body success_def fail_def)
   set(pids "${pids}" CACHE INTERNAL "")
 endfunction()
 
-function(try_compile_dev_or_ops fp_name fn_name fn success_def fail_def)
-  try_compile("${fn}"
+function(try_compile_dev_or_ops fp_name prologue fn success_def fail_def)
+  string(REGEX REPLACE ".*[ \t\r\n]+\\**([A-Za-z0-9_]+)[ \t\r\n]*\\(.*" "\\1" fn_name ${fn})
+  try_compile(
+  "
+${prologue}
+${fn}
+  "
   "
 struct ib_device_ops ops = {
   .${fp_name} = ${fn_name},
@@ -73,7 +78,11 @@ struct ib_device_ops ops = {
   "
   "${success_def}" "${fail_def}")
 
-  try_compile("${fn}"
+  try_compile(
+  "
+${prologue}
+${fn}
+  "
   "
 struct ib_device ibdev = {
   .${fp_name} = ${fn_name},
@@ -110,7 +119,7 @@ struct device_rh dev = {
   "
   HAVE_DEV_PARENT "")
 
-try_compile_dev_or_ops(post_send efa_post_send
+try_compile_dev_or_ops(post_send ""
   "
 static int efa_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr, const struct ib_send_wr **bad_wr)
   { return 0; }
@@ -144,7 +153,7 @@ rdma_user_mmap_io(NULL, NULL, 0, 0, prot);
 
 try_compile("" "struct ib_device_ops ops;" HAVE_IB_DEV_OPS "")
 
-try_compile_dev_or_ops(create_ah efa_kzalloc_ah
+try_compile_dev_or_ops(create_ah ""
   "struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd, struct rdma_ah_attr *ah_attr, u32 flags, struct ib_udata *udata) { return NULL; }"
   HAVE_CREATE_DESTROY_AH_FLAGS "")
 
@@ -231,27 +240,27 @@ struct ib_device_ops ops = {
   "
   HAVE_AH_CORE_ALLOCATION "")
 
-try_compile_dev_or_ops(alloc_pd efa_alloc_pd
+try_compile_dev_or_ops(alloc_pd ""
   "int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata) { return 0; }"
   HAVE_ALLOC_PD_NO_UCONTEXT "")
 
-try_compile_dev_or_ops(create_cq efa_kzalloc_cq
+try_compile_dev_or_ops(create_cq ""
   "struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev, const struct ib_cq_init_attr *attr, struct ib_udata *udata) { return NULL; }"
   HAVE_CREATE_CQ_NO_UCONTEXT "")
 
-try_compile_dev_or_ops(dealloc_pd efa_dealloc_pd
+try_compile_dev_or_ops(dealloc_pd ""
   "void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata) {}"
   HAVE_DEALLOC_PD_UDATA "")
 
-try_compile_dev_or_ops(dereg_mr efa_dereg_mr
+try_compile_dev_or_ops(dereg_mr ""
   "int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata) { return 0; }"
   HAVE_DEREG_MR_UDATA "")
 
-try_compile_dev_or_ops(destroy_cq efa_destroy_cq
+try_compile_dev_or_ops(destroy_cq ""
   "int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) { return 0; }"
   HAVE_DESTROY_CQ_UDATA "")
 
-try_compile_dev_or_ops(destroy_qp efa_destroy_qp
+try_compile_dev_or_ops(destroy_qp ""
   "int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata) { return 0; }"
   HAVE_DESTROY_QP_UDATA "")
 
@@ -269,7 +278,7 @@ struct ib_device_ops ops = {
   "
   HAVE_IB_DEVICE_OPS_COMMON "")
 
-try_compile_dev_or_ops(destroy_cq efa_destroy_cq
+try_compile_dev_or_ops(destroy_cq ""
   "void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) {}"
   HAVE_IB_VOID_DESTROY_CQ "")
 
@@ -359,15 +368,15 @@ try_compile("" "struct rdma_ah_init_attr ah_attr;" HAVE_CREATE_AH_INIT_ATTR "")
 
 try_compile("" "atomic64_fetch_inc(NULL);" HAVE_ATOMIC64_FETCH_INC "")
 
-try_compile_dev_or_ops(dealloc_pd efa_dealloc_pd
+try_compile_dev_or_ops(dealloc_pd ""
   "int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata) { return 0; }"
   HAVE_DEALLOC_PD_UDATA_RC "")
 
-try_compile_dev_or_ops(destroy_ah efa_destroy_ah
+try_compile_dev_or_ops(destroy_ah ""
   "int efa_destroy_ah(struct ib_ah *ibah, u32 flags) { return 0; }"
   HAVE_AH_CORE_ALLOCATION_DESTROY_RC "")
 
-try_compile_dev_or_ops(destroy_cq efa_destroy_cq
+try_compile_dev_or_ops(destroy_cq ""
   "int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) { return 0; }"
   HAVE_IB_INT_DESTROY_CQ "")
 
@@ -399,15 +408,15 @@ ib_register_device(dev, name, dma_device);
   "
   HAVE_IB_REGISTER_DEVICE_DMA_DEVICE_PARAM "")
 
-try_compile_dev_or_ops(create_user_ah efa_create_ah
+try_compile_dev_or_ops(create_user_ah ""
   "int efa_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr, struct ib_udata *udata) { return 0; }"
   HAVE_UVERBS_CMD_MASK_NOT_NEEDED "")
 
-try_compile_dev_or_ops(query_port efa_query_port
+try_compile_dev_or_ops(query_port ""
   "int efa_query_port(struct ib_device *ibdev, u32 port, struct ib_port_attr *props) { return 0; }"
   HAVE_U32_PORT "")
 
-try_compile_dev_or_ops(alloc_hw_port_stats efa_alloc_hw_port_stats
+try_compile_dev_or_ops(alloc_hw_port_stats ""
   "struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num) { return 0; }"
   HAVE_SPLIT_STATS_ALLOC "")
 
@@ -430,12 +439,16 @@ struct ib_device_ops ops = {
 try_compile("" "struct rdma_stat_desc desc;" HAVE_STAT_DESC_STRUCT "")
 
 # dynamic DMA-buf handling and ibcore device method are required.
-try_compile_dev_or_ops(reg_user_mr_dmabuf efa_reg_user_mr_dmabuf "
+try_compile_dev_or_ops(reg_user_mr_dmabuf
+  "
 #include <linux/dma-resv.h>
 #include <linux/dma-buf.h>
 static struct dma_buf_attachment a = { .importer_priv = NULL };
+  "
+  "
 struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length, u64 virt_addr,
-                                     int fd, int access_flags, struct ib_udata *udata) { return 0; }"
+                                     int fd, int access_flags, struct ib_udata *udata) { return 0; }
+  "
   HAVE_MR_DMABUF "")
 
 try_compile("#include <rdma/ib_umem.h>" "ib_umem_dmabuf_get_pinned(NULL, 0, 0, 0, 0);" HAVE_IB_UMEM_DMABUF_PINNED "")
