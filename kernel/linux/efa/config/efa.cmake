@@ -69,7 +69,7 @@ function(try_compile_dev_or_ops fp_name prologue fn success_def fail_def)
   try_compile(
   "
 ${prologue}
-${fn}
+static ${fn}
   "
   "
 struct ib_device_ops ops = {
@@ -81,7 +81,7 @@ struct ib_device_ops ops = {
   try_compile(
   "
 ${prologue}
-${fn}
+static ${fn}
   "
   "
 struct ib_device ibdev = {
@@ -121,7 +121,7 @@ struct device_rh dev = {
 
 try_compile_dev_or_ops(post_send ""
   "
-static int efa_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr, const struct ib_send_wr **bad_wr)
+int efa_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr, const struct ib_send_wr **bad_wr)
   { return 0; }
   "
   HAVE_POST_CONST_WR "")
@@ -135,7 +135,7 @@ struct ib_device_attr attr = {
   "
   HAVE_MAX_SEND_RCV_SGE "")
 
-try_compile("int port_callback(struct ib_device *ibdev, u8 n, struct kobject *kobj) { return 0; }"
+try_compile("static int port_callback(struct ib_device *ibdev, u8 n, struct kobject *kobj) { return 0; }"
   "
 char name[2];
 ib_register_device(NULL, name, port_callback);
@@ -282,7 +282,7 @@ try_compile_dev_or_ops(destroy_cq ""
   "void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) {}"
   HAVE_IB_VOID_DESTROY_CQ "")
 
-try_compile("void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) {}"
+try_compile(""
   "
 struct ib_device_ops ops = {
   .size_ib_cq = 0,
@@ -298,7 +298,7 @@ struct ib_device dev = {
   "
   HAVE_IB_DEVICE_DRIVER_DEF "")
 
-try_compile("void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) {}"
+try_compile(""
   "int a = IB_PORT_PHYS_STATE_LINK_UP;"
   HAVE_IB_PORT_PHYS_STATE_LINK_UP "")
 
