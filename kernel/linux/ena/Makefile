@@ -1,5 +1,7 @@
 ENA_COM_PATH=../common/ena_com/
 
+this_mkfile_path := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+
 DRIVER_NAME := ena
 
 $(DRIVER_NAME)-srcs := ena_netdev.c \
@@ -13,6 +15,8 @@ $(DRIVER_NAME)-srcs := ena_netdev.c \
 		$(ENA_COM_PATH)/ena_eth_com.c
 
 $(DRIVER_NAME)-sysfs-srcs := ena_sysfs.c
+
+HEADER_FILES := $(shell find $(this_mkfile_path) $(this_mkfile_path)/$(ENA_COM_PATH) -type f -name '*.h')
 
 obj-m += $(DRIVER_NAME).o
 $(DRIVER_NAME)-objs := $(patsubst %.c,%.o,$($(DRIVER_NAME)-srcs))
@@ -94,7 +98,7 @@ endif
 
 all: $(DRIVER_NAME).ko
 
-$(DRIVER_NAME).ko: config.h $($(DRIVER_NAME)-srcs) $($(DRIVER_NAME)-sysfs-srcs)
+$(DRIVER_NAME).ko: config.h $(HEADER_FILES) $($(DRIVER_NAME)-srcs) $($(DRIVER_NAME)-sysfs-srcs)
 	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(CURDIR) modules
 
 config.h:
