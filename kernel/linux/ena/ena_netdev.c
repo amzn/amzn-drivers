@@ -1702,7 +1702,6 @@ out:
 	put_cpu();
 }
 
-
 static int ena_io_poll(struct napi_struct *napi, int budget)
 {
 	struct ena_napi *ena_napi = container_of(napi, struct ena_napi, napi);
