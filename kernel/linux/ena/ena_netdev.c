@@ -4303,6 +4303,7 @@ static void check_for_empty_rx_ring(struct ena_adapter *adapter)
 /* Check for keep alive expiration */
 static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 {
+	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
 	unsigned long keep_alive_expired;
 
 	if (!adapter->wd_state)
@@ -4314,9 +4315,15 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 	keep_alive_expired = adapter->last_keep_alive_jiffies +
 			     adapter->keep_alive_timeout;
 	if (unlikely(time_is_before_jiffies(keep_alive_expired))) {
+		unsigned long jiffies_since_last_keep_alive =
+			jiffies - adapter->last_keep_alive_jiffies;
 		netif_err(adapter, drv, adapter->netdev,
-			  "Keep alive watchdog timeout.\n");
-		ena_reset_device(adapter, ENA_REGS_RESET_KEEP_ALIVE_TO);
+			  "Keep alive watchdog timeout, %u msecs since last keep alive.\n",
+			  jiffies_to_msecs(jiffies_since_last_keep_alive));
+		if (ena_com_aenq_has_keep_alive(adapter->ena_dev))
+			reset_reason = ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT;
+
+		ena_reset_device(adapter, reset_reason);
 	}
 }
 
