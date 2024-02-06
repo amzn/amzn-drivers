@@ -4964,7 +4964,6 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
  * ena_remove is called by the PCI subsystem to alert the driver
  * that it should release a PCI device.
  */
-
 static void ena_remove(struct pci_dev *pdev)
 {
 	__ena_shutoff(pdev, false);
@@ -4976,7 +4975,6 @@ static void ena_remove(struct pci_dev *pdev)
  * ena_shutdown is called by the PCI subsystem to alert the driver that
  * a shutdown/reboot (or kexec) is happening and device must be disabled.
  */
-
 static void ena_shutdown(struct pci_dev *pdev)
 {
 	__ena_shutoff(pdev, true);
