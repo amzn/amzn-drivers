@@ -697,15 +697,18 @@ do {									\
 
 /* values are taken from here: https://github.com/iovisor/bcc/blob/master/docs/kernel-versions.md */
 
-#if defined(CONFIG_BPF) && LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
+#if defined(CONFIG_BPF) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0) || \
+	(defined(RHEL_RELEASE_CODE) && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 5))))
 #define ENA_XDP_SUPPORT
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0)) || \
-	(SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 3)
+	(SUSE_VERSION == 15 && SUSE_PATCHLEVEL >= 3) || \
+	(defined(RHEL_RELEASE_CODE) && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 5)))
 #define XDP_HAS_FRAME_SZ
 #define XDP_CONVERT_TO_FRAME_NAME_CHANGED
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0) && \
+	!(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 5))
 #define ENA_XDP_QUERY_IN_DRIVER
 #endif
 
@@ -832,7 +835,8 @@ static inline int numa_mem_id(void)
 #define fallthrough do {} while (0)  /* fallthrough */
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0) || \
+	(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 5))
 #define AF_XDP_BUSY_POLL_SUPPORTED
 #endif
 
@@ -847,7 +851,8 @@ static inline int numa_mem_id(void)
 #if defined(ENA_XDP_SUPPORT) && \
 	(LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0) && \
 	!(defined(SUSE_VERSION) && (SUSE_VERSION == 15 && SUSE_PATCHLEVEL == 3) && \
-	 ENA_KERNEL_VERSION_GTE(5, 3, 18, 150300, 59, 49)))
+	 ENA_KERNEL_VERSION_GTE(5, 3, 18, 150300, 59, 49))) && \
+	!(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 5))
 static __always_inline void
 xdp_init_buff(struct xdp_buff *xdp, u32 frame_sz, struct xdp_rxq_info *rxq)
 {
@@ -932,8 +937,11 @@ static inline int netif_xmit_stopped(const struct netdev_queue *dev_queue)
 #define NAPIF_STATE_SCHED BIT(NAPI_STATE_SCHED)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0) && \
-	!(defined(IS_UEK) && ENA_KERNEL_VERSION_GTE(5, 15, 0, 100, 96, 32))
+#if ((LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)) && \
+	!(defined(IS_UEK) && ENA_KERNEL_VERSION_GTE(5, 15, 0, 100, 96, 32)) && \
+	!(defined(RHEL_RELEASE_CODE) && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 7)) && \
+	(RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(9, 0))) && \
+	!(defined(RHEL_RELEASE_CODE) && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))))
 #define bpf_warn_invalid_xdp_action(netdev, xdp_prog, verdict) \
 	bpf_warn_invalid_xdp_action(verdict)
 #endif
