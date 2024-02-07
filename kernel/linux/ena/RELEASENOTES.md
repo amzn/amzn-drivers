@@ -31,6 +31,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.11.1 release notes
+**Bug fixes**
+* Free PHC info before netdev private info (adapter) is freed
+
 ## r2.11.0 release notes
 **New Features**
 * Support max wide LLQ depth from device
