@@ -4914,6 +4914,8 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	adapter->reset_reason = ENA_REGS_RESET_SHUTDOWN;
 	ena_destroy_device(adapter, true);
 
+	ena_phc_free(adapter);
+
 	if (shutdown) {
 		netif_device_detach(netdev);
 		dev_close(netdev);
@@ -4931,8 +4933,6 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	ena_com_delete_host_info(ena_dev);
 
 	ena_com_delete_customer_metrics_buffer(ena_dev);
-
-	ena_phc_free(adapter);
 
 	ena_release_bars(ena_dev, pdev);
 
