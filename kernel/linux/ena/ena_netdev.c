@@ -3269,7 +3269,6 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	struct ena_ring *rx_ring, *tx_ring;
-	u64 xdp_rx_drops = 0;
 	unsigned int start;
 	u64 rx_overruns;
 	u64 rx_drops;
@@ -3307,7 +3306,6 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 			start = ena_u64_stats_fetch_begin(&rx_ring->syncp);
 			packets = rx_ring->rx_stats.cnt;
 			bytes = rx_ring->rx_stats.bytes;
-			xdp_rx_drops += ena_ring_xdp_drops_cnt(rx_ring);
 		} while (ena_u64_stats_fetch_retry(&rx_ring->syncp, start));
 
 		stats->rx_packets += packets;
@@ -3321,7 +3319,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 		rx_overruns = adapter->dev_stats.rx_overruns;
 	} while (ena_u64_stats_fetch_retry(&adapter->syncp, start));
 
-	stats->rx_dropped = rx_drops + xdp_rx_drops;
+	stats->rx_dropped = rx_drops;
 	stats->tx_dropped = tx_drops;
 
 	stats->multicast = 0;
