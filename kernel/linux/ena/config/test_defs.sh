@@ -48,3 +48,9 @@ try_compile_async "#include <linux/ethtool.h>"           \
                   "ENA_HAVE_ETHTOOL_PUTS"                \
                   ""                                     \
                   "6.8.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h>"           \
+                  "struct ethtool_rxfh_param rxfh;"      \
+		  "ENA_HAVE_ETHTOOL_RXFH_PARAM"          \
+		  ""                                     \
+		  "6.8.0 <= LINUX_VERSION_CODE"

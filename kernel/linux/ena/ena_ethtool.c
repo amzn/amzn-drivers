@@ -1107,12 +1107,22 @@ static int ena_indirection_table_get(struct ena_adapter *adapter, u32 *indir)
 	return rc;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#ifdef ENA_HAVE_ETHTOOL_RXFH_PARAM
+static int ena_get_rxfh(struct net_device *netdev,
+			struct ethtool_rxfh_param *rxfh)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
 static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 			u8 *hfunc)
+#endif /* ENA_HAVE_ETHTOOL_RXFH_PARAM */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	enum ena_admin_hash_functions ena_func;
+#ifdef ENA_HAVE_ETHTOOL_RXFH_PARAM
+	u32 *indir = rxfh->indir;
+	u8 *hfunc = &rxfh->hfunc;
+	u8 *key = rxfh->key;
+#endif /* ENA_HAVE_ETHTOOL_RXFH_PARAM */
 	u8 func;
 	int rc;
 
@@ -1148,8 +1158,12 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		return -EOPNOTSUPP;
 	}
 
+#ifdef ENA_HAVE_ETHTOOL_RXFH_PARAM
+	*hfunc = func;
+#else
 	if (hfunc)
 		*hfunc = func;
+#endif /* ENA_HAVE_ETHTOOL_RXFH_PARAM */
 
 	return 0;
 }
@@ -1190,18 +1204,27 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir)
 }
 #endif /* >= 3.8.0 */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#ifdef ENA_HAVE_ETHTOOL_RXFH_PARAM
+static int ena_set_rxfh(struct net_device *netdev,
+			struct ethtool_rxfh_param *rxfh,
+			struct netlink_ext_ack *extack)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
 static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 			const u8 *key, const u8 hfunc)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 			const u8 *key)
-#endif
+#endif /* ENA_HAVE_ETHTOOL_RXFH_PARAM */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	enum ena_admin_hash_functions func = 0;
+#ifdef ENA_HAVE_ETHTOOL_RXFH_PARAM
+	u32 *indir = rxfh->indir;
+	u8 hfunc = rxfh->hfunc;
+	u8 *key = rxfh->key;
+#endif /* ENA_HAVE_ETHTOOL_RXFH_PARAM */
 	int rc;
 
 	if (indir) {
