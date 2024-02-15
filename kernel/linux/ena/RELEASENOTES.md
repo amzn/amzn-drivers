@@ -31,6 +31,29 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.12.0 release notes
+**New Features**
+* Add support for device reset request over AENQ
+* Add NUMA aware interrupt allocation
+
+**Bug fixes**
+* Remove xdp drops from total rx drops in ena_get_stats64()
+* Fix Makefile detection for header files changes
+* Fix possible stuck tx packets when last tx packet is dropped in a burst
+* Verify number of descriptors for copybreak
+* Fix flush XDP packets on error
+
+**Minor Changes**
+* Add more info for tx timeout
+* Document large LLQ enablement by default
+* Featurize AF_XDP code
+* RX ring submission queue optimization
+* Remove redundant ena_select_queue handler
+* Handle ENA_CMD_ABORTED case on admin queue interrupt mode
+* Split reset reasons for missing keep alive notification
+* Document best practices info for rx_overruns
+* Add support for XDP in RHEL 8.5 and above
+
 ## r2.11.1 release notes
 **Bug fixes**
 * Free PHC info before netdev private info (adapter) is freed
