@@ -587,8 +587,6 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 		goto err;
 	}
 
-	WARN(comp_ctx->status != ENA_CMD_COMPLETED, "Invalid comp status %d\n", comp_ctx->status);
-
 	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
 err:
 	comp_ctxt_release(admin_queue, comp_ctx);
