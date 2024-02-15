@@ -3,7 +3,7 @@
 set -e
 
 NAME=efa-nv-peermem
-DRIVER_VERSION=1.1.0
+DRIVER_VERSION=1.1.1
 INSTALL_PATH=/usr/src/${NAME}-${DRIVER_VERSION}
 
 cd $INSTALL_PATH

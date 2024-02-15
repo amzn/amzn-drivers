@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r1.1.1 release notes
+* Reduce build process output to stdout
+
 ## r1.1.0 release notes
 
 Initial commit

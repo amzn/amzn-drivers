@@ -1,4 +1,4 @@
-# Copyright 2023 Amazon.com, Inc. or its affiliates. All rights reserved
+# Copyright 2023-2024 Amazon.com, Inc. or its affiliates. All rights reserved
 
 %define name			efa-nv-peermem
 %define driver_name		efa_nv_peermem
@@ -70,5 +70,8 @@ install -m 644 Kbuild.in				%{buildroot}%{install_path}/src
 /etc/modules-load.d/efa_nv_peermem.conf
 
 %changelog
+* Thu Feb 15 2024 Michael Margolin <mrgolin@amazon.com> - 1.1.1
+- Reduce build process output to stdout
+
 * Wed Oct 25 2023 Michael Margolin <mrgolin@amazon.com> - 1.1.0
 - initial build for RHEL
