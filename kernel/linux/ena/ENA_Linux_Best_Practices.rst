@@ -305,6 +305,14 @@ the below steps:
 1. Disable large LLQ (If needed, required for EC2 6th generation instance-types only).
 2. Configure the Tx ring size to the desired size.
 
+**Q:** I am observing that the `rx_overruns` statistic is increasing, what does it mean and
+what should I do?
+
+**A:** RX overruns mean that the device has dropped RX packets due to no available vacancy in the
+RX ring. This situation happens when the instance doesn't fill the RX ring quickly enough,
+which could happen in case of high CPU load. You may refer to the `CPU Starvation`_ section for
+suggestions on how to mitigate high CPU load.
+
 CPU starvation
 ==============
 
