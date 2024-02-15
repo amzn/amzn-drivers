@@ -98,6 +98,7 @@ static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_OS_NETDEV_WD;
 	struct ena_adapter *adapter = netdev_priv(dev);
 	unsigned int time_since_last_napi, threshold;
+	unsigned long jiffies_since_last_intr;
 	struct ena_ring *tx_ring;
 	int napi_scheduled;
 
@@ -112,12 +113,15 @@ static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	time_since_last_napi = jiffies_to_usecs(jiffies - tx_ring->tx_stats.last_napi_jiffies);
 	napi_scheduled = !!(tx_ring->napi->state & NAPIF_STATE_SCHED);
 
+	jiffies_since_last_intr = jiffies - READ_ONCE(adapter->ena_napi[txqueue].last_intr_jiffies);
+
 	netdev_err(dev,
-		   "TX q %d is paused for too long (threshold %u). Time since last napi %u usec. napi scheduled: %d\n",
+		   "TX q %d is paused for too long (threshold %u). Time since last napi %u usec. napi scheduled: %d. msecs since last interrupt: %u\n",
 		   txqueue,
 		   threshold,
 		   time_since_last_napi,
-		   napi_scheduled);
+		   napi_scheduled,
+		   jiffies_to_msecs(jiffies_since_last_intr));
 
 	if (threshold < time_since_last_napi && napi_scheduled) {
 		netdev_err(dev,
