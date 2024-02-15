@@ -319,6 +319,8 @@ static void efa_set_host_info(struct efa_dev *dev)
 		EFA_COMMON_SPEC_VERSION_MINOR);
 #ifdef HAVE_EFA_P2P
 	EFA_SET(&hinf->flags, EFA_ADMIN_HOST_INFO_GDR, 1);
+#else
+	EFA_SET(&hinf->flags, EFA_ADMIN_HOST_INFO_GDR, 0);
 #endif
 
 	efa_com_set_feature_ex(&dev->edev, &resp, &cmd, EFA_ADMIN_HOST_INFO,
