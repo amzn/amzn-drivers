@@ -1,3 +1,10 @@
+efa (2.8.0-1.amzn1) unstable; urgency=medium
+  * Introduce Query MR support
+  * Expose underlying interconnects used to reach memory regions
+  * Fix compilation issues for mainline 6.8 kernels
+
+ -- Michael Margolin <mrgolin@amazon.com>  Thu, 15 Feb 2024 10:30:27 +0000
+
 efa (2.6.0-1.amzn1) unstable; urgency=medium
   * Fix wrong resources destruction order
   * Enable Nvidia GDR using P2P on up-to-date kernels

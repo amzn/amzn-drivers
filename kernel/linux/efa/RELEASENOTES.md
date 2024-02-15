@@ -3,6 +3,11 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.8.0 release notes
+* Introduce Query MR support
+* Expose underlying interconnects used to reach memory regions
+* Fix compilation issues for mainline 6.8 kernels
+
 ## r2.6.0 release notes
 * Fix wrong resources destruction order
 * Enable Nvidia GDR using P2P on up-to-date kernels

@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Amazon.com, Inc. or its affiliates. All rights reserved
+# Copyright 2019-2024 Amazon.com, Inc. or its affiliates. All rights reserved
 
 %define name			efa
 %define driver_name		efa
@@ -98,6 +98,11 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Thu Feb 15 2024 Michael Margolin <mrgolin@amazon.com> - 2.8.0
+- Introduce Query MR support
+- Expose underlying interconnects used to reach memory regions
+- Fix compilation issues for mainline 6.8 kernels
+
 * Thu Nov 09 2023 Michael Margolin <mrgolin@amazon.com> - 2.6.0
 - Fix wrong resources destruction order
 - Enable Nvidia GDR using P2P on up-to-date kernels
