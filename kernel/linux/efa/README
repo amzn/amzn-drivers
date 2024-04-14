@@ -3,33 +3,44 @@ Linux kernel driver for Elastic Fabric Adapter (EFA)
 
 Overview
 ========
-Elastic Fabric Adapter (EFA), a new network device that provides reliable
-userspace communication and kernel bypass capabilities, targeting more
-consistent latency and higher throughput than traditional TCP-based
-communication. EFA is first implemented in AWS EC2 instances, and is optimized
-to cloud-scale network infrastructure.
+Elastic Fabric Adapter (EFA) is a network device that provides reliable userspace
+communication and kernel bypass capabilities, targeting more consistent latency
+and higher throughput than traditional TCP-based communication.
+EFA is first implemented in AWS EC2 instances, and is optimized to cloud-scale
+network infrastructure.
 
 EFA brings the scalability, flexibility, and elasticity of cloud to
 tightly-coupled applications like HPC and Machine Learning Training, that
 would benefit from the lower and more consistent latency and higher throughput.
-Applications would use Libfabric (https://github.com/ofiwg/libfabric) as the
+Applications would use rdma-core (https://github.com/linux-rdma/rdma-core) as the
 userspace library to use EFA.
 
-Currently, EFA supports datagram send/receive operations and does not support
-connection-oriented or read/write operations. EFA supports unreliable
-datagrams (UD) as well as a new Scalable (unordered) Reliable Datagram protocol
-(SRD). SRD provides support for reliable datagrams and more complete error
-handling than typically seen with other Reliable Datagram (RD) implementations,
-but, unlike RD, it does not support ordering or segmentation.
+EFA supports datagram send/receive operations and can support RDMA read/write
+operations on some of the devices. EFA supports unreliable datagrams (UD) as
+well as a new Scalable (unordered) Reliable Datagram protocol (SRD). SRD provides
+support for reliable datagrams and more complete error handling than typically
+seen with other Reliable Datagram (RD) implementations, but, unlike RD, it does
+not support ordering or segmentation.
 
 EFA depends on having ib_core and ib user verbs compiled with the kernel.
-User verbs are supported via a dedicated userspace libfabric provider,
+User verbs are supported via a dedicated userspace EFA provider in rdma-core,
 all kernel verbs and in-kernel services are currently not supported.
+
+Driver distribution
+===================
+In addition to this repository, EFA driver can be found in upstream Linux kernel
+and in various Linux distributions' kernel trees, e.g. Amazon Linux, Ubuntu and
+RHEL. As a general approach, features and bug fixes that are relevant and suitable
+for mainline kernel, are being updated in both repositories around the same time.
+In addition to receiving bug fixes from stable kernel trees, some Linux
+distributions may backport EFA driver from more advanced kernel trees into their
+kernels. In Amazon Linux case, kernels are expected to have up-to-date EFA driver
+shortly after it is released in this repository.
 
 Driver compilation
 ==================
-For list of supported kernels and distributions, please refer to the release
-notes documentation in the same directory.
+For list of supported kernels and distributions, please refer to:
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 Prerequisites:
 Kernel must be compiled with CONFIG_INFINIBAND_USER_ACCESS in Kconfig.
 
@@ -84,6 +95,8 @@ Restart the OS (sudo reboot and reconnect)
 Supported PCI vendor ID/device IDs
 ==================================
 1d0f:efa0 - EFA used in EC2 virtualized and bare-metal instances.
+1d0f:efa1 - EFA used in EC2 virtualized and bare-metal instances.
+1d0f:efa2 - EFA used in EC2 virtualized and bare-metal instances.
 
 EFA Source Code Directory Structure (under src/)
 ================================================
@@ -122,11 +135,13 @@ Most of the management operations are framed in a generic get/set feature
 command.
 
 The following admin queue commands are supported:
-- Create/Destroy Queue Pair
+- Create/Modify/Query/Destroy Queue Pair
 - Create/Destroy Completion Queue
 - Create/Destroy Memory Region
 - Create/Destroy Address Handle
 - Allocate/Deallocate Protection Domain
+- Create/Destroy Event Queue
+- Get Statistics
 - Get feature
 - Set feature
 - Query device
