@@ -31,6 +31,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.12.1 release notes
+**Bug fixes**
+* Resolve a `-Wmissing-prototypes` compilation warning
+
 ## r2.12.0 release notes
 **New Features**
 * Add support for device reset request over AENQ
