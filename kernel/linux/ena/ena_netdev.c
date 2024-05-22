@@ -4037,8 +4037,8 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 	return 0;
 }
 
-enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter *adapter,
-						      struct ena_ring *tx_ring)
+static enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter *adapter,
+							     struct ena_ring *tx_ring)
 {
 	struct net_device *netdev = adapter->netdev;
 	u16 req_id;
