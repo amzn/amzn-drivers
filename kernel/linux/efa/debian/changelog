@@ -1,3 +1,12 @@
+efa (2.10.0-1.amzn1) unstable; urgency=medium
+  * Introduce QP with unsolicited write with immediate receive
+  * Add gracefull shutdown
+  * Limit EQs to available MSI-X vectors
+  * Improve admin completions error handling
+  * Improve error handling on missing BARs
+
+ -- Michael Margolin <mrgolin@amazon.com>  Wed, 05 Jun 2024 14:15:47 +0000
+
 efa (2.8.0-1.amzn1) unstable; urgency=medium
   * Introduce Query MR support
   * Expose underlying interconnects used to reach memory regions

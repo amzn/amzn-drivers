@@ -98,6 +98,13 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Jun 05 2024 Michael Margolin <mrgolin@amazon.com> - 2.10.0
+- Introduce QP with unsolicited write with immediate receive
+- Add gracefull shutdown
+- Limit EQs to available MSI-X vectors
+- Improve admin completions error handling
+- Improve error handling on missing BARs
+
 * Thu Feb 15 2024 Michael Margolin <mrgolin@amazon.com> - 2.8.0
 - Introduce Query MR support
 - Expose underlying interconnects used to reach memory regions
