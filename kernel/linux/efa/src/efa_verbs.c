@@ -735,7 +735,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 
 	address = dev->mem_bar_addr + resp->llq_desc_offset;
 	length = PAGE_ALIGN(params->sq_ring_size_in_bytes +
-			    (resp->llq_desc_offset & ~PAGE_MASK));
+			    offset_in_page(resp->llq_desc_offset));
 
 	qp->llq_desc_mmap_entry =
 		efa_user_mmap_entry_insert(&ucontext->ibucontext,
@@ -1684,7 +1684,7 @@ static int umem_to_page_list(struct efa_dev *dev,
 		  hp_cnt, pages_in_hp);
 
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		if (sg_dma_len(sg) & ~PAGE_MASK) {
+		if (offset_in_page(sg_dma_len(sg))) {
 			ibdev_dbg(&dev->ibdev,
 				  "sg_dma_len[%u] does not divide by PAGE_SIZE[%lu]\n",
 				  sg_dma_len(sg), PAGE_SIZE);
