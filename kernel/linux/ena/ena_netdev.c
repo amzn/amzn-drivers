@@ -2516,11 +2516,11 @@ int ena_up(struct ena_adapter *adapter)
 	 */
 	ena_init_napi_in_range(adapter, 0, io_queue_count);
 
-	/* Enabling DIM needs to happen before enabling IRQs since DIM
-	 * is run from napi routine
+	/* If the device stopped supporting interrupt moderation, need
+	 * to disable adaptive interrupt moderation.
 	 */
-	if (ena_com_interrupt_moderation_supported(adapter->ena_dev))
-		ena_com_enable_adaptive_moderation(adapter->ena_dev);
+	if (!ena_com_interrupt_moderation_supported(adapter->ena_dev))
+		ena_com_disable_adaptive_moderation(adapter->ena_dev);
 
 	rc = ena_request_io_irq(adapter);
 	if (rc)
@@ -4752,6 +4752,12 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			"Failed to query interrupt moderation feature\n");
 		goto err_device_destroy;
 	}
+
+	/* Enabling DIM needs to happen before enabling IRQs since DIM
+	 * is run from napi routine.
+	 */
+	if (ena_com_interrupt_moderation_supported(adapter->ena_dev))
+		ena_com_enable_adaptive_moderation(adapter->ena_dev);
 
 	ena_init_io_rings(adapter,
 			  0,
