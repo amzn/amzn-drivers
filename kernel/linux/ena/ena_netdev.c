@@ -1198,6 +1198,11 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		rx_ring->free_ids[*next_to_clean] = req_id;
 		*next_to_clean = ENA_RX_RING_IDX_ADD(*next_to_clean, descs,
 						     rx_ring->ring_size);
+
+		/* Don't reuse the RX page if we're on the wrong NUMA */
+		if (page_to_nid(rx_info->page) != numa_mem_id())
+			ena_free_rx_page(rx_ring, rx_info);
+
 		return skb;
 	}
 
