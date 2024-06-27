@@ -54,3 +54,9 @@ try_compile_async "#include <linux/ethtool.h>"           \
 		  "ENA_HAVE_ETHTOOL_RXFH_PARAM"          \
 		  ""                                     \
 		  "6.8.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/etherdevice.h>"       \
+                  "eth_hw_addr_set(NULL, NULL);"         \
+                  "ENA_HAVE_ETH_HW_ADDR_SET"             \
+                  ""                                     \
+                  "5.15.0 <= LINUX_VERSION_CODE"
