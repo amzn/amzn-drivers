@@ -31,6 +31,13 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.12.3 release notes
+** Bug fixes**
+* Remove explicit numa specification for Linux
+* Fix interrupt interval change flag override
+* Prevent adaptive moderation override
+* Free copybreak page if NUMA is incorrect
+
 ## r2.12.2 release notes
 ** Bug fixes**
 * Move eth_hw_addr_set to ECC to resolve compilation errors
