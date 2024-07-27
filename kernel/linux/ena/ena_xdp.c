@@ -746,9 +746,7 @@ static struct sk_buff *ena_xdp_rx_skb_zc(struct ena_ring *rx_ring, struct xdp_bu
 	data_addr = xdp->data;
 
 	/* allocate a skb to store the frags */
-	skb = __napi_alloc_skb(rx_ring->napi,
-			       headroom + data_len,
-			       GFP_ATOMIC | __GFP_NOWARN);
+	skb = napi_alloc_skb(rx_ring->napi, headroom + data_len);
 	if (unlikely(!skb)) {
 		ena_increase_stat(&rx_ring->rx_stats.skb_alloc_fail, 1,
 				  &rx_ring->syncp);
