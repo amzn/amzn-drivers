@@ -813,7 +813,7 @@ static int ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 		xdp = rx_info->xdp;
 		xdp->data += ena_rx_ctx.pkt_offset;
 		xdp->data_end = xdp->data + ena_rx_ctx.ena_bufs[0].len;
-		xsk_buff_dma_sync_for_cpu(xdp, rx_ring->xsk_pool);
+		xsk_buff_dma_sync_for_cpu(xdp);
 
 		/* XDP multi-buffer packets not supported */
 		if (unlikely(ena_rx_ctx.descs > 1)) {
