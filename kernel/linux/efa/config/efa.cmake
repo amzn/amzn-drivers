@@ -455,5 +455,9 @@ try_compile("#include <rdma/ib_umem.h>" "ib_umem_dmabuf_get_pinned(NULL, 0, 0, 0
 
 try_compile("#include <linux/module.h>" "MODULE_IMPORT_NS(TEST);" HAVE_MODULE_IMPORT_NS "")
 
+try_compile_dev_or_ops(create_cq ""
+  "int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr, struct uverbs_attr_bundle *attrs) { return 0; }"
+  HAVE_CREATE_CQ_BUNDLE "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")

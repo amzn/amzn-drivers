@@ -1401,8 +1401,14 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 }
 
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+#ifndef HAVE_CREATE_CQ_BUNDLE
 		  struct ib_udata *udata)
 {
+#else
+		  struct uverbs_attr_bundle *attrs)
+{
+	struct ib_udata *udata = &attrs->driver_udata;
+#endif
 #ifdef HAVE_UDATA_TO_DRV_CONTEXT
 	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
 		udata, struct efa_ucontext, ibucontext);
