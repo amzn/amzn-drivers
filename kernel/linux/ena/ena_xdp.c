@@ -723,10 +723,11 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 	while (likely(work_done < budget)) {
 		struct ena_com_tx_ctx ena_tx_ctx = {};
 
-		/* We assume the maximum number of descriptors, which is two
-		 * (meta data included)
+		/* To align with the network stack path (.ndo_start_xmit) we
+		 * leave the same amount of empty space in the SQ.
 		 */
-		if (unlikely(!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq, 2)))
+		if (unlikely(!ena_com_sq_have_enough_space(
+			    tx_ring->ena_com_io_sq, tx_ring->sgl_size + 2)))
 			break;
 
 		if (!xsk_tx_peek_desc(xsk_pool, &desc))

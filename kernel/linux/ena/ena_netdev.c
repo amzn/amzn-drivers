@@ -3025,8 +3025,13 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 #ifdef ENA_AF_XDP_SUPPORT
-	if (unlikely(ENA_IS_XSK_RING(tx_ring)))
+	if (unlikely(ENA_IS_XSK_RING(tx_ring))) {
 		spin_lock(&tx_ring->xdp_tx_lock);
+
+		if (unlikely(!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+							   tx_ring->sgl_size + 2)))
+			goto error_drop_packet;
+	}
 
 #endif
 	next_to_use = tx_ring->next_to_use;
