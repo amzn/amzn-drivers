@@ -81,3 +81,9 @@ try_compile_async "#include <linux/skbuff.h>"            \
                   "ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK" \
                   ""                                     \
                   "6.10.0 > LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp.h>"                           \
+                  "NETDEV_XDP_ACT_XSK_ZEROCOPY;"                   \
+                  "ENA_HAVE_NETDEV_XDP_ACT_XSK_ZEROCOPY"           \
+                  ""                                               \
+                  "6.3 <= LINUX_VERSION_CODE"
