@@ -401,8 +401,9 @@ static bool ena_can_queue_have_xsk_pool(struct ena_adapter *adapter, u16 qid)
 static bool ena_is_xsk_pool_params_allowed(struct ena_adapter *adapter,
 					   struct xsk_buff_pool *pool)
 {
-	if (xsk_pool_get_headroom(pool)) {
-		netdev_err(adapter->netdev, "Only a headroom of 0 is supported");
+	if (xsk_pool_get_headroom(pool) > XDP_PACKET_HEADROOM) {
+		netdev_err(adapter->netdev,
+			   "Adding additional headroom to pool is not supported");
 
 		return false;
 	}
