@@ -55,6 +55,15 @@ try_compile_async "#include <linux/ethtool.h>"           \
 		  ""                                     \
 		  "6.8.0 <= LINUX_VERSION_CODE"
 
+try_compile_async "#include <linux/ethtool.h>"                      \
+                  "{
+                    struct ethtool_ops ops;
+                    ops.supported_coalesce_params = 0;
+                  }"                                                \
+                  "ENA_HAVE_ETHTOOL_OPS_SUPPORTED_COALESCE_PARAMS"  \
+                  ""                                                \
+                  "5.7.0 <= LINUX_VERSION_CODE"
+
 try_compile_async "#include <linux/etherdevice.h>"       \
                   "eth_hw_addr_set(NULL, NULL);"         \
                   "ENA_HAVE_ETH_HW_ADDR_SET"             \

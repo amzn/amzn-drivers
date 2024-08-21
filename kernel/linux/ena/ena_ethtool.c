@@ -1387,7 +1387,7 @@ static int ena_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 }
 
 static const struct ethtool_ops ena_ethtool_ops = {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+#ifdef ENA_HAVE_ETHTOOL_OPS_SUPPORTED_COALESCE_PARAMS
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 #endif
