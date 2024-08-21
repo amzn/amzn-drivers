@@ -670,9 +670,13 @@ To retrieve PHC timestamp, use `ptp-userspace-api`_, usage example using `testpt
 
 .. code-block:: shell
 
-  ~/linux/tools/testing/selftests/ptp/testptp -d /dev/ptp0 -k 1
+  testptp -d /dev/ptp$(ethtool -T <interface> | awk '/PTP Hardware Clock:/ {print $NF}') -k 1
 
-**Notice**: PHC get time requests should be within reasonable bounds, avoid excessive utilization to ensure optimal performance and efficiency.
+PHC get time requests should be within reasonable bounds,
+avoid excessive utilization to ensure optimal performance and efficiency.
+The ENA device restricts the frequency of PHC get time requests to a maximum
+of 125 requests per second. If this limit is surpassed, the get time request
+will fail, leading to an increment in the phc_err statistic.
 
 **PHC error bound**
 
