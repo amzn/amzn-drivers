@@ -141,13 +141,16 @@ bool ena_is_lpc_supported(struct ena_adapter *adapter,
 
 	print_log = (error_print) ? netdev_err : netdev_info;
 
-	/* LPC is disabled below min number of channels */
-	if (channels_nr < ENA_LPC_MIN_NUM_OF_CHANNELS) {
+	/* By default, LPC is disabled below a minimal number of channels,
+	 * unless explicitly enabled.
+	 */
+	if (channels_nr < ENA_LPC_MIN_NUM_OF_CHANNELS &&
+	    adapter->configured_lpc_size == ENA_LPC_MULTIPLIER_NOT_CONFIGURED) {
 		print_log(adapter->netdev,
-			  "Local page cache is disabled for less than %d channels\n",
-			  ENA_LPC_MIN_NUM_OF_CHANNELS);
+			 "Local page cache is disabled for less than %d channels\n",
+			 ENA_LPC_MIN_NUM_OF_CHANNELS);
 
-		/* Disable LPC for such case. It can enabled again through
+		/* Disable LPC for such case. It can be enabled again through
 		 * ethtool private-flag.
 		 */
 		adapter->used_lpc_size = 0;

@@ -73,8 +73,8 @@ static int enable_bql = 0;
 module_param(enable_bql, int, 0444);
 MODULE_PARM_DESC(enable_bql, "Enable BQL.\n");
 
-static int lpc_size = ENA_LPC_DEFAULT_MULTIPLIER;
-module_param(lpc_size, uint, 0444);
+static int lpc_size = ENA_LPC_MULTIPLIER_NOT_CONFIGURED;
+module_param(lpc_size, int, 0444);
 MODULE_PARM_DESC(lpc_size, "Each local page cache (lpc) holds N * 1024 pages. This parameter sets N which is rounded up to a multiplier of 2. If zero, the page cache is disabled. Max: 32\n");
 
 #ifdef ENA_PHC_SUPPORT
@@ -2711,6 +2711,13 @@ int ena_set_lpc_state(struct ena_adapter *adapter, bool enabled)
 	if (enabled == !!page_cache)
 		return 0;
 
+	/* If previously disabled via a module parameter (or not set),
+	 * override the configuration with a default value.
+	 */
+	if (!adapter->configured_lpc_size ||
+	    (adapter->configured_lpc_size == ENA_LPC_MULTIPLIER_NOT_CONFIGURED))
+		adapter->configured_lpc_size = ENA_LPC_DEFAULT_MULTIPLIER;
+
 	if (enabled && !ena_is_lpc_supported(adapter, adapter->rx_ring, true))
 		return -EOPNOTSUPP;
 
@@ -4731,12 +4738,19 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->num_io_queues = clamp_val(num_io_queues, ENA_MIN_NUM_IO_QUEUES,
 					   max_num_io_queues);
-	adapter->used_lpc_size = lpc_size;
-	/* When LPC is enabled after driver load, the configured_lpc_size is
-	 * used. Leaving it as 0, wouldn't change LPC state so we set it to
-	 * different value
-	 */
-	adapter->configured_lpc_size = lpc_size ? : ENA_LPC_DEFAULT_MULTIPLIER;
+
+	if (lpc_size < ENA_LPC_MULTIPLIER_NOT_CONFIGURED) {
+		dev_warn(&pdev->dev,
+			 "A negative lpc_size (%d) is not supported, treating as unspecified\n",
+			 lpc_size);
+		lpc_size = ENA_LPC_MULTIPLIER_NOT_CONFIGURED;
+	}
+
+	adapter->configured_lpc_size = lpc_size;
+
+	adapter->used_lpc_size = lpc_size != ENA_LPC_MULTIPLIER_NOT_CONFIGURED ? lpc_size :
+				 ENA_LPC_DEFAULT_MULTIPLIER;
+
 	adapter->max_num_io_queues = max_num_io_queues;
 	adapter->last_monitored_qid = 0;
 
