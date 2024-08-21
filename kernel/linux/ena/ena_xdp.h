@@ -45,7 +45,6 @@ enum ENA_XDP_ACTIONS {
 
 #define ENA_XDP_FORWARDED (ENA_XDP_TX | ENA_XDP_REDIRECT)
 
-int ena_setup_and_create_all_xdp_queues(struct ena_adapter *adapter);
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
 					  int first, int last);

@@ -171,28 +171,6 @@ static void ena_init_all_xdp_queues(struct ena_adapter *adapter)
 			  adapter->xdp_num_queues);
 }
 
-int ena_setup_and_create_all_xdp_queues(struct ena_adapter *adapter)
-{
-	u32 xdp_first_ring = adapter->xdp_first_ring;
-	u32 xdp_num_queues = adapter->xdp_num_queues;
-	int rc = 0;
-
-	rc = ena_setup_tx_resources_in_range(adapter, xdp_first_ring, xdp_num_queues);
-	if (rc)
-		goto setup_err;
-
-	rc = ena_create_io_tx_queues_in_range(adapter, xdp_first_ring, xdp_num_queues);
-	if (rc)
-		goto create_err;
-
-	return 0;
-
-create_err:
-	ena_free_all_io_tx_resources_in_range(adapter, xdp_first_ring, xdp_num_queues);
-setup_err:
-	return rc;
-}
-
 /* Provides a way for both kernel and bpf-prog to know
  * more about the RX-queue a given XDP frame arrived on.
  */

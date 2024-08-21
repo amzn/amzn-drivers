@@ -680,13 +680,6 @@ void ena_unmap_tx_buff(struct ena_ring *tx_ring,
 		       struct ena_tx_buffer *tx_info);
 void ena_init_io_rings(struct ena_adapter *adapter,
 		       int first_index, int count);
-int ena_create_io_tx_queues_in_range(struct ena_adapter *adapter,
-				     int first_index, int count);
-int ena_setup_tx_resources_in_range(struct ena_adapter *adapter,
-				    int first_index, int count);
-void ena_free_all_io_tx_resources_in_range(struct ena_adapter *adapter,
-					   int first_index, int count);
-void ena_free_all_io_tx_resources(struct ena_adapter *adapter);
 void ena_down(struct ena_adapter *adapter);
 int ena_up(struct ena_adapter *adapter);
 void ena_unmask_interrupt(struct ena_ring *tx_ring, struct ena_ring *rx_ring);

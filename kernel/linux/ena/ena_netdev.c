@@ -446,12 +446,12 @@ static void ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 	tx_ring->push_buf_intermediate_buf = NULL;
 }
 
-int ena_setup_tx_resources_in_range(struct ena_adapter *adapter,
-				    int first_index, int count)
+static int ena_setup_all_tx_resources(struct ena_adapter *adapter)
 {
+	u32 queues_nr = adapter->num_io_queues + adapter->xdp_num_queues;
 	int i, rc = 0;
 
-	for (i = first_index; i < first_index + count; i++) {
+	for (i = 0; i < queues_nr; i++) {
 		rc = ena_setup_tx_resources(adapter, i);
 		if (rc)
 			goto err_setup_tx;
@@ -465,18 +465,9 @@ err_setup_tx:
 		  "Tx queue %d: allocation failed\n", i);
 
 	/* rewind the index freeing the rings as we go */
-	while (first_index < i--)
+	while (i--)
 		ena_free_tx_resources(adapter, i);
 	return rc;
-}
-
-void ena_free_all_io_tx_resources_in_range(struct ena_adapter *adapter,
-					   int first_index, int count)
-{
-	int i;
-
-	for (i = first_index; i < first_index + count; i++)
-		ena_free_tx_resources(adapter, i);
 }
 
 /* ena_free_all_io_tx_resources - Free I/O Tx Resources for All Queues
@@ -484,12 +475,13 @@ void ena_free_all_io_tx_resources_in_range(struct ena_adapter *adapter,
  *
  * Free all transmit software resources
  */
-void ena_free_all_io_tx_resources(struct ena_adapter *adapter)
+static void ena_free_all_io_tx_resources(struct ena_adapter *adapter)
 {
-	ena_free_all_io_tx_resources_in_range(adapter,
-					      0,
-					      adapter->xdp_num_queues +
-					      adapter->num_io_queues);
+	u32 queues_nr = adapter->num_io_queues + adapter->xdp_num_queues;
+	int i;
+
+	for (i = 0; i < queues_nr; i++)
+		ena_free_tx_resources(adapter, i);
 }
 
 /* ena_setup_rx_resources - allocate I/O Rx resources (Descriptors)
@@ -2292,13 +2284,13 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 	return rc;
 }
 
-int ena_create_io_tx_queues_in_range(struct ena_adapter *adapter,
-				     int first_index, int count)
+static int ena_create_all_io_tx_queues(struct ena_adapter *adapter)
 {
+	u32 queues_nr = adapter->num_io_queues + adapter->xdp_num_queues;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	int rc, i;
 
-	for (i = first_index; i < first_index + count; i++) {
+	for (i = 0; i < queues_nr; i++) {
 		rc = ena_create_io_tx_queue(adapter, i);
 		if (unlikely(rc))
 			goto create_err;
@@ -2307,7 +2299,7 @@ int ena_create_io_tx_queues_in_range(struct ena_adapter *adapter,
 	return 0;
 
 create_err:
-	while (i-- > first_index)
+	while (i--)
 		ena_com_destroy_io_queue(ena_dev, ENA_IO_TXQ_IDX(i));
 
 	return rc;
@@ -2428,23 +2420,11 @@ static int create_queues_with_size_backoff(struct ena_adapter *adapter)
 			  adapter->requested_rx_ring_size);
 
 	while (1) {
-#ifdef ENA_XDP_SUPPORT
-		if (ena_xdp_present(adapter)) {
-			rc = ena_setup_and_create_all_xdp_queues(adapter);
-
-			if (rc)
-				goto err_setup_tx;
-		}
-#endif /* ENA_XDP_SUPPORT */
-		rc = ena_setup_tx_resources_in_range(adapter,
-						     0,
-						     adapter->num_io_queues);
+		rc = ena_setup_all_tx_resources(adapter);
 		if (rc)
 			goto err_setup_tx;
 
-		rc = ena_create_io_tx_queues_in_range(adapter,
-						      0,
-						      adapter->num_io_queues);
+		rc = ena_create_all_io_tx_queues(adapter);
 		if (rc)
 			goto err_create_tx_queues;
 
