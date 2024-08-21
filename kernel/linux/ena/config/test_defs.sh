@@ -60,3 +60,15 @@ try_compile_async "#include <linux/etherdevice.h>"       \
                   "ENA_HAVE_ETH_HW_ADDR_SET"             \
                   ""                                     \
                   "5.15.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp_sock_drv.h>"        \
+                  "xsk_buff_dma_sync_for_cpu(NULL);"     \
+                  "ENA_XSK_BUFF_DMA_SYNC_SINGLE_ARG"     \
+                  ""                                     \
+                  "6.10.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/skbuff.h>"            \
+                  "__napi_alloc_skb(NULL, 0, 0);"        \
+                  "ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK" \
+                  ""                                     \
+                  "6.10.0 > LINUX_VERSION_CODE"

@@ -998,10 +998,11 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)) && \
 	!(RHEL_RELEASE_CODE && \
 	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)))
+#define ENA_KCOMAPT_NAPI_ALLOC_SKB
 static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
 					     unsigned int length)
 {
-	return netdev_alloc_skb_ip_align(napi->dev, length);
+	return __netdev_alloc_skb_ip_align(napi->dev, length, GFP_ATOMIC | __GFP_NOWARN);
 }
 #endif
 
@@ -1149,5 +1150,14 @@ static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumas
 #ifndef ENA_HAVE_ETHTOOL_PUTS
 #define ethtool_puts ethtool_sprintf
 #endif /* ENA_HAVE_ETHTOOL_PUTS */
+
+#ifdef ENA_XSK_BUFF_DMA_SYNC_SINGLE_ARG
+#include <net/xdp_sock_drv.h>
+#define xsk_buff_dma_sync_for_cpu(xdp, xsk_pool) xsk_buff_dma_sync_for_cpu(xdp)
+#endif /* ENA_XSK_BUFF_DMA_SYNC_SINGLE_ARG */
+
+#if defined(ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK) && !defined(ENA_KCOMAPT_NAPI_ALLOC_SKB)
+#define napi_alloc_skb(napi, len) __napi_alloc_skb(napi, len, GFP_ATOMIC | __GFP_NOWARN)
+#endif /* ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK && !ENA_KCOMAPT_NAPI_ALLOC_SKB*/
 
 #endif /* _KCOMPAT_H_ */
