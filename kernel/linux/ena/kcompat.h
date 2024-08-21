@@ -1,6 +1,6 @@
 /*******************************************************************************
-Modified by Amazon 2015-2016.
-Copyright 2015-2016, Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Modified by Amazon.
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 Modifications subject to the terms and conditions of the GNU General
 Public License, version 2.
