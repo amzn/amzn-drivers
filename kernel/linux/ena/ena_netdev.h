@@ -97,8 +97,8 @@
 #define ENA_RX_REFILL_THRESH_DIVIDER	8
 #define ENA_RX_REFILL_THRESH_PACKET	256
 
-/* Number of queues to check for missing queues per timer service */
-#define ENA_MONITORED_TX_QUEUES	4
+/* Number of queues to check for missing completions / interrupts per timer service */
+#define ENA_MONITORED_QUEUES	4
 /* Max timeout packets before device reset */
 #define MAX_NUM_OF_TIMEOUTED_PACKETS 128
 
@@ -492,8 +492,8 @@ struct ena_adapter {
 	struct ena_admin_eni_stats eni_stats;
 	struct ena_admin_ena_srd_info ena_srd_info;
 
-	/* last queue index that was checked for uncompleted tx packets */
-	u32 last_monitored_tx_qid;
+	/* last queue index that was checked for missing completions / interrupts */
+	u32 last_monitored_qid;
 
 	enum ena_regs_reset_reason_types reset_reason;
 

@@ -288,13 +288,13 @@ void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
 
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
-					  int first, int count)
+					  int first, int last)
 {
 	struct bpf_prog *old_bpf_prog;
 	struct ena_ring *rx_ring;
 	int i = 0;
 
-	for (i = first; i < count; i++) {
+	for (i = first; i < last; i++) {
 		rx_ring = &adapter->rx_ring[i];
 		old_bpf_prog = xchg(&rx_ring->xdp_bpf_prog, prog);
 

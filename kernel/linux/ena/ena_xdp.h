@@ -48,7 +48,7 @@ enum ENA_XDP_ACTIONS {
 int ena_setup_and_create_all_xdp_queues(struct ena_adapter *adapter);
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
-					  int first, int count);
+					  int first, int last);
 int ena_xdp_io_poll(struct napi_struct *napi, int budget);
 int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 		       struct ena_adapter *adapter,

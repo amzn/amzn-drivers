@@ -4168,9 +4168,9 @@ static void check_for_missing_completions(struct ena_adapter *adapter)
 	if (adapter->missing_tx_completion_to_jiffies == ENA_HW_HINTS_NO_TIMEOUT)
 		return;
 
-	budget = min_t(u32, io_queue_count, ENA_MONITORED_TX_QUEUES);
+	budget = min_t(u32, io_queue_count, ENA_MONITORED_QUEUES);
 
-	qid = adapter->last_monitored_tx_qid;
+	qid = adapter->last_monitored_qid;
 
 	while (budget) {
 		qid = (qid + 1) % io_queue_count;
@@ -4190,7 +4190,7 @@ static void check_for_missing_completions(struct ena_adapter *adapter)
 		budget--;
 	}
 
-	adapter->last_monitored_tx_qid = qid;
+	adapter->last_monitored_qid = qid;
 }
 
 /* trigger napi schedule after 2 consecutive detections */
@@ -4713,7 +4713,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	adapter->configured_lpc_size = lpc_size ? : ENA_LPC_DEFAULT_MULTIPLIER;
 	adapter->max_num_io_queues = max_num_io_queues;
-	adapter->last_monitored_tx_qid = 0;
+	adapter->last_monitored_qid = 0;
 
 	adapter->xdp_first_ring = 0;
 	adapter->xdp_num_queues = 0;
