@@ -375,28 +375,60 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 }
 
 #ifdef ENA_AF_XDP_SUPPORT
-static bool ena_is_xsk_pool_params_allowed(struct xsk_buff_pool *pool)
+static bool ena_can_queue_have_xsk_pool(struct ena_adapter *adapter, u16 qid)
 {
-	return xsk_pool_get_headroom(pool) == 0 &&
-	       xsk_pool_get_chunk_size(pool) == ENA_PAGE_SIZE;
+	if (2 * qid >= adapter->max_num_io_queues) {
+		u32 max_queue_id = min_t(u32, adapter->max_num_io_queues,
+					 adapter->num_io_queues);
+		netdev_err(adapter->netdev,
+			   "UMEM can be set for qid [%d, %d], received %d",
+			   0, max_queue_id - 1, qid);
+
+		return false;
+	}
+
+	if (qid > adapter->num_io_queues) {
+		netdev_err(adapter->netdev,
+			   "UMEM queue id %d is higher than number of queues",
+			   qid);
+
+		return false;
+	}
+
+	return true;
+}
+
+static bool ena_is_xsk_pool_params_allowed(struct ena_adapter *adapter,
+					   struct xsk_buff_pool *pool)
+{
+	if (xsk_pool_get_headroom(pool)) {
+		netdev_err(adapter->netdev, "Only a headroom of 0 is supported");
+
+		return false;
+	}
+
+	if (xsk_pool_get_chunk_size(pool) != ENA_PAGE_SIZE) {
+		netdev_err(adapter->netdev, "Only page size chunks are supported");
+
+		return false;
+	}
+
+	return true;
 }
 
 static int ena_xsk_pool_enable(struct ena_adapter *adapter,
-			       struct xsk_buff_pool *pool,
-			       u16 qid)
+			       struct netdev_bpf *bpf)
 {
+	struct xsk_buff_pool *pool = bpf->xsk.pool;
 	struct ena_ring *rx_ring, *tx_ring;
+	u16 qid = bpf->xsk.queue_id;
 	bool dev_was_up = false;
 	int err;
 
-	if (qid >= adapter->num_io_queues) {
-		netdev_err(adapter->netdev,
-			   "Max qid for XSK pool is %d (received %d)\n",
-			   adapter->num_io_queues, qid);
+	if (!ena_can_queue_have_xsk_pool(adapter, qid))
 		return -EINVAL;
-	}
 
-	if (ena_is_xsk_pool_params_allowed(pool))
+	if (!ena_is_xsk_pool_params_allowed(adapter, pool))
 		return -EINVAL;
 
 	rx_ring = &adapter->rx_ring[qid];
@@ -406,8 +438,10 @@ static int ena_xsk_pool_enable(struct ena_adapter *adapter,
 	if (err) {
 		ena_increase_stat(&rx_ring->rx_stats.dma_mapping_err, 1,
 				  &rx_ring->syncp);
+
 		netif_err(adapter, drv, adapter->netdev,
 			  "Failed to DMA map XSK pool for qid %d\n", qid);
+
 		return err;
 	}
 
@@ -425,9 +459,10 @@ static int ena_xsk_pool_enable(struct ena_adapter *adapter,
 }
 
 static int ena_xsk_pool_disable(struct ena_adapter *adapter,
-				u16 qid)
+				struct netdev_bpf *bpf)
 {
 	struct ena_ring *rx_ring, *tx_ring;
+	u16 qid = bpf->xsk.queue_id;
 	bool dev_was_up = false;
 
 	if (qid >= adapter->num_io_queues)
@@ -456,11 +491,10 @@ static int ena_xsk_pool_disable(struct ena_adapter *adapter,
 }
 
 static int ena_xsk_pool_setup(struct ena_adapter *adapter,
-			      struct xsk_buff_pool *pool,
-			      u16 qid)
+			      struct netdev_bpf *bpf)
 {
-	return pool ? ena_xsk_pool_enable(adapter, pool, qid) :
-		      ena_xsk_pool_disable(adapter, qid);
+	return bpf->xsk.pool ? ena_xsk_pool_enable(adapter, bpf) :
+			       ena_xsk_pool_disable(adapter, bpf);
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */
@@ -478,7 +512,7 @@ int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 		return ena_xdp_set(netdev, bpf);
 #ifdef ENA_AF_XDP_SUPPORT
 	case XDP_SETUP_XSK_POOL:
-		return ena_xsk_pool_setup(adapter, bpf->xsk.pool, bpf->xsk.queue_id);
+		return ena_xsk_pool_setup(adapter, bpf);
 #endif /* ENA_AF_XDP_SUPPORT */
 #ifdef ENA_XDP_QUERY_IN_DRIVER
 	case XDP_QUERY_PROG:
