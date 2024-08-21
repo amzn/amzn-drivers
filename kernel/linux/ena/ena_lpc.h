@@ -26,7 +26,7 @@ struct ena_page_cache {
 	/* Maximum number of pages the cache can hold */
 	u32 max_size;
 
-	struct ena_page cache[0];
+	struct ena_page cache[];
 } ____cacheline_aligned;
 
 int ena_create_page_caches(struct ena_adapter *adapter);
