@@ -746,22 +746,21 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 			ena_tx_ctx.header_len = push_len;
 
 			size -= push_len;
-			if (!size)
-				goto xmit_desc;
 		}
 
-		/* Pass the rest of the descriptor as a DMA address. Assuming
-		 * single page descriptor.
-		 */
-		dma  = xsk_buff_raw_get_dma(xsk_pool, desc.addr);
-		ena_buf = tx_info->bufs;
-		ena_buf->paddr = dma + push_len;
-		ena_buf->len = size;
+		if (size) {
+			/* Pass the rest of the descriptor as a DMA address. Assuming
+			 * single page descriptor.
+			 */
+			dma  = xsk_buff_raw_get_dma(xsk_pool, desc.addr);
+			ena_buf = tx_info->bufs;
+			ena_buf->paddr = dma + push_len;
+			ena_buf->len = size;
 
-		ena_tx_ctx.ena_bufs = ena_buf;
-		ena_tx_ctx.num_bufs = 1;
+			ena_tx_ctx.ena_bufs = ena_buf;
+			ena_tx_ctx.num_bufs = 1;
+		}
 
-xmit_desc:
 		ena_tx_ctx.req_id = req_id;
 
 		netif_dbg(tx_ring->adapter, tx_queued, tx_ring->netdev,
@@ -885,13 +884,10 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 					"xdp: dropped unsupported multi-buffer packets\n");
 			ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
 			xdp_verdict = ENA_XDP_DROP;
-			goto skip_xdp_prog;
+		} else if (likely(xdp_prog_present)) {
+			xdp_verdict = ena_xdp_execute(rx_ring, xdp);
 		}
 
-		if (likely(xdp_prog_present))
-			xdp_verdict = ena_xdp_execute(rx_ring, xdp);
-
-skip_xdp_prog:
 		/* Note that there can be several descriptors, since device
 		 * might not honor MTU
 		 */
@@ -1012,29 +1008,27 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 #else
 	if (!ENA_IS_XSK_RING(tx_ring)) {
 		work_done = ena_clean_xdp_irq(tx_ring, budget);
+	} else {
+		needs_wakeup &= ena_xdp_clean_tx_zc(tx_ring, budget);
 
-		goto polling_done;
-	}
-
-	needs_wakeup &= ena_xdp_clean_tx_zc(tx_ring, budget);
-
-	needs_wakeup &= ena_xdp_xmit_irq_zc(tx_ring, napi, budget);
-	if (xsk_uses_need_wakeup(tx_ring->xsk_pool)) {
-		if (needs_wakeup) {
-			xsk_set_tx_need_wakeup(tx_ring->xsk_pool);
-			ena_increase_stat(&tx_ring->tx_stats.xsk_need_wakeup_set, 1,
-					  &tx_ring->syncp);
-		} else {
-			xsk_clear_tx_need_wakeup(tx_ring->xsk_pool);
+		needs_wakeup &= ena_xdp_xmit_irq_zc(tx_ring, napi, budget);
+		if (xsk_uses_need_wakeup(tx_ring->xsk_pool)) {
+			if (needs_wakeup) {
+				xsk_set_tx_need_wakeup(tx_ring->xsk_pool);
+				ena_increase_stat(
+					&tx_ring->tx_stats.xsk_need_wakeup_set,
+					1, &tx_ring->syncp);
+			} else {
+				xsk_clear_tx_need_wakeup(tx_ring->xsk_pool);
+			}
 		}
+
+		rx_ring = ena_napi->rx_ring;
+
+		work_done = ena_xdp_clean_rx_irq_zc(rx_ring, napi, budget);
+		needs_wakeup &= work_done < budget;
 	}
 
-	rx_ring = ena_napi->rx_ring;
-
-	work_done = ena_xdp_clean_rx_irq_zc(rx_ring, napi, budget);
-	needs_wakeup &= work_done < budget;
-
-polling_done:
 #endif /* ENA_AF_XDP_SUPPORT */
 	/* If the device is about to reset or down, avoid unmask
 	 * the interrupt and return 0 so NAPI won't reschedule
