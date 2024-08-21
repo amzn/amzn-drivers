@@ -675,6 +675,8 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 	struct xdp_desc desc;
 	dma_addr_t dma;
 
+	spin_lock(&tx_ring->xdp_tx_lock);
+
 	while (likely(work_done < budget)) {
 		struct ena_com_tx_ctx ena_tx_ctx = {};
 
@@ -738,6 +740,8 @@ xmit_desc:
 		xsk_tx_release(xsk_pool);
 		ena_ring_tx_doorbell(tx_ring);
 	}
+
+	spin_unlock(&tx_ring->xdp_tx_lock);
 
 	return work_done < budget;
 }

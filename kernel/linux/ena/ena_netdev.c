@@ -3023,8 +3023,17 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rc = ena_check_and_linearize_skb(tx_ring, skb);
 	if (unlikely(rc))
+#ifdef ENA_AF_XDP_SUPPORT
+		goto error_drop_packet_skip_unlock;
+#else
 		goto error_drop_packet;
+#endif
 
+#ifdef ENA_AF_XDP_SUPPORT
+	if (unlikely(ENA_IS_XSK_RING(tx_ring)))
+		spin_lock(&tx_ring->xdp_tx_lock);
+
+#endif
 	next_to_use = tx_ring->next_to_use;
 	req_id = tx_ring->free_ids[next_to_use];
 	tx_info = &tx_ring->tx_buffer_info[req_id];
@@ -3099,6 +3108,11 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		ena_ring_tx_doorbell(tx_ring);
 
+#ifdef ENA_AF_XDP_SUPPORT
+	if (unlikely(ENA_IS_XSK_RING(tx_ring)))
+		spin_unlock(&tx_ring->xdp_tx_lock);
+
+#endif
 	return NETDEV_TX_OK;
 
 error_unmap_dma:
@@ -3106,6 +3120,12 @@ error_unmap_dma:
 	tx_info->skb = NULL;
 
 error_drop_packet:
+#ifdef ENA_AF_XDP_SUPPORT
+	if (unlikely(ENA_IS_XSK_RING(tx_ring)))
+		spin_unlock(&tx_ring->xdp_tx_lock);
+
+error_drop_packet_skip_unlock:
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 	if (!netdev_xmit_more() && ena_com_used_q_entries(tx_ring->ena_com_io_sq))
 #else
