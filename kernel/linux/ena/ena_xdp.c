@@ -6,21 +6,6 @@
 #include "ena_xdp.h"
 #ifdef ENA_XDP_SUPPORT
 
-static int validate_xdp_req_id(struct ena_ring *tx_ring, u16 req_id)
-{
-	struct ena_tx_buffer *tx_info;
-
-	tx_info = &tx_ring->tx_buffer_info[req_id];
-#ifdef ENA_AF_XDP_SUPPORT
-	if (likely(tx_info->total_tx_size))
-#else
-	if (likely(tx_info->xdpf))
-#endif
-		return 0;
-
-	return handle_invalid_req_id(tx_ring, req_id, tx_info, true);
-}
-
 static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
 				struct ena_tx_buffer *tx_info,
 				struct xdp_frame *xdpf,
@@ -557,7 +542,7 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		}
 
 		/* validate that the request id points to a valid xdp_frame */
-		rc = validate_xdp_req_id(tx_ring, req_id);
+		rc = validate_tx_req_id(tx_ring, req_id);
 		if (rc)
 			break;
 

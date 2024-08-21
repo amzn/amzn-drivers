@@ -968,37 +968,49 @@ void ena_get_and_dump_head_tx_cdesc(struct ena_com_io_cq *io_cq)
 }
 
 int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
-			  struct ena_tx_buffer *tx_info, bool is_xdp)
+			  struct ena_tx_buffer *tx_info)
 {
-	if (tx_info)
-		netif_err(ring->adapter,
-			  tx_done,
-			  ring->netdev,
-			  "tx_info doesn't have valid %s. qid %u req_id %u",
-			   is_xdp ? "xdp frame" : "skb", ring->qid, req_id);
+	struct ena_adapter *adapter = ring->adapter;
+	char *queue_type;
+
+	if (ENA_IS_XDP_INDEX(adapter, ring->qid))
+		queue_type = "XDP";
+#ifdef ENA_AF_XDP_SUPPORT
+	else if (ENA_IS_XSK_RING(ring))
+		queue_type = "ZC queue";
+#endif
 	else
-		netif_err(ring->adapter,
+		queue_type = "regular";
+
+	if (tx_info)
+		netif_err(adapter,
 			  tx_done,
 			  ring->netdev,
-			  "Invalid req_id %u in qid %u\n",
-			  req_id, ring->qid);
+			  "req id %u doesn't correspond to a packet. qid %u queue type: %s",
+			   ring->qid, req_id, queue_type);
+	else
+		netif_err(adapter,
+			  tx_done,
+			  ring->netdev,
+			  "Invalid req_id %u in qid %u, queue type: %s\n",
+			  req_id, ring->qid, queue_type);
 
 	ena_get_and_dump_head_tx_cdesc(ring->ena_com_io_cq);
 	ena_increase_stat(&ring->tx_stats.bad_req_id, 1, &ring->syncp);
-	ena_reset_device(ring->adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
+	ena_reset_device(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
 
 	return -EFAULT;
 }
 
-static int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
+int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
 {
 	struct ena_tx_buffer *tx_info;
 
 	tx_info = &tx_ring->tx_buffer_info[req_id];
-	if (likely(tx_info->skb))
+	if (likely(tx_info->total_tx_size))
 		return 0;
 
-	return handle_invalid_req_id(tx_ring, req_id, tx_info, false);
+	return handle_invalid_req_id(tx_ring, req_id, tx_info);
 }
 
 static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)

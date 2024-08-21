@@ -662,7 +662,8 @@ int ena_restore_device(struct ena_adapter *adapter);
 void ena_get_and_dump_head_tx_cdesc(struct ena_com_io_cq *io_cq);
 void ena_get_and_dump_head_rx_cdesc(struct ena_com_io_cq *io_cq);
 int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
-			  struct ena_tx_buffer *tx_info, bool is_xdp);
+			  struct ena_tx_buffer *tx_info);
+int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id);
 
 static inline void ena_ring_tx_doorbell(struct ena_ring *tx_ring)
 {
@@ -695,7 +696,7 @@ int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num);
 static inline void handle_tx_comp_poll_error(struct ena_ring *tx_ring, u16 req_id, int rc)
 {
 	if (unlikely(rc == -EINVAL))
-		handle_invalid_req_id(tx_ring, req_id, NULL, true);
+		handle_invalid_req_id(tx_ring, req_id, NULL);
 	else if (unlikely(rc == -EFAULT)) {
 		ena_get_and_dump_head_tx_cdesc(tx_ring->ena_com_io_cq);
 		ena_reset_device(tx_ring->adapter,
