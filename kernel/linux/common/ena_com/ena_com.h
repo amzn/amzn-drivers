@@ -122,7 +122,6 @@ struct ena_com_io_cq {
 	/* Interrupt unmask register */
 	u32 __iomem *unmask_reg;
 
-
 	/* numa configuration register (for TPH) */
 	u32 __iomem *numa_node_cfg_reg;
 

@@ -15,7 +15,6 @@
 #endif /* ENA_PHC_SUPPORT */
 #include "ena_sysfs.h"
 
-
 static ssize_t ena_store_rx_copybreak(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t len)

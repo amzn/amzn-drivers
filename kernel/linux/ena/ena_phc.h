@@ -7,7 +7,6 @@
 #define ENA_PHC_H
 
 #ifdef ENA_PHC_SUPPORT
-
 #include <linux/ptp_clock_kernel.h>
 
 struct ena_phc_info {

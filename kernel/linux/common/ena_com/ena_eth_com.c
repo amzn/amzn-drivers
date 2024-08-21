@@ -45,7 +45,7 @@ static void *get_sq_desc_regular_queue(struct ena_com_io_sq *io_sq)
 }
 
 static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
-						     u8 *bounce_buffer)
+					      u8 *bounce_buffer)
 {
 	struct ena_com_llq_info *llq_info = &io_sq->llq_info;
 
@@ -87,8 +87,8 @@ static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
 }
 
 static int ena_com_write_header_to_bounce(struct ena_com_io_sq *io_sq,
-						 u8 *header_src,
-						 u16 header_len)
+					  u8 *header_src,
+					  u16 header_len)
 {
 	struct ena_com_llq_pkt_ctrl *pkt_ctrl = &io_sq->llq_buf_ctrl;
 	struct ena_com_llq_info *llq_info = &io_sq->llq_info;

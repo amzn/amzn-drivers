@@ -14,7 +14,6 @@
 #define ENA_ASYNC_QUEUE_DEPTH 16
 #define ENA_ADMIN_QUEUE_DEPTH 32
 
-
 #define ENA_CTRL_MAJOR		0
 #define ENA_CTRL_MINOR		0
 #define ENA_CTRL_SUB_MINOR	1
@@ -77,12 +76,12 @@ struct ena_com_stats_ctx {
 };
 
 static int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
-				       struct ena_common_mem_addr *ena_addr,
-				       dma_addr_t addr)
+				struct ena_common_mem_addr *ena_addr,
+				dma_addr_t addr)
 {
 	if (unlikely((addr & GENMASK_ULL(ena_dev->dma_addr_bits - 1, 0)) != addr)) {
 		netdev_err(ena_dev->net_device,
-			   "DMA address has more bits that the device supports\n");
+			   "DMA address has more bits than the device supports\n");
 		return -EINVAL;
 	}
 
@@ -176,7 +175,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *ena_dev,
 }
 
 static void comp_ctxt_release(struct ena_com_admin_queue *queue,
-				     struct ena_comp_ctx *comp_ctx)
+			      struct ena_comp_ctx *comp_ctx)
 {
 	comp_ctx->user_cqe = NULL;
 	comp_ctx->occupied = false;
@@ -1727,7 +1726,7 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev)
 
 	/* Supporting only PHC V0 (readless mode with error bound) */
 	if (get_feat_resp.u.phc.version != ENA_ADMIN_PHC_FEATURE_VERSION_0) {
-		netdev_err(ena_dev->net_device, "Unsupprted PHC version (0x%X), error: %d\n",
+		netdev_err(ena_dev->net_device, "Unsupported PHC version (0x%X), error: %d\n",
 			   get_feat_resp.u.phc.version, -EOPNOTSUPP);
 		return -EOPNOTSUPP;
 	}
@@ -1826,15 +1825,14 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 
 		/* PHC is in active state, update statistics according to req_id and error_flags */
 		if ((READ_ONCE(read_resp->req_id) != phc->req_id) ||
-		    (read_resp->error_flags & ENA_PHC_ERROR_FLAGS)) {
+		    (read_resp->error_flags & ENA_PHC_ERROR_FLAGS))
 			/* Device didn't update req_id during blocking time or timestamp is invalid,
 			 * this indicates on a device error
 			 */
 			phc->stats.phc_err++;
-		} else {
+		else
 			/* Device updated req_id during blocking time with valid timestamp */
 			phc->stats.phc_exp++;
-		}
 	}
 
 	/* Setting relative timeouts */
@@ -2517,7 +2515,7 @@ int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
 }
 
 int ena_com_get_ena_srd_info(struct ena_com_dev *ena_dev,
-			      struct ena_admin_ena_srd_info *info)
+			     struct ena_admin_ena_srd_info *info)
 {
 	struct ena_com_stats_ctx ctx;
 	int ret;
@@ -2578,8 +2576,8 @@ int ena_com_get_customer_metrics(struct ena_com_dev *ena_dev, char *buffer, u32 
 	get_cmd = &ctx.get_cmd;
 	memset(&ctx, 0x0, sizeof(ctx));
 	ret = ena_com_mem_addr_set(ena_dev,
-		&get_cmd->u.control_buffer.address,
-		ena_dev->customer_metrics.buffer_dma_addr);
+				   &get_cmd->u.control_buffer.address,
+				   ena_dev->customer_metrics.buffer_dma_addr);
 	if (unlikely(ret)) {
 		netdev_err(ena_dev->net_device, "Memory address set failed.\n");
 		return ret;

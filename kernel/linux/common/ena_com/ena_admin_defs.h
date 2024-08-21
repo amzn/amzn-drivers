@@ -136,7 +136,6 @@ enum ena_admin_get_stats_type {
 	/* extra HW stats for ENA SRD */
 	ENA_ADMIN_GET_STATS_TYPE_ENA_SRD            = 3,
 	ENA_ADMIN_GET_STATS_TYPE_CUSTOMER_METRICS   = 4,
-
 };
 
 enum ena_admin_get_stats_scope {

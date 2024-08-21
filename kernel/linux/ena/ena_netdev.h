@@ -537,7 +537,6 @@ void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 
 void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 
-
 int ena_set_lpc_state(struct ena_adapter *adapter, bool enabled);
 
 int ena_update_queue_params(struct ena_adapter *adapter,

@@ -561,11 +561,9 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 #ifdef ENA_AF_XDP_SUPPORT
 	bool is_zc_q = ENA_IS_XSK_RING(tx_ring);
 #endif /* ENA_AF_XDP_SUPPORT */
+	u16 next_to_clean, req_id;
+	int rc, tx_pkts = 0;
 	u32 total_done = 0;
-	u16 next_to_clean;
-	int tx_pkts = 0;
-	u16 req_id;
-	int rc;
 
 	next_to_clean = tx_ring->next_to_clean;
 

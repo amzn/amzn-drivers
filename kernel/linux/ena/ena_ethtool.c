@@ -217,7 +217,6 @@ static void ena_safe_update_stat(u64 *src, u64 *dst,
 	} while (ena_u64_stats_fetch_retry(syncp, start));
 }
 
-
 static void ena_metrics_stats(struct ena_adapter *adapter, u64 **data)
 {
 	struct ena_com_dev *dev = adapter->ena_dev;
@@ -399,8 +398,9 @@ static int ena_get_sw_stats_count(struct ena_adapter *adapter)
 static int ena_get_hw_stats_count(struct ena_adapter *adapter)
 {
 	struct ena_com_dev *dev = adapter->ena_dev;
-	int count = ENA_STATS_ARRAY_ENA_SRD *
-			ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENA_SRD_INFO);
+	int count;
+
+	count = ENA_STATS_ARRAY_ENA_SRD * ena_com_get_cap(dev, ENA_ADMIN_ENA_SRD_INFO);
 
 	if (ena_com_get_cap(dev, ENA_ADMIN_CUSTOMER_METRICS))
 		count += ena_com_get_customer_metric_count(dev);
@@ -740,7 +740,7 @@ static void ena_get_drvinfo(struct net_device *dev,
 			  "module version will be truncated, status = %zd\n", ret);
 
 	ret = strscpy(info->bus_info, pci_name(adapter->pdev),
-		sizeof(info->bus_info));
+		      sizeof(info->bus_info));
 	if (ret < 0)
 		netif_dbg(adapter, drv, dev,
 			  "bus info will be truncated, status = %zd\n", ret);
@@ -1450,10 +1450,9 @@ void ena_set_ethtool_ops(struct net_device *netdev)
 static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 {
 	struct net_device *netdev = adapter->netdev;
+	int strings_num, i, rc;
 	u8 *strings_buf;
 	u64 *data_buf;
-	int strings_num;
-	int i, rc;
 
 	strings_num = ena_get_sw_stats_count(adapter);
 	if (strings_num <= 0) {

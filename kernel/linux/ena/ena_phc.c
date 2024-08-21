@@ -13,8 +13,8 @@ static int ena_phc_adjfreq(struct ptp_clock_info *clock_info, s32 ppb)
 {
 	return -EOPNOTSUPP;
 }
-#endif /* ENA_PHC_SUPPORT_ADJFREQ */
 
+#endif /* ENA_PHC_SUPPORT_ADJFREQ */
 static int ena_phc_adjtime(struct ptp_clock_info *clock_info, s64 delta)
 {
 	return -EOPNOTSUPP;
@@ -104,7 +104,6 @@ static int ena_phc_settime(struct ptp_clock_info *clock_info, const struct times
 }
 
 #endif /* ENA_PHC_SUPPORT_GETTIME64 */
-
 static struct ptp_clock_info ena_ptp_clock_info = {
 	.owner		= THIS_MODULE,
 	.n_alarm	= 0,

@@ -601,7 +601,6 @@ static inline void ioremap_release(struct device *dev, void *res)
 	iounmap(*(void __iomem **)res);
 }
 
-
 static inline void __iomem *devm_ioremap_wc(struct device *dev,
 					    resource_size_t offset,
 					    resource_size_t size)
