@@ -26,7 +26,7 @@ static void ena_replace_cache_page(struct ena_ring *rx_ring,
 
 	new_page = ena_alloc_map_page(rx_ring, &dma);
 
-	if (unlikely(IS_ERR(new_page)))
+	if (IS_ERR(new_page))
 		return;
 
 	ena_put_unmap_cache_page(rx_ring, ena_page);
@@ -98,7 +98,7 @@ struct page *ena_lpc_get_page(struct ena_ring *rx_ring, dma_addr_t *dma,
 
 		/* Add a new page to the cache */
 		ena_page->page = ena_alloc_map_page(rx_ring, dma);
-		if (unlikely(IS_ERR(ena_page->page)))
+		if (IS_ERR(ena_page->page))
 			return ena_page->page;
 
 		ena_page->dma_addr = *dma;
