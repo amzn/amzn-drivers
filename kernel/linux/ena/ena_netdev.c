@@ -979,13 +979,13 @@ int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
 
 	if (tx_info)
 		netif_err(adapter,
-			  tx_done,
+			  tx_err,
 			  ring->netdev,
 			  "req id %u doesn't correspond to a packet. qid %u queue type: %s",
 			   ring->qid, req_id, queue_type);
 	else
 		netif_err(adapter,
-			  tx_done,
+			  tx_err,
 			  ring->netdev,
 			  "Invalid req_id %u in qid %u, queue type: %s\n",
 			  req_id, ring->qid, queue_type);
