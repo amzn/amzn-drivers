@@ -245,11 +245,6 @@ int ena_xmit_common(struct ena_adapter *adapter,
 		return rc;
 	}
 
-	u64_stats_update_begin(&ring->syncp);
-	ring->tx_stats.cnt++;
-	ring->tx_stats.bytes += bytes;
-	u64_stats_update_end(&ring->syncp);
-
 	tx_info->tx_descs = nb_hw_desc;
 	tx_info->total_tx_size = bytes;
 	tx_info->tx_sent_jiffies = jiffies;
@@ -3063,6 +3058,11 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			     skb->len);
 	if (unlikely(rc))
 		goto error_unmap_dma;
+
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->tx_stats.cnt++;
+	tx_ring->tx_stats.bytes += skb->len;
+	u64_stats_update_end(&tx_ring->syncp);
 
 	if (tx_ring->enable_bql)
 		netdev_tx_sent_queue(txq, skb->len);

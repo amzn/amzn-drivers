@@ -91,6 +91,11 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 	if (rc)
 		goto error_unmap_dma;
 
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->tx_stats.cnt++;
+	tx_ring->tx_stats.bytes += xdpf->len;
+	u64_stats_update_end(&tx_ring->syncp);
+
 	return rc;
 
 error_unmap_dma:
@@ -671,9 +676,12 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 	int size, rc, push_len = 0, work_done = 0;
 	struct ena_tx_buffer *tx_info;
 	struct ena_com_buf *ena_buf;
+	u64 total_pkts, total_bytes;
 	u16 next_to_use, req_id;
 	struct xdp_desc desc;
 	dma_addr_t dma;
+
+	total_pkts = total_bytes = 0;
 
 	spin_lock(&tx_ring->xdp_tx_lock);
 
@@ -733,10 +741,18 @@ xmit_desc:
 		if (rc)
 			break;
 
+		total_pkts++;
+		total_bytes += desc.len;
+
 		work_done++;
 	}
 
 	if (work_done) {
+		u64_stats_update_begin(&tx_ring->syncp);
+		tx_ring->tx_stats.xsk_cnt += total_pkts;
+		tx_ring->tx_stats.xsk_bytes += total_bytes;
+		u64_stats_update_end(&tx_ring->syncp);
+
 		xsk_tx_release(xsk_pool);
 		ena_ring_tx_doorbell(tx_ring);
 	}

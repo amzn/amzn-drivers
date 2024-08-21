@@ -135,6 +135,8 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(missed_tx),
 	ENA_STAT_TX_ENTRY(unmask_interrupt),
 #ifdef ENA_AF_XDP_SUPPORT
+	ENA_STAT_TX_ENTRY(xsk_cnt),
+	ENA_STAT_TX_ENTRY(xsk_bytes),
 	ENA_STAT_TX_ENTRY(xsk_need_wakeup_set),
 	ENA_STAT_TX_ENTRY(xsk_wakeup_request),
 #endif /* ENA_AF_XDP_SUPPORT */

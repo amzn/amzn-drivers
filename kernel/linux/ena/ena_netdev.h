@@ -235,6 +235,8 @@ struct ena_stats_tx {
 	u64 unmask_interrupt;
 	u64 last_napi_jiffies;
 #ifdef ENA_AF_XDP_SUPPORT
+	u64 xsk_cnt;
+	u64 xsk_bytes;
 	u64 xsk_need_wakeup_set;
 	u64 xsk_wakeup_request;
 #endif /* ENA_AF_XDP_SUPPORT */
