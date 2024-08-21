@@ -92,7 +92,7 @@ MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 static int ena_rss_init_default(struct ena_adapter *adapter);
 static void check_for_admin_com_state(struct ena_adapter *adapter);
 static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
-				 struct net_device *netdev);
+				 struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
@@ -2218,6 +2218,28 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 	return 0;
 }
 
+/* Configure the Rx Flow Steering rules */
+static int ena_flow_steering_restore(struct ena_adapter *adapter, u16 flow_steering_max_entries)
+{
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	int rc = 0;
+
+	/* In case the flow steering table wasn't initialized by probe */
+	if (!ena_dev->flow_steering.tbl_size) {
+		rc = ena_com_flow_steering_init(ena_dev, flow_steering_max_entries);
+		if (rc && (rc != -EOPNOTSUPP)) {
+			netif_err(adapter, ifup, adapter->netdev,
+				  "Failed to init Flow steering rules rc: %d\n", rc);
+			return rc;
+		}
+
+		/* No need to go further to rules restore if table just initialized */
+		return 0;
+	}
+
+	return ena_com_flow_steering_restore_device_rules(ena_dev);
+}
+
 static int ena_up_complete(struct ena_adapter *adapter)
 {
 	int rc;
@@ -3843,7 +3865,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 
 	/* Turned on features shouldn't change due to reset. */
 	prev_netdev_features = adapter->netdev->features;
-	ena_set_dev_offloads(get_feat_ctx, adapter->netdev);
+	ena_set_dev_offloads(get_feat_ctx, adapter);
 	adapter->netdev->features = prev_netdev_features;
 
 	rc = ena_phc_init(adapter);
@@ -3982,6 +4004,12 @@ int ena_restore_device(struct ena_adapter *adapter)
 	if (rc) {
 		dev_err(&pdev->dev, "Enable MSI-X failed\n");
 		goto err_device_destroy;
+	}
+
+	rc = ena_flow_steering_restore(adapter, get_feat_ctx.dev_attr.flow_steering_max_entries);
+	if (rc && (rc != -EOPNOTSUPP)) {
+		dev_err(&pdev->dev, "Failed to restore flow steering rules\n");
+		goto err_disable_msix;
 	}
 
 	/* If the interface was up before the reset bring it up */
@@ -4479,8 +4507,9 @@ static u32 ena_calc_max_io_queue_num(struct pci_dev *pdev,
 }
 
 static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
-				 struct net_device *netdev)
+				 struct ena_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	netdev_features_t dev_features = 0;
 
 	/* Set offload features */
@@ -4517,6 +4546,9 @@ static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
 #endif /* NETIF_F_RXHASH */
 		NETIF_F_HIGHDMA;
 
+	if (adapter->ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG))
+		netdev->features |= NETIF_F_NTUPLE;
+
 #ifdef HAVE_RHEL6_NET_DEVICE_OPS_EXT
 	do {
 		u32 hw_features = get_netdev_hw_features(netdev);
@@ -4544,7 +4576,7 @@ static void ena_set_conf_feat_params(struct ena_adapter *adapter,
 	}
 
 	/* Set offload features */
-	ena_set_dev_offloads(feat, netdev);
+	ena_set_dev_offloads(feat, adapter);
 
 	adapter->max_mtu = feat->dev_attr.max_mtu;
 #ifdef HAVE_MTU_MIN_MAX_IN_NET_DEVICE
@@ -4835,6 +4867,12 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ena_config_debug_area(adapter);
 
+	rc = ena_com_flow_steering_init(ena_dev, get_feat_ctx.dev_attr.flow_steering_max_entries);
+	if (rc && (rc != -EOPNOTSUPP)) {
+		dev_err(&pdev->dev, "Cannot init Flow steering rules rc: %d\n", rc);
+		goto err_rss;
+	}
+
 #ifdef ENA_XDP_NETLINK_ADVERTISEMENT
 	if (ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
 		netdev->xdp_features = ENA_XDP_FEATURES;
@@ -4847,7 +4885,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
-		goto err_rss;
+		goto err_flow_steering;
 	}
 
 	INIT_WORK(&adapter->reset_task, ena_fw_reset_device);
@@ -4878,6 +4916,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
+err_flow_steering:
+	ena_com_flow_steering_destroy(ena_dev);
 err_rss:
 	ena_com_delete_debug_area(ena_dev);
 	ena_com_rss_destroy(ena_dev);
@@ -4959,6 +4999,8 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	}
 
 	ena_com_rss_destroy(ena_dev);
+
+	ena_com_flow_steering_destroy(ena_dev);
 
 	ena_com_delete_debug_area(ena_dev);
 

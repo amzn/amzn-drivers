@@ -998,6 +998,125 @@ static int ena_set_rss_hash(struct ena_com_dev *ena_dev,
 	return ena_com_fill_hash_ctrl(ena_dev, proto, hash_fields);
 }
 
+static int ena_set_steering_rule(struct ena_com_dev *ena_dev, struct ethtool_rxnfc *info)
+{
+	struct ena_com_flow_steering_rule_params rule_params = {};
+	struct ena_admin_flow_steering_rule_params *flow_params;
+	struct ethtool_rx_flow_spec *fs = &info->fs;
+	struct ethtool_tcpip4_spec *tcp_ip4;
+	struct ethtool_usrip4_spec *usr_ip4;
+#ifdef ENA_ETHTOOL_NFC_IPV6_SUPPORTED
+	struct ethtool_tcpip6_spec *tcp_ip6;
+	struct ethtool_usrip6_spec *usr_ip6;
+#endif
+	u32 flow_type = info->fs.flow_type;
+	u16 rule_idx;
+	int rc;
+
+	flow_params = &rule_params.flow_params;
+
+	/* no support for wake-on-lan or packets drop for rule matching */
+	if ((fs->ring_cookie == RX_CLS_FLOW_DISC) || (fs->ring_cookie == RX_CLS_FLOW_WAKE))
+		return -EOPNOTSUPP;
+
+	/* no support for any special rule placement */
+	if (fs->location & RX_CLS_LOC_SPECIAL)
+		return -EOPNOTSUPP;
+
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+		if (flow_type == TCP_V4_FLOW)
+			rule_params.flow_type = ENA_ADMIN_FLOW_IPV4_TCP;
+		else
+			rule_params.flow_type = ENA_ADMIN_FLOW_IPV4_UDP;
+
+		tcp_ip4 = &fs->h_u.tcp_ip4_spec;
+		memcpy(flow_params->src_ip, &tcp_ip4->ip4src, sizeof(tcp_ip4->ip4src));
+		memcpy(flow_params->dst_ip, &tcp_ip4->ip4dst, sizeof(tcp_ip4->ip4dst));
+		flow_params->src_port = htons(tcp_ip4->psrc);
+		flow_params->dst_port = htons(tcp_ip4->pdst);
+		flow_params->tos = tcp_ip4->tos;
+
+		tcp_ip4 = &fs->m_u.tcp_ip4_spec;
+		memcpy(flow_params->src_ip_mask, &tcp_ip4->ip4src, sizeof(tcp_ip4->ip4src));
+		memcpy(flow_params->dst_ip_mask, &tcp_ip4->ip4dst, sizeof(tcp_ip4->ip4dst));
+		flow_params->src_port_mask = htons(tcp_ip4->psrc);
+		flow_params->dst_port_mask = htons(tcp_ip4->pdst);
+		flow_params->tos_mask = tcp_ip4->tos;
+		break;
+	case IP_USER_FLOW:
+		rule_params.flow_type = ENA_ADMIN_FLOW_IPV4;
+
+		usr_ip4 = &fs->h_u.usr_ip4_spec;
+		memcpy(flow_params->src_ip, &usr_ip4->ip4src, sizeof(usr_ip4->ip4src));
+		memcpy(flow_params->dst_ip, &usr_ip4->ip4dst, sizeof(usr_ip4->ip4dst));
+		flow_params->tos = usr_ip4->tos;
+
+		usr_ip4 = &fs->m_u.usr_ip4_spec;
+		memcpy(flow_params->src_ip_mask, &usr_ip4->ip4src, sizeof(usr_ip4->ip4src));
+		memcpy(flow_params->dst_ip_mask, &usr_ip4->ip4dst, sizeof(usr_ip4->ip4dst));
+		flow_params->tos_mask = usr_ip4->tos;
+		break;
+#ifdef ENA_ETHTOOL_NFC_IPV6_SUPPORTED
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+		if (flow_type == TCP_V6_FLOW)
+			rule_params.flow_type = ENA_ADMIN_FLOW_IPV6_TCP;
+		else
+			rule_params.flow_type = ENA_ADMIN_FLOW_IPV6_UDP;
+
+		tcp_ip6 = &fs->h_u.tcp_ip6_spec;
+		memcpy(flow_params->src_ip, &tcp_ip6->ip6src, sizeof(tcp_ip6->ip6src));
+		memcpy(flow_params->dst_ip, &tcp_ip6->ip6dst, sizeof(tcp_ip6->ip6dst));
+		flow_params->src_port = htons(tcp_ip6->psrc);
+		flow_params->dst_port = htons(tcp_ip6->pdst);
+
+		tcp_ip6 = &fs->m_u.tcp_ip6_spec;
+		memcpy(flow_params->src_ip_mask, &tcp_ip6->ip6src, sizeof(tcp_ip6->ip6src));
+		memcpy(flow_params->dst_ip_mask, &tcp_ip6->ip6dst, sizeof(tcp_ip6->ip6dst));
+		flow_params->src_port_mask = htons(tcp_ip6->psrc);
+		flow_params->dst_port_mask = htons(tcp_ip6->pdst);
+		break;
+	case IPV6_USER_FLOW:
+		rule_params.flow_type = ENA_ADMIN_FLOW_IPV6;
+
+		usr_ip6 = &fs->h_u.usr_ip6_spec;
+		memcpy(flow_params->src_ip, &usr_ip6->ip6src, sizeof(usr_ip6->ip6src));
+		memcpy(flow_params->dst_ip, &usr_ip6->ip6dst, sizeof(usr_ip6->ip6dst));
+
+		usr_ip6 = &fs->m_u.usr_ip6_spec;
+		memcpy(flow_params->src_ip_mask, &usr_ip6->ip6src, sizeof(usr_ip6->ip6src));
+		memcpy(flow_params->dst_ip_mask, &usr_ip6->ip6dst, sizeof(usr_ip6->ip6dst));
+		break;
+#endif
+	case SCTP_V4_FLOW:
+	case AH_V4_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V4_FLOW:
+	case ESP_V6_FLOW:
+	case ETHER_FLOW:
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
+
+	rule_params.qid = fs->ring_cookie;
+	rule_idx = fs->location;
+
+	rc = ena_com_flow_steering_add_rule(ena_dev, &rule_params, &rule_idx);
+	if (unlikely(rc < 0))
+		return rc;
+
+	return 0;
+}
+
+static int ena_delete_steering_rule(struct ena_com_dev *ena_dev, struct ethtool_rxnfc *info)
+{
+	return ena_com_flow_steering_remove_rule(ena_dev, info->fs.location);
+}
+
 static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
@@ -1007,8 +1126,12 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 	case ETHTOOL_SRXFH:
 		rc = ena_set_rss_hash(adapter->ena_dev, info);
 		break;
-	case ETHTOOL_SRXCLSRLDEL:
 	case ETHTOOL_SRXCLSRLINS:
+		rc = ena_set_steering_rule(adapter->ena_dev, info);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		rc = ena_delete_steering_rule(adapter->ena_dev, info);
+		break;
 	default:
 		netif_err(adapter, drv, netdev,
 			  "Command parameter %d is not supported\n", info->cmd);
@@ -1016,6 +1139,149 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 	}
 
 	return rc;
+}
+
+static int ena_get_steering_rules_cnt(struct ena_com_dev *ena_dev, struct ethtool_rxnfc *info)
+{
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG)))
+		return -EOPNOTSUPP;
+
+	info->rule_cnt = ena_dev->flow_steering.active_rules_cnt;
+	info->data = ena_dev->flow_steering.tbl_size;
+
+	return 0;
+}
+
+static int ena_get_steering_rule(struct ena_com_dev *ena_dev, struct ethtool_rxnfc *info)
+{
+	struct ena_com_flow_steering_rule_params rule_params = {};
+	struct ena_admin_flow_steering_rule_params *flow_params;
+	struct ethtool_rx_flow_spec *fs = &info->fs;
+	struct ethtool_tcpip4_spec *tcp_ip4;
+	struct ethtool_usrip4_spec *usr_ip4;
+#ifdef ENA_ETHTOOL_NFC_IPV6_SUPPORTED
+	struct ethtool_tcpip6_spec *tcp_ip6;
+	struct ethtool_usrip6_spec *usr_ip6;
+#endif
+	u32 flow_type;
+	int rc = 0;
+
+	flow_params = &rule_params.flow_params;
+
+	rc = ena_com_flow_steering_get_rule(ena_dev, &rule_params, fs->location);
+	if (unlikely(rc))
+		return rc;
+
+	flow_type = rule_params.flow_type;
+
+	switch (flow_type) {
+	case ENA_ADMIN_FLOW_IPV4_TCP:
+	case ENA_ADMIN_FLOW_IPV4_UDP:
+		if (flow_type == ENA_ADMIN_FLOW_IPV4_TCP)
+			fs->flow_type = TCP_V4_FLOW;
+		else
+			fs->flow_type = UDP_V4_FLOW;
+
+		tcp_ip4 = &fs->h_u.tcp_ip4_spec;
+		memcpy(&tcp_ip4->ip4src, flow_params->src_ip, sizeof(tcp_ip4->ip4src));
+		memcpy(&tcp_ip4->ip4dst, flow_params->dst_ip, sizeof(tcp_ip4->ip4dst));
+		tcp_ip4->psrc = ntohs(flow_params->src_port);
+		tcp_ip4->pdst = ntohs(flow_params->dst_port);
+		tcp_ip4->tos = flow_params->tos;
+
+		tcp_ip4 = &fs->m_u.tcp_ip4_spec;
+		memcpy(&tcp_ip4->ip4src, flow_params->src_ip_mask, sizeof(tcp_ip4->ip4src));
+		memcpy(&tcp_ip4->ip4dst, flow_params->dst_ip_mask, sizeof(tcp_ip4->ip4dst));
+		tcp_ip4->psrc = ntohs(flow_params->src_port_mask);
+		tcp_ip4->pdst = ntohs(flow_params->dst_port_mask);
+		tcp_ip4->tos = flow_params->tos_mask;
+		break;
+	case ENA_ADMIN_FLOW_IPV4:
+		fs->flow_type = IP_USER_FLOW;
+
+		usr_ip4 = &fs->h_u.usr_ip4_spec;
+		memcpy(&usr_ip4->ip4src, flow_params->src_ip, sizeof(usr_ip4->ip4src));
+		memcpy(&usr_ip4->ip4dst, flow_params->dst_ip, sizeof(usr_ip4->ip4dst));
+		usr_ip4->tos = flow_params->tos;
+		usr_ip4->ip_ver = ETH_RX_NFC_IP4;
+
+		usr_ip4 = &fs->m_u.usr_ip4_spec;
+		memcpy(&usr_ip4->ip4src, flow_params->src_ip_mask, sizeof(usr_ip4->ip4src));
+		memcpy(&usr_ip4->ip4dst, flow_params->dst_ip_mask, sizeof(usr_ip4->ip4dst));
+		usr_ip4->tos = flow_params->tos_mask;
+		break;
+#ifdef ENA_ETHTOOL_NFC_IPV6_SUPPORTED
+	case ENA_ADMIN_FLOW_IPV6_TCP:
+	case ENA_ADMIN_FLOW_IPV6_UDP:
+		if (flow_type == ENA_ADMIN_FLOW_IPV6_TCP)
+			fs->flow_type = TCP_V6_FLOW;
+		else
+			fs->flow_type = UDP_V6_FLOW;
+
+		tcp_ip6 = &fs->h_u.tcp_ip6_spec;
+		memcpy(&tcp_ip6->ip6src, flow_params->src_ip, sizeof(tcp_ip6->ip6src));
+		memcpy(&tcp_ip6->ip6dst, flow_params->dst_ip, sizeof(tcp_ip6->ip6dst));
+		tcp_ip6->psrc = ntohs(flow_params->src_port);
+		tcp_ip6->pdst = ntohs(flow_params->dst_port);
+
+		tcp_ip6 = &fs->m_u.tcp_ip6_spec;
+		memcpy(&tcp_ip6->ip6src, flow_params->src_ip_mask, sizeof(tcp_ip6->ip6src));
+		memcpy(&tcp_ip6->ip6dst, flow_params->dst_ip_mask, sizeof(tcp_ip6->ip6dst));
+		tcp_ip6->psrc = ntohs(flow_params->src_port_mask);
+		tcp_ip6->pdst = ntohs(flow_params->dst_port_mask);
+		break;
+	case ENA_ADMIN_FLOW_IPV6:
+		fs->flow_type = IPV6_USER_FLOW;
+
+		usr_ip6 = &fs->h_u.usr_ip6_spec;
+		memcpy(&usr_ip6->ip6src, flow_params->src_ip, sizeof(usr_ip6->ip6src));
+		memcpy(&usr_ip6->ip6dst, flow_params->dst_ip, sizeof(usr_ip6->ip6dst));
+
+		usr_ip6 = &fs->m_u.usr_ip6_spec;
+		memcpy(&usr_ip6->ip6src, flow_params->src_ip_mask, sizeof(usr_ip6->ip6src));
+		memcpy(&usr_ip6->ip6dst, flow_params->dst_ip_mask, sizeof(usr_ip6->ip6dst));
+		break;
+#endif
+	default:
+		netdev_err(ena_dev->net_device,
+			   "Flow steering rule received has invalid flow type %u\n",
+			   flow_type);
+		rc = -EINVAL;
+		break;
+	}
+
+	fs->ring_cookie = rule_params.qid;
+
+	return rc;
+}
+
+static int ena_get_all_steering_rules(struct ena_com_dev *ena_dev, struct ethtool_rxnfc *info,
+				      u32 *rules)
+{
+	struct ena_com_flow_steering *flow_steering = &ena_dev->flow_steering;
+	int i, loc_idx = 0;
+
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG)))
+		return -EOPNOTSUPP;
+
+	info->data = flow_steering->tbl_size;
+	for (i = 0; i < flow_steering->tbl_size; i++) {
+		if (flow_steering->flow_steering_tbl[i].in_use) {
+			/* to avoid access out of bounds index in case
+			 * the rules buf provided is too small
+			 */
+			if (loc_idx >= info->rule_cnt)
+				return -EMSGSIZE;
+
+			/* the loop iterator represents the rule location */
+			rules[loc_idx++] = i;
+
+		}
+	}
+
+	info->rule_cnt = loc_idx;
+
+	return 0;
 }
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 2, 0)
@@ -1038,8 +1304,14 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		rc = ena_get_rss_hash(adapter->ena_dev, info);
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
+		rc = ena_get_steering_rules_cnt(adapter->ena_dev, info);
+		break;
 	case ETHTOOL_GRXCLSRULE:
+		rc = ena_get_steering_rule(adapter->ena_dev, info);
+		break;
 	case ETHTOOL_GRXCLSRLALL:
+		rc = ena_get_all_steering_rules(adapter->ena_dev, info, rules);
+		break;
 	default:
 		netif_err(adapter, drv, netdev,
 			  "Command parameter %d is not supported\n", info->cmd);

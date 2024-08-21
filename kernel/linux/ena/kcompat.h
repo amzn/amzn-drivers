@@ -1162,4 +1162,8 @@ static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumas
 #define napi_alloc_skb(napi, len) __napi_alloc_skb(napi, len, GFP_ATOMIC | __GFP_NOWARN)
 #endif /* ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK && !ENA_KCOMAPT_NAPI_ALLOC_SKB*/
 
+#ifndef RX_CLS_FLOW_WAKE
+#define RX_CLS_FLOW_WAKE	0xfffffffffffffffeULL
+#endif /* RX_CLS_FLOW_WAKE */
+
 #endif /* _KCOMPAT_H_ */
