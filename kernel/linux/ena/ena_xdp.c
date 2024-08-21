@@ -553,7 +553,12 @@ int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags)
 
 	napi = tx_ring->napi;
 
-	napi_schedule(napi);
+	if (!napi_if_scheduled_mark_missed(napi)) {
+		/* Call local_bh_enable to trigger SoftIRQ processing */
+		local_bh_disable();
+		napi_schedule(napi);
+		local_bh_enable();
+	}
 
 	return 0;
 }
