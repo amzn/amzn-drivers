@@ -577,7 +577,7 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 /* Poll TX completions. Completions can be either for TX packets sent by
  * an AF XDP application or the network stack (through .ndo_start_xmit)
  */
-static int ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
+static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 {
 	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
 	int rc, cleaned_pkts, zc_pkts, acked_pkts;
@@ -660,16 +660,7 @@ static int ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 	if (zc_pkts)
 		xsk_tx_completed(xsk_pool, zc_pkts);
 
-	if (xsk_uses_need_wakeup(xsk_pool)) {
-		bool needs_wakeup = zc_pkts < budget;
-
-		if (needs_wakeup)
-			xsk_set_tx_need_wakeup(xsk_pool);
-		else
-			xsk_clear_tx_need_wakeup(xsk_pool);
-	}
-
-	return acked_pkts;
+	return acked_pkts < budget;
 }
 
 static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
@@ -681,7 +672,6 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 	struct ena_tx_buffer *tx_info;
 	struct ena_com_buf *ena_buf;
 	u16 next_to_use, req_id;
-	bool need_wakeup = true;
 	struct xdp_desc desc;
 	dma_addr_t dma;
 
@@ -749,13 +739,7 @@ xmit_desc:
 		ena_ring_tx_doorbell(tx_ring);
 	}
 
-	if (work_done == budget) {
-		need_wakeup = false;
-		if (xsk_uses_need_wakeup(xsk_pool))
-			xsk_clear_tx_need_wakeup(xsk_pool);
-	}
-
-	return need_wakeup;
+	return work_done < budget;
 }
 
 static struct sk_buff *ena_xdp_rx_skb_zc(struct ena_ring *rx_ring, struct xdp_buff *xdp)
@@ -788,9 +772,8 @@ static struct sk_buff *ena_xdp_rx_skb_zc(struct ena_ring *rx_ring, struct xdp_bu
 	return skb;
 }
 
-static int ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
-				   struct napi_struct *napi,
-				   int budget)
+static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
+				    struct napi_struct *napi, int budget)
 {
 	int i, refill_required, work_done, refill_threshold, pkt_copy;
 	u16 next_to_clean = rx_ring->next_to_clean;
@@ -941,7 +924,7 @@ skip_xdp_prog:
 		return 0;
 	}
 
-	return work_done;
+	return work_done < budget;
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */
@@ -977,14 +960,20 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 		goto polling_done;
 	}
 
-	work_done = ena_xdp_clean_tx_zc(tx_ring, budget);
-
-	/* Take TX completions polling into account */
-	needs_wakeup &= work_done < budget;
-
-	rx_ring = ena_napi->rx_ring;
+	needs_wakeup &= ena_xdp_clean_tx_zc(tx_ring, budget);
 
 	needs_wakeup &= ena_xdp_xmit_irq_zc(tx_ring, napi, budget);
+	if (xsk_uses_need_wakeup(tx_ring->xsk_pool)) {
+		if (needs_wakeup) {
+			xsk_set_tx_need_wakeup(tx_ring->xsk_pool);
+			ena_increase_stat(&tx_ring->tx_stats.xsk_need_wakeup_set, 1,
+					  &tx_ring->syncp);
+		} else {
+			xsk_clear_tx_need_wakeup(tx_ring->xsk_pool);
+		}
+	}
+
+	rx_ring = ena_napi->rx_ring;
 
 	work_done = ena_xdp_clean_rx_irq_zc(rx_ring, napi, budget);
 	needs_wakeup &= work_done < budget;
