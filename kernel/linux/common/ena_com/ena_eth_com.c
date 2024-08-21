@@ -18,8 +18,7 @@ struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	cdesc = (struct ena_eth_io_rx_cdesc_base *)(io_cq->cdesc_addr.virt_addr
 			+ (head_masked * io_cq->cdesc_entry_size_in_bytes));
 
-	desc_phase = (READ_ONCE(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK) >>
-		     ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT;
+	desc_phase = FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK, READ_ONCE(cdesc->status));
 
 	if (desc_phase != expected_phase)
 		return NULL;
@@ -41,15 +40,11 @@ void ena_com_dump_single_rx_cdesc(struct ena_com_io_cq *io_cq,
 		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
 			   "RX descriptor value[0x%08x 0x%08x 0x%08x 0x%08x] phase[%u] first[%u] last[%u] MBZ7[%u] MZB17[%u]\n",
 			   desc_arr[0], desc_arr[1], desc_arr[2], desc_arr[3],
-			   ENA_FIELD_GET(desc->status, (u32)ENA_ETH_IO_RX_DESC_PHASE_MASK, 0),
-			   ENA_FIELD_GET(desc->status, (u32)ENA_ETH_IO_RX_DESC_FIRST_MASK,
-					 ENA_ETH_IO_RX_DESC_FIRST_SHIFT),
-			   ENA_FIELD_GET(desc->status, (u32)ENA_ETH_IO_RX_DESC_LAST_MASK,
-					 ENA_ETH_IO_RX_DESC_LAST_SHIFT),
-			   ENA_FIELD_GET(desc->status, (u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ7_MASK,
-					 ENA_ETH_IO_RX_CDESC_BASE_MBZ7_SHIFT),
-			   ENA_FIELD_GET(desc->status, (u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ17_MASK,
-					 ENA_ETH_IO_RX_CDESC_BASE_MBZ17_SHIFT));
+			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_PHASE_MASK, desc->status),
+			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_FIRST_MASK, desc->status),
+			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_LAST_MASK, desc->status),
+			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ7_MASK, desc->status),
+			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ17_MASK, desc->status));
 	}
 }
 
@@ -61,10 +56,8 @@ void ena_com_dump_single_tx_cdesc(struct ena_com_io_cq *io_cq,
 
 		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
 			   "TX descriptor value[0x%08x 0x%08x] phase[%u] MBZ6[%u]\n", desc_arr[0],
-			   desc_arr[1],
-			   ENA_FIELD_GET(desc->flags, (u32)ENA_ETH_IO_TX_CDESC_PHASE_MASK, 0),
-			   ENA_FIELD_GET(desc->flags, (u32)ENA_ETH_IO_TX_CDESC_MBZ6_MASK,
-					 ENA_ETH_IO_TX_CDESC_MBZ6_SHIFT));
+			   desc_arr[1], FIELD_GET((u32)ENA_ETH_IO_TX_CDESC_PHASE_MASK, desc->flags),
+			   FIELD_GET((u32)ENA_ETH_IO_TX_CDESC_MBZ6_MASK, desc->flags));
 	}
 }
 
@@ -297,9 +290,7 @@ static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 			break;
 		status = READ_ONCE(cdesc->status);
 
-		if (unlikely((status & ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK) >>
-				     ENA_ETH_IO_RX_CDESC_BASE_FIRST_SHIFT &&
-			     count != 0)) {
+		if (unlikely(FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK, status) && count != 0)) {
 			netdev_err(dev->net_device,
 				   "First bit is on in descriptor #%u on q_id: %u, req_id: %u\n",
 				   count, io_cq->qid, cdesc->req_id);
@@ -317,8 +308,7 @@ static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 
 		ena_com_cq_inc_head(io_cq);
 		count++;
-		last = (status & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
-			ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;
+		last = FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK, status);
 	} while (!last);
 
 	if (last) {
@@ -357,32 +347,25 @@ static int ena_com_create_meta(struct ena_com_io_sq *io_sq,
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_EXT_VALID_MASK;
 
 	/* bits 0-9 of the mss */
-	meta_desc->word2 |= ((u32)ena_meta->mss <<
-		ENA_ETH_IO_TX_META_DESC_MSS_LO_SHIFT) &
-		ENA_ETH_IO_TX_META_DESC_MSS_LO_MASK;
+	meta_desc->word2 |= FIELD_PREP(ENA_ETH_IO_TX_META_DESC_MSS_LO_MASK, (u32)ena_meta->mss);
 	/* bits 10-13 of the mss */
-	meta_desc->len_ctrl |= ((ena_meta->mss >> 10) <<
-		ENA_ETH_IO_TX_META_DESC_MSS_HI_SHIFT) &
-		ENA_ETH_IO_TX_META_DESC_MSS_HI_MASK;
+	meta_desc->len_ctrl |=
+		FIELD_PREP(ENA_ETH_IO_TX_META_DESC_MSS_HI_MASK, (ena_meta->mss >> 10));
 
 	/* Extended meta desc */
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_MASK;
-	meta_desc->len_ctrl |= ((u32)io_sq->phase <<
-		ENA_ETH_IO_TX_META_DESC_PHASE_SHIFT) &
-		ENA_ETH_IO_TX_META_DESC_PHASE_MASK;
+	meta_desc->len_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_META_DESC_PHASE_MASK, (u32)io_sq->phase);
 
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_FIRST_MASK;
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_META_STORE_MASK;
 
 	meta_desc->word2 |= ena_meta->l3_hdr_len &
 		ENA_ETH_IO_TX_META_DESC_L3_HDR_LEN_MASK;
-	meta_desc->word2 |= (ena_meta->l3_hdr_offset <<
-		ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_SHIFT) &
-		ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_MASK;
+	meta_desc->word2 |=
+		FIELD_PREP(ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_MASK, ena_meta->l3_hdr_offset);
 
-	meta_desc->word2 |= ((u32)ena_meta->l4_hdr_len <<
-		ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_SHIFT) &
-		ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_MASK;
+	meta_desc->word2 |= FIELD_PREP(ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_MASK,
+				       (u32)ena_meta->l4_hdr_len);
 
 	return ena_com_sq_update_tail(io_sq);
 }
@@ -419,22 +402,15 @@ static void ena_com_rx_set_flags(struct ena_com_io_cq *io_cq,
 {
 	ena_rx_ctx->l3_proto = cdesc->status &
 		ENA_ETH_IO_RX_CDESC_BASE_L3_PROTO_IDX_MASK;
-	ena_rx_ctx->l4_proto =
-		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_SHIFT;
+	ena_rx_ctx->l4_proto = FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_MASK, cdesc->status);
 	ena_rx_ctx->l3_csum_err =
-		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_SHIFT);
+		!!(FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK, cdesc->status));
 	ena_rx_ctx->l4_csum_err =
-		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT);
+		!!(FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK, cdesc->status));
 	ena_rx_ctx->l4_csum_checked =
-		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_SHIFT);
+		!!(FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_MASK, cdesc->status));
 	ena_rx_ctx->hash = cdesc->hash;
-	ena_rx_ctx->frag =
-		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT;
+	ena_rx_ctx->frag = FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK, cdesc->status);
 
 	netdev_dbg(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
 		   "l3_proto %d l4_proto %d l3_csum_err %d l4_csum_err %d hash %u frag %d cdesc_status %x\n",
@@ -512,46 +488,33 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	if (!have_meta)
 		desc->len_ctrl |= ENA_ETH_IO_TX_DESC_FIRST_MASK;
 
-	desc->buff_addr_hi_hdr_sz |= ((u32)header_len <<
-		ENA_ETH_IO_TX_DESC_HEADER_LENGTH_SHIFT) &
-		ENA_ETH_IO_TX_DESC_HEADER_LENGTH_MASK;
-	desc->len_ctrl |= ((u32)io_sq->phase << ENA_ETH_IO_TX_DESC_PHASE_SHIFT) &
-		ENA_ETH_IO_TX_DESC_PHASE_MASK;
+	desc->buff_addr_hi_hdr_sz |=
+		FIELD_PREP(ENA_ETH_IO_TX_DESC_HEADER_LENGTH_MASK, (u32)header_len);
+
+	desc->len_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_DESC_PHASE_MASK, (u32)io_sq->phase);
 
 	desc->len_ctrl |= ENA_ETH_IO_TX_DESC_COMP_REQ_MASK;
 
 	/* Bits 0-9 */
-	desc->meta_ctrl |= ((u32)ena_tx_ctx->req_id <<
-		ENA_ETH_IO_TX_DESC_REQ_ID_LO_SHIFT) &
-		ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK;
+	desc->meta_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK, (u32)ena_tx_ctx->req_id);
 
-	desc->meta_ctrl |= (ena_tx_ctx->df <<
-		ENA_ETH_IO_TX_DESC_DF_SHIFT) &
-		ENA_ETH_IO_TX_DESC_DF_MASK;
+	desc->meta_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_DESC_DF_MASK, ena_tx_ctx->df);
 
 	/* Bits 10-15 */
-	desc->len_ctrl |= ((ena_tx_ctx->req_id >> 10) <<
-		ENA_ETH_IO_TX_DESC_REQ_ID_HI_SHIFT) &
-		ENA_ETH_IO_TX_DESC_REQ_ID_HI_MASK;
+	desc->len_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_DESC_REQ_ID_HI_MASK, (ena_tx_ctx->req_id >> 10));
 
 	if (ena_tx_ctx->meta_valid) {
-		desc->meta_ctrl |= (ena_tx_ctx->tso_enable <<
-			ENA_ETH_IO_TX_DESC_TSO_EN_SHIFT) &
-			ENA_ETH_IO_TX_DESC_TSO_EN_MASK;
-		desc->meta_ctrl |= ena_tx_ctx->l3_proto &
-			ENA_ETH_IO_TX_DESC_L3_PROTO_IDX_MASK;
-		desc->meta_ctrl |= (ena_tx_ctx->l4_proto <<
-			ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_SHIFT) &
-			ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_MASK;
-		desc->meta_ctrl |= (ena_tx_ctx->l3_csum_enable <<
-			ENA_ETH_IO_TX_DESC_L3_CSUM_EN_SHIFT) &
-			ENA_ETH_IO_TX_DESC_L3_CSUM_EN_MASK;
-		desc->meta_ctrl |= (ena_tx_ctx->l4_csum_enable <<
-			ENA_ETH_IO_TX_DESC_L4_CSUM_EN_SHIFT) &
-			ENA_ETH_IO_TX_DESC_L4_CSUM_EN_MASK;
-		desc->meta_ctrl |= (ena_tx_ctx->l4_csum_partial <<
-			ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_SHIFT) &
-			ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_MASK;
+		desc->meta_ctrl |=
+			FIELD_PREP(ENA_ETH_IO_TX_DESC_TSO_EN_MASK, ena_tx_ctx->tso_enable);
+		desc->meta_ctrl |= ena_tx_ctx->l3_proto & ENA_ETH_IO_TX_DESC_L3_PROTO_IDX_MASK;
+		desc->meta_ctrl |=
+			FIELD_PREP(ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_MASK, ena_tx_ctx->l4_proto);
+		desc->meta_ctrl |=
+			FIELD_PREP(ENA_ETH_IO_TX_DESC_L3_CSUM_EN_MASK, ena_tx_ctx->l3_csum_enable);
+		desc->meta_ctrl |=
+			FIELD_PREP(ENA_ETH_IO_TX_DESC_L4_CSUM_EN_MASK, ena_tx_ctx->l4_csum_enable);
+		desc->meta_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_MASK,
+					      ena_tx_ctx->l4_csum_partial);
 	}
 
 	for (i = 0; i < num_bufs; i++) {
@@ -570,9 +533,8 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 
 			memset(desc, 0x0, sizeof(struct ena_eth_io_tx_desc));
 
-			desc->len_ctrl |= ((u32)io_sq->phase <<
-				ENA_ETH_IO_TX_DESC_PHASE_SHIFT) &
-				ENA_ETH_IO_TX_DESC_PHASE_MASK;
+			desc->len_ctrl |=
+				FIELD_PREP(ENA_ETH_IO_TX_DESC_PHASE_MASK, (u32)io_sq->phase);
 		}
 
 		desc->len_ctrl |= ena_bufs->len &
@@ -683,10 +645,9 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 	desc->length = ena_buf->len;
 
-	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK |
-		     ENA_ETH_IO_RX_DESC_LAST_MASK |
+	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK | ENA_ETH_IO_RX_DESC_LAST_MASK |
 		     ENA_ETH_IO_RX_DESC_COMP_REQ_MASK |
-		     (io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK);
+		     FIELD_GET(ENA_ETH_IO_RX_DESC_PHASE_MASK, io_sq->phase);
 
 	desc->req_id = req_id;
 

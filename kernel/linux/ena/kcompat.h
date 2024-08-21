@@ -76,6 +76,9 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #include <linux/vmalloc.h>
 #include <linux/udp.h>
 #include <linux/u64_stats_sync.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+#include <linux/bitfield.h>
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 #include <linux/sizes.h>
@@ -1036,11 +1039,11 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 #define ENA_LARGE_LLQ_ETHTOOL
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
-#include <linux/bitfield.h>
-#define ENA_FIELD_GET(value, mask, offset) FIELD_GET(mask, value)
-#else
-#define ENA_FIELD_GET(value, mask, offset) ((typeof(mask))((value & mask) >> offset))
+#ifndef FIELD_GET
+#define FIELD_GET(mask, value) ((typeof(mask))(((value) & (mask)) >> (__builtin_ffsll(mask) - 1)))
+#endif
+#ifndef FIELD_PREP
+#define FIELD_PREP(mask, value) ((typeof(mask))(((value) << (__builtin_ffsll(mask) - 1)) & (mask)))
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)

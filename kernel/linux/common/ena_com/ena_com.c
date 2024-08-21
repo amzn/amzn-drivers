@@ -158,10 +158,10 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *ena_dev,
 	writel(addr_high, ena_dev->reg_bar + ENA_REGS_AENQ_BASE_HI_OFF);
 
 	aenq_caps = 0;
-	aenq_caps |= ena_dev->aenq.q_depth & ENA_REGS_AENQ_CAPS_AENQ_DEPTH_MASK;
-	aenq_caps |=
-		(sizeof(struct ena_admin_aenq_entry) << ENA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_SHIFT) &
-		ENA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_MASK;
+	aenq_caps |= FIELD_PREP(ENA_REGS_AENQ_CAPS_AENQ_DEPTH_MASK, ena_dev->aenq.q_depth);
+
+	aenq_caps |= FIELD_PREP(ENA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_MASK,
+				sizeof(struct ena_admin_aenq_entry));
 	writel(aenq_caps, ena_dev->reg_bar + ENA_REGS_AENQ_CAPS_OFF);
 
 	if (unlikely(!aenq_handlers)) {
@@ -835,10 +835,8 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	mmio_read->seq_num++;
 
 	read_resp->req_id = mmio_read->seq_num + 0xDEAD;
-	mmio_read_reg = (offset << ENA_REGS_MMIO_REG_READ_REG_OFF_SHIFT) &
-			ENA_REGS_MMIO_REG_READ_REG_OFF_MASK;
-	mmio_read_reg |= mmio_read->seq_num &
-			ENA_REGS_MMIO_REG_READ_REQ_ID_MASK;
+	mmio_read_reg = FIELD_PREP(ENA_REGS_MMIO_REG_READ_REG_OFF_MASK, offset);
+	mmio_read_reg |= mmio_read->seq_num & ENA_REGS_MMIO_REG_READ_REQ_ID_MASK;
 
 	writel(mmio_read_reg, ena_dev->reg_bar + ENA_REGS_MMIO_REG_READ_OFF);
 
@@ -903,9 +901,7 @@ static int ena_com_destroy_io_sq(struct ena_com_dev *ena_dev,
 	else
 		direction = ENA_ADMIN_SQ_DIRECTION_RX;
 
-	destroy_cmd.sq.sq_identity |= (direction <<
-		ENA_ADMIN_SQ_SQ_DIRECTION_SHIFT) &
-		ENA_ADMIN_SQ_SQ_DIRECTION_MASK;
+	destroy_cmd.sq.sq_identity |= FIELD_PREP(ENA_ADMIN_SQ_SQ_DIRECTION_MASK, direction);
 
 	destroy_cmd.sq.sq_idx = io_sq->idx;
 	destroy_cmd.aq_common_descriptor.opcode = ENA_ADMIN_DESTROY_SQ;
@@ -1210,16 +1206,14 @@ static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
 	else
 		direction = ENA_ADMIN_SQ_DIRECTION_RX;
 
-	create_cmd.sq_identity |= (direction <<
-		ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_DIRECTION_SHIFT) &
-		ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_DIRECTION_MASK;
+	create_cmd.sq_identity |=
+		FIELD_PREP(ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_DIRECTION_MASK, direction);
 
 	create_cmd.sq_caps_2 |= io_sq->mem_queue_type &
 		ENA_ADMIN_AQ_CREATE_SQ_CMD_PLACEMENT_POLICY_MASK;
 
-	create_cmd.sq_caps_2 |= (ENA_ADMIN_COMPLETION_POLICY_DESC <<
-		ENA_ADMIN_AQ_CREATE_SQ_CMD_COMPLETION_POLICY_SHIFT) &
-		ENA_ADMIN_AQ_CREATE_SQ_CMD_COMPLETION_POLICY_MASK;
+	create_cmd.sq_caps_2 |= FIELD_PREP(ENA_ADMIN_AQ_CREATE_SQ_CMD_COMPLETION_POLICY_MASK,
+					   ENA_ADMIN_COMPLETION_POLICY_DESC);
 
 	create_cmd.sq_caps_3 |=
 		ENA_ADMIN_AQ_CREATE_SQ_CMD_IS_PHYSICALLY_CONTIGUOUS_MASK;
@@ -1558,8 +1552,7 @@ int ena_com_get_dma_width(struct ena_com_dev *ena_dev)
 		return -ETIME;
 	}
 
-	width = (caps & ENA_REGS_CAPS_DMA_ADDR_WIDTH_MASK) >>
-		ENA_REGS_CAPS_DMA_ADDR_WIDTH_SHIFT;
+	width = FIELD_GET(ENA_REGS_CAPS_DMA_ADDR_WIDTH_MASK, caps);
 
 	netdev_dbg(ena_dev->net_device, "ENA dma width: %d\n", width);
 
@@ -1592,17 +1585,14 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev)
 	}
 
 	dev_info(ena_dev->dmadev, "ENA device version: %d.%d\n",
-		 (ver & ENA_REGS_VERSION_MAJOR_VERSION_MASK) >> ENA_REGS_VERSION_MAJOR_VERSION_SHIFT,
-		 ver & ENA_REGS_VERSION_MINOR_VERSION_MASK);
+		 FIELD_GET(ENA_REGS_VERSION_MAJOR_VERSION_MASK, ver),
+		 FIELD_GET(ENA_REGS_VERSION_MINOR_VERSION_MASK, ver));
 
 	dev_info(ena_dev->dmadev, "ENA controller version: %d.%d.%d implementation version %d\n",
-		 (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK) >>
-			 ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_SHIFT,
-		 (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK) >>
-			 ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_SHIFT,
-		 (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION_MASK),
-		 (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_IMPL_ID_MASK) >>
-			 ENA_REGS_CONTROLLER_VERSION_IMPL_ID_SHIFT);
+		 FIELD_GET(ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK, ctrl_ver),
+		 FIELD_GET(ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK, ctrl_ver),
+		 FIELD_GET(ENA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION_MASK, ctrl_ver),
+		 FIELD_GET(ENA_REGS_CONTROLLER_VERSION_IMPL_ID_MASK, ctrl_ver));
 
 	ctrl_ver_masked =
 		(ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK) |
@@ -2034,16 +2024,14 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 	writel(addr_high, ena_dev->reg_bar + ENA_REGS_ACQ_BASE_HI_OFF);
 
 	aq_caps = 0;
-	aq_caps |= admin_queue->q_depth & ENA_REGS_AQ_CAPS_AQ_DEPTH_MASK;
-	aq_caps |= (sizeof(struct ena_admin_aq_entry) <<
-			ENA_REGS_AQ_CAPS_AQ_ENTRY_SIZE_SHIFT) &
-			ENA_REGS_AQ_CAPS_AQ_ENTRY_SIZE_MASK;
+	aq_caps |= FIELD_PREP(ENA_REGS_AQ_CAPS_AQ_DEPTH_MASK, admin_queue->q_depth);
+	aq_caps |=
+		FIELD_PREP(ENA_REGS_AQ_CAPS_AQ_ENTRY_SIZE_MASK, sizeof(struct ena_admin_aq_entry));
 
 	acq_caps = 0;
-	acq_caps |= admin_queue->q_depth & ENA_REGS_ACQ_CAPS_ACQ_DEPTH_MASK;
-	acq_caps |= (sizeof(struct ena_admin_acq_entry) <<
-		ENA_REGS_ACQ_CAPS_ACQ_ENTRY_SIZE_SHIFT) &
-		ENA_REGS_ACQ_CAPS_ACQ_ENTRY_SIZE_MASK;
+	acq_caps |= FIELD_PREP(ENA_REGS_ACQ_CAPS_ACQ_DEPTH_MASK, admin_queue->q_depth);
+	acq_caps |= FIELD_PREP(ENA_REGS_ACQ_CAPS_ACQ_ENTRY_SIZE_MASK,
+			       sizeof(struct ena_admin_acq_entry));
 
 	writel(aq_caps, ena_dev->reg_bar + ENA_REGS_AQ_CAPS_OFF);
 	writel(acq_caps, ena_dev->reg_bar + ENA_REGS_ACQ_CAPS_OFF);
@@ -2431,8 +2419,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 		return -EINVAL;
 	}
 
-	timeout = (cap & ENA_REGS_CAPS_RESET_TIMEOUT_MASK) >>
-			ENA_REGS_CAPS_RESET_TIMEOUT_SHIFT;
+	timeout = FIELD_GET(ENA_REGS_CAPS_RESET_TIMEOUT_MASK, cap);
 	if (timeout == 0) {
 		netdev_err(ena_dev->net_device, "Invalid timeout value\n");
 		return -EINVAL;
@@ -2444,11 +2431,9 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 	/* For backward compatibility, device will interpret
 	 * bits 24-27 as MSB, bits 28-31 as LSB
 	 */
-	reset_reason_lsb = ENA_FIELD_GET(reset_reason, ENA_RESET_REASON_LSB_MASK,
-					 ENA_RESET_REASON_LSB_OFFSET);
+	reset_reason_lsb = FIELD_GET(ENA_RESET_REASON_LSB_MASK, reset_reason);
 
-	reset_reason_msb = ENA_FIELD_GET(reset_reason, ENA_RESET_REASON_MSB_MASK,
-					 ENA_RESET_REASON_MSB_OFFSET);
+	reset_reason_msb = FIELD_GET(ENA_RESET_REASON_MSB_MASK, reset_reason);
 
 	reset_val |= reset_reason_lsb << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT;
 
@@ -2459,8 +2444,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 		 * extended reset reason fallback to generic
 		 */
 		reset_val = ENA_REGS_DEV_CTL_DEV_RESET_MASK;
-		reset_val |= (ENA_REGS_RESET_GENERIC << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT) &
-			      ENA_REGS_DEV_CTL_RESET_REASON_MASK;
+		reset_val |= FIELD_PREP(ENA_REGS_DEV_CTL_RESET_REASON_MASK, ENA_REGS_RESET_GENERIC);
 	}
 	writel(reset_val, ena_dev->reg_bar + ENA_REGS_DEV_CTL_OFF);
 
@@ -2482,8 +2466,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 		return rc;
 	}
 
-	timeout = (cap & ENA_REGS_CAPS_ADMIN_CMD_TO_MASK) >>
-		ENA_REGS_CAPS_ADMIN_CMD_TO_SHIFT;
+	timeout = FIELD_GET(ENA_REGS_CAPS_ADMIN_CMD_TO_MASK, cap);
 	if (timeout)
 		/* the resolution of timeout reg is 100ms */
 		ena_dev->admin_queue.completion_timeout = timeout * 100000;

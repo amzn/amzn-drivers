@@ -4359,9 +4359,9 @@ static void ena_update_host_info(struct ena_admin_host_info *host_info,
 				 struct net_device *netdev)
 {
 	host_info->supported_network_features[0] =
-		netdev->features & GENMASK_ULL(31, 0);
+		FIELD_GET(GENMASK_ULL(31, 0), netdev->features);
 	host_info->supported_network_features[1] =
-		(netdev->features & GENMASK_ULL(63, 32)) >> 32;
+		FIELD_GET(GENMASK_ULL(63, 32), netdev->features);
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
