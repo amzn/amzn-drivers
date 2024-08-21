@@ -384,6 +384,7 @@ struct ena_stats_dev {
 	u64 missing_admin_interrupt;
 	u64 admin_to;
 	u64 device_request_reset;
+	u64 missing_first_intr;
 };
 
 enum ena_flags_t {
@@ -529,6 +530,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT, missing_admin_interrupt),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DEVICE_REQUEST, device_request_reset),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_FIRST_INTERRUPT, missing_first_intr),
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);

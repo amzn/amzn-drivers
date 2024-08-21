@@ -4013,7 +4013,7 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 			  "Potential MSIX issue on Rx side Queue = %d. Reset the device\n",
 			  rx_ring->qid);
 
-		ena_reset_device(adapter, ENA_REGS_RESET_MISS_INTERRUPT);
+		ena_reset_device(adapter, ENA_REGS_RESET_MISS_FIRST_INTERRUPT);
 		return -EIO;
 	}
 
@@ -4074,7 +4074,7 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 			netif_err(adapter, tx_err, netdev,
 				  "Potential MSIX issue on Tx side Queue = %d. Reset the device\n",
 				  tx_ring->qid);
-			ena_reset_device(adapter, ENA_REGS_RESET_MISS_INTERRUPT);
+			ena_reset_device(adapter, ENA_REGS_RESET_MISS_FIRST_INTERRUPT);
 			return -EIO;
 		}
 
