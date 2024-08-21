@@ -1581,6 +1581,8 @@ error:
 #ifdef ENA_XDP_SUPPORT
 	if (xdp_flags & ENA_XDP_REDIRECT)
 		xdp_do_flush();
+	if (xdp_flags & ENA_XDP_TX)
+		ena_ring_tx_doorbell(rx_ring->xdp_ring);
 
 #endif
 	adapter = netdev_priv(rx_ring->netdev);
