@@ -867,7 +867,13 @@ for it and the RX buffer remains the same size, see `RX copybreak`_).
 AF XDP Native Support (zero copy)
 ---------------------------------
 
-ENA driver supports native AF XDP (zero copy), however the feature is still
-experimental.
-Please follow https://github.com/amzn/amzn-drivers/issues/221 for possible
-mitigations to issues.
+ENA driver supports native AF XDP (zero copy). To make a channel (TX/RX queue
+pair) zero copy, its index should meet the following criteria:
+
+- It has to be within the bounds of the configured channels.
+- It has to be smaller than *half* of the maximum channel number. E.g.
+  if an instance supports a maximum of 32 channels, zero-copy channels can be
+  configured on channels 0 through 15.
+
+Both the currently configured channels and the maximum available for the instance can be queried
+using :code:`ethtool -l`.
