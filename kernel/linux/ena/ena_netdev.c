@@ -1044,6 +1044,7 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 			  skb);
 
 		tx_bytes += tx_info->total_tx_size;
+		tx_info->total_tx_size = 0;
 		dev_kfree_skb(skb);
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
@@ -3017,7 +3018,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info = &tx_ring->tx_buffer_info[req_id];
 	tx_info->num_of_bufs = 0;
 
-	WARN(tx_info->skb, "SKB isn't NULL req_id %d\n", req_id);
+	WARN(tx_info->total_tx_size, "TX descriptor is still in use, req_iq = %d\n", req_id);
 
 	rc = ena_tx_map_skb(tx_ring, tx_info, skb, &push_hdr, &header_len);
 	if (unlikely(rc))

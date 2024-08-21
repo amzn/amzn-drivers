@@ -580,9 +580,7 @@ log_xdp_packet:
 #endif /* ENA_AF_XDP_SUPPORT */
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
-#ifdef ENA_AF_XDP_SUPPORT
 		tx_info->total_tx_size = 0;
-#endif /* ENA_AF_XDP_SUPPORT */
 		tx_ring->free_ids[next_to_clean] = req_id;
 		next_to_clean = ENA_TX_RING_IDX_NEXT(next_to_clean,
 						     tx_ring->ring_size);
