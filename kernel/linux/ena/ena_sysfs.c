@@ -133,8 +133,9 @@ int ena_sysfs_init(struct device *dev)
 		dev_err(dev, "Failed to create rx_copybreak sysfs entry");
 
 #ifdef ENA_PHC_SUPPORT
-	if (device_create_file(dev, &dev_attr_phc_error_bound))
-		dev_err(dev, "Failed to create phc_error_bound sysfs entry");
+	if (ena_phc_is_active(dev_get_drvdata(dev)))
+		if (device_create_file(dev, &dev_attr_phc_error_bound))
+			dev_err(dev, "Failed to create phc_error_bound sysfs entry");
 
 #endif /* ENA_PHC_SUPPORT */
 
