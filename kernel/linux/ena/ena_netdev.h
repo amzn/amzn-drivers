@@ -691,4 +691,16 @@ void ena_set_rx_hash(struct ena_ring *rx_ring,
 		     struct ena_com_rx_ctx *ena_rx_ctx,
 		     struct sk_buff *skb);
 int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num);
+
+static inline void handle_tx_comp_poll_error(struct ena_ring *tx_ring, u16 req_id, int rc)
+{
+	if (unlikely(rc == -EINVAL))
+		handle_invalid_req_id(tx_ring, req_id, NULL, true);
+	else if (unlikely(rc == -EFAULT)) {
+		ena_get_and_dump_head_tx_cdesc(tx_ring->ena_com_io_cq);
+		ena_reset_device(tx_ring->adapter,
+				 ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
+	}
+}
+
 #endif /* !(ENA_H) */
