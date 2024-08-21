@@ -1323,10 +1323,7 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 					    comp, comp_size);
 	if (IS_ERR(comp_ctx)) {
 		ret = PTR_ERR(comp_ctx);
-		if (ret == -ENODEV)
-			netdev_dbg(admin_queue->ena_dev->net_device,
-				   "Failed to submit command [%d]\n", ret);
-		else
+		if (ret != -ENODEV)
 			netdev_err(admin_queue->ena_dev->net_device,
 				   "Failed to submit command [%d]\n", ret);
 
@@ -1337,10 +1334,7 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 	if (unlikely(ret)) {
 		if (admin_queue->running_state)
 			netdev_err(admin_queue->ena_dev->net_device,
-				   "Failed to process command. ret = %d\n", ret);
-		else
-			netdev_dbg(admin_queue->ena_dev->net_device,
-				   "Failed to process command. ret = %d\n", ret);
+				   "Failed to process command [%d]\n", ret);
 	}
 	return ret;
 }
@@ -2299,7 +2293,6 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 	struct ena_admin_aenq_entry *aenq_e;
 	struct ena_admin_aenq_common_desc *aenq_common;
 	struct ena_com_aenq *aenq  = &ena_dev->aenq;
-	u64 timestamp;
 	ena_aenq_handler handler_cb;
 	u16 masked_head, processed = 0;
 	u8 phase;
@@ -2320,11 +2313,10 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 		 */
 		dma_rmb();
 
-		timestamp = (u64)aenq_common->timestamp_low |
-			((u64)aenq_common->timestamp_high << 32);
-
 		netdev_dbg(ena_dev->net_device, "AENQ! Group[%x] Syndrome[%x] timestamp: [%llus]\n",
-			   aenq_common->group, aenq_common->syndrome, timestamp);
+			   aenq_common->group, aenq_common->syndrome,
+			   ((u64)aenq_common->timestamp_low |
+			    ((u64)aenq_common->timestamp_high << 32)));
 
 		/* Handle specific event*/
 		handler_cb = ena_com_get_specific_aenq_cb(ena_dev,
