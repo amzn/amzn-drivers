@@ -521,9 +521,6 @@ int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags)
 #endif /* ENA_AF_XDP_SUPPORT */
 static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 {
-#ifdef ENA_AF_XDP_SUPPORT
-	bool is_zc_q = ENA_IS_XSK_RING(tx_ring);
-#endif /* ENA_AF_XDP_SUPPORT */
 	u16 next_to_clean, req_id;
 	int rc, tx_pkts = 0;
 	u32 total_done = 0;
@@ -549,20 +546,12 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		tx_info = &tx_ring->tx_buffer_info[req_id];
 
 		tx_info->tx_sent_jiffies = 0;
-#ifdef ENA_AF_XDP_SUPPORT
-
-		if (is_zc_q)
-			goto log_xdp_packet;
-#endif /* ENA_AF_XDP_SUPPORT */
 
 		xdpf = tx_info->xdpf;
 		tx_info->xdpf = NULL;
 		ena_unmap_tx_buff(tx_ring, tx_info);
 		xdp_return_frame(xdpf);
 
-#ifdef ENA_AF_XDP_SUPPORT
-log_xdp_packet:
-#endif /* ENA_AF_XDP_SUPPORT */
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
 		tx_info->total_tx_size = 0;
@@ -581,8 +570,75 @@ log_xdp_packet:
 		  "tx_poll: q %d done. total pkts: %d\n",
 		  tx_ring->qid, tx_pkts);
 
+	return tx_pkts;
+}
+
 #ifdef ENA_AF_XDP_SUPPORT
-	if (is_zc_q) {
+/* Poll TX completions. Completions can be either for TX packets sent by
+ * an AF XDP application or the network stack (through .ndo_start_xmit)
+ */
+static int ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
+{
+	int rc, tx_pkts, skb_pkts, zc_pkts;
+	u16 next_to_clean, req_id;
+	u32 total_done;
+
+	next_to_clean = tx_ring->next_to_clean;
+	total_done = 0;
+	tx_pkts = skb_pkts = 0;
+
+	while (tx_pkts < budget) {
+		struct ena_tx_buffer *tx_info;
+		bool is_zc_packet;
+
+		rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq,
+						&req_id);
+		if (rc) {
+			handle_tx_comp_poll_error(tx_ring, req_id, rc);
+			break;
+		}
+
+		/* validate that the request id points to a valid packet */
+		rc = validate_tx_req_id(tx_ring, req_id);
+		if (unlikely(rc))
+			break;
+
+		tx_info = &tx_ring->tx_buffer_info[req_id];
+
+		tx_info->tx_sent_jiffies = 0;
+
+		is_zc_packet = !!tx_info->skb;
+		if (!is_zc_packet) {
+			struct sk_buff *skb = tx_info->skb;
+
+			ena_unmap_tx_buff(tx_ring, tx_info);
+
+			/* prefetch skb_end_pointer() to speedup skb_shinfo(skb) */
+			prefetch(&skb->end);
+			dev_kfree_skb(skb);
+			tx_info->skb = NULL;
+
+			skb_pkts++;
+		}
+
+		tx_pkts++;
+		total_done += tx_info->tx_descs;
+		tx_info->total_tx_size = 0;
+
+		tx_ring->free_ids[next_to_clean] = req_id;
+		next_to_clean = ENA_TX_RING_IDX_NEXT(next_to_clean,
+						     tx_ring->ring_size);
+
+		netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
+			  "ZC tx_poll: q %d pkt #%d req_id %d, ZC packet: %d\n",
+			  tx_ring->qid, tx_pkts, req_id, is_zc_packet);
+	}
+
+	tx_ring->next_to_clean = next_to_clean;
+	ena_com_comp_ack(tx_ring->ena_com_io_sq, total_done);
+
+	zc_pkts = tx_pkts - skb_pkts;
+	if (zc_pkts) {
 		struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
 
 		if (tx_pkts)
@@ -597,11 +653,9 @@ log_xdp_packet:
 		}
 	}
 
-#endif /* ENA_AF_XDP_SUPPORT */
 	return tx_pkts;
 }
 
-#ifdef ENA_AF_XDP_SUPPORT
 static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 				struct napi_struct *napi,
 				int budget)
@@ -897,14 +951,20 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 		return 0;
 	}
 
+#ifndef ENA_AF_XDP_SUPPORT
 	work_done = ena_clean_xdp_irq(tx_ring, budget);
 
-#ifdef ENA_AF_XDP_SUPPORT
-	/* Take XDP work into account */
-	needs_wakeup &= work_done < budget;
+#else
+	if (!ENA_IS_XSK_RING(tx_ring)) {
+		work_done = ena_clean_xdp_irq(tx_ring, budget);
 
-	if (!ENA_IS_XSK_RING(tx_ring))
 		goto polling_done;
+	}
+
+	work_done = ena_xdp_clean_tx_zc(tx_ring, budget);
+
+	/* Take TX completions polling into account */
+	needs_wakeup &= work_done < budget;
 
 	rx_ring = ena_napi->rx_ring;
 
