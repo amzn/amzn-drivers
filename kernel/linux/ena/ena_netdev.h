@@ -659,6 +659,8 @@ struct page *ena_alloc_map_page(struct ena_ring *rx_ring, dma_addr_t *dma);
 
 int ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 int ena_restore_device(struct ena_adapter *adapter);
+void ena_get_and_dump_head_tx_cdesc(struct ena_com_io_cq *io_cq);
+void ena_get_and_dump_head_rx_cdesc(struct ena_com_io_cq *io_cq);
 int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
 			  struct ena_tx_buffer *tx_info, bool is_xdp);
 

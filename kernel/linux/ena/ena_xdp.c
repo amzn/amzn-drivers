@@ -577,6 +577,7 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 			if (unlikely(rc == -EINVAL))
 				handle_invalid_req_id(tx_ring, req_id, NULL, true);
 			else if (unlikely(rc == -EFAULT)) {
+				ena_get_and_dump_head_tx_cdesc(tx_ring->ena_com_io_cq);
 				ena_reset_device(tx_ring->adapter,
 						 ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
 			}
@@ -905,8 +906,10 @@ skip_xdp_prog:
 			ena_reset_device(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
 		} else if (rc == -EIO) {
 			ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1, &rx_ring->syncp);
+			ena_get_and_dump_head_rx_cdesc(rx_ring->ena_com_io_cq);
 			ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
 		} else if (rc == -EFAULT) {
+			ena_get_and_dump_head_rx_cdesc(rx_ring->ena_com_io_cq);
 			ena_reset_device(adapter, ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
 		}
 
