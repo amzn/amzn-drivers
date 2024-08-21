@@ -177,6 +177,12 @@ struct ena_tx_buffer {
 
 	/* Used for detect missing tx packets to limit the number of prints */
 	u8 print_once;
+#ifdef ENA_AF_XDP_SUPPORT
+
+	/* used for ordering TX completions when needed (e.g. AF_XDP) */
+	u8 acked;
+
+#endif
 	/* Save the last jiffies to detect missing tx packets
 	 *
 	 * sets to non zero value on ena_start_xmit and set to zero on

@@ -579,18 +579,15 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
  */
 static int ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 {
-	int rc, tx_pkts, skb_pkts, zc_pkts;
-	u16 next_to_clean, req_id;
+	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
+	int rc, cleaned_pkts, zc_pkts, acked_pkts;
+	struct ena_tx_buffer *tx_info;
 	u32 total_done;
+	u16 req_id;
 
-	next_to_clean = tx_ring->next_to_clean;
-	total_done = 0;
-	tx_pkts = skb_pkts = 0;
+	acked_pkts = 0;
 
-	while (tx_pkts < budget) {
-		struct ena_tx_buffer *tx_info;
-		bool is_zc_packet;
-
+	while (acked_pkts < budget) {
 		rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq,
 						&req_id);
 		if (rc) {
@@ -607,8 +604,36 @@ static int ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 
 		tx_info->tx_sent_jiffies = 0;
 
-		is_zc_packet = !!tx_info->skb;
-		if (!is_zc_packet) {
+		tx_info->acked = 1;
+
+		acked_pkts++;
+	}
+
+	/* AF XDP expects the completions to be ordered but HW doesn't guarantee
+	 * this. Force ordering.
+	 */
+	total_done = 0;
+	cleaned_pkts = zc_pkts = 0;
+	req_id = tx_ring->next_to_clean;
+	while (true) {
+		bool is_zc_pkt;
+
+		tx_info = &tx_ring->tx_buffer_info[req_id];
+		if (!tx_info->acked)
+			break;
+
+		/* Used as a sanity check to signify that the packet is
+		 * in-flight.
+		 */
+		tx_info->total_tx_size = 0;
+
+		is_zc_pkt = !tx_info->skb;
+
+		cleaned_pkts++;
+		zc_pkts += is_zc_pkt;
+		total_done += tx_info->tx_descs;
+
+		if (!is_zc_pkt) {
 			struct sk_buff *skb = tx_info->skb;
 
 			ena_unmap_tx_buff(tx_ring, tx_info);
@@ -617,43 +642,34 @@ static int ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 			prefetch(&skb->end);
 			dev_kfree_skb(skb);
 			tx_info->skb = NULL;
-
-			skb_pkts++;
 		}
 
-		tx_pkts++;
-		total_done += tx_info->tx_descs;
-		tx_info->total_tx_size = 0;
-
-		tx_ring->free_ids[next_to_clean] = req_id;
-		next_to_clean = ENA_TX_RING_IDX_NEXT(next_to_clean,
-						     tx_ring->ring_size);
+		/* This ensures that this loop will stop */
+		tx_info->acked = 0;
+		req_id = ENA_TX_RING_IDX_NEXT(req_id, tx_ring->ring_size);
 
 		netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
 			  "ZC tx_poll: q %d pkt #%d req_id %d, ZC packet: %d\n",
-			  tx_ring->qid, tx_pkts, req_id, is_zc_packet);
+			  tx_ring->qid, cleaned_pkts, req_id, is_zc_pkt);
 	}
 
-	tx_ring->next_to_clean = next_to_clean;
+	tx_ring->next_to_clean = req_id;
+
 	ena_com_comp_ack(tx_ring->ena_com_io_sq, total_done);
 
-	zc_pkts = tx_pkts - skb_pkts;
-	if (zc_pkts) {
-		struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
+	if (zc_pkts)
+		xsk_tx_completed(xsk_pool, zc_pkts);
 
-		if (tx_pkts)
-			xsk_tx_completed(xsk_pool, tx_pkts);
+	if (xsk_uses_need_wakeup(xsk_pool)) {
+		bool needs_wakeup = zc_pkts < budget;
 
-		if (xsk_uses_need_wakeup(xsk_pool)) {
-			bool needs_wakeup = tx_pkts < budget;
-			if (needs_wakeup)
-				xsk_set_tx_need_wakeup(xsk_pool);
-			else
-				xsk_clear_tx_need_wakeup(xsk_pool);
-		}
+		if (needs_wakeup)
+			xsk_set_tx_need_wakeup(xsk_pool);
+		else
+			xsk_clear_tx_need_wakeup(xsk_pool);
 	}
 
-	return tx_pkts;
+	return acked_pkts;
 }
 
 static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
