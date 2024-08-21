@@ -3138,11 +3138,14 @@ int ena_com_allocate_customer_metrics_buffer(struct ena_com_dev *ena_dev)
 	struct ena_customer_metrics *customer_metrics = &ena_dev->customer_metrics;
 
 	customer_metrics->buffer_len = ENA_CUSTOMER_METRICS_BUFFER_SIZE;
+
 	customer_metrics->buffer_virt_addr =
 		dma_zalloc_coherent(ena_dev->dmadev, customer_metrics->buffer_len,
 				    &customer_metrics->buffer_dma_addr, GFP_KERNEL);
-	if (unlikely(!customer_metrics->buffer_virt_addr))
+	if (unlikely(!customer_metrics->buffer_virt_addr)) {
+		customer_metrics->buffer_len = 0;
 		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -3178,6 +3181,7 @@ void ena_com_delete_customer_metrics_buffer(struct ena_com_dev *ena_dev)
 				  customer_metrics->buffer_virt_addr,
 				  customer_metrics->buffer_dma_addr);
 		customer_metrics->buffer_virt_addr = NULL;
+		customer_metrics->buffer_len = 0;
 	}
 }
 
