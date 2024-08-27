@@ -235,11 +235,11 @@ static void ena_metrics_stats(struct ena_adapter *adapter, u64 **data)
 		len = supported_metrics_count * sizeof(u64);
 
 		/* Fill the data buffer, and advance its pointer */
-		ena_com_get_customer_metrics(adapter->ena_dev, (char *)(*data), len);
+		ena_com_get_customer_metrics(dev, (char *)(*data), len);
 		(*data) += supported_metrics_count;
 
-	} else if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENI_STATS)) {
-		ena_com_get_eni_stats(adapter->ena_dev, &adapter->eni_stats);
+	} else if (ena_com_get_cap(dev, ENA_ADMIN_ENI_STATS)) {
+		ena_com_get_eni_stats(dev, &adapter->eni_stats);
 		/* Updating regardless of rc - once we told ethtool how many stats we have
 		 * it will print that much stats. We can't leave holes in the stats
 		 */
@@ -253,8 +253,8 @@ static void ena_metrics_stats(struct ena_adapter *adapter, u64 **data)
 		}
 	}
 
-	if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENA_SRD_INFO)) {
-		ena_com_get_ena_srd_info(adapter->ena_dev, &adapter->ena_srd_info);
+	if (ena_com_get_cap(dev, ENA_ADMIN_ENA_SRD_INFO)) {
+		ena_com_get_ena_srd_info(dev, &adapter->ena_srd_info);
 		/* Get ENA SRD mode */
 		ptr = (u64 *)&adapter->ena_srd_info;
 		ena_safe_update_stat(ptr, (*data)++, &adapter->syncp);
@@ -442,14 +442,14 @@ static void ena_metrics_stats_strings(struct ena_adapter *adapter, u8 **data)
 				ethtool_puts(data, ena_metrics->name);
 			}
 		}
-	} else if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENI_STATS)) {
+	} else if (ena_com_get_cap(dev, ENA_ADMIN_ENI_STATS)) {
 		for (i = 0; i < ENA_STATS_ARRAY_ENI; i++) {
 			ena_stats = &ena_stats_eni_strings[i];
 			ethtool_puts(data, ena_stats->name);
 		}
 	}
 
-	if (ena_com_get_cap(adapter->ena_dev, ENA_ADMIN_ENA_SRD_INFO)) {
+	if (ena_com_get_cap(dev, ENA_ADMIN_ENA_SRD_INFO)) {
 		for (i = 0; i < ENA_STATS_ARRAY_ENA_SRD; i++) {
 			ena_stats = &ena_srd_info_strings[i];
 			ethtool_puts(data, ena_stats->name);
