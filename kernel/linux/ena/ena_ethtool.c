@@ -307,7 +307,7 @@ static void ena_queue_stats(struct ena_adapter *adapter, u64 **data)
 	}
 }
 
-static void ena_com_admin_queue_stats(struct ena_adapter *adapter, u64 **data)
+static void ena_get_admin_queue_stats(struct ena_adapter *adapter, u64 **data)
 {
 	const struct ena_stats *ena_stats;
 	u64 *ptr;
@@ -323,7 +323,7 @@ static void ena_com_admin_queue_stats(struct ena_adapter *adapter, u64 **data)
 	}
 }
 
-static void ena_com_phc_stats(struct ena_adapter *adapter, u64 **data)
+static void ena_get_phc_stats(struct ena_adapter *adapter, u64 **data)
 {
 	const struct ena_stats *ena_stats;
 	u64 *ptr;
@@ -356,10 +356,10 @@ static void ena_get_stats(struct ena_adapter *adapter,
 		ena_metrics_stats(adapter, &data);
 
 	ena_queue_stats(adapter, &data);
-	ena_com_admin_queue_stats(adapter, &data);
+	ena_get_admin_queue_stats(adapter, &data);
 
 	if (ena_phc_is_active(adapter))
-		ena_com_phc_stats(adapter, &data);
+		ena_get_phc_stats(adapter, &data);
 }
 
 static void ena_get_ethtool_stats(struct net_device *netdev,
@@ -491,7 +491,7 @@ static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
 	}
 }
 
-static void ena_com_admin_strings(u8 **data)
+static void ena_get_admin_strings(u8 **data)
 {
 	const struct ena_stats *ena_stats;
 	int i;
@@ -504,7 +504,7 @@ static void ena_com_admin_strings(u8 **data)
 	}
 }
 
-static void ena_com_phc_strings(u8 **data)
+static void ena_get_phc_strings(u8 **data)
 {
 	const struct ena_stats *ena_stats;
 	int i;
@@ -531,10 +531,10 @@ static void ena_get_strings(struct ena_adapter *adapter,
 		ena_metrics_stats_strings(adapter, &data);
 
 	ena_queue_strings(adapter, &data);
-	ena_com_admin_strings(&data);
+	ena_get_admin_strings(&data);
 
 	if (ena_phc_is_active(adapter))
-		ena_com_phc_strings(&data);
+		ena_get_phc_strings(&data);
 }
 
 static void ena_get_ethtool_strings(struct net_device *netdev,
