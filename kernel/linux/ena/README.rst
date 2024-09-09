@@ -610,7 +610,7 @@ PTP Hardware Clock (PHC)
 .. _`ptp-userspace-api`: https://docs.kernel.org/driver-api/ptp.html#ptp-hardware-clock-user-space-api
 .. _`testptp`: https://elixir.bootlin.com/linux/latest/source/tools/testing/selftests/ptp/testptp.c
 
-ENA Linux driver support PTP hardware clock providing timestamp reference to achieve nanosecond accuracy.
+ENA Linux driver supports PTP hardware clock providing timestamp reference to achieve nanosecond accuracy.
 
 **PHC support**
 
@@ -627,6 +627,8 @@ Verify if the PTP module is present:
 - ``CONFIG_PTP_1588_CLOCK=y``: the PTP module is already compiled and loaded inside the kernel binary file.
 
 - ``CONFIG_PTP_1588_CLOCK=m``: the PTP module needs to be loaded prior to loading the ENA driver:
+
+Load PTP module:
 
 .. code-block:: shell
 
@@ -701,22 +703,22 @@ sysfs:
 PHC can be monitored using :code:`ethtool -S` counters:
 
 =================   ======================================================
-**phc_cnt**         number of successful retrieved timestamps (below expire timeout)
-**phc_exp**         number of expired retrieved timestamps (above expire timeout)
-**phc_skp**         number of skipped get time attempts (during block period)
-**phc_err**         number of failed get time attempts due to timestamp/error bound errors
-                    (entering into block state)
-                    must remain below 1% of all PHC requests to maintain the desired level of
-                    accuracy and reliability
+**phc_cnt**         Number of successful retrieved timestamps (below expire timeout).
+**phc_exp**         Number of expired retrieved timestamps (above expire timeout).
+**phc_skp**         Number of skipped get time attempts (during block period).
+**phc_err**         Number of failed get time attempts due to timestamp/error bound errors
+                    (entering into block state).
+                    Must remain below 1% of all PHC requests to maintain the desired level of
+                    accuracy and reliability.
 =================   ======================================================
 
 PHC timeouts:
 
 =================   ======================================================
-**expire**          max time for a valid timestamp retrieval, passing this threshold will fail
-                    the get time request and block new requests until block timeout
-**block**           blocking period starts once get time request expires or fails, all get time
-                    requests during block period will be skipped
+**expire**          Max time for a valid timestamp retrieval, passing this threshold will fail
+                    the get time request and block new requests until block timeout.
+**block**           Blocking period starts once get time request expires or fails, all get time
+                    requests during block period will be skipped.
 =================   ======================================================
 
 Statistics
