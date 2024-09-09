@@ -93,3 +93,13 @@ try_compile_async "#include <linux/ethtool.h> "               \
                   "ENA_ETHTOOL_NFC_IPV6_SUPPORTED"            \
                   ""                                          \
                   "4.6.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h>"           \
+                  "{
+                    struct kernel_ethtool_ts_info ts;
+                    ts.so_timestamping = 0;
+                    ts.phc_index = 0;
+                  }"                                     \
+                  "ENA_HAVE_KERNEL_ETHTOOL_TS_INFO"      \
+                  ""                                     \
+                  "6.11.0 <= LINUX_VERSION_CODE"
