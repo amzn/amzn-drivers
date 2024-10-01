@@ -338,6 +338,14 @@ struct ib_mr mr = {
   "
   HAVE_IB_MR_LENGTH "")
 
+try_compile(""
+  "
+struct ib_mr mr = {
+  .type = 0,
+};
+  "
+  HAVE_IB_MR_TYPE "")
+
 try_compile("#include <linux/pci_ids.h>" "int a = PCI_VENDOR_ID_AMAZON;"
   HAVE_PCI_VENDOR_ID_AMAZON "")
 
@@ -365,6 +373,10 @@ ib_umem_get(dev, 0, 0, 0);
 try_compile("" "int a = IB_ACCESS_OPTIONAL;" HAVE_IB_ACCESS_OPTIONAL "")
 
 try_compile("" "struct rdma_ah_init_attr ah_attr;" HAVE_CREATE_AH_INIT_ATTR "")
+
+try_compile_dev_or_ops(alloc_mr ""
+  "struct ib_mr *efa_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type, u32 max_num_sg, struct ib_udata *udata) { return NULL; }"
+  HAVE_ALLOC_MR_UDATA "")
 
 try_compile("" "atomic64_fetch_inc(NULL);" HAVE_ATOMIC64_FETCH_INC "")
 
@@ -458,6 +470,8 @@ try_compile("#include <linux/module.h>" "MODULE_IMPORT_NS(TEST);" HAVE_MODULE_IM
 try_compile_dev_or_ops(create_cq ""
   "int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr, struct uverbs_attr_bundle *attrs) { return 0; }"
   HAVE_CREATE_CQ_BUNDLE "")
+
+try_compile("" "fallthrough;" HAVE_FALLTHROUGH "")
 
 wait_for_pids()
 message("-- Inspecting kernel - done")

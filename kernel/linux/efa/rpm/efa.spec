@@ -72,6 +72,7 @@ install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}/src
 install -m 644 efa_main.c		%{buildroot}%{install_path}/src
 install -m 644 efa_sysfs.c		%{buildroot}%{install_path}/src
 install -m 644 efa_verbs.c		%{buildroot}%{install_path}/src
+install -m 644 efa_data_verbs.c		%{buildroot}%{install_path}/src
 install -m 644 efa-abi.h 		%{buildroot}%{install_path}/src
 install -m 644 efa_admin_cmds_defs.h 	%{buildroot}%{install_path}/src
 install -m 644 efa_admin_defs.h 	%{buildroot}%{install_path}/src
@@ -80,6 +81,7 @@ install -m 644 efa_com.h		%{buildroot}%{install_path}/src
 install -m 644 efa_common_defs.h	%{buildroot}%{install_path}/src
 install -m 644 efa_io_defs.h		%{buildroot}%{install_path}/src
 install -m 644 efa.h			%{buildroot}%{install_path}/src
+install -m 644 efa_verbs.h		%{buildroot}%{install_path}/src
 install -m 644 efa_regs_defs.h		%{buildroot}%{install_path}/src
 install -m 644 efa_sysfs.h		%{buildroot}%{install_path}/src
 install -m 644 kcompat.h		%{buildroot}%{install_path}/src

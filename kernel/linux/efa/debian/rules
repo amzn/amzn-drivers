@@ -39,6 +39,7 @@ override_dh_auto_install:
 	install -m 644 src/efa_main.c		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_sysfs.c		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_verbs.c		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_data_verbs.c	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa-abi.h 		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_admin_cmds_defs.h ${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_admin_defs.h 	${DESTDIR}/${INSTALL_PATH}/src
@@ -47,6 +48,7 @@ override_dh_auto_install:
 	install -m 644 src/efa_common_defs.h	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_io_defs.h	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa.h		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_verbs.h		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_regs_defs.h	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_sysfs.h		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/kcompat.h		${DESTDIR}/${INSTALL_PATH}/src

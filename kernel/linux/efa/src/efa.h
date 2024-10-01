@@ -44,6 +44,10 @@ struct efa_stats {
 	atomic64_t create_ah_err;
 	atomic64_t mmap_err;
 	atomic64_t keep_alive_rcvd;
+#ifdef HAVE_EFA_KVERBS
+	atomic64_t alloc_mr_err;
+	atomic64_t get_dma_mr_err;
+#endif
 };
 
 struct efa_dev {
@@ -58,6 +62,10 @@ struct efa_dev {
 	u64 mem_bar_len;
 	u64 db_bar_addr;
 	u64 db_bar_len;
+#ifdef HAVE_EFA_KVERBS
+	u8 __iomem *mem_bar;
+	u8 __iomem *db_bar;
+#endif
 
 	unsigned int num_irq_vectors;
 	int admin_msix_vector_idx;
@@ -76,6 +84,13 @@ struct efa_dev {
 	/* If xarray isn't available keep an array of all possible CQs */
 	struct efa_cq *cqs_arr[BIT(sizeof_field(struct efa_admin_create_cq_resp,
 						cq_idx) * 8)];
+#endif
+#ifdef HAVE_EFA_KVERBS
+	u16 uarn;
+	struct efa_qp **qp_table;
+	/* Protects against simultaneous QPs insertion or removal */
+	spinlock_t qp_table_lock;
+	u32 qp_table_mask;
 #endif
 };
 
@@ -104,6 +119,33 @@ struct efa_mr_interconnect_info {
 	u8 rdma_recv_ic_id_valid : 1;
 };
 
+#ifdef HAVE_EFA_KVERBS
+struct efa_mr {
+	struct ib_mr ibmr;
+#ifndef HAVE_IB_MR_TYPE
+	u8 type;
+#endif
+	union {
+		/* Used only by kernel MRs */
+		struct {
+			u64 *pages_list;
+			u32 pages_list_length;
+			dma_addr_t pages_list_dma_addr;
+			u32 num_pages;
+		};
+
+		/* Used only by User MRs */
+		struct {
+			struct ib_umem *umem;
+			struct efa_mr_interconnect_info ic_info;
+#ifdef HAVE_EFA_P2P
+			struct efa_p2pmem *p2pmem;
+			u64 p2p_ticket;
+#endif
+		};
+	};
+};
+#else /* !HAVE_EFA_KVERBS */
 struct efa_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
@@ -113,6 +155,18 @@ struct efa_mr {
 	u64 p2p_ticket;
 #endif
 };
+#endif /* HAVE_EFA_KVERBS */
+
+#ifdef HAVE_EFA_KVERBS
+struct efa_sub_cq {
+	u8 *buf;
+	u32 cqe_size;
+	u32 queue_mask;
+	u32 ref_cnt;
+	u32 consumed_cnt;
+	int phase;
+};
+#endif
 
 struct efa_cq {
 	struct ib_cq ibcq;
@@ -125,7 +179,62 @@ struct efa_cq {
 	u16 cq_idx;
 	/* NULL when no interrupts requested */
 	struct efa_eq *eq;
+#ifdef HAVE_EFA_KVERBS
+	u8 *buf;
+	size_t buf_size;
+	struct efa_sub_cq *sub_cq_arr;
+	u16 num_sub_cqs;
+	u32 *db;
+	/* Index of next sub cq idx to poll. This is used to guarantee fairness for sub cqs */
+	u16 next_poll_idx;
+	/* Protects the access to the CQ and CQ to QP association */
+	u16 cc; /* Consumer Counter */
+	u8 cmd_sn;
+	spinlock_t lock;
+#endif
 };
+
+#ifdef HAVE_EFA_KVERBS
+struct efa_wq {
+	u64 *wrid;
+	/* wrid_idx_pool: Pool of free indexes in the wrid array, used to select the
+	 * wrid entry to be used to hold the next tx packet's context.
+	 * At init time, entry N will hold value N, as OOO tx-completions arrive,
+	 * the value stored in a given entry might not equal the entry's index.
+	 */
+	u32 *wrid_idx_pool;
+	/* wrid_idx_pool_next: Index of the next entry to use in wrid_idx_pool. */
+	u32 wrid_idx_pool_next;
+	u32 max_sge;
+	u32 max_wqes;
+	u32 queue_mask;
+	u32 *db;
+	u32 wqes_posted;
+	u32 wqes_completed;
+	/* Producer counter */
+	u32 pc;
+	int phase;
+	u16 sub_cq_idx;
+	/* Synchronizes access to the WQ on datapath */
+	spinlock_t lock;
+};
+
+struct efa_rq {
+	struct efa_wq wq;
+	u8 *buf;
+	size_t buf_size;
+};
+
+struct efa_sq {
+	struct efa_wq wq;
+	u8 *desc;
+	u32 desc_offset;
+	u32 max_inline_data;
+	u32 max_rdma_sges;
+	u32 max_batch_wr;
+	enum ib_sig_type sig_type;
+};
+#endif
 
 struct efa_qp {
 	struct ib_qp ibqp;
@@ -146,6 +255,10 @@ struct efa_qp {
 	u32 max_send_sge;
 	u32 max_recv_sge;
 	u32 max_inline_data;
+#ifdef HAVE_EFA_KVERBS
+	struct efa_sq sq;
+	struct efa_rq rq;
+#endif
 };
 
 struct efa_ah {
@@ -240,6 +353,16 @@ struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 				     int fd, int access_flags,
 				     struct ib_udata *udata);
 #endif
+#ifdef HAVE_EFA_KVERBS
+struct ib_mr *efa_get_dma_mr(struct ib_pd *pd, int mr_access_flags);
+#ifdef HAVE_ALLOC_MR_UDATA
+struct ib_mr *efa_alloc_fast_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
+				u32 max_num_sg, struct ib_udata *udata);
+#else
+struct ib_mr *efa_alloc_fast_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
+				u32 max_num_sg);
+#endif
+#endif
 #ifdef HAVE_DEREG_MR_UDATA
 int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 #else
@@ -289,7 +412,7 @@ int efa_destroy_ah(struct ib_ah *ibah, u32 flags);
 #else
 int efa_destroy_ah(struct ib_ah *ibah);
 #endif
-#ifndef HAVE_NO_KVERBS_DRIVERS
+#ifdef HAVE_EFA_KVERBS
 #ifdef HAVE_POST_CONST_WR
 int efa_post_send(struct ib_qp *ibqp,
 		  const struct ib_send_wr *wr,
@@ -308,11 +431,10 @@ int efa_post_recv(struct ib_qp *ibqp,
 		  struct ib_recv_wr *wr,
 		  struct ib_recv_wr **bad_wr);
 #endif
-int efa_poll_cq(struct ib_cq *ibcq, int num_entries,
-		struct ib_wc *wc);
-int efa_req_notify_cq(struct ib_cq *ibcq,
-		      enum ib_cq_notify_flags flags);
-struct ib_mr *efa_get_dma_mr(struct ib_pd *ibpd, int acc);
+int efa_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
+int efa_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+int efa_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		  unsigned int *sg_offset);
 #endif
 int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_udata *udata);

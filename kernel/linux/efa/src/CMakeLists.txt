@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2021-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2021-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 list(APPEND efa_sources
   efa_com_cmd.c efa_com.c efa_main.c efa_verbs.c efa_sysfs.c
@@ -9,6 +9,9 @@ list(APPEND efa_sources
 if(ENABLE_P2P)
   list(APPEND efa_sources efa_p2p.c efa_p2p.h efa_gdr.c nv-p2p.h
     efa_neuron.c neuron_p2p.h)
+endif()
+if(ENABLE_KVERBS)
+  list(APPEND efa_sources efa_verbs.h efa_data_verbs.c)
 endif()
 
 string(REPLACE ";" " " efa_sources_string "${efa_sources}")
@@ -23,6 +26,10 @@ include(${CMAKE_SOURCE_DIR}/config/efa.cmake)
 if(ENABLE_P2P)
   config_define(HAVE_EFA_P2P)
   message("-- Peer-to-peer memory enabled")
+endif()
+if(ENABLE_KVERBS)
+  config_define(HAVE_EFA_KVERBS)
+  message("-- Kernel verbs support enabled")
 endif()
 
 set(module_cmd make -C ${KERNEL_DIR} M=${CMAKE_CURRENT_BINARY_DIR})

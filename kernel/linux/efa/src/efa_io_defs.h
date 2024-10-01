@@ -10,6 +10,9 @@
 #define EFA_IO_TX_DESC_NUM_RDMA_BUFS         1
 #define EFA_IO_TX_DESC_INLINE_MAX_SIZE       32
 #define EFA_IO_TX_DESC_IMM_DATA_SIZE         4
+#ifdef HAVE_EFA_KVERBS
+#define EFA_IO_TX_DESC_INLINE_PBL_SIZE        1
+#endif
 
 enum efa_io_queue_type {
 	/* send queue (of a QP) */
@@ -25,6 +28,12 @@ enum efa_io_send_op_type {
 	EFA_IO_RDMA_READ                            = 1,
 	/* RDMA write */
 	EFA_IO_RDMA_WRITE                           = 2,
+#ifdef HAVE_EFA_KVERBS
+	/* Fast MR registration */
+	EFA_IO_FAST_REG                             = 3,
+	/* Fast MR invalidation */
+	EFA_IO_FAST_INV                             = 4,
+#endif
 };
 
 enum efa_io_comp_status {
@@ -57,6 +66,13 @@ enum efa_io_comp_status {
 	/* Unresponsive remote - detected locally */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_UNRESP_REMOTE = 13,
 };
+
+#ifdef HAVE_EFA_KVERBS
+enum efa_io_frwr_pbl_mode {
+	EFA_IO_FRWR_INLINE_PBL                      = 0,
+	EFA_IO_FRWR_DIRECT_PBL                      = 1,
+};
+#endif
 
 struct efa_io_tx_meta_desc {
 	/* Verbs-generated Request ID */
@@ -158,6 +174,65 @@ struct efa_io_rdma_req {
 	struct efa_io_tx_buf_desc local_mem[1];
 };
 
+#ifdef HAVE_EFA_KVERBS
+struct efa_io_fast_mr_reg_req {
+	/* Updated local key of the MR after lkey/rkey increment */
+	u32 lkey;
+
+	/*
+	 * permissions
+	 * 0 : local_write_enable - Local write permissions:
+	 *    must be set for RQ buffers and buffers posted for
+	 *    RDMA Read requests
+	 * 1 : remote_write_enable - Remote write
+	 *    permissions: must be set to enable RDMA write to
+	 *    the region
+	 * 2 : remote_read_enable - Remote read permissions:
+	 *    must be set to enable RDMA read from the region
+	 * 7:3 : reserved2 - MBZ
+	 */
+	u8 permissions;
+
+	/*
+	 * control flags
+	 * 4:0 : phys_page_size_shift - page size is (1 <<
+	 *    phys_page_size_shift)
+	 * 6:5 : pbl_mode - enum efa_io_frwr_pbl_mode
+	 * 7 : reserved - MBZ
+	 */
+	u8 flags;
+
+	/* MBZ */
+	u8 reserved[2];
+
+	/* IO Virtual Address associated with this MR */
+	u64 iova;
+
+	/* Memory region length, in bytes */
+	u64 mr_length;
+
+	/* Physical Buffer List, each element is page-aligned. */
+	union {
+		/*
+		 * Inline array of physical page addresses (optimization
+		 * for short region activation).
+		 */
+		u64 inline_array[1];
+
+		/* points to PBL (Currently only direct) */
+		u64 dma_addr;
+	} pbl;
+};
+
+struct efa_io_fast_mr_inv_req {
+	/* Local key of the MR to invalidate */
+	u32 lkey;
+
+	/* MBZ */
+	u8 reserved[28];
+};
+#endif
+
 /*
  * Tx WQE, composed of tx meta descriptors followed by either tx buffer
  * descriptors or inline data
@@ -174,6 +249,13 @@ struct efa_io_tx_wqe {
 
 		/* RDMA local and remote memory addresses */
 		struct efa_io_rdma_req rdma_req;
+#ifdef HAVE_EFA_KVERBS
+		/* Fast registration */
+		struct efa_io_fast_mr_reg_req reg_mr_req;
+
+		/* Fast invalidation */
+		struct efa_io_fast_mr_inv_req inv_mr_req;
+#endif
 	} data;
 };
 
@@ -290,6 +372,15 @@ struct efa_io_rx_cdesc_ex {
 
 /* tx_buf_desc */
 #define EFA_IO_TX_BUF_DESC_LKEY_MASK                        GENMASK(23, 0)
+
+#ifdef HAVE_EFA_KVERBS
+/* fast_mr_reg_req */
+#define EFA_IO_FAST_MR_REG_REQ_LOCAL_WRITE_ENABLE_MASK      BIT(0)
+#define EFA_IO_FAST_MR_REG_REQ_REMOTE_WRITE_ENABLE_MASK     BIT(1)
+#define EFA_IO_FAST_MR_REG_REQ_REMOTE_READ_ENABLE_MASK      BIT(2)
+#define EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_MASK    GENMASK(4, 0)
+#define EFA_IO_FAST_MR_REG_REQ_PBL_MODE_MASK                GENMASK(6, 5)
+#endif
 
 /* rx_desc */
 #define EFA_IO_RX_DESC_LKEY_MASK                            GENMASK(23, 0)

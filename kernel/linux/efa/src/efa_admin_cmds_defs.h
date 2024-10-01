@@ -30,7 +30,12 @@ enum efa_admin_aq_opcode {
 	EFA_ADMIN_DEALLOC_UAR                       = 17,
 	EFA_ADMIN_CREATE_EQ                         = 18,
 	EFA_ADMIN_DESTROY_EQ                        = 19,
+#ifdef HAVE_EFA_KVERBS
+	EFA_ADMIN_ALLOC_MR                          = 20,
+	EFA_ADMIN_MAX_OPCODE                        = 20,
+#else
 	EFA_ADMIN_MAX_OPCODE                        = 19,
+#endif
 };
 
 enum efa_admin_aq_feature_id {
@@ -458,6 +463,44 @@ struct efa_admin_dereg_mr_resp {
 	/* Common Admin Queue completion descriptor */
 	struct efa_admin_acq_common_desc acq_common_desc;
 };
+
+#ifdef HAVE_EFA_KVERBS
+/*
+ * Allocation of MemoryRegion, required for QP working with Virtual
+ * Addresses. In kernel verbs semantics, Allocates an empty MR ready for
+ * fast registration use.
+ */
+struct efa_admin_alloc_mr_cmd {
+	/* Common Admin Queue descriptor */
+	struct efa_admin_aq_common_desc aq_common_desc;
+
+	/* Protection Domain */
+	u16 pd;
+
+	/* MBZ */
+	u16 reserved1;
+
+	/* Maximum number of pages this MR supports. */
+	u32 max_pages;
+};
+
+struct efa_admin_alloc_mr_resp {
+	/* Common Admin Queue completion descriptor */
+	struct efa_admin_acq_common_desc acq_common_desc;
+
+	/*
+	 * L_Key, to be used in conjunction with local buffer references in
+	 * SQ and RQ WQE, or with virtual RQ/CQ rings
+	 */
+	u32 l_key;
+
+	/*
+	 * R_Key, to be used in RDMA messages to refer to remotely accessed
+	 * memory region
+	 */
+	u32 r_key;
+};
+#endif /* HAVE_EFA_KVERBS */
 
 struct efa_admin_create_cq_cmd {
 	struct efa_admin_aq_common_desc aq_common_desc;

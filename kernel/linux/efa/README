@@ -24,7 +24,8 @@ not support ordering or segmentation.
 
 EFA depends on having ib_core and ib user verbs compiled with the kernel.
 User verbs are supported via a dedicated userspace EFA provider in rdma-core,
-all kernel verbs and in-kernel services are currently not supported.
+and kernel verbs are supported through the standard ib_verbs interface combined
+with some additional EFA extensions that must be included separately.
 
 Driver distribution
 ===================
@@ -69,6 +70,10 @@ cmake -DENABLE_P2P=0 ..
 For more information regarding GPUDirect RDMA, visit:
 https://docs.nvidia.com/cuda/gpudirect-rdma/index.html
 
+Kernel verbs support can be disabled by running
+cmake with the following parameter:
+cmake -DENABLE_KVERBS=0 ..
+
 To build EFA RPMs run `make` in the rpm/ folder. Your environment will need to
 be setup to build RPMs. The EFA RPM will install the EFA kernel driver source,
 setup DKMS in order to build the driver when the kernel is updated, and update
@@ -101,7 +106,8 @@ Supported PCI vendor ID/device IDs
 EFA Source Code Directory Structure (under src/)
 ================================================
 efa_main.c, efa.h - Main Linux kernel driver.
-efa_verbs.c       - Verbs implementations.
+efa_verbs.c       - Control verbs implementations.
+efa_data_verbs.c  - Data path verbs implementations.
 efa_com.[ch], efa_com_cmd.[ch]      - Management communication layer.
                                       This layer is responsible for the
                                       handling all the management (admin)
@@ -112,6 +118,7 @@ efa_admin_defs.h, efa_admin_cmd_defs.h - Definition of EFA management interface.
 efa_regs_defs.h   - Definition of EFA PCI memory-mapped (MMIO) registers.
 efa_io_defs.h     - Definition of EFA datapath types.
 efa_sysfs.[ch]    - Sysfs files.
+efa_verbs.h       - EFA extension to ib_verbs.h intended for ULPs' use.
 efa-abi.h         - Kernel driver <-> Userspace provider ABI.
 efa_p2p.[ch]      - Peer-to-peer memory layer implementation.
 efa_gdr.c         - GPUDirect RDMA implementation.
@@ -183,9 +190,9 @@ memory space, while the packet data resides in the host's memory. The device
 uses a dedicated PCI device memory BAR, which is mapped with write-combine
 capability.
 
-The RQs reside in the host's memory. The EFA device fetches the EFA RX WQEs and
-packet data from host memory.
+The RQs reside in the host's memory. The EFA device fetches the EFA RX WQEs
+directly from host memory.
 
 The user notifies the EFA device of new WQEs by writing to a dedicated PCI
-device memory BAR referred as Doorbells BAR which is mapped to the userspace
-provider.
+device memory BAR referred as Doorbells BAR which can be mapped to the
+userspace provider.

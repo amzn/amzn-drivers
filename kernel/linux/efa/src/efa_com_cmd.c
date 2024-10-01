@@ -247,6 +247,10 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 		memcpy(mr_cmd.pbl.inline_pbl_array,
 		       params->pbl.inline_pbl_array,
 		       sizeof(mr_cmd.pbl.inline_pbl_array));
+#ifdef HAVE_EFA_KVERBS
+	} else if (params->page_num == 0) {
+		EFA_SET(&mr_cmd.flags, EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN, 1);
+#endif
 	} else {
 		mr_cmd.pbl.pbl.length = params->pbl.pbl.length;
 		mr_cmd.pbl.pbl.address.mem_addr_low =
@@ -312,6 +316,38 @@ int efa_com_dereg_mr(struct efa_com_dev *edev,
 
 	return 0;
 }
+
+#ifdef HAVE_EFA_KVERBS
+int efa_com_alloc_mr(struct efa_com_dev *edev,
+		     struct efa_com_alloc_mr_params *params,
+		     struct efa_com_alloc_mr_result *result)
+{
+	struct efa_admin_alloc_mr_resp cmd_completion;
+	struct efa_com_admin_queue *aq = &edev->aq;
+	struct efa_admin_alloc_mr_cmd mr_cmd = {};
+	int err;
+
+	mr_cmd.aq_common_desc.opcode = EFA_ADMIN_ALLOC_MR;
+	mr_cmd.pd = params->pd;
+	mr_cmd.max_pages = params->max_pages;
+
+	err = efa_com_cmd_exec(aq,
+			       (struct efa_admin_aq_entry *)&mr_cmd,
+			       sizeof(mr_cmd),
+			       (struct efa_admin_acq_entry *)&cmd_completion,
+			       sizeof(cmd_completion));
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to allocate mr [%d]\n", err);
+		return err;
+	}
+
+	result->l_key = cmd_completion.l_key;
+	result->r_key = cmd_completion.r_key;
+
+	return 0;
+}
+#endif
 
 int efa_com_create_ah(struct efa_com_dev *edev,
 		      struct efa_com_create_ah_params *params,
