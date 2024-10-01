@@ -100,6 +100,12 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Tue Oct 01 2024 Michael Margolin <mrgolin@amazon.com> - 2.12.0
+- Introduce EFA kernel verbs support
+- Add 0xefa3 device support
+- Report device node GUID
+- Adjust CQ creation interface for mainline 6.11 kernels
+
 * Wed Jun 05 2024 Michael Margolin <mrgolin@amazon.com> - 2.10.0
 - Introduce QP with unsolicited write with immediate receive
 - Add gracefull shutdown

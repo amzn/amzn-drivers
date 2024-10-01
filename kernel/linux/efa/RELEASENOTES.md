@@ -3,6 +3,12 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.12.0 release notes
+* Introduce EFA kernel verbs support
+* Add 0xefa3 device support
+* Report device node GUID
+* Adjust CQ creation interface for mainline 6.11 kernels
+
 ## r2.10.0 release notes
 * Introduce QP with unsolicited write with immediate receive
 * Add gracefull shutdown
