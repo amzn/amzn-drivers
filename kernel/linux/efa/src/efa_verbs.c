@@ -1492,7 +1492,11 @@ static int efa_modify_qp_validate(struct efa_dev *dev, struct efa_qp *qp,
 		return -EOPNOTSUPP;
 	}
 
+#ifdef HAVE_EFA_KVERBS
+	if (qp->ibqp.qp_type == IB_QPT_DRIVER || qp->ibqp.qp_type == EFA_QPT_SRD)
+#else
 	if (qp->ibqp.qp_type == IB_QPT_DRIVER)
+#endif
 		err = !efa_modify_srd_qp_is_ok(cur_state, new_state,
 					       qp_attr_mask);
 	else
