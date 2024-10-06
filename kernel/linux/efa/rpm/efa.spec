@@ -100,6 +100,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Sun Oct 06 2024 Michael Margolin <mrgolin@amazon.com> - 2.12.1
+- Fix RNR configuration for SRD kernel QPs
+
 * Tue Oct 01 2024 Michael Margolin <mrgolin@amazon.com> - 2.12.0
 - Introduce EFA kernel verbs support
 - Add 0xefa3 device support

@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.12.1 release notes
+* Fix RNR configuration for SRD kernel QPs
+
 ## r2.12.0 release notes
 * Introduce EFA kernel verbs support
 * Add 0xefa3 device support
