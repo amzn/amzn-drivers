@@ -1221,7 +1221,7 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		goto err_out;
 	}
 
-	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_90)) {
+	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_98)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, unknown fields in udata\n");
 		err = -EINVAL;
@@ -1276,6 +1276,8 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 			  qp->rq_cpu_addr, qp->rq_size, &qp->rq_dma_addr);
 		create_qp_params.rq_base_addr = qp->rq_dma_addr;
 	}
+
+	create_qp_params.sl = cmd.sl;
 
 	if (cmd.flags & EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV)
 		create_qp_params.unsolicited_write_recv = true;
