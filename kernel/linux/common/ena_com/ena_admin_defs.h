@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/*
- * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
+
 #ifndef _ENA_ADMIN_H_
 #define _ENA_ADMIN_H_
 
 #define ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN 32
 #define ENA_ADMIN_EXTRA_PROPERTIES_COUNT     32
+
+#define ENA_ADMIN_FLOW_STEERING_DEVICE_CHOOSE_LOCATION 0xFFFF
 
 #define ENA_ADMIN_RSS_KEY_PARTS              10
 
@@ -66,6 +69,7 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_LINK_CONFIG                       = 27,
 	ENA_ADMIN_HOST_ATTR_CONFIG                  = 28,
 	ENA_ADMIN_PHC_CONFIG                        = 29,
+	ENA_ADMIN_FLOW_STEERING_CONFIG              = 30,
 	ENA_ADMIN_FEATURES_OPCODE_NUM               = 32,
 };
 
@@ -136,7 +140,6 @@ enum ena_admin_get_stats_type {
 	/* extra HW stats for ENA SRD */
 	ENA_ADMIN_GET_STATS_TYPE_ENA_SRD            = 3,
 	ENA_ADMIN_GET_STATS_TYPE_CUSTOMER_METRICS   = 4,
-
 };
 
 enum ena_admin_get_stats_scope {
@@ -577,7 +580,7 @@ struct ena_admin_device_attr_feature_desc {
 	/* unicast MAC address (in Network byte order) */
 	u8 mac_addr[6];
 
-	u8 reserved7[2];
+	u16 flow_steering_max_entries;
 
 	u32 max_mtu;
 };
@@ -703,6 +706,78 @@ struct ena_admin_feature_llq_desc {
 	 * support those requirements in order to use accelerated llq
 	 */
 	struct ena_admin_accel_mode_req accel_mode;
+};
+
+struct ena_admin_flow_steering_rule_params {
+	u8 dst_ip[16];
+
+	u8 dst_ip_mask[16];
+
+	u8 src_ip[16];
+
+	u8 src_ip_mask[16];
+
+	u16 dst_port;
+
+	u16 dst_port_mask;
+
+	u16 src_port;
+
+	u16 src_port_mask;
+
+	u8 tos;
+
+	u8 tos_mask;
+
+	/* Reserved */
+	u8 reserved1[54];
+};
+
+/* add new rule or remove existing one */
+enum ena_admin_flow_steering_action {
+	ENA_ADMIN_FLOW_STEERING_ADD_RULE            = 1,
+	ENA_ADMIN_FLOW_STEERING_REMOVE_RULE         = 2,
+	ENA_ADMIN_FLOW_STEERING_REMOVE_ALL_RULES    = 3,
+};
+
+/* type of traffic the rule applied on */
+enum ena_admin_flow_steering_type {
+	ENA_ADMIN_FLOW_INVALID                      = 0,
+	ENA_ADMIN_FLOW_IPV4                         = 1,
+	ENA_ADMIN_FLOW_IPV6                         = 2,
+	ENA_ADMIN_FLOW_IPV4_TCP                     = 3,
+	ENA_ADMIN_FLOW_IPV6_TCP                     = 4,
+	ENA_ADMIN_FLOW_IPV4_UDP                     = 5,
+	ENA_ADMIN_FLOW_IPV6_UDP                     = 6,
+	ENA_ADMIN_FLOW_LAST                         = 7,
+};
+
+struct ena_admin_set_feature_flow_steering_desc_req {
+	/* specific command action as defined in enum
+	 * ena_admin_flow_steering_action
+	 */
+	u8 action;
+
+	/* specific flow type as defined in enum ena_admin_flow_steering_type */
+	u8 flow_type;
+
+	u16 rx_q_idx;
+
+	/* if value is ENA_ADMIN_FLOW_STEERING_DEVICE_CHOOSE_LOCATION it means
+	 * the device should find unsued location for this rule
+	 */
+	u16 rule_location;
+
+	u16 reserved;
+
+	/* 31:0 : reserved */
+	u32 flags;
+};
+
+struct ena_admin_set_feature_flow_steering_desc_resp {
+	u16 rule_location;
+
+	u16 reserved;
 };
 
 struct ena_admin_queue_ext_feature_fields {
@@ -1176,6 +1251,9 @@ struct ena_admin_set_feat_cmd {
 
 		/* PHC configuration */
 		struct ena_admin_feature_phc_desc phc;
+
+		/* Flow steering configuration */
+		struct ena_admin_set_feature_flow_steering_desc_req flow_steering;
 	} u;
 };
 
@@ -1184,6 +1262,9 @@ struct ena_admin_set_feat_resp {
 
 	union {
 		u32 raw[14];
+
+		/* Flow steering configuration */
+		struct ena_admin_set_feature_flow_steering_desc_resp flow_steering;
 	} u;
 };
 

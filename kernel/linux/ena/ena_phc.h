@@ -1,13 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/*
- * Copyright 2015-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
 
 #ifndef ENA_PHC_H
 #define ENA_PHC_H
 
 #ifdef ENA_PHC_SUPPORT
-
 #include <linux/ptp_clock_kernel.h>
 
 struct ena_phc_info {

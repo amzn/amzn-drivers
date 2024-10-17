@@ -88,10 +88,6 @@ ifdef UBUNTU_ABI
 	ccflags-y += -DUTS_UBUNTU_RELEASE_ABI=$(UBUNTU_ABI)
 endif
 
-ifdef TEST_AF_XDP
-	ccflags-y += -DENA_TEST_AF_XDP
-endif
-
 ifdef ENA_PHC_INCLUDE
 	ccflags-y += -DENA_PHC_INCLUDE
 endif

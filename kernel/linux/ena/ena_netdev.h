@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/*
- * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
 
 #ifndef ENA_H
@@ -31,8 +31,8 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_GEN_MAJOR	2
-#define DRV_MODULE_GEN_MINOR	12
-#define DRV_MODULE_GEN_SUBMINOR	3
+#define DRV_MODULE_GEN_MINOR	13
+#define DRV_MODULE_GEN_SUBMINOR	0
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_GENERATION
@@ -97,8 +97,8 @@
 #define ENA_RX_REFILL_THRESH_DIVIDER	8
 #define ENA_RX_REFILL_THRESH_PACKET	256
 
-/* Number of queues to check for missing queues per timer service */
-#define ENA_MONITORED_TX_QUEUES	4
+/* Number of queues to check for missing completions / interrupts per timer service */
+#define ENA_MONITORED_QUEUES	4
 /* Max timeout packets before device reset */
 #define MAX_NUM_OF_TIMEOUTED_PACKETS 128
 
@@ -177,6 +177,12 @@ struct ena_tx_buffer {
 
 	/* Used for detect missing tx packets to limit the number of prints */
 	u8 print_once;
+#ifdef ENA_AF_XDP_SUPPORT
+
+	/* used for ordering TX completions when needed (e.g. AF_XDP) */
+	u8 acked;
+
+#endif
 	/* Save the last jiffies to detect missing tx packets
 	 *
 	 * sets to non zero value on ena_start_xmit and set to zero on
@@ -229,6 +235,8 @@ struct ena_stats_tx {
 	u64 unmask_interrupt;
 	u64 last_napi_jiffies;
 #ifdef ENA_AF_XDP_SUPPORT
+	u64 xsk_cnt;
+	u64 xsk_bytes;
 	u64 xsk_need_wakeup_set;
 	u64 xsk_wakeup_request;
 #endif /* ENA_AF_XDP_SUPPORT */
@@ -384,6 +392,7 @@ struct ena_stats_dev {
 	u64 missing_admin_interrupt;
 	u64 admin_to;
 	u64 device_request_reset;
+	u64 missing_first_intr;
 };
 
 enum ena_flags_t {
@@ -491,8 +500,8 @@ struct ena_adapter {
 	struct ena_admin_eni_stats eni_stats;
 	struct ena_admin_ena_srd_info ena_srd_info;
 
-	/* last queue index that was checked for uncompleted tx packets */
-	u32 last_monitored_tx_qid;
+	/* last queue index that was checked for missing completions / interrupts */
+	u32 last_monitored_qid;
 
 	enum ena_regs_reset_reason_types reset_reason;
 
@@ -529,6 +538,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT, missing_admin_interrupt),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DEVICE_REQUEST, device_request_reset),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_FIRST_INTERRUPT, missing_first_intr),
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
@@ -536,7 +546,6 @@ void ena_set_ethtool_ops(struct net_device *netdev);
 void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 
 void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
-
 
 int ena_set_lpc_state(struct ena_adapter *adapter, bool enabled);
 
@@ -658,8 +667,11 @@ struct page *ena_alloc_map_page(struct ena_ring *rx_ring, dma_addr_t *dma);
 
 int ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 int ena_restore_device(struct ena_adapter *adapter);
+void ena_get_and_dump_head_tx_cdesc(struct ena_com_io_cq *io_cq);
+void ena_get_and_dump_head_rx_cdesc(struct ena_com_io_cq *io_cq);
 int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
-			  struct ena_tx_buffer *tx_info, bool is_xdp);
+			  struct ena_tx_buffer *tx_info);
+int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id);
 
 static inline void ena_ring_tx_doorbell(struct ena_ring *tx_ring)
 {
@@ -677,13 +689,6 @@ void ena_unmap_tx_buff(struct ena_ring *tx_ring,
 		       struct ena_tx_buffer *tx_info);
 void ena_init_io_rings(struct ena_adapter *adapter,
 		       int first_index, int count);
-int ena_create_io_tx_queues_in_range(struct ena_adapter *adapter,
-				     int first_index, int count);
-int ena_setup_tx_resources_in_range(struct ena_adapter *adapter,
-				    int first_index, int count);
-void ena_free_all_io_tx_resources_in_range(struct ena_adapter *adapter,
-					   int first_index, int count);
-void ena_free_all_io_tx_resources(struct ena_adapter *adapter);
 void ena_down(struct ena_adapter *adapter);
 int ena_up(struct ena_adapter *adapter);
 void ena_unmask_interrupt(struct ena_ring *tx_ring, struct ena_ring *rx_ring);
@@ -695,4 +700,16 @@ void ena_set_rx_hash(struct ena_ring *rx_ring,
 		     struct ena_com_rx_ctx *ena_rx_ctx,
 		     struct sk_buff *skb);
 int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num);
+
+static inline void handle_tx_comp_poll_error(struct ena_ring *tx_ring, u16 req_id, int rc)
+{
+	if (unlikely(rc == -EINVAL))
+		handle_invalid_req_id(tx_ring, req_id, NULL);
+	else if (unlikely(rc == -EFAULT)) {
+		ena_get_and_dump_head_tx_cdesc(tx_ring->ena_com_io_cq);
+		ena_reset_device(tx_ring->adapter,
+				 ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
+	}
+}
+
 #endif /* !(ENA_H) */

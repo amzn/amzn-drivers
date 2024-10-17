@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2021-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 cmake_minimum_required(VERSION 2.8.11)
 project(efa C)
@@ -22,5 +22,6 @@ message("-- Kernel directory - ${KERNEL_DIR}")
 
 set(GCOV_PROFILE OFF CACHE BOOL "Enable GCOV profiling")
 set(ENABLE_P2P ON CACHE BOOL "Enable Peer-to-peer memory")
+set(ENABLE_KVERBS ON CACHE BOOL "Enable kernel verbs support")
 
 add_subdirectory(src)

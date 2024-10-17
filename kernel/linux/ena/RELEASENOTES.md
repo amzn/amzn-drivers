@@ -31,15 +31,38 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.13.0 release notes
+**New Features**
+* Re-enable AF XDP zero-copy support
+* Add support for flow steering
+* Allow configuring LPC for less than 16 channels
+
+**Bug fixes**
+* Fix wrong memory handling of customer metrics
+* Better detection of interrupt coalescing support
+* Flush XDP TX queued packets in case of an error
+* Hide PHC error bound sysfs file from showing when not supported
+* Use flexible array in LPC
+
+**Minor Changes**
+* Fix typos and style issues
+* Remove RPM installation from the main README
+* Improve PHC documentation
+* Dump invalid descriptors to the kernel ring to help debug issues
+* Support kernel 6.10
+
+**Notes**
+* The flow steering feature will be available for newly attached ENIs
+
 ## r2.12.3 release notes
-** Bug fixes**
+**Bug fixes**
 * Remove explicit numa specification for Linux
 * Fix interrupt interval change flag override
 * Prevent adaptive moderation override
 * Free copybreak page if NUMA is incorrect
 
 ## r2.12.2 release notes
-** Bug fixes**
+**Bug fixes**
 * Move eth_hw_addr_set to ECC to resolve compilation errors
 
 ## r2.12.1 release notes

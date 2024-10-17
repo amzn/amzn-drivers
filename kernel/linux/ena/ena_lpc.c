@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/*
- * Copyright 2015-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
+
 #include "ena_lpc.h"
 #include "ena_xdp.h"
 
@@ -26,7 +27,7 @@ static void ena_replace_cache_page(struct ena_ring *rx_ring,
 
 	new_page = ena_alloc_map_page(rx_ring, &dma);
 
-	if (unlikely(IS_ERR(new_page)))
+	if (IS_ERR(new_page))
 		return;
 
 	ena_put_unmap_cache_page(rx_ring, ena_page);
@@ -98,7 +99,7 @@ struct page *ena_lpc_get_page(struct ena_ring *rx_ring, dma_addr_t *dma,
 
 		/* Add a new page to the cache */
 		ena_page->page = ena_alloc_map_page(rx_ring, dma);
-		if (unlikely(IS_ERR(ena_page->page)))
+		if (IS_ERR(ena_page->page))
 			return ena_page->page;
 
 		ena_page->dma_addr = *dma;
@@ -140,13 +141,16 @@ bool ena_is_lpc_supported(struct ena_adapter *adapter,
 
 	print_log = (error_print) ? netdev_err : netdev_info;
 
-	/* LPC is disabled below min number of channels */
-	if (channels_nr < ENA_LPC_MIN_NUM_OF_CHANNELS) {
+	/* By default, LPC is disabled below a minimal number of channels,
+	 * unless explicitly enabled.
+	 */
+	if (channels_nr < ENA_LPC_MIN_NUM_OF_CHANNELS &&
+	    adapter->configured_lpc_size == ENA_LPC_MULTIPLIER_NOT_CONFIGURED) {
 		print_log(adapter->netdev,
-			  "Local page cache is disabled for less than %d channels\n",
-			  ENA_LPC_MIN_NUM_OF_CHANNELS);
+			 "Local page cache is disabled for less than %d channels\n",
+			 ENA_LPC_MIN_NUM_OF_CHANNELS);
 
-		/* Disable LPC for such case. It can enabled again through
+		/* Disable LPC for such case. It can be enabled again through
 		 * ethtool private-flag.
 		 */
 		adapter->used_lpc_size = 0;

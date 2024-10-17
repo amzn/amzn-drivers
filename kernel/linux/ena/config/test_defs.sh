@@ -51,12 +51,55 @@ try_compile_async "#include <linux/ethtool.h>"           \
 
 try_compile_async "#include <linux/ethtool.h>"           \
                   "struct ethtool_rxfh_param rxfh;"      \
-		  "ENA_HAVE_ETHTOOL_RXFH_PARAM"          \
-		  ""                                     \
-		  "6.8.0 <= LINUX_VERSION_CODE"
+                  "ENA_HAVE_ETHTOOL_RXFH_PARAM"          \
+                  ""                                     \
+                  "6.8.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h>"                      \
+                  "{
+                    struct ethtool_ops ops;
+                    ops.supported_coalesce_params = 0;
+                  }"                                                \
+                  "ENA_HAVE_ETHTOOL_OPS_SUPPORTED_COALESCE_PARAMS"  \
+                  ""                                                \
+                  "5.7.0 <= LINUX_VERSION_CODE"
 
 try_compile_async "#include <linux/etherdevice.h>"       \
                   "eth_hw_addr_set(NULL, NULL);"         \
                   "ENA_HAVE_ETH_HW_ADDR_SET"             \
                   ""                                     \
                   "5.15.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp_sock_drv.h>"        \
+                  "xsk_buff_dma_sync_for_cpu(NULL);"     \
+                  "ENA_XSK_BUFF_DMA_SYNC_SINGLE_ARG"     \
+                  ""                                     \
+                  "6.10.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/skbuff.h>"            \
+                  "__napi_alloc_skb(NULL, 0, 0);"        \
+                  "ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK" \
+                  ""                                     \
+                  "6.10.0 > LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp.h>"                           \
+                  "NETDEV_XDP_ACT_XSK_ZEROCOPY;"                   \
+                  "ENA_HAVE_NETDEV_XDP_ACT_XSK_ZEROCOPY"           \
+                  ""                                               \
+                  "6.3 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h> "               \
+                  "struct ethtool_tcpip6_spec tcp_ip6;"       \
+                  "ENA_ETHTOOL_NFC_IPV6_SUPPORTED"            \
+                  ""                                          \
+                  "4.6.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h>"           \
+                  "{
+                    struct kernel_ethtool_ts_info ts;
+                    ts.so_timestamping = 0;
+                    ts.phc_index = 0;
+                  }"                                     \
+                  "ENA_HAVE_KERNEL_ETHTOOL_TS_INFO"      \
+                  ""                                     \
+                  "6.11.0 <= LINUX_VERSION_CODE"

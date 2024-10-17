@@ -72,6 +72,7 @@ install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}/src
 install -m 644 efa_main.c		%{buildroot}%{install_path}/src
 install -m 644 efa_sysfs.c		%{buildroot}%{install_path}/src
 install -m 644 efa_verbs.c		%{buildroot}%{install_path}/src
+install -m 644 efa_data_verbs.c		%{buildroot}%{install_path}/src
 install -m 644 efa-abi.h 		%{buildroot}%{install_path}/src
 install -m 644 efa_admin_cmds_defs.h 	%{buildroot}%{install_path}/src
 install -m 644 efa_admin_defs.h 	%{buildroot}%{install_path}/src
@@ -80,6 +81,7 @@ install -m 644 efa_com.h		%{buildroot}%{install_path}/src
 install -m 644 efa_common_defs.h	%{buildroot}%{install_path}/src
 install -m 644 efa_io_defs.h		%{buildroot}%{install_path}/src
 install -m 644 efa.h			%{buildroot}%{install_path}/src
+install -m 644 efa_verbs.h		%{buildroot}%{install_path}/src
 install -m 644 efa_regs_defs.h		%{buildroot}%{install_path}/src
 install -m 644 efa_sysfs.h		%{buildroot}%{install_path}/src
 install -m 644 kcompat.h		%{buildroot}%{install_path}/src
@@ -98,6 +100,15 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Sun Oct 06 2024 Michael Margolin <mrgolin@amazon.com> - 2.12.1
+- Fix RNR configuration for SRD kernel QPs
+
+* Tue Oct 01 2024 Michael Margolin <mrgolin@amazon.com> - 2.12.0
+- Introduce EFA kernel verbs support
+- Add 0xefa3 device support
+- Report device node GUID
+- Adjust CQ creation interface for mainline 6.11 kernels
+
 * Wed Jun 05 2024 Michael Margolin <mrgolin@amazon.com> - 2.10.0
 - Introduce QP with unsolicited write with immediate receive
 - Add gracefull shutdown

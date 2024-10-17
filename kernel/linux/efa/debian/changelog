@@ -1,3 +1,16 @@
+efa (2.12.1-1.amzn1) unstable; urgency=medium
+  * Fix RNR configuration for SRD kernel QPs
+
+ -- Michael Margolin <mrgolin@amazon.com>  Sun, 06 Oct 2024 16:13:23 +0000
+
+efa (2.12.0-1.amzn1) unstable; urgency=medium
+  * Introduce EFA kernel verbs support
+  * Add 0xefa3 device support
+  * Report device node GUID
+  * Adjust CQ creation interface for mainline 6.11 kernels
+
+ -- Michael Margolin <mrgolin@amazon.com>  Tue, 01 Oct 2024 09:17:30 +0000
+
 efa (2.10.0-1.amzn1) unstable; urgency=medium
   * Introduce QP with unsolicited write with immediate receive
   * Add gracefull shutdown

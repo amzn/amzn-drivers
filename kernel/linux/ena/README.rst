@@ -610,7 +610,7 @@ PTP Hardware Clock (PHC)
 .. _`ptp-userspace-api`: https://docs.kernel.org/driver-api/ptp.html#ptp-hardware-clock-user-space-api
 .. _`testptp`: https://elixir.bootlin.com/linux/latest/source/tools/testing/selftests/ptp/testptp.c
 
-ENA Linux driver support PTP hardware clock providing timestamp reference to achieve nanosecond accuracy.
+ENA Linux driver supports PTP hardware clock providing timestamp reference to achieve nanosecond accuracy.
 
 **PHC support**
 
@@ -627,6 +627,8 @@ Verify if the PTP module is present:
 - ``CONFIG_PTP_1588_CLOCK=y``: the PTP module is already compiled and loaded inside the kernel binary file.
 
 - ``CONFIG_PTP_1588_CLOCK=m``: the PTP module needs to be loaded prior to loading the ENA driver:
+
+Load PTP module:
 
 .. code-block:: shell
 
@@ -670,9 +672,13 @@ To retrieve PHC timestamp, use `ptp-userspace-api`_, usage example using `testpt
 
 .. code-block:: shell
 
-  ~/linux/tools/testing/selftests/ptp/testptp -d /dev/ptp0 -k 1
+  testptp -d /dev/ptp$(ethtool -T <interface> | awk '/PTP Hardware Clock:/ {print $NF}') -k 1
 
-**Notice**: PHC get time requests should be within reasonable bounds, avoid excessive utilization to ensure optimal performance and efficiency.
+PHC get time requests should be within reasonable bounds,
+avoid excessive utilization to ensure optimal performance and efficiency.
+The ENA device restricts the frequency of PHC get time requests to a maximum
+of 125 requests per second. If this limit is surpassed, the get time request
+will fail, leading to an increment in the phc_err statistic.
 
 **PHC error bound**
 
@@ -697,22 +703,22 @@ sysfs:
 PHC can be monitored using :code:`ethtool -S` counters:
 
 =================   ======================================================
-**phc_cnt**         number of successful retrieved timestamps (below expire timeout)
-**phc_exp**         number of expired retrieved timestamps (above expire timeout)
-**phc_skp**         number of skipped get time attempts (during block period)
-**phc_err**         number of failed get time attempts due to timestamp/error bound errors
-                    (entering into block state)
-                    must remain below 1% of all PHC requests to maintain the desired level of
-                    accuracy and reliability
+**phc_cnt**         Number of successful retrieved timestamps (below expire timeout).
+**phc_exp**         Number of expired retrieved timestamps (above expire timeout).
+**phc_skp**         Number of skipped get time attempts (during block period).
+**phc_err**         Number of failed get time attempts due to timestamp/error bound errors
+                    (entering into block state).
+                    Must remain below 1% of all PHC requests to maintain the desired level of
+                    accuracy and reliability.
 =================   ======================================================
 
 PHC timeouts:
 
 =================   ======================================================
-**expire**          max time for a valid timestamp retrieval, passing this threshold will fail
-                    the get time request and block new requests until block timeout
-**block**           blocking period starts once get time request expires or fails, all get time
-                    requests during block period will be skipped
+**expire**          Max time for a valid timestamp retrieval, passing this threshold will fail
+                    the get time request and block new requests until block timeout.
+**block**           Blocking period starts once get time request expires or fails, all get time
+                    requests during block period will be skipped.
 =================   ======================================================
 
 Statistics
@@ -858,10 +864,63 @@ RX packet is less than rx_copybreak bytes (in which case the packet is
 copied out of the RX buffer into the linear part of a new skb allocated
 for it and the RX buffer remains the same size, see `RX copybreak`_).
 
+Flow Steering (ntuple)
+======================
+
+The ENA Linux driver supports Rx flow steering using ntuple filters,
+which allow packets to be directed to specific queues based on defined flow criteria.
+This feature enables efficient packet processing by steering specific traffic flows to dedicated CPU cores,
+improving overall system performance.
+
+The resources used to configure the flow steering rules are allocated as a contiguous table in memory.
+The number of entries available in this table is determined by the number of virtual CPUs on the host.
+The table is shared across all interfaces on the host, meaning that an entry used by one interface cannot
+be used by another interface until the rule is removed.
+
+To verify that the feature is supported, run :code:`ethtool -k` and expect the output :code:`ntuple-filters: on`.
+The feature is supported starting from EC2 7th generation instance-types.
+
+**Usage example**
+
+Adding a flow steering rule:
+
+(configuring IPv4 tcp traffic with destination port 5001 to queue idx 1, set this rule to index 6 in flow steering table)
+
+:code:`ethtool -N eth1 flow-type tcp4 dst-port 5001 action 1 loc 6`
+
+Deleting a flow steering rule:
+
+:code:`ethtool -N eth1 delete 6`
+
+Viewing the list of configured rules:
+
+:code:`ethtool -n eth1`
+
+.. code-block:: shell
+
+  # ethtool -n eth1
+  8 RX rings available
+  Total 1 rules
+
+  Filter: 6
+  Rule Type: TCP over IPv4
+  Src IP addr: 0.0.0.0 mask: 255.255.255.255
+  Dest IP addr: 0.0.0.0 mask: 255.255.255.255
+  TOS: 0x0 mask: 0xff
+  Src port: 0 mask: 0xffff
+  Dest port: 5001 mask: 0x0
+  Action: Direct to queue 1
+
 AF XDP Native Support (zero copy)
 ---------------------------------
 
-ENA driver supports native AF XDP (zero copy), however the feature is still
-experimental.
-Please follow https://github.com/amzn/amzn-drivers/issues/221 for possible
-mitigations to issues.
+ENA driver supports native AF XDP (zero copy). To make a channel (TX/RX queue
+pair) zero copy, its index should meet the following criteria:
+
+- It has to be within the bounds of the configured channels.
+- It has to be smaller than *half* of the maximum channel number. E.g.
+  if an instance supports a maximum of 32 channels, zero-copy channels can be
+  configured on channels 0 through 15.
+
+Both the currently configured channels and the maximum available for the instance can be queried
+using :code:`ethtool -l`.

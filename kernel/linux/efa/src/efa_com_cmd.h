@@ -112,6 +112,7 @@ struct efa_com_get_device_attr_result {
 	u8 addr[EFA_GID_SIZE];
 	u64 page_size_cap;
 	u64 max_mr_pages;
+	u64 guid;
 	u32 mtu;
 	u32 fw_version;
 	u32 admin_api_version;
@@ -227,6 +228,29 @@ struct efa_com_dereg_mr_params {
 	u32 l_key;
 };
 
+#ifdef HAVE_EFA_KVERBS
+struct efa_com_alloc_mr_params {
+	/* Protection Domain */
+	u16 pd;
+
+	/* Max number of pages this MR supports. */
+	u32 max_pages;
+};
+
+struct efa_com_alloc_mr_result {
+	/*
+	 * To be used in conjunction with local buffers references in SQ and
+	 * RQ WQE
+	 */
+	u32 l_key;
+	/*
+	 * To be used in RDMA semantics messages to refer to remotely
+	 * accessed memory region
+	 */
+	u32 r_key;
+};
+#endif
+
 struct efa_com_alloc_pd_result {
 	u16 pdn;
 };
@@ -305,6 +329,11 @@ int efa_com_destroy_cq(struct efa_com_dev *edev,
 int efa_com_register_mr(struct efa_com_dev *edev,
 			struct efa_com_reg_mr_params *params,
 			struct efa_com_reg_mr_result *result);
+#ifdef HAVE_EFA_KVERBS
+int efa_com_alloc_mr(struct efa_com_dev *edev,
+		     struct efa_com_alloc_mr_params *params,
+		     struct efa_com_alloc_mr_result *result);
+#endif
 int efa_com_dereg_mr(struct efa_com_dev *edev,
 		     struct efa_com_dereg_mr_params *params);
 int efa_com_create_ah(struct efa_com_dev *edev,

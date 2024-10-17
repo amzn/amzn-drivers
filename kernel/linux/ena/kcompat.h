@@ -1,6 +1,6 @@
 /*******************************************************************************
-Modified by Amazon 2015-2016.
-Copyright 2015-2016, Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Modified by Amazon.
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 Modifications subject to the terms and conditions of the GNU General
 Public License, version 2.
@@ -76,6 +76,9 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #include <linux/vmalloc.h>
 #include <linux/udp.h>
 #include <linux/u64_stats_sync.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+#include <linux/bitfield.h>
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 #include <linux/sizes.h>
@@ -601,7 +604,6 @@ static inline void ioremap_release(struct device *dev, void *res)
 	iounmap(*(void __iomem **)res);
 }
 
-
 static inline void __iomem *devm_ioremap_wc(struct device *dev,
 					    resource_size_t offset,
 					    resource_size_t size)
@@ -998,10 +1000,11 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)) && \
 	!(RHEL_RELEASE_CODE && \
 	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2)))
+#define ENA_KCOMAPT_NAPI_ALLOC_SKB
 static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
 					     unsigned int length)
 {
-	return netdev_alloc_skb_ip_align(napi->dev, length);
+	return __netdev_alloc_skb_ip_align(napi->dev, length, GFP_ATOMIC | __GFP_NOWARN);
 }
 #endif
 
@@ -1036,11 +1039,11 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 #define ENA_LARGE_LLQ_ETHTOOL
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
-#include <linux/bitfield.h>
-#define ENA_FIELD_GET(value, mask, offset) FIELD_GET(mask, value)
-#else
-#define ENA_FIELD_GET(value, mask, offset) ((typeof(mask))((value & mask) >> offset))
+#ifndef FIELD_GET
+#define FIELD_GET(mask, value) ((typeof(mask))(((value) & (mask)) >> (__builtin_ffsll(mask) - 1)))
+#endif
+#ifndef FIELD_PREP
+#define FIELD_PREP(mask, value) ((typeof(mask))(((value) << (__builtin_ffsll(mask) - 1)) & (mask)))
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
@@ -1149,5 +1152,18 @@ static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumas
 #ifndef ENA_HAVE_ETHTOOL_PUTS
 #define ethtool_puts ethtool_sprintf
 #endif /* ENA_HAVE_ETHTOOL_PUTS */
+
+#ifdef ENA_XSK_BUFF_DMA_SYNC_SINGLE_ARG
+#include <net/xdp_sock_drv.h>
+#define xsk_buff_dma_sync_for_cpu(xdp, xsk_pool) xsk_buff_dma_sync_for_cpu(xdp)
+#endif /* ENA_XSK_BUFF_DMA_SYNC_SINGLE_ARG */
+
+#if defined(ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK) && !defined(ENA_KCOMAPT_NAPI_ALLOC_SKB)
+#define napi_alloc_skb(napi, len) __napi_alloc_skb(napi, len, GFP_ATOMIC | __GFP_NOWARN)
+#endif /* ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK && !ENA_KCOMAPT_NAPI_ALLOC_SKB*/
+
+#ifndef RX_CLS_FLOW_WAKE
+#define RX_CLS_FLOW_WAKE	0xfffffffffffffffeULL
+#endif /* RX_CLS_FLOW_WAKE */
 
 #endif /* _KCOMPAT_H_ */

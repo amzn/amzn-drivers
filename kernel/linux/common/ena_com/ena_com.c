@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/*
- * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
 
 #include "ena_com.h"
@@ -13,7 +13,6 @@
 
 #define ENA_ASYNC_QUEUE_DEPTH 16
 #define ENA_ADMIN_QUEUE_DEPTH 32
-
 
 #define ENA_CTRL_MAJOR		0
 #define ENA_CTRL_MINOR		0
@@ -77,12 +76,12 @@ struct ena_com_stats_ctx {
 };
 
 static int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
-				       struct ena_common_mem_addr *ena_addr,
-				       dma_addr_t addr)
+				struct ena_common_mem_addr *ena_addr,
+				dma_addr_t addr)
 {
 	if (unlikely((addr & GENMASK_ULL(ena_dev->dma_addr_bits - 1, 0)) != addr)) {
 		netdev_err(ena_dev->net_device,
-			   "DMA address has more bits that the device supports\n");
+			   "DMA address has more bits than the device supports\n");
 		return -EINVAL;
 	}
 
@@ -159,10 +158,10 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *ena_dev,
 	writel(addr_high, ena_dev->reg_bar + ENA_REGS_AENQ_BASE_HI_OFF);
 
 	aenq_caps = 0;
-	aenq_caps |= ena_dev->aenq.q_depth & ENA_REGS_AENQ_CAPS_AENQ_DEPTH_MASK;
-	aenq_caps |=
-		(sizeof(struct ena_admin_aenq_entry) << ENA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_SHIFT) &
-		ENA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_MASK;
+	aenq_caps |= FIELD_PREP(ENA_REGS_AENQ_CAPS_AENQ_DEPTH_MASK, ena_dev->aenq.q_depth);
+
+	aenq_caps |= FIELD_PREP(ENA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_MASK,
+				sizeof(struct ena_admin_aenq_entry));
 	writel(aenq_caps, ena_dev->reg_bar + ENA_REGS_AENQ_CAPS_OFF);
 
 	if (unlikely(!aenq_handlers)) {
@@ -176,7 +175,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *ena_dev,
 }
 
 static void comp_ctxt_release(struct ena_com_admin_queue *queue,
-				     struct ena_comp_ctx *comp_ctx)
+			      struct ena_comp_ctx *comp_ctx)
 {
 	comp_ctx->user_cqe = NULL;
 	comp_ctx->occupied = false;
@@ -836,10 +835,8 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	mmio_read->seq_num++;
 
 	read_resp->req_id = mmio_read->seq_num + 0xDEAD;
-	mmio_read_reg = (offset << ENA_REGS_MMIO_REG_READ_REG_OFF_SHIFT) &
-			ENA_REGS_MMIO_REG_READ_REG_OFF_MASK;
-	mmio_read_reg |= mmio_read->seq_num &
-			ENA_REGS_MMIO_REG_READ_REQ_ID_MASK;
+	mmio_read_reg = FIELD_PREP(ENA_REGS_MMIO_REG_READ_REG_OFF_MASK, offset);
+	mmio_read_reg |= mmio_read->seq_num & ENA_REGS_MMIO_REG_READ_REQ_ID_MASK;
 
 	writel(mmio_read_reg, ena_dev->reg_bar + ENA_REGS_MMIO_REG_READ_OFF);
 
@@ -904,9 +901,7 @@ static int ena_com_destroy_io_sq(struct ena_com_dev *ena_dev,
 	else
 		direction = ENA_ADMIN_SQ_DIRECTION_RX;
 
-	destroy_cmd.sq.sq_identity |= (direction <<
-		ENA_ADMIN_SQ_SQ_DIRECTION_SHIFT) &
-		ENA_ADMIN_SQ_SQ_DIRECTION_MASK;
+	destroy_cmd.sq.sq_identity |= FIELD_PREP(ENA_ADMIN_SQ_SQ_DIRECTION_MASK, direction);
 
 	destroy_cmd.sq.sq_idx = io_sq->idx;
 	destroy_cmd.aq_common_descriptor.opcode = ENA_ADMIN_DESTROY_SQ;
@@ -1211,16 +1206,14 @@ static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
 	else
 		direction = ENA_ADMIN_SQ_DIRECTION_RX;
 
-	create_cmd.sq_identity |= (direction <<
-		ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_DIRECTION_SHIFT) &
-		ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_DIRECTION_MASK;
+	create_cmd.sq_identity |=
+		FIELD_PREP(ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_DIRECTION_MASK, direction);
 
 	create_cmd.sq_caps_2 |= io_sq->mem_queue_type &
 		ENA_ADMIN_AQ_CREATE_SQ_CMD_PLACEMENT_POLICY_MASK;
 
-	create_cmd.sq_caps_2 |= (ENA_ADMIN_COMPLETION_POLICY_DESC <<
-		ENA_ADMIN_AQ_CREATE_SQ_CMD_COMPLETION_POLICY_SHIFT) &
-		ENA_ADMIN_AQ_CREATE_SQ_CMD_COMPLETION_POLICY_MASK;
+	create_cmd.sq_caps_2 |= FIELD_PREP(ENA_ADMIN_AQ_CREATE_SQ_CMD_COMPLETION_POLICY_MASK,
+					   ENA_ADMIN_COMPLETION_POLICY_DESC);
 
 	create_cmd.sq_caps_3 |=
 		ENA_ADMIN_AQ_CREATE_SQ_CMD_IS_PHYSICALLY_CONTIGUOUS_MASK;
@@ -1330,10 +1323,7 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 					    comp, comp_size);
 	if (IS_ERR(comp_ctx)) {
 		ret = PTR_ERR(comp_ctx);
-		if (ret == -ENODEV)
-			netdev_dbg(admin_queue->ena_dev->net_device,
-				   "Failed to submit command [%d]\n", ret);
-		else
+		if (ret != -ENODEV)
 			netdev_err(admin_queue->ena_dev->net_device,
 				   "Failed to submit command [%d]\n", ret);
 
@@ -1344,10 +1334,7 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 	if (unlikely(ret)) {
 		if (admin_queue->running_state)
 			netdev_err(admin_queue->ena_dev->net_device,
-				   "Failed to process command. ret = %d\n", ret);
-		else
-			netdev_dbg(admin_queue->ena_dev->net_device,
-				   "Failed to process command. ret = %d\n", ret);
+				   "Failed to process command [%d]\n", ret);
 	}
 	return ret;
 }
@@ -1559,8 +1546,7 @@ int ena_com_get_dma_width(struct ena_com_dev *ena_dev)
 		return -ETIME;
 	}
 
-	width = (caps & ENA_REGS_CAPS_DMA_ADDR_WIDTH_MASK) >>
-		ENA_REGS_CAPS_DMA_ADDR_WIDTH_SHIFT;
+	width = FIELD_GET(ENA_REGS_CAPS_DMA_ADDR_WIDTH_MASK, caps);
 
 	netdev_dbg(ena_dev->net_device, "ENA dma width: %d\n", width);
 
@@ -1593,17 +1579,14 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev)
 	}
 
 	dev_info(ena_dev->dmadev, "ENA device version: %d.%d\n",
-		 (ver & ENA_REGS_VERSION_MAJOR_VERSION_MASK) >> ENA_REGS_VERSION_MAJOR_VERSION_SHIFT,
-		 ver & ENA_REGS_VERSION_MINOR_VERSION_MASK);
+		 FIELD_GET(ENA_REGS_VERSION_MAJOR_VERSION_MASK, ver),
+		 FIELD_GET(ENA_REGS_VERSION_MINOR_VERSION_MASK, ver));
 
 	dev_info(ena_dev->dmadev, "ENA controller version: %d.%d.%d implementation version %d\n",
-		 (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK) >>
-			 ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_SHIFT,
-		 (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK) >>
-			 ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_SHIFT,
-		 (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION_MASK),
-		 (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_IMPL_ID_MASK) >>
-			 ENA_REGS_CONTROLLER_VERSION_IMPL_ID_SHIFT);
+		 FIELD_GET(ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK, ctrl_ver),
+		 FIELD_GET(ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK, ctrl_ver),
+		 FIELD_GET(ENA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION_MASK, ctrl_ver),
+		 FIELD_GET(ENA_REGS_CONTROLLER_VERSION_IMPL_ID_MASK, ctrl_ver));
 
 	ctrl_ver_masked =
 		(ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK) |
@@ -1727,7 +1710,7 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev)
 
 	/* Supporting only PHC V0 (readless mode with error bound) */
 	if (get_feat_resp.u.phc.version != ENA_ADMIN_PHC_FEATURE_VERSION_0) {
-		netdev_err(ena_dev->net_device, "Unsupprted PHC version (0x%X), error: %d\n",
+		netdev_err(ena_dev->net_device, "Unsupported PHC version (0x%X), error: %d\n",
 			   get_feat_resp.u.phc.version, -EOPNOTSUPP);
 		return -EOPNOTSUPP;
 	}
@@ -1826,15 +1809,14 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 
 		/* PHC is in active state, update statistics according to req_id and error_flags */
 		if ((READ_ONCE(read_resp->req_id) != phc->req_id) ||
-		    (read_resp->error_flags & ENA_PHC_ERROR_FLAGS)) {
+		    (read_resp->error_flags & ENA_PHC_ERROR_FLAGS))
 			/* Device didn't update req_id during blocking time or timestamp is invalid,
 			 * this indicates on a device error
 			 */
 			phc->stats.phc_err++;
-		} else {
+		else
 			/* Device updated req_id during blocking time with valid timestamp */
 			phc->stats.phc_exp++;
-		}
 	}
 
 	/* Setting relative timeouts */
@@ -2036,16 +2018,14 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 	writel(addr_high, ena_dev->reg_bar + ENA_REGS_ACQ_BASE_HI_OFF);
 
 	aq_caps = 0;
-	aq_caps |= admin_queue->q_depth & ENA_REGS_AQ_CAPS_AQ_DEPTH_MASK;
-	aq_caps |= (sizeof(struct ena_admin_aq_entry) <<
-			ENA_REGS_AQ_CAPS_AQ_ENTRY_SIZE_SHIFT) &
-			ENA_REGS_AQ_CAPS_AQ_ENTRY_SIZE_MASK;
+	aq_caps |= FIELD_PREP(ENA_REGS_AQ_CAPS_AQ_DEPTH_MASK, admin_queue->q_depth);
+	aq_caps |=
+		FIELD_PREP(ENA_REGS_AQ_CAPS_AQ_ENTRY_SIZE_MASK, sizeof(struct ena_admin_aq_entry));
 
 	acq_caps = 0;
-	acq_caps |= admin_queue->q_depth & ENA_REGS_ACQ_CAPS_ACQ_DEPTH_MASK;
-	acq_caps |= (sizeof(struct ena_admin_acq_entry) <<
-		ENA_REGS_ACQ_CAPS_ACQ_ENTRY_SIZE_SHIFT) &
-		ENA_REGS_ACQ_CAPS_ACQ_ENTRY_SIZE_MASK;
+	acq_caps |= FIELD_PREP(ENA_REGS_ACQ_CAPS_ACQ_DEPTH_MASK, admin_queue->q_depth);
+	acq_caps |= FIELD_PREP(ENA_REGS_ACQ_CAPS_ACQ_ENTRY_SIZE_MASK,
+			       sizeof(struct ena_admin_acq_entry));
 
 	writel(aq_caps, ena_dev->reg_bar + ENA_REGS_AQ_CAPS_OFF);
 	writel(acq_caps, ena_dev->reg_bar + ENA_REGS_ACQ_CAPS_OFF);
@@ -2313,7 +2293,6 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 	struct ena_admin_aenq_entry *aenq_e;
 	struct ena_admin_aenq_common_desc *aenq_common;
 	struct ena_com_aenq *aenq  = &ena_dev->aenq;
-	u64 timestamp;
 	ena_aenq_handler handler_cb;
 	u16 masked_head, processed = 0;
 	u8 phase;
@@ -2334,11 +2313,10 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 		 */
 		dma_rmb();
 
-		timestamp = (u64)aenq_common->timestamp_low |
-			((u64)aenq_common->timestamp_high << 32);
-
 		netdev_dbg(ena_dev->net_device, "AENQ! Group[%x] Syndrome[%x] timestamp: [%llus]\n",
-			   aenq_common->group, aenq_common->syndrome, timestamp);
+			   aenq_common->group, aenq_common->syndrome,
+			   ((u64)aenq_common->timestamp_low |
+			    ((u64)aenq_common->timestamp_high << 32)));
 
 		/* Handle specific event*/
 		handler_cb = ena_com_get_specific_aenq_cb(ena_dev,
@@ -2433,8 +2411,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 		return -EINVAL;
 	}
 
-	timeout = (cap & ENA_REGS_CAPS_RESET_TIMEOUT_MASK) >>
-			ENA_REGS_CAPS_RESET_TIMEOUT_SHIFT;
+	timeout = FIELD_GET(ENA_REGS_CAPS_RESET_TIMEOUT_MASK, cap);
 	if (timeout == 0) {
 		netdev_err(ena_dev->net_device, "Invalid timeout value\n");
 		return -EINVAL;
@@ -2446,11 +2423,9 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 	/* For backward compatibility, device will interpret
 	 * bits 24-27 as MSB, bits 28-31 as LSB
 	 */
-	reset_reason_lsb = ENA_FIELD_GET(reset_reason, ENA_RESET_REASON_LSB_MASK,
-					 ENA_RESET_REASON_LSB_OFFSET);
+	reset_reason_lsb = FIELD_GET(ENA_RESET_REASON_LSB_MASK, reset_reason);
 
-	reset_reason_msb = ENA_FIELD_GET(reset_reason, ENA_RESET_REASON_MSB_MASK,
-					 ENA_RESET_REASON_MSB_OFFSET);
+	reset_reason_msb = FIELD_GET(ENA_RESET_REASON_MSB_MASK, reset_reason);
 
 	reset_val |= reset_reason_lsb << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT;
 
@@ -2461,8 +2436,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 		 * extended reset reason fallback to generic
 		 */
 		reset_val = ENA_REGS_DEV_CTL_DEV_RESET_MASK;
-		reset_val |= (ENA_REGS_RESET_GENERIC << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT) &
-			      ENA_REGS_DEV_CTL_RESET_REASON_MASK;
+		reset_val |= FIELD_PREP(ENA_REGS_DEV_CTL_RESET_REASON_MASK, ENA_REGS_RESET_GENERIC);
 	}
 	writel(reset_val, ena_dev->reg_bar + ENA_REGS_DEV_CTL_OFF);
 
@@ -2484,8 +2458,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 		return rc;
 	}
 
-	timeout = (cap & ENA_REGS_CAPS_ADMIN_CMD_TO_MASK) >>
-		ENA_REGS_CAPS_ADMIN_CMD_TO_SHIFT;
+	timeout = FIELD_GET(ENA_REGS_CAPS_ADMIN_CMD_TO_MASK, cap);
 	if (timeout)
 		/* the resolution of timeout reg is 100ms */
 		ena_dev->admin_queue.completion_timeout = timeout * 100000;
@@ -2517,7 +2490,7 @@ int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
 }
 
 int ena_com_get_ena_srd_info(struct ena_com_dev *ena_dev,
-			      struct ena_admin_ena_srd_info *info)
+			     struct ena_admin_ena_srd_info *info)
 {
 	struct ena_com_stats_ctx ctx;
 	int ret;
@@ -2578,8 +2551,8 @@ int ena_com_get_customer_metrics(struct ena_com_dev *ena_dev, char *buffer, u32 
 	get_cmd = &ctx.get_cmd;
 	memset(&ctx, 0x0, sizeof(ctx));
 	ret = ena_com_mem_addr_set(ena_dev,
-		&get_cmd->u.control_buffer.address,
-		ena_dev->customer_metrics.buffer_dma_addr);
+				   &get_cmd->u.control_buffer.address,
+				   ena_dev->customer_metrics.buffer_dma_addr);
 	if (unlikely(ret)) {
 		netdev_err(ena_dev->net_device, "Memory address set failed.\n");
 		return ret;
@@ -3101,6 +3074,59 @@ void ena_com_rss_destroy(struct ena_com_dev *ena_dev)
 	memset(&ena_dev->rss, 0x0, sizeof(ena_dev->rss));
 }
 
+int ena_com_flow_steering_init(struct ena_com_dev *ena_dev, u16 flow_steering_entries)
+{
+	u32 tbl_size_in_bytes =
+		flow_steering_entries * sizeof(struct ena_com_flow_steering_table_entry);
+	struct ena_com_flow_steering *flow_steering = &ena_dev->flow_steering;
+
+	memset(flow_steering, 0x0, sizeof(*flow_steering));
+
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG)))
+		return -EOPNOTSUPP;
+
+	flow_steering->tbl_size = flow_steering_entries;
+
+	flow_steering->flow_steering_tbl =
+		devm_kzalloc(ena_dev->dmadev, tbl_size_in_bytes, GFP_KERNEL);
+	if (unlikely(!flow_steering->flow_steering_tbl)) {
+		netdev_err(ena_dev->net_device, "Flow steering table memory allocation failed\n");
+		return -ENOMEM;
+	}
+
+	flow_steering->requested_rule =
+		dma_zalloc_coherent(ena_dev->dmadev,
+				    sizeof(struct ena_admin_flow_steering_rule_params),
+				    &flow_steering->requested_rule_dma_addr, GFP_KERNEL);
+	if (unlikely(!flow_steering->requested_rule)) {
+		netdev_err(ena_dev->net_device,
+			   "Flow steering dma-able params memory allocation failed\n");
+		goto err;
+	}
+
+	return 0;
+err:
+	ena_com_flow_steering_destroy(ena_dev);
+
+	return -ENOMEM;
+}
+
+void ena_com_flow_steering_destroy(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_flow_steering *flow_steering = &ena_dev->flow_steering;
+
+	if (flow_steering->requested_rule) {
+		dma_free_coherent(ena_dev->dmadev,
+				  sizeof(struct ena_admin_flow_steering_rule_params),
+				  flow_steering->requested_rule,
+				  flow_steering->requested_rule_dma_addr);
+	}
+
+	if (flow_steering->flow_steering_tbl) {
+		devm_kfree(ena_dev->dmadev, flow_steering->flow_steering_tbl);
+	}
+}
+
 int ena_com_allocate_host_info(struct ena_com_dev *ena_dev)
 {
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
@@ -3140,11 +3166,14 @@ int ena_com_allocate_customer_metrics_buffer(struct ena_com_dev *ena_dev)
 	struct ena_customer_metrics *customer_metrics = &ena_dev->customer_metrics;
 
 	customer_metrics->buffer_len = ENA_CUSTOMER_METRICS_BUFFER_SIZE;
+
 	customer_metrics->buffer_virt_addr =
 		dma_zalloc_coherent(ena_dev->dmadev, customer_metrics->buffer_len,
 				    &customer_metrics->buffer_dma_addr, GFP_KERNEL);
-	if (unlikely(!customer_metrics->buffer_virt_addr))
+	if (unlikely(!customer_metrics->buffer_virt_addr)) {
+		customer_metrics->buffer_len = 0;
 		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -3180,6 +3209,7 @@ void ena_com_delete_customer_metrics_buffer(struct ena_com_dev *ena_dev)
 				  customer_metrics->buffer_virt_addr,
 				  customer_metrics->buffer_dma_addr);
 		customer_metrics->buffer_virt_addr = NULL;
+		customer_metrics->buffer_len = 0;
 	}
 }
 
@@ -3341,6 +3371,259 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 	}
 
 	ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_DEV;
+
+	return 0;
+}
+
+int ena_com_flow_steering_add_rule(struct ena_com_dev *ena_dev,
+				   struct ena_com_flow_steering_rule_params *configure_params,
+				   u16 *rule_idx)
+{
+	struct ena_com_flow_steering *flow_steering = &ena_dev->flow_steering;
+	struct ena_com_admin_queue *admin_queue;
+	struct ena_admin_set_feat_resp resp;
+	struct ena_admin_set_feat_cmd cmd;
+	int ret;
+
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG))) {
+		netdev_err(ena_dev->net_device,
+			   "Flow steering rules are not supported by this device\n");
+		return -EOPNOTSUPP;
+	}
+
+	if ((*rule_idx >= flow_steering->tbl_size) &&
+	    (*rule_idx != ENA_ADMIN_FLOW_STEERING_DEVICE_CHOOSE_LOCATION)) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to add a flow steering rule, index %u out of bounds\n",
+			   *rule_idx);
+		return -EINVAL;
+	}
+
+	if ((*rule_idx != ENA_ADMIN_FLOW_STEERING_DEVICE_CHOOSE_LOCATION) &&
+	    (flow_steering->flow_steering_tbl[*rule_idx].in_use)) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to configure Flow steering rule to index %u with currently active rule in it\n",
+			   *rule_idx);
+		return -EINVAL;
+	}
+
+	memset(&cmd, 0x0, sizeof(cmd));
+	admin_queue = &ena_dev->admin_queue;
+
+	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
+	cmd.aq_common_descriptor.flags =
+			ENA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK;
+	cmd.feat_common.feature_id = ENA_ADMIN_FLOW_STEERING_CONFIG;
+	cmd.u.flow_steering.action = ENA_ADMIN_FLOW_STEERING_ADD_RULE;
+	cmd.u.flow_steering.flow_type = configure_params->flow_type;
+	cmd.u.flow_steering.rx_q_idx = configure_params->qid;
+	cmd.u.flow_steering.rule_location = *rule_idx;
+	cmd.u.flow_steering.flags = 0;
+
+	memcpy(flow_steering->requested_rule,
+	       &configure_params->flow_params,
+	       sizeof(struct ena_admin_flow_steering_rule_params));
+
+	ret = ena_com_mem_addr_set(ena_dev,
+				   &cmd.control_buffer.address,
+				   flow_steering->requested_rule_dma_addr);
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device, "Memory address set failed\n");
+		return ret;
+	}
+
+	cmd.control_buffer.length = sizeof(struct ena_admin_flow_steering_rule_params);
+
+	ret = ena_com_execute_admin_command(admin_queue,
+					    (struct ena_admin_aq_entry *)&cmd,
+					    sizeof(cmd),
+					    (struct ena_admin_acq_entry *)&resp,
+					    sizeof(resp));
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device, "Failed to add a new flow steering rule: %d\n", ret);
+		return ret;
+	}
+
+	/* If the rule index needs to be chosen by the device,
+	 * set it to the rule_idx from the response
+	 */
+	if (*rule_idx == ENA_ADMIN_FLOW_STEERING_DEVICE_CHOOSE_LOCATION) {
+		*rule_idx = resp.u.flow_steering.rule_location;
+		if (*rule_idx >= flow_steering->tbl_size) {
+			netdev_err(ena_dev->net_device,
+				   "Flow steering rule configured to invalid index: %d\n",
+				   *rule_idx);
+			return -EFAULT;
+		}
+	}
+
+	flow_steering->flow_steering_tbl[*rule_idx].rule_params = *configure_params;
+	flow_steering->flow_steering_tbl[*rule_idx].in_use = true;
+
+	flow_steering->active_rules_cnt++;
+
+	return 0;
+}
+
+int ena_com_flow_steering_remove_rule(struct ena_com_dev *ena_dev, u16 rule_idx)
+{
+	struct ena_com_flow_steering *flow_steering = &ena_dev->flow_steering;
+	struct ena_admin_set_feat_resp resp;
+	struct ena_admin_set_feat_cmd cmd;
+	int ret;
+
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG))) {
+		netdev_err(ena_dev->net_device,
+			   "Flow steering rules are not supported by this device\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (rule_idx >= flow_steering->tbl_size) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to remove a flow steering rule, index %u out of bounds\n",
+			   rule_idx);
+		return -EINVAL;
+	}
+
+	if (!flow_steering->flow_steering_tbl[rule_idx].in_use) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to remove a flow steering rule, no rule configured in index %u\n",
+			   rule_idx);
+		return -EINVAL;
+	}
+
+	memset(&cmd, 0x0, sizeof(cmd));
+
+	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
+	cmd.feat_common.feature_id = ENA_ADMIN_FLOW_STEERING_CONFIG;
+	cmd.u.flow_steering.action = ENA_ADMIN_FLOW_STEERING_REMOVE_RULE;
+	cmd.u.flow_steering.rule_location = rule_idx;
+
+	ret = ena_com_execute_admin_command(&ena_dev->admin_queue,
+					    (struct ena_admin_aq_entry *)&cmd,
+					    sizeof(cmd),
+					    (struct ena_admin_acq_entry *)&resp,
+					    sizeof(resp));
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device, "Failed to remove a flow steering rule: %d\n", ret);
+		return ret;
+	}
+
+	memset(&flow_steering->flow_steering_tbl[rule_idx].rule_params, 0,
+	       sizeof(struct ena_admin_flow_steering_rule_params));
+	flow_steering->flow_steering_tbl[rule_idx].in_use = false;
+
+	flow_steering->active_rules_cnt--;
+
+	return 0;
+}
+
+int ena_com_flow_steering_remove_all_rules(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_flow_steering *flow_steering = &ena_dev->flow_steering;
+	struct ena_admin_set_feat_resp resp;
+	struct ena_admin_set_feat_cmd cmd;
+	int ret;
+
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG))) {
+		netdev_err(ena_dev->net_device,
+			   "Flow steering rules are not supported by this device\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&cmd, 0x0, sizeof(cmd));
+
+	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
+	cmd.feat_common.feature_id = ENA_ADMIN_FLOW_STEERING_CONFIG;
+	cmd.u.flow_steering.action = ENA_ADMIN_FLOW_STEERING_REMOVE_ALL_RULES;
+
+	ret = ena_com_execute_admin_command(&ena_dev->admin_queue,
+					    (struct ena_admin_aq_entry *)&cmd,
+					    sizeof(cmd),
+					    (struct ena_admin_acq_entry *)&resp,
+					    sizeof(resp));
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device, "Failed to remove all flow steering rules: %d\n",
+			   ret);
+		return ret;
+	}
+
+	memset(flow_steering->flow_steering_tbl, 0,
+	       flow_steering->tbl_size * sizeof(struct ena_com_flow_steering_table_entry));
+	flow_steering->active_rules_cnt = 0;
+
+	return 0;
+}
+
+int ena_com_flow_steering_get_rule(struct ena_com_dev *ena_dev,
+				   struct ena_com_flow_steering_rule_params *configure_params,
+				   u16 rule_idx)
+{
+	struct ena_com_flow_steering *flow_steering = &ena_dev->flow_steering;
+	struct ena_com_flow_steering_table_entry *entry;
+
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG))) {
+		netdev_err(ena_dev->net_device,
+			   "Flow steering rules are not supported by this device\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (rule_idx >= flow_steering->tbl_size) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to get a flow steering rule, index %u out bounds\n", rule_idx);
+		return -EINVAL;
+	}
+
+	entry = &flow_steering->flow_steering_tbl[rule_idx];
+
+	if (!entry->in_use) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to get a flow steering rule in index %u, entry not in use\n",
+			   rule_idx);
+		return -EINVAL;
+	}
+
+	*configure_params = entry->rule_params;
+
+	return 0;
+}
+
+int ena_com_flow_steering_restore_device_rules(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_flow_steering *flow_steering = &ena_dev->flow_steering;
+	struct ena_com_flow_steering_table_entry *rule_entry;
+	u16 rule_idx;
+	int ret;
+
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_FLOW_STEERING_CONFIG)))
+		return -EOPNOTSUPP;
+
+	/* no rules to restore */
+	if (flow_steering->active_rules_cnt == 0)
+		return 0;
+
+	/* set the amount of active rules to zero, will count them again while restoring */
+	flow_steering->active_rules_cnt = 0;
+
+	for (rule_idx = 0; rule_idx < flow_steering->tbl_size; rule_idx++) {
+		rule_entry = &flow_steering->flow_steering_tbl[rule_idx];
+
+		if (rule_entry->in_use) {
+			/* mark the entry as not in use before attempt to reconfigure it
+			 * so it will be counted as new rule
+			 */
+			rule_entry->in_use = false;
+
+			ret = ena_com_flow_steering_add_rule(ena_dev, &rule_entry->rule_params,
+							     &rule_idx);
+			if (unlikely(ret)) {
+				netdev_err(ena_dev->net_device,
+					   "Failed to restore flow steering rule in index %d\n",
+					   rule_idx);
+				return -EFAULT;
+			}
+		}
+	}
 
 	return 0;
 }

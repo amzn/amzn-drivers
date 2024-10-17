@@ -11,6 +11,3 @@ The following drivers are included:
 * [Linux kernel driver](./kernel/linux/efa) for Elastic Fabric Adapter (EFA)
 * [Peer memory Linux kernel driver](./kernel/linux/efa_nv_peermem) for Elastic Fabric Adapter (EFA)
 
-For Linux driver SRPM build instruction available [here](./kernel/linux/rpm/README-rpm.txt)
-
-

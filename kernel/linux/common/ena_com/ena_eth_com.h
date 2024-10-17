@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/*
- * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
 
 #ifndef ENA_ETH_COM_H_
@@ -12,6 +12,17 @@
 #define ENA_LLQ_ENTRY_DESC_CHUNK_SIZE	(2 * sizeof(struct ena_eth_io_tx_desc))
 #define ENA_LLQ_HEADER		(128UL - ENA_LLQ_ENTRY_DESC_CHUNK_SIZE)
 #define ENA_LLQ_LARGE_HEADER	(256UL - ENA_LLQ_ENTRY_DESC_CHUNK_SIZE)
+
+void ena_com_dump_single_rx_cdesc(struct ena_com_io_cq *io_cq,
+				  struct ena_eth_io_rx_cdesc_base *desc);
+void ena_com_dump_single_tx_cdesc(struct ena_com_io_cq *io_cq,
+				  struct ena_eth_io_tx_cdesc *desc);
+struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
+	struct ena_com_io_cq *io_cq);
+struct ena_eth_io_rx_cdesc_base *ena_com_rx_cdesc_idx_to_ptr(
+	struct ena_com_io_cq *io_cq, u16 idx);
+struct ena_eth_io_tx_cdesc *ena_com_tx_cdesc_idx_to_ptr(
+	struct ena_com_io_cq *io_cq, u16 idx);
 
 struct ena_com_tx_ctx {
 	struct ena_com_tx_meta ena_meta;
@@ -176,8 +187,8 @@ static inline void ena_com_update_numa_node(struct ena_com_io_cq *io_cq,
 	if (!io_cq->numa_node_cfg_reg)
 		return;
 
-	numa_cfg.numa_cfg = (numa_node & ENA_ETH_IO_NUMA_NODE_CFG_REG_NUMA_MASK)
-		| ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_MASK;
+	numa_cfg.numa_cfg = FIELD_GET(ENA_ETH_IO_NUMA_NODE_CFG_REG_NUMA_MASK, numa_node) |
+			    ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_MASK;
 
 	writel(numa_cfg.numa_cfg, io_cq->numa_node_cfg_reg);
 }
@@ -218,7 +229,7 @@ static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
 	 * expected, it mean that the device still didn't update
 	 * this completion.
 	 */
-	cdesc_phase = flags & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
+	cdesc_phase = FIELD_GET(ENA_ETH_IO_TX_CDESC_PHASE_MASK, flags);
 	if (cdesc_phase != expected_phase)
 		return -EAGAIN;
 

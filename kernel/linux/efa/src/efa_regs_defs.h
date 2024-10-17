@@ -98,4 +98,10 @@ enum efa_regs_reset_reason_types {
 #define EFA_REGS_EQ_DB_EQN_MASK                             0xffff
 #define EFA_REGS_EQ_DB_ARM_MASK                             0x80000000
 
+#ifdef HAVE_EFA_KVERBS
+/* cq_db register */
+#define EFA_IO_REGS_CQ_DB_CONSUMER_INDEX_MASK               0xffff
+#define EFA_IO_REGS_CQ_DB_CMD_SN_MASK                       0x60000000
+#define EFA_IO_REGS_CQ_DB_ARM_MASK                          0x80000000
+#endif
 #endif /* _EFA_REGS_H_ */

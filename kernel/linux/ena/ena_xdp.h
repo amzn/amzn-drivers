@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/*
- * Copyright 2015-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
 
 #ifndef ENA_XDP_H
@@ -40,15 +40,20 @@ enum ENA_XDP_ACTIONS {
 	ENA_XDP_DROP		= BIT(2)
 };
 
+#ifdef ENA_HAVE_NETDEV_XDP_ACT_XSK_ZEROCOPY
+#define ENA_XDP_FEATURES (NETDEV_XDP_ACT_BASIC | \
+			  NETDEV_XDP_ACT_REDIRECT | \
+			  NETDEV_XDP_ACT_XSK_ZEROCOPY)
+#else
 #define ENA_XDP_FEATURES (NETDEV_XDP_ACT_BASIC | \
 			  NETDEV_XDP_ACT_REDIRECT)
+#endif
 
 #define ENA_XDP_FORWARDED (ENA_XDP_TX | ENA_XDP_REDIRECT)
 
-int ena_setup_and_create_all_xdp_queues(struct ena_adapter *adapter);
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
-					  int first, int count);
+					  int first, int last);
 int ena_xdp_io_poll(struct napi_struct *napi, int budget);
 int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 		       struct ena_adapter *adapter,

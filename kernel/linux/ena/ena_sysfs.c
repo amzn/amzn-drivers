@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/*
- * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
 
 #include <linux/device.h>
@@ -14,7 +14,6 @@
 #include "ena_phc.h"
 #endif /* ENA_PHC_SUPPORT */
 #include "ena_sysfs.h"
-
 
 static ssize_t ena_store_rx_copybreak(struct device *dev,
 				      struct device_attribute *attr,
@@ -134,8 +133,9 @@ int ena_sysfs_init(struct device *dev)
 		dev_err(dev, "Failed to create rx_copybreak sysfs entry");
 
 #ifdef ENA_PHC_SUPPORT
-	if (device_create_file(dev, &dev_attr_phc_error_bound))
-		dev_err(dev, "Failed to create phc_error_bound sysfs entry");
+	if (ena_phc_is_active(dev_get_drvdata(dev)))
+		if (device_create_file(dev, &dev_attr_phc_error_bound))
+			dev_err(dev, "Failed to create phc_error_bound sysfs entry");
 
 #endif /* ENA_PHC_SUPPORT */
 

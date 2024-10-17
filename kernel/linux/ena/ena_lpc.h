@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/*
- * Copyright 2015-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
 
 #include "ena_netdev.h"
@@ -8,6 +8,7 @@
 /* LPC definitions */
 #define ENA_LPC_DEFAULT_MULTIPLIER 2
 #define ENA_LPC_MAX_MULTIPLIER 32
+#define ENA_LPC_MULTIPLIER_NOT_CONFIGURED -1
 #define ENA_LPC_MULTIPLIER_UNIT 1024
 #define ENA_LPC_MIN_NUM_OF_CHANNELS 16
 
@@ -25,7 +26,7 @@ struct ena_page_cache {
 	/* Maximum number of pages the cache can hold */
 	u32 max_size;
 
-	struct ena_page cache[0];
+	struct ena_page cache[];
 } ____cacheline_aligned;
 
 int ena_create_page_caches(struct ena_adapter *adapter);

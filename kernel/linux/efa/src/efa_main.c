@@ -27,17 +27,19 @@
 #define PCI_DEV_ID_EFA0_VF 0xefa0
 #define PCI_DEV_ID_EFA1_VF 0xefa1
 #define PCI_DEV_ID_EFA2_VF 0xefa2
+#define PCI_DEV_ID_EFA3_VF 0xefa3
 
 static const struct pci_device_id efa_pci_tbl[] = {
 	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA0_VF) },
 	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA1_VF) },
 	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA2_VF) },
+	{ PCI_VDEVICE(AMAZON, PCI_DEV_ID_EFA3_VF) },
 	{ }
 };
 
 #define DRV_MODULE_VER_MAJOR           2
-#define DRV_MODULE_VER_MINOR           10
-#define DRV_MODULE_VER_SUBMINOR        0
+#define DRV_MODULE_VER_MINOR           12
+#define DRV_MODULE_VER_SUBMINOR        1
 
 #ifndef DRV_MODULE_VERSION
 #define DRV_MODULE_VERSION \
@@ -55,6 +57,10 @@ MODULE_AUTHOR("Amazon.com, Inc. or its affiliates");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION(DEVICE_NAME);
 MODULE_DEVICE_TABLE(pci, efa_pci_tbl);
+
+#if !defined(HAVE_EFA_KVERBS) && !defined(HAVE_NO_KVERBS_DRIVERS)
+#error "Build without kernel verbs isn't supported in this kernel"
+#endif
 
 #define EFA_REG_BAR 0
 #define EFA_MEM_BAR 2
@@ -119,6 +125,9 @@ static void efa_process_comp_eqe(struct efa_dev *dev, struct efa_admin_eqe *eqe)
 		return;
 	}
 
+#ifdef HAVE_EFA_KVERBS
+	cq->cmd_sn++;
+#endif
 	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
 
@@ -248,6 +257,9 @@ static int efa_request_doorbell_bar(struct efa_dev *dev)
 
 	dev->db_bar_addr = pci_resource_start(dev->pdev, db_bar_idx);
 	dev->db_bar_len = pci_resource_len(dev->pdev, db_bar_idx);
+#ifdef HAVE_EFA_KVERBS
+	dev->db_bar = devm_ioremap(&pdev->dev, dev->db_bar_addr, dev->db_bar_len);
+#endif
 
 	return 0;
 }
@@ -405,6 +417,48 @@ static void efa_destroy_eqs(struct efa_dev *dev)
 	kfree(dev->eqs);
 }
 
+#ifdef HAVE_EFA_KVERBS
+static int efa_alloc_dev_uar(struct efa_dev *dev)
+{
+	struct efa_com_alloc_uar_result res = {};
+	int err;
+
+	err = efa_com_alloc_uar(&dev->edev, &res);
+	if (err) {
+		dev_err(&dev->pdev->dev, "Failed to allocate UAR, err %d\n", err);
+		return err;
+	}
+
+	dev->uarn = res.uarn;
+	return 0;
+}
+
+static int efa_dealloc_dev_uar(struct efa_dev *dev)
+{
+	struct efa_com_dealloc_uar_params params = {
+		.uarn = dev->uarn,
+	};
+
+	return efa_com_dealloc_uar(&dev->edev, &params);
+}
+
+static int efa_create_qp_table(struct efa_dev *dev)
+{
+	u32 qp_table_size;
+
+	qp_table_size = roundup_pow_of_two(dev->dev_attr.max_qp);
+	dev->qp_table = kvzalloc(qp_table_size * sizeof(*dev->qp_table), GFP_KERNEL);
+	if (!dev->qp_table) {
+		dev_err(&dev->pdev->dev, "Failed to allocate QP table\n");
+		return -ENOMEM;
+	}
+	dev->qp_table_mask = qp_table_size - 1;
+	spin_lock_init(&dev->qp_table_lock);
+
+	return 0;
+}
+#endif
+
 #ifdef HAVE_IB_DEV_OPS
 static const struct ib_device_ops efa_dev_ops = {
 #ifdef HAVE_IB_DEVICE_OPS_COMMON
@@ -429,7 +483,7 @@ static const struct ib_device_ops efa_dev_ops = {
 #else
 	.alloc_ucontext = efa_kzalloc_ucontext,
 #endif
-#ifndef HAVE_UVERBS_CMD_MASK_NOT_NEEDED
+#if !defined(HAVE_UVERBS_CMD_MASK_NOT_NEEDED) || defined(HAVE_EFA_KVERBS)
 #ifdef HAVE_AH_CORE_ALLOCATION
 	.create_ah = efa_create_ah,
 #else
@@ -455,9 +509,6 @@ static const struct ib_device_ops efa_dev_ops = {
 	.destroy_ah = efa_destroy_ah,
 	.destroy_cq = efa_destroy_cq,
 	.destroy_qp = efa_destroy_qp,
-#ifndef HAVE_NO_KVERBS_DRIVERS
-	.get_dma_mr = efa_get_dma_mr,
-#endif
 	.get_hw_stats = efa_get_hw_stats,
 	.get_link_layer = efa_port_link_layer,
 	.get_port_immutable = efa_get_port_immutable,
@@ -466,11 +517,6 @@ static const struct ib_device_ops efa_dev_ops = {
 	.mmap_free = efa_mmap_free,
 #endif
 	.modify_qp = efa_modify_qp,
-#ifndef HAVE_NO_KVERBS_DRIVERS
-	.poll_cq = efa_poll_cq,
-	.post_recv = efa_post_recv,
-	.post_send = efa_post_send,
-#endif
 	.query_device = efa_query_device,
 	.query_gid = efa_query_gid,
 	.query_pkey = efa_query_pkey,
@@ -480,7 +526,13 @@ static const struct ib_device_ops efa_dev_ops = {
 #ifdef HAVE_MR_DMABUF
 	.reg_user_mr_dmabuf = efa_reg_user_mr_dmabuf,
 #endif
-#ifndef HAVE_NO_KVERBS_DRIVERS
+#ifdef HAVE_EFA_KVERBS
+	.get_dma_mr = efa_get_dma_mr,
+	.alloc_mr = efa_alloc_fast_mr,
+	.map_mr_sg = efa_map_mr_sg,
+	.post_send = efa_post_send,
+	.post_recv = efa_post_recv,
+	.poll_cq = efa_poll_cq,
 	.req_notify_cq = efa_req_notify_cq,
 #endif
 
@@ -537,6 +589,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	efa_set_host_info(dev);
 
 	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
+	dev->ibdev.node_guid = dev->dev_attr.guid;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = dev->neqs ?: 1;
 #ifdef HAVE_DEV_PARENT
@@ -592,28 +645,41 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.destroy_ah = efa_destroy_ah;
 	dev->ibdev.destroy_cq = efa_destroy_cq;
 	dev->ibdev.destroy_qp = efa_destroy_qp;
-	dev->ibdev.get_dma_mr = efa_get_dma_mr;
 	dev->ibdev.get_hw_stats = efa_get_hw_stats;
 	dev->ibdev.get_link_layer = efa_port_link_layer;
 	dev->ibdev.get_port_immutable = efa_get_port_immutable;
 	dev->ibdev.mmap = efa_mmap;
 	dev->ibdev.modify_qp = efa_modify_qp;
-	dev->ibdev.poll_cq = efa_poll_cq;
-	dev->ibdev.post_recv = efa_post_recv;
-	dev->ibdev.post_send = efa_post_send;
 	dev->ibdev.query_device = efa_query_device;
 	dev->ibdev.query_gid = efa_query_gid;
 	dev->ibdev.query_pkey = efa_query_pkey;
 	dev->ibdev.query_port = efa_query_port;
 	dev->ibdev.query_qp = efa_query_qp;
 	dev->ibdev.reg_user_mr = efa_reg_mr;
+#ifdef HAVE_EFA_KVERBS
+	dev->ibdev.get_dma_mr = efa_get_dma_mr;
+	dev->ibdev.alloc_mr = efa_alloc_fast_mr;
+	dev->ibdev.map_mr_sg = efa_map_mr_sg;
+	dev->ibdev.post_send = efa_post_send;
+	dev->ibdev.post_recv = efa_post_recv;
+	dev->ibdev.poll_cq = efa_poll_cq;
 	dev->ibdev.req_notify_cq = efa_req_notify_cq;
+#endif
 #endif
 
 #ifdef HAVE_IB_DEVICE_DRIVER_DEF
 	dev->ibdev.driver_def = efa_uapi_defs;
 #endif
 
+#ifdef HAVE_EFA_KVERBS
+	err = efa_alloc_dev_uar(dev);
+	if (err)
+		goto err_destroy_eqs;
+
+	err = efa_create_qp_table(dev);
+	if (err)
+		goto err_dealloc_uar;
+#endif
 #ifdef HAVE_IB_REGISTER_DEVICE_DMA_DEVICE_PARAM
 	err = ib_register_device(&dev->ibdev, "efa_%d", &pdev->dev);
 #elif defined(HAVE_IB_REGISTER_DEVICE_TWO_PARAMS)
@@ -627,12 +693,22 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	err = ib_register_device(&dev->ibdev, NULL);
 #endif
 	if (err)
+#ifdef HAVE_EFA_KVERBS
+		goto err_free_qp_table;
+#else
 		goto err_destroy_eqs;
+#endif
 
 	ibdev_info(&dev->ibdev, "IB device registered\n");
 
 	return 0;
 
+#ifdef HAVE_EFA_KVERBS
+err_free_qp_table:
+	kfree(dev->qp_table);
+err_dealloc_uar:
+	efa_dealloc_dev_uar(dev);
+#endif
 err_destroy_eqs:
 	efa_destroy_eqs(dev);
 err_release_doorbell_bar:
@@ -644,6 +720,10 @@ static void efa_ib_device_remove(struct efa_dev *dev)
 {
 	ibdev_info(&dev->ibdev, "Unregister ib device\n");
 	ib_unregister_device(&dev->ibdev);
+#ifdef HAVE_EFA_KVERBS
+	kfree(dev->qp_table);
+	efa_dealloc_dev_uar(dev);
+#endif
 	efa_destroy_eqs(dev);
 	efa_com_dev_reset(&dev->edev, EFA_REGS_RESET_NORMAL);
 	efa_release_doorbell_bar(dev);
@@ -768,6 +848,9 @@ static struct efa_dev *efa_probe_device(struct pci_dev *pdev)
 	dev->reg_bar_len = pci_resource_len(pdev, EFA_REG_BAR);
 	dev->mem_bar_addr = pci_resource_start(pdev, EFA_MEM_BAR);
 	dev->mem_bar_len = pci_resource_len(pdev, EFA_MEM_BAR);
+#ifdef HAVE_EFA_KVERBS
+	dev->mem_bar = devm_ioremap_wc(&pdev->dev, dev->mem_bar_addr, dev->mem_bar_len);
+#endif
 
 	edev->reg_bar = devm_ioremap(&pdev->dev,
 				     dev->reg_bar_addr,

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/*
- * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
+
 #ifndef _ENA_REGS_H_
 #define _ENA_REGS_H_
 
@@ -26,6 +27,7 @@ enum ena_regs_reset_reason_types {
 	ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED	    = 17,
 	ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT      = 18,
 	ENA_REGS_RESET_DEVICE_REQUEST               = 19,
+	ENA_REGS_RESET_MISS_FIRST_INTERRUPT         = 20,
 	ENA_REGS_RESET_LAST,
 };
 

@@ -1,25 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/*
- * Copyright 2015-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+/* Copyright (c) Amazon.com, Inc. or its affiliates.
+ * All rights reserved.
  */
 
 #include "ena_xdp.h"
 #ifdef ENA_XDP_SUPPORT
-
-static int validate_xdp_req_id(struct ena_ring *tx_ring, u16 req_id)
-{
-	struct ena_tx_buffer *tx_info;
-
-	tx_info = &tx_ring->tx_buffer_info[req_id];
-#ifdef ENA_AF_XDP_SUPPORT
-	if (likely(tx_info->total_tx_size))
-#else
-	if (likely(tx_info->xdpf))
-#endif
-		return 0;
-
-	return handle_invalid_req_id(tx_ring, req_id, tx_info, true);
-}
 
 static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
 				struct ena_tx_buffer *tx_info,
@@ -106,6 +91,11 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 	if (rc)
 		goto error_unmap_dma;
 
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->tx_stats.cnt++;
+	tx_ring->tx_stats.bytes += xdpf->len;
+	u64_stats_update_end(&tx_ring->syncp);
+
 	return rc;
 
 error_unmap_dma:
@@ -169,28 +159,6 @@ static void ena_init_all_xdp_queues(struct ena_adapter *adapter)
 	ena_init_io_rings(adapter,
 			  adapter->xdp_first_ring,
 			  adapter->xdp_num_queues);
-}
-
-int ena_setup_and_create_all_xdp_queues(struct ena_adapter *adapter)
-{
-	u32 xdp_first_ring = adapter->xdp_first_ring;
-	u32 xdp_num_queues = adapter->xdp_num_queues;
-	int rc = 0;
-
-	rc = ena_setup_tx_resources_in_range(adapter, xdp_first_ring, xdp_num_queues);
-	if (rc)
-		goto setup_err;
-
-	rc = ena_create_io_tx_queues_in_range(adapter, xdp_first_ring, xdp_num_queues);
-	if (rc)
-		goto create_err;
-
-	return 0;
-
-create_err:
-	ena_free_all_io_tx_resources_in_range(adapter, xdp_first_ring, xdp_num_queues);
-setup_err:
-	return rc;
 }
 
 /* Provides a way for both kernel and bpf-prog to know
@@ -288,13 +256,13 @@ void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
 
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
-					  int first, int count)
+					  int first, int last)
 {
 	struct bpf_prog *old_bpf_prog;
 	struct ena_ring *rx_ring;
 	int i = 0;
 
-	for (i = first; i < count; i++) {
+	for (i = first; i < last; i++) {
 		rx_ring = &adapter->rx_ring[i];
 		old_bpf_prog = xchg(&rx_ring->xdp_bpf_prog, prog);
 
@@ -407,28 +375,61 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 }
 
 #ifdef ENA_AF_XDP_SUPPORT
-static bool ena_is_xsk_pool_params_allowed(struct xsk_buff_pool *pool)
+static bool ena_can_queue_have_xsk_pool(struct ena_adapter *adapter, u16 qid)
 {
-	return xsk_pool_get_headroom(pool) == 0 &&
-	       xsk_pool_get_chunk_size(pool) == ENA_PAGE_SIZE;
+	if (2 * qid >= adapter->max_num_io_queues) {
+		u32 max_queue_id = min_t(u32, adapter->max_num_io_queues,
+					 adapter->num_io_queues);
+		netdev_err(adapter->netdev,
+			   "UMEM can be set for qid [%d, %d], received %d",
+			   0, max_queue_id - 1, qid);
+
+		return false;
+	}
+
+	if (qid > adapter->num_io_queues) {
+		netdev_err(adapter->netdev,
+			   "UMEM queue id %d is higher than number of queues",
+			   qid);
+
+		return false;
+	}
+
+	return true;
+}
+
+static bool ena_is_xsk_pool_params_allowed(struct ena_adapter *adapter,
+					   struct xsk_buff_pool *pool)
+{
+	if (xsk_pool_get_headroom(pool) > XDP_PACKET_HEADROOM) {
+		netdev_err(adapter->netdev,
+			   "Adding additional headroom to pool is not supported");
+
+		return false;
+	}
+
+	if (xsk_pool_get_chunk_size(pool) != ENA_PAGE_SIZE) {
+		netdev_err(adapter->netdev, "Only page size chunks are supported");
+
+		return false;
+	}
+
+	return true;
 }
 
 static int ena_xsk_pool_enable(struct ena_adapter *adapter,
-			       struct xsk_buff_pool *pool,
-			       u16 qid)
+			       struct netdev_bpf *bpf)
 {
+	struct xsk_buff_pool *pool = bpf->xsk.pool;
 	struct ena_ring *rx_ring, *tx_ring;
+	u16 qid = bpf->xsk.queue_id;
 	bool dev_was_up = false;
 	int err;
 
-	if (qid >= adapter->num_io_queues) {
-		netdev_err(adapter->netdev,
-			   "Max qid for XSK pool is %d (received %d)\n",
-			   adapter->num_io_queues, qid);
+	if (!ena_can_queue_have_xsk_pool(adapter, qid))
 		return -EINVAL;
-	}
 
-	if (ena_is_xsk_pool_params_allowed(pool))
+	if (!ena_is_xsk_pool_params_allowed(adapter, pool))
 		return -EINVAL;
 
 	rx_ring = &adapter->rx_ring[qid];
@@ -438,8 +439,10 @@ static int ena_xsk_pool_enable(struct ena_adapter *adapter,
 	if (err) {
 		ena_increase_stat(&rx_ring->rx_stats.dma_mapping_err, 1,
 				  &rx_ring->syncp);
+
 		netif_err(adapter, drv, adapter->netdev,
 			  "Failed to DMA map XSK pool for qid %d\n", qid);
+
 		return err;
 	}
 
@@ -457,9 +460,10 @@ static int ena_xsk_pool_enable(struct ena_adapter *adapter,
 }
 
 static int ena_xsk_pool_disable(struct ena_adapter *adapter,
-				u16 qid)
+				struct netdev_bpf *bpf)
 {
 	struct ena_ring *rx_ring, *tx_ring;
+	u16 qid = bpf->xsk.queue_id;
 	bool dev_was_up = false;
 
 	if (qid >= adapter->num_io_queues)
@@ -488,11 +492,10 @@ static int ena_xsk_pool_disable(struct ena_adapter *adapter,
 }
 
 static int ena_xsk_pool_setup(struct ena_adapter *adapter,
-			      struct xsk_buff_pool *pool,
-			      u16 qid)
+			      struct netdev_bpf *bpf)
 {
-	return pool ? ena_xsk_pool_enable(adapter, pool, qid) :
-		      ena_xsk_pool_disable(adapter, qid);
+	return bpf->xsk.pool ? ena_xsk_pool_enable(adapter, bpf) :
+			       ena_xsk_pool_disable(adapter, bpf);
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */
@@ -510,7 +513,7 @@ int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 		return ena_xdp_set(netdev, bpf);
 #ifdef ENA_AF_XDP_SUPPORT
 	case XDP_SETUP_XSK_POOL:
-		return ena_xsk_pool_setup(adapter, bpf->xsk.pool, bpf->xsk.queue_id);
+		return ena_xsk_pool_setup(adapter, bpf);
 #endif /* ENA_AF_XDP_SUPPORT */
 #ifdef ENA_XDP_QUERY_IN_DRIVER
 	case XDP_QUERY_PROG:
@@ -550,7 +553,12 @@ int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags)
 
 	napi = tx_ring->napi;
 
-	napi_schedule(napi);
+	if (!napi_if_scheduled_mark_missed(napi)) {
+		/* Call local_bh_enable to trigger SoftIRQ processing */
+		local_bh_disable();
+		napi_schedule(napi);
+		local_bh_enable();
+	}
 
 	return 0;
 }
@@ -558,14 +566,9 @@ int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags)
 #endif /* ENA_AF_XDP_SUPPORT */
 static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 {
-#ifdef ENA_AF_XDP_SUPPORT
-	bool is_zc_q = ENA_IS_XSK_RING(tx_ring);
-#endif /* ENA_AF_XDP_SUPPORT */
+	u16 next_to_clean, req_id;
+	int rc, tx_pkts = 0;
 	u32 total_done = 0;
-	u16 next_to_clean;
-	int tx_pkts = 0;
-	u16 req_id;
-	int rc;
 
 	next_to_clean = tx_ring->next_to_clean;
 
@@ -576,42 +579,27 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq,
 						&req_id);
 		if (rc) {
-			if (unlikely(rc == -EINVAL))
-				handle_invalid_req_id(tx_ring, req_id, NULL, true);
-			else if (unlikely(rc == -EFAULT)) {
-				ena_reset_device(tx_ring->adapter,
-						 ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
-			}
+			handle_tx_comp_poll_error(tx_ring, req_id, rc);
 			break;
 		}
 
 		/* validate that the request id points to a valid xdp_frame */
-		rc = validate_xdp_req_id(tx_ring, req_id);
+		rc = validate_tx_req_id(tx_ring, req_id);
 		if (rc)
 			break;
 
 		tx_info = &tx_ring->tx_buffer_info[req_id];
 
 		tx_info->tx_sent_jiffies = 0;
-#ifdef ENA_AF_XDP_SUPPORT
-
-		if (is_zc_q)
-			goto log_xdp_packet;
-#endif /* ENA_AF_XDP_SUPPORT */
 
 		xdpf = tx_info->xdpf;
 		tx_info->xdpf = NULL;
 		ena_unmap_tx_buff(tx_ring, tx_info);
 		xdp_return_frame(xdpf);
 
-#ifdef ENA_AF_XDP_SUPPORT
-log_xdp_packet:
-#endif /* ENA_AF_XDP_SUPPORT */
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
-#ifdef ENA_AF_XDP_SUPPORT
 		tx_info->total_tx_size = 0;
-#endif /* ENA_AF_XDP_SUPPORT */
 		tx_ring->free_ids[next_to_clean] = req_id;
 		next_to_clean = ENA_TX_RING_IDX_NEXT(next_to_clean,
 						     tx_ring->ring_size);
@@ -627,27 +615,99 @@ log_xdp_packet:
 		  "tx_poll: q %d done. total pkts: %d\n",
 		  tx_ring->qid, tx_pkts);
 
-#ifdef ENA_AF_XDP_SUPPORT
-	if (is_zc_q) {
-		struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
-
-		if (tx_pkts)
-			xsk_tx_completed(xsk_pool, tx_pkts);
-
-		if (xsk_uses_need_wakeup(xsk_pool)) {
-			bool needs_wakeup = tx_pkts < budget;
-			if (needs_wakeup)
-				xsk_set_tx_need_wakeup(xsk_pool);
-			else
-				xsk_clear_tx_need_wakeup(xsk_pool);
-		}
-	}
-
-#endif /* ENA_AF_XDP_SUPPORT */
 	return tx_pkts;
 }
 
 #ifdef ENA_AF_XDP_SUPPORT
+/* Poll TX completions. Completions can be either for TX packets sent by
+ * an AF XDP application or the network stack (through .ndo_start_xmit)
+ */
+static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
+{
+	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
+	int rc, cleaned_pkts, zc_pkts, acked_pkts;
+	struct ena_tx_buffer *tx_info;
+	u32 total_done;
+	u16 req_id;
+
+	acked_pkts = 0;
+
+	while (acked_pkts < budget) {
+		rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq,
+						&req_id);
+		if (rc) {
+			handle_tx_comp_poll_error(tx_ring, req_id, rc);
+			break;
+		}
+
+		/* validate that the request id points to a valid packet */
+		rc = validate_tx_req_id(tx_ring, req_id);
+		if (unlikely(rc))
+			break;
+
+		tx_info = &tx_ring->tx_buffer_info[req_id];
+
+		tx_info->tx_sent_jiffies = 0;
+
+		tx_info->acked = 1;
+
+		acked_pkts++;
+	}
+
+	/* AF XDP expects the completions to be ordered but HW doesn't guarantee
+	 * this. Force ordering.
+	 */
+	total_done = 0;
+	cleaned_pkts = zc_pkts = 0;
+	req_id = tx_ring->next_to_clean;
+	while (true) {
+		bool is_zc_pkt;
+
+		tx_info = &tx_ring->tx_buffer_info[req_id];
+		if (!tx_info->acked)
+			break;
+
+		/* Used as a sanity check to signify that the packet is
+		 * in-flight.
+		 */
+		tx_info->total_tx_size = 0;
+
+		is_zc_pkt = !tx_info->skb;
+
+		cleaned_pkts++;
+		zc_pkts += is_zc_pkt;
+		total_done += tx_info->tx_descs;
+
+		if (!is_zc_pkt) {
+			struct sk_buff *skb = tx_info->skb;
+
+			ena_unmap_tx_buff(tx_ring, tx_info);
+
+			/* prefetch skb_end_pointer() to speedup skb_shinfo(skb) */
+			prefetch(&skb->end);
+			dev_kfree_skb(skb);
+			tx_info->skb = NULL;
+		}
+
+		/* This ensures that this loop will stop */
+		tx_info->acked = 0;
+		req_id = ENA_TX_RING_IDX_NEXT(req_id, tx_ring->ring_size);
+
+		netif_dbg(tx_ring->adapter, tx_done, tx_ring->netdev,
+			  "ZC tx_poll: q %d pkt #%d req_id %d, ZC packet: %d\n",
+			  tx_ring->qid, cleaned_pkts, req_id, is_zc_pkt);
+	}
+
+	tx_ring->next_to_clean = req_id;
+
+	ena_com_comp_ack(tx_ring->ena_com_io_sq, total_done);
+
+	if (zc_pkts)
+		xsk_tx_completed(xsk_pool, zc_pkts);
+
+	return acked_pkts < budget;
+}
+
 static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 				struct napi_struct *napi,
 				int budget)
@@ -656,18 +716,23 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 	int size, rc, push_len = 0, work_done = 0;
 	struct ena_tx_buffer *tx_info;
 	struct ena_com_buf *ena_buf;
+	u64 total_pkts, total_bytes;
 	u16 next_to_use, req_id;
-	bool need_wakeup = true;
 	struct xdp_desc desc;
 	dma_addr_t dma;
+
+	total_pkts = total_bytes = 0;
+
+	spin_lock(&tx_ring->xdp_tx_lock);
 
 	while (likely(work_done < budget)) {
 		struct ena_com_tx_ctx ena_tx_ctx = {};
 
-		/* We assume the maximum number of descriptors, which is two
-		 * (meta data included)
+		/* To align with the network stack path (.ndo_start_xmit) we
+		 * leave the same amount of empty space in the SQ.
 		 */
-		if (unlikely(!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq, 2)))
+		if (unlikely(!ena_com_sq_have_enough_space(
+			    tx_ring->ena_com_io_sq, tx_ring->sgl_size + 2)))
 			break;
 
 		if (!xsk_tx_peek_desc(xsk_pool, &desc))
@@ -686,22 +751,21 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 			ena_tx_ctx.header_len = push_len;
 
 			size -= push_len;
-			if (!size)
-				goto xmit_desc;
 		}
 
-		/* Pass the rest of the descriptor as a DMA address. Assuming
-		 * single page descriptor.
-		 */
-		dma  = xsk_buff_raw_get_dma(xsk_pool, desc.addr);
-		ena_buf = tx_info->bufs;
-		ena_buf->paddr = dma + push_len;
-		ena_buf->len = size;
+		if (size) {
+			/* Pass the rest of the descriptor as a DMA address. Assuming
+			 * single page descriptor.
+			 */
+			dma  = xsk_buff_raw_get_dma(xsk_pool, desc.addr);
+			ena_buf = tx_info->bufs;
+			ena_buf->paddr = dma + push_len;
+			ena_buf->len = size;
 
-		ena_tx_ctx.ena_bufs = ena_buf;
-		ena_tx_ctx.num_bufs = 1;
+			ena_tx_ctx.ena_bufs = ena_buf;
+			ena_tx_ctx.num_bufs = 1;
+		}
 
-xmit_desc:
 		ena_tx_ctx.req_id = req_id;
 
 		netif_dbg(tx_ring->adapter, tx_queued, tx_ring->netdev,
@@ -717,21 +781,25 @@ xmit_desc:
 		if (rc)
 			break;
 
+		total_pkts++;
+		total_bytes += desc.len;
+
 		work_done++;
 	}
 
 	if (work_done) {
+		u64_stats_update_begin(&tx_ring->syncp);
+		tx_ring->tx_stats.xsk_cnt += total_pkts;
+		tx_ring->tx_stats.xsk_bytes += total_bytes;
+		u64_stats_update_end(&tx_ring->syncp);
+
 		xsk_tx_release(xsk_pool);
 		ena_ring_tx_doorbell(tx_ring);
 	}
 
-	if (work_done == budget) {
-		need_wakeup = false;
-		if (xsk_uses_need_wakeup(xsk_pool))
-			xsk_clear_tx_need_wakeup(xsk_pool);
-	}
+	spin_unlock(&tx_ring->xdp_tx_lock);
 
-	return need_wakeup;
+	return work_done < budget;
 }
 
 static struct sk_buff *ena_xdp_rx_skb_zc(struct ena_ring *rx_ring, struct xdp_buff *xdp)
@@ -746,9 +814,8 @@ static struct sk_buff *ena_xdp_rx_skb_zc(struct ena_ring *rx_ring, struct xdp_bu
 	data_addr = xdp->data;
 
 	/* allocate a skb to store the frags */
-	skb = __napi_alloc_skb(rx_ring->napi,
-			       headroom + data_len,
-			       GFP_ATOMIC | __GFP_NOWARN);
+	skb = napi_alloc_skb(rx_ring->napi,
+			     headroom + data_len);
 	if (unlikely(!skb)) {
 		ena_increase_stat(&rx_ring->rx_stats.skb_alloc_fail, 1,
 				  &rx_ring->syncp);
@@ -765,9 +832,8 @@ static struct sk_buff *ena_xdp_rx_skb_zc(struct ena_ring *rx_ring, struct xdp_bu
 	return skb;
 }
 
-static int ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
-				   struct napi_struct *napi,
-				   int budget)
+static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
+				    struct napi_struct *napi, int budget)
 {
 	int i, refill_required, work_done, refill_threshold, pkt_copy;
 	u16 next_to_clean = rx_ring->next_to_clean;
@@ -813,7 +879,8 @@ static int ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 		/* First descriptor might have an offset set by the device */
 		rx_info = &rx_ring->rx_buffer_info[ena_rx_ctx.ena_bufs[0].req_id];
 		xdp = rx_info->xdp;
-		xdp->data += ena_rx_ctx.pkt_offset;
+		xdp->data = xdp->data_hard_start + rx_ring->rx_headroom +
+			    ena_rx_ctx.pkt_offset;
 		xdp->data_end = xdp->data + ena_rx_ctx.ena_bufs[0].len;
 		xsk_buff_dma_sync_for_cpu(xdp, rx_ring->xsk_pool);
 
@@ -823,13 +890,10 @@ static int ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 					"xdp: dropped unsupported multi-buffer packets\n");
 			ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
 			xdp_verdict = ENA_XDP_DROP;
-			goto skip_xdp_prog;
+		} else if (likely(xdp_prog_present)) {
+			xdp_verdict = ena_xdp_execute(rx_ring, xdp);
 		}
 
-		if (likely(xdp_prog_present))
-			xdp_verdict = ena_xdp_execute(rx_ring, xdp);
-
-skip_xdp_prog:
 		/* Note that there can be several descriptors, since device
 		 * might not honor MTU
 		 */
@@ -908,15 +972,17 @@ skip_xdp_prog:
 			ena_reset_device(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
 		} else if (rc == -EIO) {
 			ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1, &rx_ring->syncp);
+			ena_get_and_dump_head_rx_cdesc(rx_ring->ena_com_io_cq);
 			ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
 		} else if (rc == -EFAULT) {
+			ena_get_and_dump_head_rx_cdesc(rx_ring->ena_com_io_cq);
 			ena_reset_device(adapter, ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
 		}
 
 		return 0;
 	}
 
-	return work_done;
+	return work_done < budget;
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */
@@ -942,23 +1008,33 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 		return 0;
 	}
 
+#ifndef ENA_AF_XDP_SUPPORT
 	work_done = ena_clean_xdp_irq(tx_ring, budget);
 
-#ifdef ENA_AF_XDP_SUPPORT
-	/* Take XDP work into account */
-	needs_wakeup &= work_done < budget;
+#else
+	if (!ENA_IS_XSK_RING(tx_ring)) {
+		work_done = ena_clean_xdp_irq(tx_ring, budget);
+	} else {
+		needs_wakeup &= ena_xdp_clean_tx_zc(tx_ring, budget);
 
-	if (!ENA_IS_XSK_RING(tx_ring))
-		goto polling_done;
+		needs_wakeup &= ena_xdp_xmit_irq_zc(tx_ring, napi, budget);
+		if (xsk_uses_need_wakeup(tx_ring->xsk_pool)) {
+			if (needs_wakeup) {
+				xsk_set_tx_need_wakeup(tx_ring->xsk_pool);
+				ena_increase_stat(
+					&tx_ring->tx_stats.xsk_need_wakeup_set,
+					1, &tx_ring->syncp);
+			} else {
+				xsk_clear_tx_need_wakeup(tx_ring->xsk_pool);
+			}
+		}
 
-	rx_ring = ena_napi->rx_ring;
+		rx_ring = ena_napi->rx_ring;
 
-	needs_wakeup &= ena_xdp_xmit_irq_zc(tx_ring, napi, budget);
+		work_done = ena_xdp_clean_rx_irq_zc(rx_ring, napi, budget);
+		needs_wakeup &= work_done < budget;
+	}
 
-	work_done = ena_xdp_clean_rx_irq_zc(rx_ring, napi, budget);
-	needs_wakeup &= work_done < budget;
-
-polling_done:
 #endif /* ENA_AF_XDP_SUPPORT */
 	/* If the device is about to reset or down, avoid unmask
 	 * the interrupt and return 0 so NAPI won't reschedule
