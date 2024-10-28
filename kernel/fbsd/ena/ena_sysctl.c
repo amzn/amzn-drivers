@@ -27,7 +27,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#if __FreeBSD_version < 1500004
 #include <sys/cdefs.h>
+#endif
 #include <sys/param.h>
 #if __FreeBSD_version <= 1302507
 __FBSDID("$FreeBSD$");
