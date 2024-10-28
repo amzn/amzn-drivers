@@ -242,22 +242,24 @@ Force the driver to use large LLQ headers
 """""""""""""""""""""""""""""""""""""""""
 
 Node:
-  ``hw.ena.force_large_llq_headers``
+  ``hw.ena.force_large_llq_header``
 Scope:
   Global for all drivers
 Input values:
-  ``(0|1)``
+  ``(0|1|2)``
 Default value:
-  ``0``
+  ``2``
 Description:
-  If the node value is set to ``0``, the regular size LLQ header will
-  be used, which is ``96B``. In some cases, the packet header can
-  be bigger than this (for example - IPv6 with multiple
-  extensions) and in that case, the large LLQ headers should be
-  used by setting this node value to ``1``.
+  If the node value is set to ``0``, regular LLQ header size which is
+  ``96B`` will be used. In some cases, the packet header can be bigger than 96
+  (for example - IPv6 with multiple extensions).
+  If the node value is set to ``1``, large LLQ header size which is
+  ``224B`` will be used.
+  If the node value is set to ``2``, the recommended LLQ header size will
+  be used.
 
-  This will take effect only if the device supports both LLQ and
-  large LLQ headers. Otherwise, it will fallback to the no LLQ mode
+  Using large LLQ header size will take effect only if the device supports
+  both LLQ and large LLQ headers. Otherwise, it will fallback to the no LLQ mode
   or regular header size.
 
   Increasing LLQ header size reduces the size of the Tx queue by
