@@ -358,14 +358,15 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 		    M_NOWAIT | M_ZERO);					\
 		(void)(dev_node);					\
 	} while (0)
-
+#else
+#define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) (virt = NULL)
 #endif
+
 #define ENA_MEM_FREE(dmadev, ptr, size)					\
 	do { 								\
 		(void)(size);						\
 		free(ptr, M_DEVBUF);					\
 	} while (0)
-
 #if __FreeBSD_version > 1200055
 #define ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt, phys,	\
     dma, node, dev_node, alignment) 					\
@@ -376,8 +377,15 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 		(phys) = (dma).paddr;					\
 		(void)(dev_node);					\
 	} while (0)
-
+#else
+#define ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt, phys,	\
+    dma, node, dev_node, alignment) 					\
+	do {								\
+		((virt) = NULL);					\
+		(void)(dev_node);					\
+	} while(0)
 #endif
+
 #define ENA_MEM_ALLOC_COHERENT_NODE(dmadev, size, virt, phys, handle,	\
     node, dev_node)							\
 	ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt,		\
