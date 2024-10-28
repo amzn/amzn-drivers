@@ -423,6 +423,7 @@ struct ena_stats_dev {
 	counter_u64_t bad_rx_desc_num;
 	counter_u64_t invalid_state;
 	counter_u64_t missing_intr;
+	counter_u64_t tx_desc_malformed;
 };
 
 struct ena_hw_stats {
@@ -582,6 +583,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TOO_MANY_RX_DESCS, bad_rx_desc_num),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_INTERRUPT, missing_intr),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
 };
 
 int	ena_up(struct ena_adapter *adapter);
@@ -596,6 +598,7 @@ int	ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 int	ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num);
 int     ena_update_base_cpu(struct ena_adapter *adapter, int new_num);
 int     ena_update_cpu_stride(struct ena_adapter *adapter, uint32_t new_num);
+int     validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id, int tx_req_id_rc);
 static inline int
 ena_mbuf_count(struct mbuf *mbuf)
 {
