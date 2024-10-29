@@ -2,13 +2,14 @@
 
 ## Supported Kernel Versions and Distributions
 
-ENA driver is supported on all FreeBSD releases starting from 12.0
+ENA driver is supported on all FreeBSD releases starting from 13.0
 
 The driver was verified on the following distributions:
 
 **Releases:**
-* FreeBSD 12.4
-* FreeBSD 13.2
+* FreeBSD 13.4
+* FreeBSD 14.2
+* FreeBSD 15
 
 **Development:**
 +-----------+-------------+
@@ -18,6 +19,26 @@ The driver was verified on the following distributions:
 | stable/13 | 185159f77c9 |
 | HEAD      | 8020c05683f |
 +-----------+-------------+
+
+## r2.8.0 release notes
+**Features**
+* Add support for device request reset message over AENQ
+* Support LLQ entry size recommendation from device
+* Support max large LLQ depth from the device
+* Expand PHC infrastructures
+* Configuration notification support
+
+**Bug Fixes**
+* Fix leaking ifmedia resources on detach
+* Fix netmap socket chain unmapping issue
+* Properly reinit netmap structs upon sysctl changes
+* Correctly count missing TX completions
+
+**Minor Changes**
+* Add reset reason for corrupted TX/RX completion descriptors
+* Add reset reason for missing admin interrupts
+* Improve reset reason statistics
+* Update licenses
 
 ## r2.6.3 release notes
 **Bug Fixes**
