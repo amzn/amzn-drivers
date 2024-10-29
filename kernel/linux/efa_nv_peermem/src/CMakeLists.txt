@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2023-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 list(APPEND efa_nv_peermem_sources
-  nv-p2p.h efa_nv_peermem_main.c)
+  nv-p2p.h efa_nv_peermem.h efa_nv_peermem_main.c)
 
 string(REPLACE ";" " " efa_nv_peermem_sources_string "${efa_nv_peermem_sources}")
 configure_file(Kbuild.in Kbuild @ONLY)

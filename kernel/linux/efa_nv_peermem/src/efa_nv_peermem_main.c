@@ -6,6 +6,8 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/sizes.h>
+
+#include "efa_nv_peermem.h"
 #include "nv-p2p.h"
 
 #define DRV_MODULE_NAME                "EFA NV Peermem"

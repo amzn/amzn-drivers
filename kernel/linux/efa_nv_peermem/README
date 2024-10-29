@@ -49,4 +49,5 @@ memory registration operations to work.
 EFA NV Peermem Source Code Directory Structure (under src/)
 ===========================================================
 efa_nv_peermem_main.c - Main Linux kernel driver.
+efa_nv_peermem.h      - EFA NV peermem interface.
 nv-p2p.h              - NV P2P API

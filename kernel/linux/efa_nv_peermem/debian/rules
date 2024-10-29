@@ -34,6 +34,7 @@ override_dh_auto_install:
 	install -m 644 conf/dkms.conf				${DESTDIR}/${INSTALL_PATH}
 	install -m 744 conf/configure-dkms.sh			${DESTDIR}/${INSTALL_PATH}
 	install -m 644 src/efa_nv_peermem_main.c		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_nv_peermem.h			${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/nv-p2p.h				${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/CMakeLists.txt			${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/Kbuild.in				${DESTDIR}/${INSTALL_PATH}/src

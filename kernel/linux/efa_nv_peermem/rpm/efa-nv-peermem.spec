@@ -61,6 +61,7 @@ install -m 644 README					%{buildroot}%{install_path}
 install -m 644 RELEASENOTES.md				%{buildroot}%{install_path}
 cd src
 install -m 644 efa_nv_peermem_main.c			%{buildroot}%{install_path}/src
+install -m 644 efa_nv_peermem.h				%{buildroot}%{install_path}/src
 install -m 644 nv-p2p.h					%{buildroot}%{install_path}/src
 install -m 644 CMakeLists.txt				%{buildroot}%{install_path}/src
 install -m 644 Kbuild.in				%{buildroot}%{install_path}/src
