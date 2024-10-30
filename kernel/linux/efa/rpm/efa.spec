@@ -100,6 +100,10 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Oct 30 2024 Michael Margolin <mrgolin@amazon.com> - 2.13.0
+- Add an option to create QP with specific service level
+- Report link speed according to device parameters
+
 * Sun Oct 06 2024 Michael Margolin <mrgolin@amazon.com> - 2.12.1
 - Fix RNR configuration for SRD kernel QPs
 

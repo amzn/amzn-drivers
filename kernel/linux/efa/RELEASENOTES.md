@@ -3,6 +3,10 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.13.0 release notes
+* Add an option to create QP with specific service level
+* Report link speed according to device parameters
+
 ## r2.12.1 release notes
 * Fix RNR configuration for SRD kernel QPs
 
