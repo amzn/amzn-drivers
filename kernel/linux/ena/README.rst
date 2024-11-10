@@ -540,12 +540,12 @@ header size of 224 bytes.
 This comes with the penalty of reducing the number of LLQ entries in the
 TX queue by 2 (i.e. from 1024 to 512).
 
-This feature is supported from EC2 4th generation instance-types.
+This feature is supported from EC2 Nitro v2 instance-types.
 
-**Note:** Starting from ``2.9.0g`` release, large LLQ is enabled by default on all EC2 6th
-generation instance-types and on. Due to HW limitations, enabling large LLQ implies that the TX
+**Note:** Starting from ``2.9.0g`` release, large LLQ is enabled by default on all EC2 Nitro v4
+instance-types and on. Due to HW limitations, enabling large LLQ implies that the TX
 queue size is reduced to 512.
-Starting from EC2 7th generation instance-types, the Tx queue size may be increased back to 1024
+Starting from EC2 Nitro v5 instance-types, the Tx queue size may be increased back to 1024
 while large LLQ is enabled by invoking the relevant ``ethtool`` commands.
 
 Large LLQ configuration
@@ -878,7 +878,7 @@ The table is shared across all interfaces on the host, meaning that an entry use
 be used by another interface until the rule is removed.
 
 To verify that the feature is supported, run :code:`ethtool -k` and expect the output :code:`ntuple-filters: on`.
-The feature is supported starting from EC2 7th generation instance-types.
+The feature is supported starting from EC2 Nitro v5 instance-types.
 
 **Usage example**
 
@@ -924,3 +924,9 @@ pair) zero copy, its index should meet the following criteria:
 
 Both the currently configured channels and the maximum available for the instance can be queried
 using :code:`ethtool -l`.
+
+Useful links
+============
+.. _`EC2 Nitro instance types`: https://docs.aws.amazon.com/ec2/latest/instancetypes/ec2-nitro-instances.html
+
+- `EC2 Nitro instance types`_

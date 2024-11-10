@@ -36,7 +36,7 @@ I have to upgrade my driver in order to take advantage of ENAv3?
 
 **A**: ENAv3 is a new version of ENA device that introduces additional
 improvements in latency and performance.
-ENAv3 is available on the majority of the 6th generation instance types.
+ENAv3 is available on the majority of the EC2 Nitro v4 instance types.
 ENAv3 can be differentiated from ENAv2 by the presence of an additional BAR
 (BAR1) on the PCI bus.
 
@@ -292,17 +292,17 @@ ENA driver and by AL2 distro.
 
 **Q:** Tx ring size has been reduced to 512 and I am unable to increase it to 1024.
 
-**A:** Starting with ``2.9.0g`` release, large LLQ is enabled by default on all EC2 6th
-generation instance-types. This is done in order to prevent cases mentioned in the above
+**A:** Starting with ``2.9.0g`` release, large LLQ is enabled by default on all EC2 Nitro v4
+instance-types. This is done in order to prevent cases mentioned in the above
 question where packets are dropped due to the packet headers exceeding 96 bytes.
-For EC2 7th generation instance-types, large LLQ could be enabled with 1024 entries.
-As in the 6th generation instance-types, the recommended behavior is still large
+For EC2 Nitro v5 instance-types, large LLQ could be enabled with 1024 entries.
+As in the EC2 Nitro v4 instance-types, the recommended behavior is still large
 LLQ with 512 entries. However, you could change the Tx ring size to 1024.
 
 In order to increase the Tx ring size to 1024, please consult the documentation on how to perform
 the below steps:
 
-1. Disable large LLQ (If needed, required for EC2 6th generation instance-types only).
+1. Disable large LLQ (If needed, required for EC2 Nitro v4 instance-types only).
 2. Configure the Tx ring size to the desired size.
 
 **Q:** I am observing that the `rx_overruns` statistic is increasing, what does it mean and
@@ -557,9 +557,9 @@ Configuring RSS
 
 The ENA device supports RSS, and depending on the instance type, allows
 to configure the hash function, hash key and indirection table.
-Please note that hash function/key configuration is supported by the 5th
-generation network accelerated instances (c5n, m5n, r5n etc) and all 6th
-generation instances (c6gn, m6i etc).
+Please note that hash function/key configuration is supported by the EC2 Nitro v3
+network accelerated instances (c5n, m5n, r5n etc) and all EC2 Nitro v4 generation
+instances (c6gn, m6i etc).
 Also Linux kernel 5.9 or newer is required for hash function/key configuration
 support but the major Linux distributions ported the driver support to kernels
 older than v5.9 (For example Amazon Linux 2 supports it since kernel 4.14.209).
