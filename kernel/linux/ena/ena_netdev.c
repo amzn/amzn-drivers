@@ -4112,8 +4112,8 @@ static void ena_fw_reset_device(struct work_struct *work)
 		adapter->dev_stats.reset_fail += !!rc;
 
 		dev_err(&adapter->pdev->dev,
-			"Device reset completed successfully, Driver info: %s\n",
-			version);
+			"Device reset completed, status: %d, Driver info: %s\n",
+			rc, version);
 	}
 
 	rtnl_unlock();
