@@ -2168,10 +2168,23 @@ static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 				      int first_index,
 				      int count)
 {
+	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++)
-		napi_disable(&adapter->ena_napi[i].napi);
+	for (i = first_index; i < first_index + count; i++) {
+		napi = &adapter->ena_napi[i].napi;
+#ifdef ENA_NAPI_IRQ_AND_QUEUE_ASSOC
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* This API is supported for non-XDP queues only */
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_TX, NULL);
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_RX, NULL);
+		}
+
+#endif /* ENA_NAPI_IRQ_AND_QUEUE_ASSOC */
+		napi_disable(napi);
+	}
 }
 #endif
 
@@ -2179,10 +2192,22 @@ static void ena_napi_enable_in_range(struct ena_adapter *adapter,
 				     int first_index,
 				     int count)
 {
+	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++)
-		napi_enable(&adapter->ena_napi[i].napi);
+	for (i = first_index; i < first_index + count; i++) {
+		napi = &adapter->ena_napi[i].napi;
+		napi_enable(napi);
+#ifdef ENA_NAPI_IRQ_AND_QUEUE_ASSOC
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* This API is supported for non-XDP queues only */
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_RX, napi);
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_TX, napi);
+		}
+#endif /* ENA_NAPI_IRQ_AND_QUEUE_ASSOC */
+	}
 }
 
 /* Configure the Rx forwarding */
@@ -2516,6 +2541,24 @@ err_setup_tx:
 	}
 }
 
+#ifdef ENA_NAPI_IRQ_AND_QUEUE_ASSOC
+static void ena_associate_irq_and_napi(struct ena_adapter *adapter)
+{
+	u32 io_queue_count = adapter->num_io_queues + adapter->xdp_num_queues;
+	struct ena_irq *irq;
+	int irq_idx, i;
+
+	/* Note that the mgmnt IRQ does not have a NAPI,
+	 * so care must be taken to correctly map IRQs to NAPIs.
+	 */
+	for (i = 0; i < io_queue_count; i++) {
+		irq_idx = ENA_IO_IRQ_IDX(i);
+		irq = &adapter->irq_tbl[irq_idx];
+		netif_napi_set_irq(&adapter->ena_napi[i].napi, irq->vector);
+	}
+}
+
+#endif
 int ena_up(struct ena_adapter *adapter)
 {
 	int io_queue_count, rc, i;
@@ -2542,6 +2585,10 @@ int ena_up(struct ena_adapter *adapter)
 	if (rc)
 		goto err_req_irq;
 
+#ifdef ENA_NAPI_IRQ_AND_QUEUE_ASSOC
+	ena_associate_irq_and_napi(adapter);
+
+#endif
 	rc = create_queues_with_size_backoff(adapter);
 	if (rc)
 		goto err_create_queues_with_backoff;

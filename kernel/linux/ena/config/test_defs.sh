@@ -133,3 +133,12 @@ try_compile_async "#include <linux/ptp_clock_kernel.h>"  \
                   "ENA_PHC_SUPPORT_ADJFINE"              \
                   ""                                     \
                   "4.10.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"         \
+                  "{
+                    netif_queue_set_napi(NULL, 0, 0, NULL);
+                    netif_napi_set_irq(NULL, 0);
+                  }"                                     \
+                  "ENA_NAPI_IRQ_AND_QUEUE_ASSOC"         \
+                  ""                                     \
+                  "6.8.0 <= LINUX_VERSION_CODE"
