@@ -20,6 +20,13 @@ static int ena_phc_adjtime(struct ptp_clock_info *clock_info, s64 delta)
 	return -EOPNOTSUPP;
 }
 
+#ifdef ENA_PHC_SUPPORT_ADJFINE
+static int ena_phc_adjfine(struct ptp_clock_info *clock_info, long scaled_ppm)
+{
+	return -EOPNOTSUPP;
+}
+
+#endif /* ENA_PHC_SUPPORT_ADJFINE */
 static int ena_phc_feature_enable(struct ptp_clock_info *clock_info, struct ptp_clock_request *rq,
 				  int on)
 {
@@ -114,6 +121,9 @@ static struct ptp_clock_info ena_ptp_clock_info = {
 	.adjfreq	= ena_phc_adjfreq,
 #endif /* ENA_PHC_SUPPORT_ADJFREQ */
 	.adjtime	= ena_phc_adjtime,
+#ifdef ENA_PHC_SUPPORT_ADJFINE
+	.adjfine	= ena_phc_adjfine,
+#endif /* ENA_PHC_SUPPORT_ADJFINE */
 #ifdef ENA_PHC_SUPPORT_GETTIME64
 #ifdef ENA_PHC_SUPPORT_GETTIME64_EXTENDED
 	.gettimex64	= ena_phc_gettimex64,

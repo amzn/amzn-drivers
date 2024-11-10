@@ -124,3 +124,12 @@ try_compile_async "#include <linux/netdevice.h>"         \
                   "ENA_HAVE_NETDEV_XDP_FEATURES"         \
                   ""                                     \
                   "6.3.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ptp_clock_kernel.h>"  \
+                  "{
+                    struct ptp_clock_info ptp_clk_info;
+                    ptp_clk_info.adjfine = NULL;
+                  }"                                     \
+                  "ENA_PHC_SUPPORT_ADJFINE"              \
+                  ""                                     \
+                  "4.10.0 <= LINUX_VERSION_CODE"
