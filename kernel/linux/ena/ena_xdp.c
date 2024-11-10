@@ -1014,6 +1014,7 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 #else
 	if (!ENA_IS_XSK_RING(tx_ring)) {
 		work_done = ena_clean_xdp_irq(tx_ring, budget);
+		needs_wakeup &= work_done < budget;
 	} else {
 		needs_wakeup &= ena_xdp_clean_tx_zc(tx_ring, budget);
 
