@@ -31,6 +31,21 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.13.1 release notes
+**Bug fixes**
+* Fix XDP functions hiding causing limited XDP functionality
+* Update non-adaptive interrupt moderation for XDP queues
+* Fix premature napi completion causing panic in XDP_TX and XDP_REDIRECT
+* Add adjfine hook to PHC, required from Upstream kernel 6.2
+* Don't allow ethtool to choose flow steering rule location
+
+**Minor Changes**
+* Document nitro version instead of EC2 instance generations
+* Update RHEL DKMS documentation
+* Reset procedure status print update
+* Upstream kernel backports
+* Add note about flow steering commands utilization
+
 ## r2.13.0 release notes
 **New Features**
 * Re-enable AF XDP zero-copy support
