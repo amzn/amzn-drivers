@@ -912,7 +912,7 @@ Viewing the list of configured rules:
   Action: Direct to queue 1
 
 AF XDP Native Support (zero copy)
----------------------------------
+=================================
 
 ENA driver supports native AF XDP (zero copy). To make a channel (TX/RX queue
 pair) zero copy, its index should meet the following criteria:
