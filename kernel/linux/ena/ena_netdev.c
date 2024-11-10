@@ -4873,7 +4873,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_rss;
 	}
 
-#ifdef ENA_XDP_NETLINK_ADVERTISEMENT
+#ifdef ENA_HAVE_NETDEV_XDP_FEATURES
 	if (ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
 		netdev->xdp_features = ENA_XDP_FEATURES;
 

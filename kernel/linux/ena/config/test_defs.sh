@@ -103,3 +103,24 @@ try_compile_async "#include <linux/ethtool.h>"           \
                   "ENA_HAVE_KERNEL_ETHTOOL_TS_INFO"      \
                   ""                                     \
                   "6.11.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp.h>"                                   \
+                  "xdp_features_set_redirect_target(NULL, false);"         \
+                  "ENA_HAVE_XDP_FEATURES_SET_REDIRECT_TARGET"              \
+                  ""                                                       \
+                  "6.3.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp.h>"                 \
+                  "xdp_set_features_flag(NULL, 0);"      \
+                  "ENA_HAVE_XDP_SET_FEATURES_FLAG"       \
+                  ""                                     \
+                  "6.3.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"         \
+                  "{
+                    struct net_device dev;
+                    dev.xdp_features = 0;
+                  }"                                     \
+                  "ENA_HAVE_NETDEV_XDP_FEATURES"         \
+                  ""                                     \
+                  "6.3.0 <= LINUX_VERSION_CODE"
