@@ -155,8 +155,9 @@ RHEL
 ````
 .. code-block:: shell
 
-  # Replace the 7 with the RHEL version you have (For example - for RHEL 9 use 9)
-  sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+  # Replace the 9 with the RHEL version you have (For example - for RHEL 8 use 8)
+  # For EOL RHEL versions please look for the rpm in https://dl.fedoraproject.org/pub/archive/epel/
+  sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
   sudo yum install dkms
 
 Ubuntu
