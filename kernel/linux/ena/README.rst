@@ -607,7 +607,7 @@ Check the value of ``TX push buff len`` under ``Current hardware settings``
 .. _`PHC`:
 
 PTP Hardware Clock (PHC)
-======================
+========================
 .. _`ptp-userspace-api`: https://docs.kernel.org/driver-api/ptp.html#ptp-hardware-clock-user-space-api
 .. _`testptp`: https://elixir.bootlin.com/linux/latest/source/tools/testing/selftests/ptp/testptp.c
 
