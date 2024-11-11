@@ -380,9 +380,13 @@ static int ena_get_ts_info(struct net_device *netdev, struct ethtool_ts_info *in
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_RX_SOFTWARE |
 				SOF_TIMESTAMPING_SOFTWARE;
+#else
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE;
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0) */
 
 	info->phc_index = ena_phc_get_index(adapter);
 
