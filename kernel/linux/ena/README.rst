@@ -889,6 +889,8 @@ Adding a flow steering rule:
 
 :code:`ethtool -N eth1 flow-type tcp4 dst-port 5001 action 1 loc 6`
 
+Important: although :code:`loc` is optional for ethtool, not specifying it will cause a failure
+
 Deleting a flow steering rule:
 
 :code:`ethtool -N eth1 delete 6`

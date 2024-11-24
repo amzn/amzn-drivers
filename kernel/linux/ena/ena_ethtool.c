@@ -1155,7 +1155,7 @@ static int ena_get_steering_rules_cnt(struct ena_com_dev *ena_dev, struct ethtoo
 		return -EOPNOTSUPP;
 
 	info->rule_cnt = ena_dev->flow_steering.active_rules_cnt;
-	info->data = ena_dev->flow_steering.tbl_size;
+	info->data = ena_dev->flow_steering.tbl_size | RX_CLS_LOC_SPECIAL;
 
 	return 0;
 }
