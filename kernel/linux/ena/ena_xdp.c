@@ -387,7 +387,7 @@ static bool ena_can_queue_have_xsk_pool(struct ena_adapter *adapter, u16 qid)
 		return false;
 	}
 
-	if (qid > adapter->num_io_queues) {
+	if (qid >= adapter->num_io_queues) {
 		netdev_err(adapter->netdev,
 			   "UMEM queue id %d is higher than number of queues",
 			   qid);
