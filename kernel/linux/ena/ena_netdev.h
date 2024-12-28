@@ -83,9 +83,6 @@
 
 #define ENA_PKT_MAX_BUFS	19
 
-#define ENA_RX_RSS_TABLE_LOG_SIZE  7
-#define ENA_RX_RSS_TABLE_SIZE	(1 << ENA_RX_RSS_TABLE_LOG_SIZE)
-
 /* The number of tx packet completions that will be handled each NAPI poll
  * cycle is ring_size / ENA_TX_POLL_BUDGET_DIVIDER.
  */
@@ -710,6 +707,16 @@ static inline void handle_tx_comp_poll_error(struct ena_ring *tx_ring, u16 req_i
 		ena_reset_device(tx_ring->adapter,
 				 ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED);
 	}
+}
+
+static inline u32 get_rss_indirection_table_size(struct ena_adapter *adapter)
+{
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+
+	if (!ena_com_indirection_table_config_supported(ena_dev))
+		return 0;
+
+	return (1UL << ena_dev->rss.tbl_log_size);
 }
 
 #endif /* !(ENA_H) */

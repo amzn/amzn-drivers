@@ -40,6 +40,8 @@
 
 #define ENA_MAX_ADMIN_POLL_US 5000
 
+#define ENA_MAX_INDIR_TABLE_LOG_SIZE 16
+
 /* PHC definitions */
 #define ENA_PHC_DEFAULT_EXPIRE_TIMEOUT_USEC 10
 #define ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC 1000
@@ -989,6 +991,12 @@ static bool ena_com_check_supported_feature_id(struct ena_com_dev *ena_dev,
 	return true;
 }
 
+bool ena_com_indirection_table_config_supported(struct ena_com_dev *ena_dev)
+{
+	return ena_com_check_supported_feature_id(ena_dev,
+						  ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG);
+}
+
 static int ena_com_get_feature_ex(struct ena_com_dev *ena_dev,
 				  struct ena_admin_get_feat_resp *get_resp,
 				  enum ena_admin_aq_feature_id feature_id,
@@ -1122,50 +1130,52 @@ static void ena_com_hash_ctrl_destroy(struct ena_com_dev *ena_dev)
 	rss->hash_ctrl = NULL;
 }
 
-static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev,
-					   u16 log_size)
+static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev)
 {
-	struct ena_rss *rss = &ena_dev->rss;
 	struct ena_admin_get_feat_resp get_resp;
-	size_t tbl_size;
+	struct ena_rss *rss = &ena_dev->rss;
+	u16 requested_log_tbl_size;
+	int requested_tbl_size;
 	int ret;
 
 	ret = ena_com_get_feature(ena_dev, &get_resp,
-				  ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG, 0);
+				  ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG,
+				  ENA_ADMIN_RSS_FEATURE_VERSION_1);
+
 	if (unlikely(ret))
 		return ret;
 
-	if ((get_resp.u.ind_table.min_size > log_size) ||
-	    (get_resp.u.ind_table.max_size < log_size)) {
+	requested_log_tbl_size = get_resp.u.ind_table.max_size;
+
+	if (requested_log_tbl_size > ENA_MAX_INDIR_TABLE_LOG_SIZE) {
 		netdev_err(ena_dev->net_device,
-			   "Indirect table size doesn't fit. requested size: %d while min is:%d and max %d\n",
-			   1 << log_size, 1 << get_resp.u.ind_table.min_size,
-			   1 << get_resp.u.ind_table.max_size);
+			   "Requested indirect table size too large. Requested log size: %u.\n",
+			   requested_log_tbl_size);
 		return -EINVAL;
 	}
 
-	tbl_size = (1ULL << log_size) *
-		sizeof(struct ena_admin_rss_ind_table_entry);
-
-	rss->rss_ind_tbl = dma_zalloc_coherent(ena_dev->dmadev, tbl_size,
+	requested_tbl_size =
+		(1ULL << requested_log_tbl_size) * sizeof(struct ena_admin_rss_ind_table_entry);
+	rss->rss_ind_tbl = dma_zalloc_coherent(ena_dev->dmadev, requested_tbl_size,
 					       &rss->rss_ind_tbl_dma_addr, GFP_KERNEL);
 	if (unlikely(!rss->rss_ind_tbl))
 		goto mem_err1;
 
-	tbl_size = (1ULL << log_size) * sizeof(u16);
-	rss->host_rss_ind_tbl = devm_kzalloc(ena_dev->dmadev, tbl_size, GFP_KERNEL);
+	requested_tbl_size = (1ULL << requested_log_tbl_size) *
+			     sizeof(u16);
+	rss->host_rss_ind_tbl = devm_kzalloc(ena_dev->dmadev, requested_tbl_size, GFP_KERNEL);
 	if (unlikely(!rss->host_rss_ind_tbl))
 		goto mem_err2;
 
-	rss->tbl_log_size = log_size;
+	rss->tbl_log_size = requested_log_tbl_size;
 
 	return 0;
 
 mem_err2:
-	tbl_size = (1ULL << log_size) *
-		sizeof(struct ena_admin_rss_ind_table_entry);
-
-	dma_free_coherent(ena_dev->dmadev, tbl_size, rss->rss_ind_tbl, rss->rss_ind_tbl_dma_addr);
+	dma_free_coherent(ena_dev->dmadev,
+			  (1ULL << requested_log_tbl_size) *
+				  sizeof(struct ena_admin_rss_ind_table_entry),
+			  rss->rss_ind_tbl, rss->rss_ind_tbl_dma_addr);
 	rss->rss_ind_tbl = NULL;
 mem_err1:
 	rss->tbl_log_size = 0;
@@ -3030,13 +3040,13 @@ int ena_com_indirect_table_get(struct ena_com_dev *ena_dev, u32 *ind_tbl)
 	return 0;
 }
 
-int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 indr_tbl_log_size)
+int ena_com_rss_init(struct ena_com_dev *ena_dev)
 {
 	int rc;
 
 	memset(&ena_dev->rss, 0x0, sizeof(ena_dev->rss));
 
-	rc = ena_com_indirect_table_allocate(ena_dev, indr_tbl_log_size);
+	rc = ena_com_indirect_table_allocate(ena_dev);
 	if (unlikely(rc))
 		goto err_indr_tbl;
 

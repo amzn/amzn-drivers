@@ -4636,16 +4636,21 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 {
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	struct device *dev = &adapter->pdev->dev;
+	u32 table_size;
 	int rc, i;
 	u32 val;
 
-	rc = ena_com_rss_init(ena_dev, ENA_RX_RSS_TABLE_LOG_SIZE);
+	rc = ena_com_rss_init(ena_dev);
 	if (unlikely(rc)) {
 		dev_err(dev, "Cannot init indirect table\n");
 		goto err_rss_init;
 	}
 
-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
+	table_size = get_rss_indirection_table_size(adapter);
+	if (table_size == 0)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < table_size; i++) {
 		val = ethtool_rxfh_indir_default(i, adapter->num_io_queues);
 		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
 						       ENA_IO_RXQ_IDX(val));

@@ -1333,7 +1333,9 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
 static u32 ena_get_rxfh_indir_size(struct net_device *netdev)
 {
-	return ENA_RX_RSS_TABLE_SIZE;
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
+	return get_rss_indirection_table_size(adapter);
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
@@ -1346,10 +1348,14 @@ static u32 ena_get_rxfh_key_size(struct net_device *netdev)
 static int ena_indirection_table_set(struct ena_adapter *adapter,
 				     const u32 *indir)
 {
+	u32 table_size = get_rss_indirection_table_size(adapter);
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	int i, rc;
 
-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
+	if (table_size == 0)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < table_size; i++) {
 		rc = ena_com_indirect_table_fill_entry(ena_dev,
 						       i,
 						       ENA_IO_RXQ_IDX(indir[i]));
@@ -1371,8 +1377,12 @@ static int ena_indirection_table_set(struct ena_adapter *adapter,
 
 static int ena_indirection_table_get(struct ena_adapter *adapter, u32 *indir)
 {
+	u32 table_size = get_rss_indirection_table_size(adapter);
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	int i, rc;
+
+	if (table_size == 0)
+		return -EOPNOTSUPP;
 
 	if (!indir)
 		return 0;
@@ -1385,7 +1395,7 @@ static int ena_indirection_table_get(struct ena_adapter *adapter, u32 *indir)
 	 * for Tx and uneven indices for Rx. We need to convert the Rx
 	 * indices to be consecutive
 	 */
-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++)
+	for (i = 0; i < table_size; i++)
 		indir[i] = ENA_IO_RXQ_IDX_TO_COMBINED_IDX(indir[i]);
 
 	return rc;
