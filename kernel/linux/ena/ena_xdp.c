@@ -879,7 +879,8 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 		/* First descriptor might have an offset set by the device */
 		rx_info = &rx_ring->rx_buffer_info[ena_rx_ctx.ena_bufs[0].req_id];
 		xdp = rx_info->xdp;
-		xdp->data = xdp->data_hard_start + rx_ring->rx_headroom +
+		/* hard_data_start contains UMEM pool's headroom */
+		xdp->data = xdp->data_hard_start + XDP_PACKET_HEADROOM +
 			    ena_rx_ctx.pkt_offset;
 		xdp->data_end = xdp->data + ena_rx_ctx.ena_bufs[0].len;
 		xsk_buff_dma_sync_for_cpu(xdp, rx_ring->xsk_pool);

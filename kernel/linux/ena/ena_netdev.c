@@ -652,6 +652,7 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 			return -ENOMEM;
 
 		ena_buf = &rx_info->ena_buf;
+		/* returned dma contains XDP_PACKET_HEADROOM and pool's headroom */
 		ena_buf->paddr = xsk_buff_xdp_get_dma(xdp);
 		ena_buf->len = xsk_pool_get_rx_frame_size(rx_ring->xsk_pool);
 
