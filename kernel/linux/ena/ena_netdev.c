@@ -1407,7 +1407,7 @@ static int ena_xdp_handle_buff(struct ena_ring *rx_ring, struct xdp_buff *xdp, u
 		netdev_err_once(rx_ring->adapter->netdev,
 				"xdp: dropped unsupported multi-buffer packets\n");
 		ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
-		return ENA_XDP_DROP;
+		return ENA_XDP_RECYCLE;
 	}
 
 	rx_info = &rx_ring->rx_buffer_info[rx_ring->ena_bufs[0].req_id];
@@ -1520,7 +1520,8 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 				/* Packets was passed for transmission, unmap it
 				 * from RX side.
 				 */
-				if (xdp_verdict & ENA_XDP_FORWARDED) {
+				if (xdp_verdict &
+				    (ENA_XDP_FORWARDED | ENA_XDP_DROP)) {
 					ena_unmap_rx_buff_attrs(rx_ring,
 								&rx_ring->rx_buffer_info[req_id],
 								ENA_DMA_ATTR_SKIP_CPU_SYNC);

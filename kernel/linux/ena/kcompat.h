@@ -1154,4 +1154,44 @@ static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumas
 #define xdp_set_features_flag(netdev, features)
 #endif /* ENA_HAVE_XDP_SET_FEATURES_FLAG */
 
+#if defined(ENA_XDP_SUPPORT) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
+#ifdef ENA_AF_XDP_SUPPORT
+#include <net/xdp_sock_drv.h>
+#endif /* ENA_AF_XDP_SUPPORT */
+static inline int ena_xdp_return_buff(struct xdp_buff *xdp)
+{
+	struct xdp_frame *xdpf;
+
+#ifdef ENA_AF_XDP_SUPPORT
+	if (xdp->rxq->mem.type == MEM_TYPE_XSK_BUFF_POOL) {
+		xsk_buff_free(xdp);
+		return 0;
+	}
+#endif
+	/* Non zero-copy pages should be safe to convert to
+	 * an xdp_frame, which has xdp_return_frame() function exported
+	 * to all kernels that support XDP
+	 */
+#ifdef XDP_CONVERT_TO_FRAME_NAME_CHANGED
+	xdpf = xdp_convert_buff_to_frame(xdp);
+#else
+	xdpf = convert_to_xdp_frame(xdp);
+#endif /* XDP_CONVERT_TO_FRAME_NAME_CHANGED */
+	if (!xdpf)
+		return -EOVERFLOW;
+
+	xdp_return_frame(xdpf);
+
+	return 0;
+}
+#elif defined(ENA_XDP_SUPPORT)
+static inline int ena_xdp_return_buff(struct xdp_buff *xdp)
+{
+	/* If xdp_return_buff() is defined it cannot fail */
+	xdp_return_buff(xdp);
+
+	return 0;
+}
+#endif /* defined(ENA_XDP_SUPPORT) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0) */
+
 #endif /* _KCOMPAT_H_ */

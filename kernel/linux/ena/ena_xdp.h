@@ -37,7 +37,8 @@ enum ENA_XDP_ACTIONS {
 	ENA_XDP_PASS		= 0,
 	ENA_XDP_TX		= BIT(0),
 	ENA_XDP_REDIRECT	= BIT(1),
-	ENA_XDP_DROP		= BIT(2)
+	ENA_XDP_RECYCLE		= BIT(2),
+	ENA_XDP_DROP		= BIT(3)
 };
 
 #ifdef ENA_HAVE_NETDEV_XDP_ACT_XSK_ZEROCOPY
@@ -138,7 +139,7 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 		if (unlikely(!xdpf)) {
 			trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
 			xdp_stat = &rx_ring->rx_stats.xdp_aborted;
-			verdict = ENA_XDP_DROP;
+			verdict = ENA_XDP_RECYCLE;
 			break;
 		}
 
@@ -163,16 +164,20 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 		}
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
 		xdp_stat = &rx_ring->rx_stats.xdp_aborted;
-		verdict = ENA_XDP_DROP;
+		if (likely(!ena_xdp_return_buff(xdp)))
+			verdict = ENA_XDP_DROP;
+		else
+			verdict = ENA_XDP_RECYCLE;
+
 		break;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
 		xdp_stat = &rx_ring->rx_stats.xdp_aborted;
-		verdict = ENA_XDP_DROP;
+		verdict = ENA_XDP_RECYCLE;
 		break;
 	case XDP_DROP:
 		xdp_stat = &rx_ring->rx_stats.xdp_drop;
-		verdict = ENA_XDP_DROP;
+		verdict = ENA_XDP_RECYCLE;
 		break;
 	case XDP_PASS:
 		xdp_stat = &rx_ring->rx_stats.xdp_pass;
@@ -181,7 +186,7 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 	default:
 		bpf_warn_invalid_xdp_action(rx_ring->netdev, xdp_prog, verdict);
 		xdp_stat = &rx_ring->rx_stats.xdp_invalid;
-		verdict = ENA_XDP_DROP;
+		verdict = ENA_XDP_RECYCLE;
 	}
 
 	ena_increase_stat(xdp_stat, 1, &rx_ring->syncp);

@@ -890,7 +890,7 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 			netdev_err_once(rx_ring->adapter->netdev,
 					"xdp: dropped unsupported multi-buffer packets\n");
 			ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
-			xdp_verdict = ENA_XDP_DROP;
+			xdp_verdict = ENA_XDP_RECYCLE;
 		} else if (likely(xdp_prog_present)) {
 			xdp_verdict = ena_xdp_execute(rx_ring, xdp);
 		}
@@ -911,8 +911,8 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 			total_len += ena_rx_ctx.ena_bufs[0].len;
 			xdp_flags |= xdp_verdict;
 
-			/* Mark buffer as consumed when it is redirected */
-			if (likely(xdp_verdict & ENA_XDP_FORWARDED))
+			/* Mark buffer as consumed when it is redirected or freed */
+			if (likely(xdp_verdict & (ENA_XDP_FORWARDED | ENA_XDP_DROP)))
 				rx_info->xdp = NULL;
 
 			continue;
