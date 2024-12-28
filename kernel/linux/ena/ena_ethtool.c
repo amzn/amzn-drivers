@@ -239,34 +239,37 @@ static void ena_metrics_stats(struct ena_adapter *adapter, u64 **data)
 		(*data) += supported_metrics_count;
 
 	} else if (ena_com_get_cap(dev, ENA_ADMIN_ENI_STATS)) {
-		ena_com_get_eni_stats(dev, &adapter->eni_stats);
+		struct ena_admin_eni_stats eni_stats;
+
+		ena_com_get_eni_stats(dev, &eni_stats);
 		/* Updating regardless of rc - once we told ethtool how many stats we have
 		 * it will print that much stats. We can't leave holes in the stats
 		 */
 		for (i = 0; i < ENA_STATS_ARRAY_ENI; i++) {
 			ena_stats = &ena_stats_eni_strings[i];
-
-			ptr = (u64 *)&adapter->eni_stats +
-				ena_stats->stat_offset;
-
-			ena_safe_update_stat(ptr, (*data)++, &adapter->syncp);
+			ptr = (u64 *)&eni_stats + ena_stats->stat_offset;
+			**data = *ptr;
+			(*data)++;
 		}
 	}
 
 	if (ena_com_get_cap(dev, ENA_ADMIN_ENA_SRD_INFO)) {
-		ena_com_get_ena_srd_info(dev, &adapter->ena_srd_info);
+		struct ena_admin_ena_srd_info ena_srd_info;
+
+		ena_com_get_ena_srd_info(dev, &ena_srd_info);
 		/* Get ENA SRD mode */
-		ptr = (u64 *)&adapter->ena_srd_info;
-		ena_safe_update_stat(ptr, (*data)++, &adapter->syncp);
+		ena_stats = &ena_srd_info_strings[0];
+		ptr = (u64 *)&ena_srd_info + ena_stats->stat_offset;
+		**data = *ptr;
+		(*data)++;
 		for (i = 1; i < ENA_STATS_ARRAY_ENA_SRD; i++) {
 			ena_stats = &ena_srd_info_strings[i];
 			/* Wrapped within an outer struct - need to accommodate an
 			 * additional offset of the ENA SRD mode that was already processed
 			 */
-			ptr = (u64 *)&adapter->ena_srd_info +
-				ena_stats->stat_offset + 1;
-
-			ena_safe_update_stat(ptr, (*data)++, &adapter->syncp);
+			ptr = (u64 *)&ena_srd_info + ena_stats->stat_offset + 1;
+			**data = *ptr;
+			(*data)++;
 		}
 	}
 }

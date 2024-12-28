@@ -494,8 +494,6 @@ struct ena_adapter {
 
 	struct u64_stats_sync syncp;
 	struct ena_stats_dev dev_stats;
-	struct ena_admin_eni_stats eni_stats;
-	struct ena_admin_ena_srd_info ena_srd_info;
 
 	/* last queue index that was checked for missing completions / interrupts */
 	u32 last_monitored_qid;
