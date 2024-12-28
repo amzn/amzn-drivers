@@ -1646,7 +1646,11 @@ static void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
 			  rx_ring->rx_stats.bytes,
 			  &dim_sample);
 
+#ifdef ENA_NET_DIM_SAMPLE_PARAM_BY_REF
+	net_dim(&ena_napi->dim, &dim_sample);
+#else
 	net_dim(&ena_napi->dim, dim_sample);
+#endif /* ENA_NET_DIM_SAMPLE_PARAM_BY_REF */
 
 	rx_ring->per_napi_packets = 0;
 }

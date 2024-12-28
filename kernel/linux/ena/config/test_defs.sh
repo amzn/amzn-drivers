@@ -151,3 +151,12 @@ try_compile_async "#include <linux/ptp_clock_kernel.h>"  \
                   "ENA_PHC_SUPPORT_ADJFREQ"              \
                   ""                                     \
                   "3.0.0 <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < 6.2.0"
+
+try_compile_async "#include <linux/dim.h>"               \
+                  "{
+                    struct dim_sample sample = {};
+                    net_dim(NULL, &sample);
+                  }"                                     \
+                  "ENA_NET_DIM_SAMPLE_PARAM_BY_REF"      \
+                  ""                                     \
+                  "6.13.0 <= LINUX_VERSION_CODE"
