@@ -31,6 +31,21 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.13.2 release notes
+**New Features**
+* RSS table size configuration from the device
+
+**Bug fixes**
+* Prevent a crash when accessing an uninitialized member in an error case
+* Resolve adjfreq hook compilation issue
+* Prevent a crash in RPS by declaring ndo_rx_flow_steer hook
+* Fix max allowed queue ID for XSK pool
+* Don't recycle redirected buffers on failure in AF_XDP
+
+**Minor Changes**
+* Upstream backports
+* enable_bql module parameter documentation
+
 ## r2.13.1 release notes
 **Bug fixes**
 * Fix XDP functions hiding causing limited XDP functionality

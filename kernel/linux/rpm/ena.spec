@@ -1,5 +1,5 @@
 %define kmod_name		ena
-%define kmod_driver_version	2.13.1
+%define kmod_driver_version	2.13.2
 %define kmod_rpm_release	1
 %define kmod_git_hash		3ac3e0bf079b2c0468f759f2213541e214a6dd77
 %define kmod_kbuild_dir		kernel/linux/ena
@@ -22,7 +22,7 @@ Source7:	preamble
 
 Name:		%{kmod_name}
 Version:	%{kmod_driver_version}
-Release:	%{kmod_rpm_release}%{?dist}.59
+Release:	%{kmod_rpm_release}%{?dist}.60
 Summary:	%{kmod_name} kernel module
 
 Group:		System/Kernel
@@ -103,6 +103,9 @@ install -m 644 -D source/%{kmod_kbuild_dir}/RELEASENOTES.md $RPM_BUILD_ROOT/usr/
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Thu Dec 26 2024 David Arinzon darinzon@amazon.com - 2.13.2-1.60
+- Update ENA driver to version 2.13.2
+
 * Sun Nov 10 2024 David Arinzon darinzon@amazon.com - 2.13.1-1.59
 - Update ENA driver to version 2.13.1
 
