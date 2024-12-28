@@ -142,3 +142,12 @@ try_compile_async "#include <linux/netdevice.h>"         \
                   "ENA_NAPI_IRQ_AND_QUEUE_ASSOC"         \
                   ""                                     \
                   "6.8.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ptp_clock_kernel.h>"  \
+                  "{
+                    struct ptp_clock_info ptp_clk_info;
+                    ptp_clk_info.adjfreq = NULL;
+                  }"                                     \
+                  "ENA_PHC_SUPPORT_ADJFREQ"              \
+                  ""                                     \
+                  "3.0.0 <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < 6.2.0"
