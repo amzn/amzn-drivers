@@ -256,6 +256,7 @@ Or simply reload the driver:
 
 Module Parameters
 =================
+.. _`bql: Byte Queue Limits` : https://lwn.net/Articles/469652/
 
 :rx_queue_size:
   Controls the number of requested entries in the Rx
@@ -281,6 +282,12 @@ Module Parameters
   CPUs). The minimum number of queues is 1. If the number of queues given is
   outside of the range, the number of queues will be set to the closest
   number from within the range.
+
+:enable_bql:
+  Controls the enablement of Byte Queue Limits (BQL).
+  The default value is 0 (Disabled).
+  BQL dynamically limits the number of in-flight bytes on Tx queues.
+  For more information, see `bql: Byte Queue Limits`_.
 
 :lpc_size:
   Controls the size of the Local Page Cache size which would be
