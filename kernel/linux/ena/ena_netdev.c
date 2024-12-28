@@ -408,7 +408,6 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
 	tx_ring->cpu = ena_irq->cpu;
-	tx_ring->numa_node = node;
 	return 0;
 
 err_push_buf_intermediate_buf:
@@ -2309,7 +2308,6 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 	ctx.mem_queue_type = ena_dev->tx_mem_queue_type;
 	ctx.msix_vector = msix_vector;
 	ctx.queue_size = tx_ring->ring_size;
-	ctx.numa_node = tx_ring->numa_node;
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (unlikely(rc)) {
@@ -2376,7 +2374,6 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 	ctx.mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 	ctx.msix_vector = msix_vector;
 	ctx.queue_size = rx_ring->ring_size;
-	ctx.numa_node = rx_ring->numa_node;
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (unlikely(rc)) {
@@ -2396,7 +2393,7 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 		goto err;
 	}
 
-	ena_com_update_numa_node(rx_ring->ena_com_io_cq, ctx.numa_node);
+	ena_com_update_numa_node(rx_ring->ena_com_io_cq, rx_ring->numa_node);
 
 	return rc;
 err:
