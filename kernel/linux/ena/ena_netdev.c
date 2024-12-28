@@ -31,7 +31,7 @@
 
 #include "ena_phc.h"
 
-static char version[] = DEVICE_NAME " v" DRV_MODULE_GENERATION "\n";
+static char driver_info[] = DEVICE_NAME " v" DRV_MODULE_GENERATION "\n";
 
 MODULE_AUTHOR("Amazon.com, Inc. or its affiliates");
 MODULE_DESCRIPTION(DEVICE_NAME);
@@ -4113,7 +4113,7 @@ static void ena_fw_reset_device(struct work_struct *work)
 
 		dev_err(&adapter->pdev->dev,
 			"Device reset completed, status: %d, Driver info: %s\n",
-			rc, version);
+			rc, driver_info);
 	}
 
 	rtnl_unlock();
@@ -4707,7 +4707,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
-	dev_info_once(&pdev->dev, "%s", version);
+	dev_info_once(&pdev->dev, "%s", driver_info);
 
 	rc = pci_enable_device_mem(pdev);
 	if (rc) {
