@@ -425,15 +425,6 @@ static inline int pci_enable_msix_range(struct pci_dev *dev,
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) && \
-    !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(7,1))
-static inline void *devm_kcalloc(struct device *dev,
-				 size_t n, size_t size, gfp_t flags)
-{
-	return devm_kzalloc(dev, n * size, flags | __GFP_ZERO);
-}
-#endif
-
 /*****************************************************************************/
 #if (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,8) ) && \
      !RHEL_RELEASE_CODE && \
