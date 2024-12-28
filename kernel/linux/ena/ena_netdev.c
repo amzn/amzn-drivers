@@ -3510,6 +3510,16 @@ static int ena_busy_poll(struct napi_struct *napi)
 }
 #endif
 
+#ifdef CONFIG_RFS_ACCEL
+static int ena_rx_flow_steer(struct net_device *dev,
+			     const struct sk_buff *skb,
+			     u16 rxq_index,
+			     u32 flow_id)
+{
+	return -EOPNOTSUPP;
+}
+
+#endif /* CONFIG_RFS_ACCEL */
 static const struct net_device_ops ena_netdev_ops = {
 	.ndo_open		= ena_open,
 	.ndo_stop		= ena_close,
@@ -3539,6 +3549,9 @@ static const struct net_device_ops ena_netdev_ops = {
 	.ndo_xsk_wakeup         = ena_xdp_xsk_wakeup,
 #endif /* ENA_AF_XDP_SUPPORT */
 #endif /* ENA_XDP_SUPPORT */
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer	= ena_rx_flow_steer,
+#endif /* CONFIG_RFS_ACCEL */
 };
 
 static int ena_calc_io_queue_size(struct ena_adapter *adapter,
