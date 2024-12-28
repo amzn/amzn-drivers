@@ -27,7 +27,8 @@ static int ena_phc_adjfine(struct ptp_clock_info *clock_info, long scaled_ppm)
 }
 
 #endif /* ENA_PHC_SUPPORT_ADJFINE */
-static int ena_phc_feature_enable(struct ptp_clock_info *clock_info, struct ptp_clock_request *rq,
+static int ena_phc_feature_enable(struct ptp_clock_info *clock_info,
+				  struct ptp_clock_request *rq,
 				  int on)
 {
 	return -EOPNOTSUPP;
@@ -35,10 +36,12 @@ static int ena_phc_feature_enable(struct ptp_clock_info *clock_info, struct ptp_
 
 #ifdef ENA_PHC_SUPPORT_GETTIME64
 #ifdef ENA_PHC_SUPPORT_GETTIME64_EXTENDED
-static int ena_phc_gettimex64(struct ptp_clock_info *clock_info, struct timespec64 *ts,
+static int ena_phc_gettimex64(struct ptp_clock_info *clock_info,
+			      struct timespec64 *ts,
 			      struct ptp_system_timestamp *sts)
 {
-	struct ena_phc_info *phc_info = container_of(clock_info, struct ena_phc_info, clock_info);
+	struct ena_phc_info *phc_info =
+		container_of(clock_info, struct ena_phc_info, clock_info);
 	unsigned long flags;
 	u64 timestamp_nsec;
 	int rc;
@@ -47,7 +50,8 @@ static int ena_phc_gettimex64(struct ptp_clock_info *clock_info, struct timespec
 
 	ptp_read_system_prets(sts);
 
-	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev, &timestamp_nsec);
+	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev,
+				       &timestamp_nsec);
 
 	ptp_read_system_postts(sts);
 
@@ -61,14 +65,16 @@ static int ena_phc_gettimex64(struct ptp_clock_info *clock_info, struct timespec
 #else /* ENA_PHC_SUPPORT_GETTIME64_EXTENDED */
 static int ena_phc_gettime64(struct ptp_clock_info *clock_info, struct timespec64 *ts)
 {
-	struct ena_phc_info *phc_info = container_of(clock_info, struct ena_phc_info, clock_info);
+	struct ena_phc_info *phc_info =
+		container_of(clock_info, struct ena_phc_info, clock_info);
 	unsigned long flags;
 	u64 timestamp_nsec;
 	int rc;
 
 	spin_lock_irqsave(&phc_info->lock, flags);
 
-	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev, &timestamp_nsec);
+	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev,
+				       &timestamp_nsec);
 
 	spin_unlock_irqrestore(&phc_info->lock, flags);
 
@@ -87,7 +93,8 @@ static int ena_phc_settime64(struct ptp_clock_info *clock_info,
 #else /* ENA_PHC_SUPPORT_GETTIME64 */
 static int ena_phc_gettime(struct ptp_clock_info *clock_info, struct timespec *ts)
 {
-	struct ena_phc_info *phc_info = container_of(clock_info, struct ena_phc_info, clock_info);
+	struct ena_phc_info *phc_info =
+		container_of(clock_info, struct ena_phc_info, clock_info);
 	unsigned long flags;
 	u64 timestamp_nsec;
 	u32 remainder;
@@ -95,7 +102,8 @@ static int ena_phc_gettime(struct ptp_clock_info *clock_info, struct timespec *t
 
 	spin_lock_irqsave(&phc_info->lock, flags);
 
-	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev, &timestamp_nsec);
+	rc = ena_com_phc_get_timestamp(phc_info->adapter->ena_dev,
+				       &timestamp_nsec);
 
 	spin_unlock_irqrestore(&phc_info->lock, flags);
 
@@ -195,7 +203,8 @@ static int ena_phc_register(struct ena_adapter *adapter)
 	phc_info->clock = ptp_clock_register(clock_info, &pdev->dev);
 	if (IS_ERR(phc_info->clock)) {
 		rc = PTR_ERR(phc_info->clock);
-		netdev_err(adapter->netdev, "Failed registering ptp clock, error: %d\n", rc);
+		netdev_err(adapter->netdev, "Failed registering ptp clock, error: %d\n",
+			   rc);
 		phc_info->clock = NULL;
 	}
 
@@ -206,8 +215,11 @@ static void ena_phc_unregister(struct ena_adapter *adapter)
 {
 	struct ena_phc_info *phc_info = adapter->phc_info;
 
-	/* During reset flow, PHC must stay registered to keep kernel's PHC index */
-	if (ena_phc_is_active(adapter) && !test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags)) {
+	/* During reset flow, PHC must stay registered
+	 * to keep kernel's PHC index
+	 */
+	if (ena_phc_is_active(adapter) &&
+	    !test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags)) {
 		ptp_clock_unregister(phc_info->clock);
 		phc_info->clock = NULL;
 	}

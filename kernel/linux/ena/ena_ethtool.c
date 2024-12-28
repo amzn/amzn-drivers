@@ -373,9 +373,11 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 #ifdef ENA_HAVE_KERNEL_ETHTOOL_TS_INFO
-static int ena_get_ts_info(struct net_device *netdev, struct kernel_ethtool_ts_info *info)
+static int ena_get_ts_info(struct net_device *netdev,
+			   struct kernel_ethtool_ts_info *info)
 #else
-static int ena_get_ts_info(struct net_device *netdev, struct ethtool_ts_info *info)
+static int ena_get_ts_info(struct net_device *netdev,
+			   struct ethtool_ts_info *info)
 #endif /* ENA_HAVE_KERNEL_ETHTOOL_TS_INFO */
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
