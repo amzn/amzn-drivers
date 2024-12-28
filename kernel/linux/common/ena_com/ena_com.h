@@ -789,15 +789,6 @@ int ena_com_get_customer_metrics(struct ena_com_dev *ena_dev, char *buffer, u32 
  */
 int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu);
 
-/* ena_com_get_offload_settings - Retrieve the device offloads capabilities
- * @ena_dev: ENA communication layer struct
- * @offlad: offload return value
- *
- * @return: 0 on Success and negative value otherwise.
- */
-int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
-				 struct ena_admin_feature_offload_desc *offload);
-
 /* ena_com_rss_init - Init RSS
  * @ena_dev: ENA communication layer struct
  *
