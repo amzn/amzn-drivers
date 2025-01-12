@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2021-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2021-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 function(config_define def)
   file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/config.h "#define ${def} 1\n")
@@ -451,17 +451,25 @@ struct ib_device_ops ops = {
 try_compile("" "struct rdma_stat_desc desc;" HAVE_STAT_DESC_STRUCT "")
 
 # dynamic DMA-buf handling and ibcore device method are required.
-try_compile_dev_or_ops(reg_user_mr_dmabuf
+try_compile(
   "
 #include <linux/dma-resv.h>
 #include <linux/dma-buf.h>
+  "
+  "
 static struct dma_buf_attachment a = { .importer_priv = NULL };
-  "
-  "
-struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length, u64 virt_addr,
-                                     int fd, int access_flags, struct ib_udata *udata) { return 0; }
+struct ib_device_ops ops = {
+  .reg_user_mr_dmabuf = NULL,
+};
   "
   HAVE_MR_DMABUF "")
+
+try_compile_dev_or_ops(reg_user_mr_dmabuf ""
+  "
+struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length, u64 virt_addr,
+                                     int fd, int access_flags, struct uverbs_attr_bundle *attrs) { return 0; }
+  "
+  HAVE_REG_USER_MR_DMABUF_BUNDLE "")
 
 try_compile("#include <rdma/ib_umem.h>" "ib_umem_dmabuf_get_pinned(NULL, 0, 0, 0, 0);" HAVE_IB_UMEM_DMABUF_PINNED "")
 

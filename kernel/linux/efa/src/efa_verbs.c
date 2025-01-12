@@ -2780,14 +2780,22 @@ skip_umem_pg_sz:
 struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 				     u64 length, u64 virt_addr,
 				     int fd, int access_flags,
+#ifndef HAVE_REG_USER_MR_DMABUF_BUNDLE
 				     struct ib_udata *udata)
+#else
+				     struct uverbs_attr_bundle *attrs)
+#endif
 {
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct ib_umem_dmabuf *umem_dmabuf;
 	struct efa_mr *mr;
 	int err;
 
+#ifndef HAVE_REG_USER_MR_DMABUF_BUNDLE
 	mr = efa_alloc_mr(ibpd, access_flags, udata);
+#else
+	mr = efa_alloc_mr(ibpd, access_flags, &attrs->driver_udata);
+#endif
 	if (IS_ERR(mr)) {
 		err = PTR_ERR(mr);
 		goto err_out;

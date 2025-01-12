@@ -351,7 +351,11 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 				     u64 length, u64 virt_addr,
 				     int fd, int access_flags,
+#ifndef HAVE_REG_USER_MR_DMABUF_BUNDLE
 				     struct ib_udata *udata);
+#else
+				     struct uverbs_attr_bundle *attrs);
+#endif
 #endif
 #ifdef HAVE_EFA_KVERBS
 struct ib_mr *efa_get_dma_mr(struct ib_pd *pd, int mr_access_flags);
