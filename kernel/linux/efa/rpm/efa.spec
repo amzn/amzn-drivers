@@ -100,6 +100,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Sun Jan 12 2025 Michael Margolin <mrgolin@amazon.com> - 2.13.1
+- Adjust dmabuf MR registration interface for mainline 6.12 kernels
+
 * Wed Oct 30 2024 Michael Margolin <mrgolin@amazon.com> - 2.13.0
 - Add an option to create QP with specific service level
 - Report link speed according to device parameters

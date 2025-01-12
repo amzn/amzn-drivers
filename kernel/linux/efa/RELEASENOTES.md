@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.13.1 release notes
+* Adjust dmabuf MR registration interface for mainline 6.12 kernels
+
 ## r2.13.0 release notes
 * Add an option to create QP with specific service level
 * Report link speed according to device parameters
