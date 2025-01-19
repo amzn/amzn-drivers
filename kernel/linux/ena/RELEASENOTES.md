@@ -31,6 +31,17 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.13.3 release notes
+**New Features**
+* Fragment bypass support
+
+**Bug fixes**
+* Account for all bytes of recycled XDP / AF_XDP packets
+* Remove unnecessary split of ENA_XDP_MAX_MTU to cases
+
+**Minor Changes**
+* Update outdated Best Practices comment about affinity hints
+
 ## r2.13.2 release notes
 **New Features**
 * RSS table size configuration from the device
