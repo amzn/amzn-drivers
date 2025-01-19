@@ -289,6 +289,11 @@ Module Parameters
   BQL dynamically limits the number of in-flight bytes on Tx queues.
   For more information, see `bql: Byte Queue Limits`_.
 
+:enable_frag_bypass:
+  Configuration that enables bypassing the PPS egress fragment limitation on
+  EC2 instances, while possibly reducing maximum network performance.
+  For more information see the ENA_Linux_Best_Practices.rst file.
+
 :lpc_size:
   Controls the size of the Local Page Cache size which would be
   ``lpc_size * 1024``. Maximum value for this parameter is 32, and a value of 0

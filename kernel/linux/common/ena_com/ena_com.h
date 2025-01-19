@@ -1189,6 +1189,14 @@ int ena_com_flow_steering_get_rule(struct ena_com_dev *ena_dev,
  */
 int ena_com_flow_steering_restore_device_rules(struct ena_com_dev *ena_dev);
 
+/* ena_com_set_frag_bypass - set fragment bypass
+ * @ena_dev: ENA communication layer struct
+ * @enable: true if fragment bypass is enabled, false otherwise.
+ *
+ * @return - 0 on success, negative value on failure.
+ */
+int ena_com_set_frag_bypass(struct ena_com_dev *ena_dev, bool enable);
+
 /* ena_com_io_sq_to_ena_dev - Extract ena_com_dev using contained field io_sq.
  * @io_sq: IO submit queue struct
  *

@@ -597,3 +597,20 @@ The script provides the hash value and the RSS table entry for an incoming
 packet. To retrive the RX queue number on which the packet is received please
 use ``ethtool -x [interface number]`` to find out what queue number each RSS
 table entry points to.
+
+Managing High Volume of Egress Fragmented Packets
+=================================================
+
+.. _`Monitor network performance for ENA settings on your EC2 instance` : https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-network-performance-ena.html
+
+EC2 enforces a PPS limit per ENI for egress fragmented IP packets.
+In case the fragments PPS exceeds this limit, packets are dropped, and the
+``pps_allowance_exceeded`` metric is updated.
+Setting ``enable_frag_bypass`` bypasses this limit. However, high fragment
+loads can negatively impact the network performance of the instance.
+Where possible it is recommended to avoid packet fragmentation.
+When this feature is turned on, tx completions for fragments might be delayed,
+which can conflict with features like BQL.
+Therefore when both ``enable_bql`` and ``enable_frag_bypass`` module parameters
+are enabled together, BQL will be enabled but fragmet bypass will stay disabled.
+For more information see `Monitor network performance for ENA settings on your EC2 instance`_.

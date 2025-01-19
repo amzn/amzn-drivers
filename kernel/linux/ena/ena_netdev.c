@@ -73,6 +73,10 @@ static int enable_bql = 0;
 module_param(enable_bql, int, 0444);
 MODULE_PARM_DESC(enable_bql, "Enable BQL.\n");
 
+static int enable_frag_bypass = 0;
+module_param(enable_frag_bypass, int, 0444);
+MODULE_PARM_DESC(enable_frag_bypass, "Enable fragment bypass.\n");
+
 static int lpc_size = ENA_LPC_MULTIPLIER_NOT_CONFIGURED;
 module_param(lpc_size, int, 0444);
 MODULE_PARM_DESC(lpc_size, "Each local page cache (lpc) holds N * 1024 pages. This parameter sets N which is rounded up to a multiplier of 2. If zero, the page cache is disabled. Max: 32\n");
@@ -2599,6 +2603,19 @@ int ena_up(struct ena_adapter *adapter)
 	rc = create_queues_with_size_backoff(adapter);
 	if (rc)
 		goto err_create_queues_with_backoff;
+
+	if (enable_frag_bypass) {
+		if (enable_bql) {
+			netif_warn(adapter, drv, adapter->netdev,
+				   "Setting enable_bql and enable_frag_bypass together is not allowed. Enabling BQL only\n");
+			enable_frag_bypass = 0;
+		} else {
+			rc = ena_com_set_frag_bypass(adapter->ena_dev, true);
+			if (rc)
+				netif_warn(adapter, drv, adapter->netdev,
+					   "Cannot set frag bypass rc: %d\n", rc);
+		}
+	}
 
 	rc = ena_up_complete(adapter);
 	if (unlikely(rc))
