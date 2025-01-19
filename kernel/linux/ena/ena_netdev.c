@@ -1508,6 +1508,9 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 #endif /* ENA_XDP_SUPPORT */
 
 		if (unlikely(!skb)) {
+#ifdef ENA_XDP_SUPPORT
+			int xdp_len = 0;
+#endif /* ENA_XDP_SUPPORT */
 			for (i = 0; i < ena_rx_ctx.descs; i++) {
 				int req_id = rx_ring->ena_bufs[i].req_id;
 
@@ -1515,8 +1518,9 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 				next_to_clean =
 					ENA_RX_RING_IDX_NEXT(next_to_clean,
 							     rx_ring->ring_size);
-
 #ifdef ENA_XDP_SUPPORT
+				xdp_len += ena_rx_ctx.ena_bufs[i].len;
+
 				/* Packets was passed for transmission, unmap it
 				 * from RX side.
 				 */
@@ -1532,7 +1536,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 #ifdef ENA_XDP_SUPPORT
 			if (xdp_verdict != ENA_XDP_PASS) {
 				xdp_flags |= xdp_verdict;
-				total_len += ena_rx_ctx.ena_bufs[0].len;
+				total_len += xdp_len;
 				res_budget--;
 				continue;
 			}
