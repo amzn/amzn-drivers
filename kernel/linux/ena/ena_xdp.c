@@ -858,6 +858,8 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 	pkt_copy = 0;
 
 	do {
+		int xdp_len = 0;
+
 		xdp_verdict = ENA_XDP_PASS;
 
 		/* Poll a packet from HW */
@@ -904,11 +906,13 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 			next_to_clean =
 				ENA_RX_RING_IDX_NEXT(next_to_clean,
 						     rx_ring->ring_size);
+
+			xdp_len += ena_rx_ctx.ena_bufs[i].len;
 		}
 
 		if (likely(xdp_verdict)) {
 			work_done++;
-			total_len += ena_rx_ctx.ena_bufs[0].len;
+			total_len += xdp_len;
 			xdp_flags |= xdp_verdict;
 
 			/* Mark buffer as consumed when it is redirected or freed */
@@ -927,7 +931,7 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 
 		pkt_copy++;
 		work_done++;
-		total_len += ena_rx_ctx.ena_bufs[0].len;
+		total_len += skb->len;
 		ena_rx_checksum(rx_ring, &ena_rx_ctx, skb);
 		ena_set_rx_hash(rx_ring, &ena_rx_ctx, skb);
 		skb_record_rx_queue(skb, rx_ring->qid);
