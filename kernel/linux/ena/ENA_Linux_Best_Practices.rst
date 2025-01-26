@@ -387,9 +387,8 @@ actions is recommended if network performance degrades:
       3. Exampe: ``IRQBALANCE_BANNED_CPUS=00000001,00000f00`` will exclude CPUs 8-11 and 33
 
       4. Note: we do not recommend disabling irqbalance service.
-         ENA driver doesn’t provide affinity hints, and if device reset
-         happens while irqbalance is disabled, this might cause undesirable
-         IRQ distribution with multiple IRQs landing on the same CPU core.
+         While the ENA driver does provide affinity hints, it is still recommended
+         to keep the irqbalancer enabled for a more CPU load-aware interrupts distribution.
 
    3. If there are more vCPUs in your instance than ENA queues, consider
       enabling receive packet steering (RPS) in order to offload part of
