@@ -102,6 +102,10 @@ with the ENA PMD releases.
 | 22.03        | 2.6.0               |
 | 22.07        | 2.7.0               |
 | 23.11        | 2.8.0               |
+| 24.03        | 2.9.0               |
+| 24.01        | 2.10.0              |
+| 24.11        | 2.11.0              |
+
 
 ## 3. ENA PMD backports
 
@@ -332,6 +336,9 @@ purpose. The example usage of the device arguments for device with PCI BDF of
 ```
 
 ENA supports below devargs:
+
+Note that the supported devargs vary between releases.
+For the supported devargs for a specific release refer to the ena guide within that release, e.g., for DPDK 24.03 refer to the `Runtime Configuration` section within https://doc.dpdk.org/guides-24.03/nics/ena.html
 
 - **large_llq_hdr**
 
