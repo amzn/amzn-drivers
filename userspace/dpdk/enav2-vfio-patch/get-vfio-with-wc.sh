@@ -98,10 +98,13 @@ function download_kernel_src {
 }
 
 function apply_wc_patch {
-	if [ "${KERNEL_VERSION}" -ge 5150000 ]; then
-		echo "Using patch for kernel version 5.15"
-		local wc_patch="${BASE_PATH}/patches/linux-5.15-vfio-wc.patch"
-	elif [ "${KERNEL_VERSION}" -ge 5080000 ]; then
+        if [ "${KERNEL_VERSION}" -ge 6080000 ]; then
+                echo "Using patch for kernel version 6.8"
+                local wc_patch="${BASE_PATH}/patches/linux-6.8-vfio-wc.patch"
+        elif [ "${KERNEL_VERSION}" -ge 5150000 ]; then
+                echo "Using patch for kernel version 5.15"
+                local wc_patch="${BASE_PATH}/patches/linux-5.15-vfio-wc.patch"
+ 	elif [ "${KERNEL_VERSION}" -ge 5080000 ]; then
 		echo "Using patch for kernel version 5.8"
 		local wc_patch="${BASE_PATH}/patches/linux-5.8-vfio-wc.patch"
 	elif [ "${KERNEL_VERSION}" -ge 4100000 ]; then
@@ -159,6 +162,8 @@ function get_module_location {
 function get_module_compression {
 	if ls "${MOD_PATH}/vfio.ko.xz" >/dev/null 2>/dev/null; then
 		XZ=".xz"
+        elif  ls "${MOD_PATH}/vfio.ko.zst" >/dev/null 2>/dev/null; then
+                XZ=".zst"
 	else
 		XZ=""
 	fi

@@ -2,7 +2,29 @@
 ___
 ## Driver changes as per DPDK releases
 
-### Normal releases
+#### v24.11
+_Release of the new version of the driver - v2.11.0_
+
+* Modified the PMD API that controls the LLQ header policy.
+* Replaced enable_llq, normal_llq_hdr and large_llq_hdr devargs with a new shared devarg llq_policy that maintains the same logic.
+* Added a validation check for Rx packet descriptor consistency.
+
+#### v24.07
+_Release of the new version of the driver - v2.10.0_
+
+* Reworked the driver logger usage in order to improve Tx performance.
+* Reworked the device uninitialization flow to ensure complete resource cleanup and lay the groundwork for hot-unplug support.
+
+#### v24.03
+_Release of the new version of the driver - v2.9.0_
+
+* Removed the reporting of rx_overruns errors from xstats and instead updated imissed counter with its value.
+* Added support for sub-optimal configuration notifications from the device.
+* Added normal_llq_hdr devarg that enforces normal LLQ header policy.
+* Added support for LLQ header size recommendation from the device.
+* Allowed large LLQ with 1024 entries when the device supports enlarged memory BAR.
+* Added control_poll_interval devarg that configures the control-path to work in poll-mode.
+* Added support for binding ports to uio_pci_generic kernel module.
 
 #### v23.11
 _Release of the new version of the driver - v2.8.0_
