@@ -3,6 +3,11 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.15.0 release notes
+* Fix page size optimization for large physically contiguous MRs
+* Cleanup interrupt related code
+* Reset the device if driver initialization failed
+
 ## r2.13.1 release notes
 * Adjust dmabuf MR registration interface for mainline 6.12 kernels
 

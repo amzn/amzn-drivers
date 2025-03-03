@@ -1,3 +1,10 @@
+efa (2.15.0-1.amzn1) unstable; urgency=medium
+  * Fix page size optimization for large physically contiguous MRs
+  * Cleanup interrupt related code
+  * Reset the device if driver initialization failed
+
+ -- Michael Margolin <mrgolin@amazon.com>  Mon, 03 Mar 2025 15:22:27 +0000
+
 efa (2.13.1-1.amzn1) unstable; urgency=medium
   * Adjust dmabuf MR registration interface for mainline 6.12 kernels
 

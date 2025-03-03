@@ -100,6 +100,11 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Mon Mar 03 2025 Michael Margolin <mrgolin@amazon.com> - 2.15.0
+- Fix page size optimization for large physically contiguous MRs
+- Cleanup interrupt related code
+- Reset the device if driver initialization failed
+
 * Sun Jan 12 2025 Michael Margolin <mrgolin@amazon.com> - 2.13.1
 - Adjust dmabuf MR registration interface for mainline 6.12 kernels
 
