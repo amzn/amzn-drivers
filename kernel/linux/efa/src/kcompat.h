@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _KCOMPAT_H_
@@ -154,7 +154,186 @@ atomic64_fetch_inc(atomic64_t *v)
 }
 #endif
 
-#if !defined(HAVE_RDMA_UMEM_FOR_EACH_DMA_BLOCK) && defined(HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE)
+#ifndef HAVE_LOG2_BITS_PER
+#include <linux/log2.h>
+
+static inline __attribute_const__
+int __bits_per(unsigned long n)
+{
+	if (n < 2)
+		return 1;
+	if (is_power_of_2(n))
+		return order_base_2(n) + 1;
+	return order_base_2(n);
+}
+
+#define bits_per(n)				\
+(						\
+	__builtin_constant_p(n) ? (		\
+		((n) == 0 || (n) == 1)		\
+			? 1 : ilog2(n) + 1	\
+	) :					\
+	__bits_per(n)				\
+)
+#endif /* !HAVE_LOG2_BITS_PER */
+
+#ifndef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
+#include <linux/count_zeros.h>
+#include <rdma/ib_umem.h>
+
+/*
+ * IB block DMA iterator
+ *
+ * Iterates the DMA-mapped SGL in contiguous memory blocks aligned
+ * to a HW supported page size.
+ */
+struct ib_block_iter {
+	/* internal states */
+	struct scatterlist *__sg;	/* sg holding the current aligned block */
+	dma_addr_t __dma_addr;		/* unaligned DMA address of this block */
+	unsigned int __sg_nents;	/* number of SG entries */
+	unsigned int __sg_advance;	/* number of bytes to advance in sg in next step */
+	unsigned int __pg_bit;		/* alignment of current block */
+};
+
+static inline void __rdma_block_iter_start(struct ib_block_iter *biter,
+					   struct scatterlist *sglist, unsigned int nents,
+					   unsigned long pgsz)
+{
+	memset(biter, 0, sizeof(struct ib_block_iter));
+	biter->__sg = sglist;
+	biter->__sg_nents = nents;
+
+	/* Driver provides best block size to use */
+	biter->__pg_bit = __fls(pgsz);
+}
+
+static inline bool __rdma_block_iter_next(struct ib_block_iter *biter)
+{
+	unsigned int block_offset;
+	unsigned int delta;
+
+	if (!biter->__sg_nents || !biter->__sg)
+		return false;
+
+	biter->__dma_addr = sg_dma_address(biter->__sg) + biter->__sg_advance;
+	block_offset = biter->__dma_addr & (BIT_ULL(biter->__pg_bit) - 1);
+	delta = BIT_ULL(biter->__pg_bit) - block_offset;
+
+	while (biter->__sg_nents && biter->__sg &&
+	       sg_dma_len(biter->__sg) - biter->__sg_advance <= delta) {
+		delta -= sg_dma_len(biter->__sg) - biter->__sg_advance;
+		biter->__sg_advance = 0;
+		biter->__sg = sg_next(biter->__sg);
+		biter->__sg_nents--;
+	}
+	biter->__sg_advance += delta;
+
+	return true;
+}
+
+/**
+ * rdma_block_iter_dma_address - get the aligned dma address of the current
+ * block held by the block iterator.
+ * @biter: block iterator holding the memory block
+ */
+static inline dma_addr_t
+rdma_block_iter_dma_address(struct ib_block_iter *biter)
+{
+	return biter->__dma_addr & ~(BIT_ULL(biter->__pg_bit) - 1);
+}
+
+/**
+ * rdma_for_each_block - iterate over contiguous memory blocks of the sg list
+ * @sglist: sglist to iterate over
+ * @biter: block iterator holding the memory block
+ * @nents: maximum number of sg entries to iterate over
+ * @pgsz: best HW supported page size to use
+ *
+ * Callers may use rdma_block_iter_dma_address() to get each
+ * blocks aligned DMA address.
+ */
+#define rdma_for_each_block(sglist, biter, nents, pgsz)		\
+	for (__rdma_block_iter_start(biter, sglist, nents,	\
+				     pgsz);			\
+	     __rdma_block_iter_next(biter);)
+
+static inline unsigned long
+ib_umem_find_best_pgsz(struct ib_umem *umem,
+		       unsigned long pgsz_bitmap,
+		       unsigned long virt)
+{
+	unsigned long curr_len = 0;
+	dma_addr_t curr_base = ~0;
+	unsigned long va, pgoff;
+	struct scatterlist *sg;
+	dma_addr_t mask;
+	int i;
+
+#ifdef HAVE_IB_UMEM_NUM_DMA_BLOCKS
+	umem->iova = va = virt;
+#else
+	va = virt;
+#endif
+
+	/* rdma_for_each_block() has a bug if the page size is smaller than the
+	 * page size used to build the umem. For now prevent smaller page sizes
+	 * from being returned.
+	 */
+	pgsz_bitmap &= GENMASK(BITS_PER_LONG - 1, PAGE_SHIFT);
+
+	/* The best result is the smallest page size that results in the minimum
+	 * number of required pages. Compute the largest page size that could
+	 * work based on VA address bits that don't change.
+	 */
+	mask = pgsz_bitmap &
+	       GENMASK(BITS_PER_LONG - 1,
+		       bits_per((umem->length - 1 + virt) ^ virt));
+	/* offset into first SGL */
+	pgoff = umem->address & ~PAGE_MASK;
+
+#ifdef HAVE_IB_UMEM_SGT_APPEND
+	for_each_sgtable_dma_sg(&umem->sgt_append.sgt, sg, i) {
+#else
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i) {
+#endif
+		/* If the current entry is physically contiguous with the previous
+		 * one, no need to take its start addresses into consideration.
+		 */
+		if (curr_base + curr_len != sg_dma_address(sg)) {
+
+			curr_base = sg_dma_address(sg);
+			curr_len = 0;
+
+			/* Reduce max page size if VA/PA bits differ */
+			mask |= (curr_base + pgoff) ^ va;
+
+			/* The alignment of any VA matching a discontinuity point
+			* in the physical memory sets the maximum possible page
+			* size as this must be a starting point of a new page that
+			* needs to be aligned.
+			*/
+			if (i != 0)
+				mask |= va;
+		}
+
+		curr_len += sg_dma_len(sg);
+		va += sg_dma_len(sg) - pgoff;
+
+		pgoff = 0;
+	}
+
+	/* The mask accumulates 1's in each position where the VA and physical
+	 * address differ, thus the length of trailing 0 is the largest page
+	 * size that can pass the VA through to the physical.
+	 */
+	if (mask)
+		pgsz_bitmap &= GENMASK(count_trailing_zeros(mask), 0);
+	return pgsz_bitmap ? rounddown_pow_of_two(pgsz_bitmap) : 0;
+}
+#endif /* !HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE */
+
+#ifndef HAVE_RDMA_UMEM_FOR_EACH_DMA_BLOCK
 #include <rdma/ib_umem.h>
 
 static inline void __rdma_umem_block_iter_start(struct ib_block_iter *biter,

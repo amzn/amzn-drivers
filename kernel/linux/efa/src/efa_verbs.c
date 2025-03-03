@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "kcompat.h"
@@ -2116,7 +2116,6 @@ err_free_cq:
 }
 #endif
 
-#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 static int umem_to_page_list(struct efa_dev *dev,
 			     struct ib_umem *umem,
 			     u64 *page_list,
@@ -2135,73 +2134,6 @@ static int umem_to_page_list(struct efa_dev *dev,
 
 	return 0;
 }
-#elif defined(HAVE_SG_DMA_PAGE_ITER)
-static int umem_to_page_list(struct efa_dev *dev,
-			     struct ib_umem *umem,
-			     u64 *page_list,
-			     u32 hp_cnt,
-			     u8 hp_shift)
-{
-	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
-	struct sg_dma_page_iter sg_iter;
-	unsigned int page_idx = 0;
-	unsigned int hp_idx = 0;
-
-	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
-		  hp_cnt, pages_in_hp);
-
-	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
-		if (page_idx % pages_in_hp == 0) {
-			page_list[hp_idx] = sg_page_iter_dma_address(&sg_iter);
-			hp_idx++;
-		}
-
-		page_idx++;
-	}
-
-	return 0;
-}
-#elif defined(HAVE_UMEM_SCATTERLIST_IF)
-static int umem_to_page_list(struct efa_dev *dev,
-			     struct ib_umem *umem,
-			     u64 *page_list,
-			     u32 hp_cnt,
-			     u8 hp_shift)
-{
-	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
-	unsigned int page_idx = 0;
-	unsigned int pages_in_sg;
-	unsigned int hp_idx = 0;
-	struct scatterlist *sg;
-	unsigned int entry;
-	unsigned int i;
-
-	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
-		  hp_cnt, pages_in_hp);
-
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		if (offset_in_page(sg_dma_len(sg))) {
-			ibdev_dbg(&dev->ibdev,
-				  "sg_dma_len[%u] does not divide by PAGE_SIZE[%lu]\n",
-				  sg_dma_len(sg), PAGE_SIZE);
-			return -EINVAL;
-		}
-
-		pages_in_sg = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (i = 0; i < pages_in_sg; i++) {
-			if (page_idx % pages_in_hp == 0) {
-				page_list[hp_idx] = sg_dma_address(sg) +
-						    i * PAGE_SIZE;
-				hp_idx++;
-			}
-
-			page_idx++;
-		}
-	}
-
-	return 0;
-}
-#endif
 
 static struct scatterlist *efa_vmalloc_buf_to_sg(u64 *buf, int page_cnt)
 {
@@ -2240,12 +2172,7 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 	int sg_dma_cnt = pbl->phys.indirect.sg_dma_cnt;
 	struct efa_com_ctrl_buff_info *ctrl_buf;
 	u64 *cur_chunk_buf, *prev_chunk_buf;
-#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 	struct ib_block_iter biter;
-#else
-	struct scatterlist *sg;
-	unsigned int entry, payloads_in_sg;
-#endif
 	dma_addr_t dma_addr;
 	int i;
 
@@ -2279,7 +2206,6 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 	chunk_idx = 0;
 	payload_idx = 0;
 	cur_chunk_buf = chunk_list->chunks[0].buf;
-#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 	rdma_for_each_block(pages_sgl, &biter, sg_dma_cnt,
 			    EFA_CHUNK_PAYLOAD_SIZE) {
 		cur_chunk_buf[payload_idx++] =
@@ -2291,22 +2217,6 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 			payload_idx = 0;
 		}
 	}
-#else
-	for_each_sg(pages_sgl, sg, sg_dma_cnt, entry) {
-		payloads_in_sg = sg_dma_len(sg) >> EFA_CHUNK_PAYLOAD_SHIFT;
-		for (i = 0; i < payloads_in_sg; i++) {
-			cur_chunk_buf[payload_idx++] =
-				(sg_dma_address(sg) & ~(EFA_CHUNK_PAYLOAD_SIZE - 1)) +
-				(EFA_CHUNK_PAYLOAD_SIZE * i);
-
-			if (payload_idx == EFA_PTRS_PER_CHUNK) {
-				chunk_idx++;
-				cur_chunk_buf = chunk_list->chunks[chunk_idx].buf;
-				payload_idx = 0;
-			}
-		}
-	}
-#endif
 
 	/* map chunks to dma and fill chunks next ptrs */
 	for (i = chunk_list_size - 1; i >= 0; i--) {
@@ -2585,54 +2495,6 @@ static int efa_create_pbl(struct efa_dev *dev,
 	return 0;
 }
 
-#ifndef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
-static unsigned long efa_cont_pages(struct ib_umem *umem,
-				    unsigned long page_size_cap,
-				    u64 addr)
-{
-	unsigned long max_page_shift = fls64(page_size_cap);
-	struct scatterlist *sg;
-	u64 base = ~0, p = 0;
-	unsigned long tmp;
-	unsigned long m;
-	u64 len, pfn;
-	int i = 0;
-	int entry;
-
-	addr = addr >> PAGE_SHIFT;
-	tmp = (unsigned long)addr;
-	m = find_first_bit(&tmp, BITS_PER_LONG);
-	m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
-
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = DIV_ROUND_UP(sg_dma_len(sg), PAGE_SIZE);
-		pfn = sg_dma_address(sg) >> PAGE_SHIFT;
-		if (base + p != pfn) {
-			/*
-			 * If either the offset or the new
-			 * base are unaligned update m
-			 */
-			tmp = (unsigned long)(pfn | p);
-			if (!IS_ALIGNED(tmp, 1 << m))
-				m = find_first_bit(&tmp, BITS_PER_LONG);
-
-			base = pfn;
-			p = 0;
-		}
-
-		p += len;
-		i += len;
-	}
-
-	if (i)
-		m = min_t(unsigned long, ilog2(roundup_pow_of_two(i)), m);
-	else
-		m = 0;
-
-	return BIT(PAGE_SHIFT + m);
-}
-#endif
-
 static struct efa_mr *efa_alloc_mr(struct ib_pd *ibpd, int access_flags,
 				   struct ib_udata *udata)
 {
@@ -2692,7 +2554,6 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 	}
 #endif
 
-#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 	pg_sz = ib_umem_find_best_pgsz(mr->umem,
 				       dev->dev_attr.page_size_cap,
 				       virt_addr);
@@ -2701,10 +2562,6 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 			  dev->dev_attr.page_size_cap);
 		return -EOPNOTSUPP;
 	}
-#else
-	pg_sz = efa_cont_pages(mr->umem, dev->dev_attr.page_size_cap,
-			       virt_addr);
-#endif /* defined(HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE) */
 
 #ifdef HAVE_EFA_P2P
 skip_umem_pg_sz:

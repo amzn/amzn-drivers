@@ -264,6 +264,8 @@ try_compile_dev_or_ops(destroy_qp ""
   "int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata) { return 0; }"
   HAVE_DESTROY_QP_UDATA "")
 
+# This check includes: struct ib_block_iter, __rdma_block_iter_start, __rdma_block_iter_next,
+# rdma_block_iter_dma_address, rdma_for_each_block, ib_umem_find_best_pgsz
 try_compile("#include <rdma/ib_umem.h>" "ib_umem_find_best_pgsz(NULL, 0, 0);"
   HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE "")
 
@@ -480,6 +482,18 @@ try_compile_dev_or_ops(create_cq ""
   HAVE_CREATE_CQ_BUNDLE "")
 
 try_compile("" "fallthrough;" HAVE_FALLTHROUGH "")
+
+try_compile("#include <linux/log2.h>" "u64 x = bits_per(1);" HAVE_LOG2_BITS_PER "")
+
+try_compile(
+  "
+#include <rdma/ib_umem.h>
+  "
+  "
+struct ib_umem *umem;
+struct sg_append_table sgt = umem->sgt_append;
+  "
+  HAVE_IB_UMEM_SGT_APPEND "")
 
 wait_for_pids()
 message("-- Inspecting kernel - done")
