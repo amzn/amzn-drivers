@@ -495,5 +495,15 @@ struct sg_append_table sgt = umem->sgt_append;
   "
   HAVE_IB_UMEM_SGT_APPEND "")
 
+try_compile(
+  "
+#include <rdma/ib_verbs.h>
+  "
+  "
+struct ib_block_iter *iter;
+size_t nb = iter->__sg_numblocks;
+  "
+  HAVE_IB_BLOCK_ITER_SG_NUM_BLOCKS "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")

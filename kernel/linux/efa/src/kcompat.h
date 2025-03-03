@@ -177,9 +177,9 @@ int __bits_per(unsigned long n)
 )
 #endif /* !HAVE_LOG2_BITS_PER */
 
-#ifndef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
-#include <linux/count_zeros.h>
 #include <rdma/ib_umem.h>
+
+#ifndef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
 
 /*
  * IB block DMA iterator
@@ -208,30 +208,6 @@ static inline void __rdma_block_iter_start(struct ib_block_iter *biter,
 	biter->__pg_bit = __fls(pgsz);
 }
 
-static inline bool __rdma_block_iter_next(struct ib_block_iter *biter)
-{
-	unsigned int block_offset;
-	unsigned int delta;
-
-	if (!biter->__sg_nents || !biter->__sg)
-		return false;
-
-	biter->__dma_addr = sg_dma_address(biter->__sg) + biter->__sg_advance;
-	block_offset = biter->__dma_addr & (BIT_ULL(biter->__pg_bit) - 1);
-	delta = BIT_ULL(biter->__pg_bit) - block_offset;
-
-	while (biter->__sg_nents && biter->__sg &&
-	       sg_dma_len(biter->__sg) - biter->__sg_advance <= delta) {
-		delta -= sg_dma_len(biter->__sg) - biter->__sg_advance;
-		biter->__sg_advance = 0;
-		biter->__sg = sg_next(biter->__sg);
-		biter->__sg_nents--;
-	}
-	biter->__sg_advance += delta;
-
-	return true;
-}
-
 /**
  * rdma_block_iter_dma_address - get the aligned dma address of the current
  * block held by the block iterator.
@@ -256,12 +232,16 @@ rdma_block_iter_dma_address(struct ib_block_iter *biter)
 #define rdma_for_each_block(sglist, biter, nents, pgsz)		\
 	for (__rdma_block_iter_start(biter, sglist, nents,	\
 				     pgsz);			\
-	     __rdma_block_iter_next(biter);)
+	     __efa_rdma_block_iter_next(biter);)
+
+#endif /* !HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE */
+
+#include <linux/count_zeros.h>
 
 static inline unsigned long
-ib_umem_find_best_pgsz(struct ib_umem *umem,
-		       unsigned long pgsz_bitmap,
-		       unsigned long virt)
+efa_umem_find_best_pgsz(struct ib_umem *umem,
+		        unsigned long pgsz_bitmap,
+		        unsigned long virt)
 {
 	unsigned long curr_len = 0;
 	dma_addr_t curr_base = ~0;
@@ -276,11 +256,13 @@ ib_umem_find_best_pgsz(struct ib_umem *umem,
 	va = virt;
 #endif
 
+#ifndef HAVE_IB_BLOCK_ITER_SG_NUM_BLOCKS
 	/* rdma_for_each_block() has a bug if the page size is smaller than the
 	 * page size used to build the umem. For now prevent smaller page sizes
 	 * from being returned.
 	 */
 	pgsz_bitmap &= GENMASK(BITS_PER_LONG - 1, PAGE_SHIFT);
+#endif
 
 	/* The best result is the smallest page size that results in the minimum
 	 * number of required pages. Compute the largest page size that could
@@ -331,16 +313,49 @@ ib_umem_find_best_pgsz(struct ib_umem *umem,
 		pgsz_bitmap &= GENMASK(count_trailing_zeros(mask), 0);
 	return pgsz_bitmap ? rounddown_pow_of_two(pgsz_bitmap) : 0;
 }
-#endif /* !HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE */
 
 #ifndef HAVE_RDMA_UMEM_FOR_EACH_DMA_BLOCK
-#include <rdma/ib_umem.h>
 
 static inline void __rdma_umem_block_iter_start(struct ib_block_iter *biter,
 						struct ib_umem *umem,
 						unsigned long pgsz)
 {
 	__rdma_block_iter_start(biter, umem->sg_head.sgl, umem->nmap, pgsz);
+}
+
+#endif
+
+static inline bool __efa_rdma_block_iter_next(struct ib_block_iter *biter)
+{
+	unsigned int block_offset;
+	unsigned int delta;
+
+	if (!biter->__sg_nents || !biter->__sg)
+		return false;
+
+	biter->__dma_addr = sg_dma_address(biter->__sg) + biter->__sg_advance;
+	block_offset = biter->__dma_addr & (BIT_ULL(biter->__pg_bit) - 1);
+	delta = BIT_ULL(biter->__pg_bit) - block_offset;
+
+	while (biter->__sg_nents && biter->__sg &&
+	       sg_dma_len(biter->__sg) - biter->__sg_advance <= delta) {
+		delta -= sg_dma_len(biter->__sg) - biter->__sg_advance;
+		biter->__sg_advance = 0;
+		biter->__sg = sg_next(biter->__sg);
+		biter->__sg_nents--;
+	}
+	biter->__sg_advance += delta;
+
+	return true;
+}
+
+static inline bool __efa_rdma_umem_block_iter_next(struct ib_block_iter *biter)
+{
+#ifdef HAVE_IB_BLOCK_ITER_SG_NUM_BLOCKS
+	return __efa_rdma_block_iter_next(biter) && biter->__sg_numblocks--;
+#else
+	return __efa_rdma_block_iter_next(biter);
+#endif
 }
 
 /**
@@ -354,10 +369,9 @@ static inline void __rdma_umem_block_iter_start(struct ib_block_iter *biter,
  *
  * Performs exactly ib_umem_num_dma_blocks() iterations.
  */
-#define rdma_umem_for_each_dma_block(umem, biter, pgsz)                        \
+#define efa_rdma_umem_for_each_dma_block(umem, biter, pgsz)                    \
 	for (__rdma_umem_block_iter_start(biter, umem, pgsz);                  \
-	     __rdma_block_iter_next(biter);)
-#endif
+	     __efa_rdma_umem_block_iter_next(biter);)
 
 #ifdef HAVE_U32_PORT
 typedef u32 port_t;
