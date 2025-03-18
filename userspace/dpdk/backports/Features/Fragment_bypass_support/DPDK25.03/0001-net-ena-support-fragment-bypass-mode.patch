@@ -1,0 +1,240 @@
+From db7302aff110e534329f79ca827402b3a35d4a2c Mon Sep 17 00:00:00 2001
+From: Yosef Raisman <yraisman@amazon.com>
+Date: Wed, 12 Mar 2025 12:21:45 +0000
+Subject: [PATCH] net/ena: support fragment bypass mode
+
+Introduce devarg `enable_frag_bypass` to toggle the fragment bypass
+mode for egress packets.
+
+When enabled, this feature bypasses the PPS limit enforced by EC2 for
+fragmented egress packets on every ENI. Note that enabling this might
+negatively impact network performance.
+
+By default, this feature is disabled. To enable it set
+`enable_frag_bypass=1`. If it cannot be enabled, a warning will be
+printed, but driver initialization will proceed as normal.
+
+Signed-off-by: Yosef Raisman <yraisman@amazon.com>
+---
+ drivers/net/ena/base/ena_com.c                | 34 ++++++++++++++
+ drivers/net/ena/base/ena_com.h                |  8 ++++
+ .../net/ena/base/ena_defs/ena_admin_defs.h    | 16 +++++++
+ drivers/net/ena/ena_ethdev.c                  | 45 ++++++++++++++++++-
+ drivers/net/ena/ena_ethdev.h                  |  2 +
+ 5 files changed, 104 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ena/base/ena_com.c b/drivers/net/ena/base/ena_com.c
+index 238716de29..e480dce1ee 100644
+--- a/drivers/net/ena/base/ena_com.c
++++ b/drivers/net/ena/base/ena_com.c
+@@ -3459,3 +3459,37 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
+ 
+ 	return 0;
+ }
++
++int ena_com_set_frag_bypass(struct ena_com_dev *ena_dev, bool enable)
++{
++	struct ena_admin_set_feat_resp set_feat_resp;
++	struct ena_com_admin_queue *admin_queue;
++	struct ena_admin_set_feat_cmd cmd;
++	int ret;
++
++	if (!ena_com_check_supported_feature_id(ena_dev, ENA_ADMIN_FRAG_BYPASS)) {
++		ena_trc_dbg(ena_dev, "Feature %d isn't supported\n",
++			    ENA_ADMIN_FRAG_BYPASS);
++		return ENA_COM_UNSUPPORTED;
++	}
++
++	memset(&cmd, 0x0, sizeof(cmd));
++	admin_queue = &ena_dev->admin_queue;
++
++	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
++	cmd.aq_common_descriptor.flags = 0;
++	cmd.feat_common.feature_id = ENA_ADMIN_FRAG_BYPASS;
++	cmd.feat_common.feature_version = ENA_ADMIN_FRAG_BYPASS_FEATURE_VERSION_0;
++	cmd.u.frag_bypass.enable = (u8)enable;
++
++	ret = ena_com_execute_admin_command(admin_queue,
++					    (struct ena_admin_aq_entry *)&cmd,
++					    sizeof(cmd),
++					    (struct ena_admin_acq_entry *)&set_feat_resp,
++					    sizeof(set_feat_resp));
++
++	if (unlikely(ret))
++		ena_trc_err(ena_dev, "Failed to enable frag bypass. error: %d\n", ret);
++
++	return ret;
++}
+diff --git a/drivers/net/ena/base/ena_com.h b/drivers/net/ena/base/ena_com.h
+index b2aede1be1..f064095fd1 100644
+--- a/drivers/net/ena/base/ena_com.h
++++ b/drivers/net/ena/base/ena_com.h
+@@ -1109,6 +1109,14 @@ static inline bool ena_com_get_missing_admin_interrupt(struct ena_com_dev *ena_d
+ 	return ena_dev->admin_queue.is_missing_admin_interrupt;
+ }
+ 
++/* ena_com_set_frag_bypass - set fragment bypass
++ * @ena_dev: ENA communication layer struct
++ * @enable: true if fragment bypass is enabled, false otherwise.
++ *
++ * @return - 0 on success, negative value on failure.
++ */
++int ena_com_set_frag_bypass(struct ena_com_dev *ena_dev, bool enable);
++
+ /* ena_com_io_sq_to_ena_dev - Extract ena_com_dev using contained field io_sq.
+  * @io_sq: IO submit queue struct
+  *
+diff --git a/drivers/net/ena/base/ena_defs/ena_admin_defs.h b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+index bdc6efadcf..69adc5db57 100644
+--- a/drivers/net/ena/base/ena_defs/ena_admin_defs.h
++++ b/drivers/net/ena/base/ena_defs/ena_admin_defs.h
+@@ -57,6 +57,7 @@ enum ena_admin_aq_feature_id {
+ 	ENA_ADMIN_EXTRA_PROPERTIES_STRINGS          = 5,
+ 	ENA_ADMIN_EXTRA_PROPERTIES_FLAGS            = 6,
+ 	ENA_ADMIN_MAX_QUEUES_EXT                    = 7,
++	ENA_ADMIN_FRAG_BYPASS                       = 8,
+ 	ENA_ADMIN_RSS_HASH_FUNCTION                 = 10,
+ 	ENA_ADMIN_STATELESS_OFFLOAD_CONFIG          = 11,
+ 	ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG      = 12,
+@@ -165,6 +166,11 @@ enum ena_admin_ena_srd_flags {
+ 	ENA_ADMIN_ENA_SRD_UDP_ORDERING_BYPASS_ENABLED = BIT(2),
+ };
+ 
++enum ena_admin_frag_bypass_feature_version {
++	/* Enable only */
++	ENA_ADMIN_FRAG_BYPASS_FEATURE_VERSION_0     = 0,
++};
++
+ struct ena_admin_aq_common_desc {
+ 	/* 11:0 : command_id
+ 	 * 15:12 : reserved12
+@@ -706,6 +712,13 @@ struct ena_admin_feature_llq_desc {
+ 	struct ena_admin_accel_mode_req accel_mode;
+ };
+ 
++struct ena_admin_feature_frag_bypass_desc {
++	/* Enable frag_bypass */
++	uint8_t enable;
++
++	uint8_t reserved[3];
++};
++
+ struct ena_admin_queue_ext_feature_fields {
+ 	uint32_t max_tx_sq_num;
+ 
+@@ -1180,6 +1193,9 @@ struct ena_admin_set_feat_cmd {
+ 
+ 		/* PHC configuration */
+ 		struct ena_admin_feature_phc_desc phc;
++
++		/* Fragment bypass configuration */
++		struct ena_admin_feature_frag_bypass_desc frag_bypass;
+ 	} u;
+ };
+ 
+diff --git a/drivers/net/ena/ena_ethdev.c b/drivers/net/ena/ena_ethdev.c
+index a13506890f..490c337d1f 100644
+--- a/drivers/net/ena/ena_ethdev.c
++++ b/drivers/net/ena/ena_ethdev.c
+@@ -107,6 +107,13 @@ struct ena_stats {
+  */
+ #define ENA_DEVARG_CONTROL_PATH_POLL_INTERVAL "control_path_poll_interval"
+ 
++/*
++ * Toggles fragment bypass mode. Fragmented egress packets are rate limited by
++ * EC2 per ENI; this devarg bypasses the PPS limit but may impact performance.
++ * Disabled by default.
++ */
++#define ENA_DEVARG_ENABLE_FRAG_BYPASS "enable_frag_bypass"
++
+ /*
+  * Each rte_memzone should have unique name.
+  * To satisfy it, count number of allocation and add it to name.
+@@ -1336,6 +1343,12 @@ static int ena_start(struct rte_eth_dev *dev)
+ 	if (rc)
+ 		goto err_start_tx;
+ 
++	if (adapter->enable_frag_bypass) {
++		rc = ena_com_set_frag_bypass(&adapter->ena_dev, true);
++		if (rc)
++			PMD_DRV_LOG_LINE(WARNING, "Failed to enable frag bypass, rc: %d", rc);
++	}
++
+ 	if (adapter->edev_data->dev_conf.rxmode.mq_mode & RTE_ETH_MQ_RX_RSS_FLAG) {
+ 		rc = ena_rss_configure(adapter);
+ 		if (rc)
+@@ -3767,12 +3780,37 @@ static int ena_process_llq_policy_devarg(const char *key, const char *value, voi
+ 	return 0;
+ }
+ 
++static int ena_process_bool_devarg(const char *key, const char *value, void *opaque)
++{
++	struct ena_adapter *adapter = opaque;
++	bool bool_value;
++
++	/* Parse the value. */
++	if (strcmp(value, "1") == 0) {
++		bool_value = true;
++	} else if (strcmp(value, "0") == 0) {
++		bool_value = false;
++	} else {
++		PMD_INIT_LOG_LINE(ERR,
++			"Invalid value: '%s' for key '%s'. Accepted: '0' or '1'",
++			value, key);
++		return -EINVAL;
++	}
++
++	/* Now, assign it to the proper adapter field. */
++	if (strcmp(key, ENA_DEVARG_ENABLE_FRAG_BYPASS) == 0)
++		adapter->enable_frag_bypass = bool_value;
++
++	return 0;
++}
++
+ static int ena_parse_devargs(struct ena_adapter *adapter, struct rte_devargs *devargs)
+ {
+ 	static const char * const allowed_args[] = {
+ 		ENA_DEVARG_LLQ_POLICY,
+ 		ENA_DEVARG_MISS_TXC_TO,
+ 		ENA_DEVARG_CONTROL_PATH_POLL_INTERVAL,
++		ENA_DEVARG_ENABLE_FRAG_BYPASS,
+ 		NULL,
+ 	};
+ 	struct rte_kvargs *kvlist;
+@@ -3799,6 +3837,10 @@ static int ena_parse_devargs(struct ena_adapter *adapter, struct rte_devargs *de
+ 		ena_process_uint_devarg, adapter);
+ 	if (rc != 0)
+ 		goto exit;
++	rc = rte_kvargs_process(kvlist, ENA_DEVARG_ENABLE_FRAG_BYPASS,
++		ena_process_bool_devarg, adapter);
++	if (rc != 0)
++		goto exit;
+ 
+ exit:
+ 	rte_kvargs_free(kvlist);
+@@ -4020,7 +4062,8 @@ RTE_PMD_REGISTER_KMOD_DEP(net_ena, "* igb_uio | uio_pci_generic | vfio-pci");
+ RTE_PMD_REGISTER_PARAM_STRING(net_ena,
+ 	ENA_DEVARG_LLQ_POLICY "=<0|1|2|3> "
+ 	ENA_DEVARG_MISS_TXC_TO "=<uint>"
+-	ENA_DEVARG_CONTROL_PATH_POLL_INTERVAL "=<0-1000>");
++	ENA_DEVARG_CONTROL_PATH_POLL_INTERVAL "=<0-1000>"
++	ENA_DEVARG_ENABLE_FRAG_BYPASS "=<0|1> ");
+ RTE_LOG_REGISTER_SUFFIX(ena_logtype_init, init, NOTICE);
+ RTE_LOG_REGISTER_SUFFIX(ena_logtype_driver, driver, NOTICE);
+ #ifdef RTE_ETHDEV_DEBUG_RX
+diff --git a/drivers/net/ena/ena_ethdev.h b/drivers/net/ena/ena_ethdev.h
+index 335028ad19..f4461733e9 100644
+--- a/drivers/net/ena/ena_ethdev.h
++++ b/drivers/net/ena/ena_ethdev.h
+@@ -348,6 +348,8 @@ struct ena_adapter {
+ 	/* Time (in microseconds) of the control path queues monitoring interval */
+ 	uint64_t control_path_poll_interval;
+ 
++	bool enable_frag_bypass;
++
+ 	/*
+ 	 * Helper variables for holding the information about the supported
+ 	 * metrics.
+-- 
+2.47.1
+
