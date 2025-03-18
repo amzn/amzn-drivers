@@ -2,6 +2,11 @@
 ___
 ## Driver changes as per DPDK releases
 
+#### v25.03
+_Release of the new version of the driver - v2.11.0_
+
+ * Added support for mutable RSS table size based on device capabilities.
+
 #### v24.11
 _Release of the new version of the driver - v2.11.0_
 
