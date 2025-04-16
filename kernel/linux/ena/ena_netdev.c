@@ -1149,8 +1149,7 @@ static bool ena_try_rx_buf_page_reuse(struct ena_rx_buffer *rx_info, u16 buf_len
 
 static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 				  struct ena_com_rx_buf_info *ena_bufs,
-				  u32 descs,
-				  u16 *next_to_clean)
+				  u32 descs)
 {
 	int tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	bool is_xdp_loaded = ena_xdp_present_ring(rx_ring);
@@ -1208,9 +1207,6 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		skb_mark_napi_id(skb, rx_ring->napi);
 #endif
 		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
-		rx_ring->free_ids[*next_to_clean] = req_id;
-		*next_to_clean = ENA_RX_RING_IDX_ADD(*next_to_clean, descs,
-						     rx_ring->ring_size);
 
 		/* Don't reuse the RX page if we're on the wrong NUMA */
 		if (page_to_nid(rx_info->page) != numa_mem_id())
@@ -1265,10 +1261,6 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		if (!reuse_rx_buf_page)
 			rx_info->page = NULL;
 
-		rx_ring->free_ids[*next_to_clean] = req_id;
-		*next_to_clean =
-			ENA_RX_RING_IDX_NEXT(*next_to_clean,
-					     rx_ring->ring_size);
 		if (likely(--descs == 0))
 			break;
 
@@ -1481,6 +1473,14 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		if (unlikely(ena_rx_ctx.descs == 0))
 			break;
 
+		for (i = 0; i < ena_rx_ctx.descs; i++) {
+			int req_id = rx_ring->ena_bufs[i].req_id;
+
+			rx_ring->free_ids[next_to_clean] = req_id;
+			next_to_clean = ENA_RX_RING_IDX_NEXT(next_to_clean,
+							     rx_ring->ring_size);
+		}
+
 		/* First descriptor might have an offset set by the device */
 		rx_info = &rx_ring->rx_buffer_info[rx_ring->ena_bufs[0].req_id];
 		pkt_offset = ena_rx_ctx.pkt_offset;
@@ -1504,25 +1504,18 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		if (xdp_verdict == ENA_XDP_PASS)
 			skb = ena_rx_skb(rx_ring,
 					 rx_ring->ena_bufs,
-					 ena_rx_ctx.descs,
-					 &next_to_clean);
+					 ena_rx_ctx.descs);
 #else
-		skb = ena_rx_skb(rx_ring, rx_ring->ena_bufs, ena_rx_ctx.descs,
-				 &next_to_clean);
+		skb = ena_rx_skb(rx_ring, rx_ring->ena_bufs, ena_rx_ctx.descs);
 #endif /* ENA_XDP_SUPPORT */
 
 		if (unlikely(!skb)) {
 #ifdef ENA_XDP_SUPPORT
 			int xdp_len = 0;
-#endif /* ENA_XDP_SUPPORT */
+
 			for (i = 0; i < ena_rx_ctx.descs; i++) {
 				int req_id = rx_ring->ena_bufs[i].req_id;
 
-				rx_ring->free_ids[next_to_clean] = req_id;
-				next_to_clean =
-					ENA_RX_RING_IDX_NEXT(next_to_clean,
-							     rx_ring->ring_size);
-#ifdef ENA_XDP_SUPPORT
 				xdp_len += ena_rx_ctx.ena_bufs[i].len;
 
 				/* Packets was passed for transmission, unmap it
@@ -1535,9 +1528,8 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 								ENA_DMA_ATTR_SKIP_CPU_SYNC);
 					rx_ring->rx_buffer_info[req_id].page = NULL;
 				}
-#endif /* ENA_XDP_SUPPORT */
 			}
-#ifdef ENA_XDP_SUPPORT
+
 			if (xdp_verdict != ENA_XDP_PASS) {
 				xdp_flags |= xdp_verdict;
 				total_len += xdp_len;
