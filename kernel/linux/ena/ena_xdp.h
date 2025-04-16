@@ -21,9 +21,9 @@
  * Reserve headroom (XDP_PACKET_HEADROOM) and tailroom
  * (SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
  */
-#define ENA_XDP_MAX_MTU (ENA_PAGE_SIZE - ETH_HLEN - VLAN_HLEN -        \
-			 XDP_PACKET_HEADROOM -                         \
-			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define ENA_XDP_MAX_SINGLE_FRAME_SIZE (ENA_PAGE_SIZE - ETH_HLEN - VLAN_HLEN - \
+				       XDP_PACKET_HEADROOM -                  \
+				       SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define ENA_IS_XDP_INDEX(adapter, index) (((index) >= (adapter)->xdp_first_ring) && \
 	((index) < (adapter)->xdp_first_ring + (adapter)->xdp_num_queues))
@@ -91,7 +91,7 @@ static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
 {
 	enum ena_xdp_errors_t rc = ENA_XDP_ALLOWED;
 
-	if (adapter->netdev->mtu > ENA_XDP_MAX_MTU)
+	if (adapter->netdev->mtu > ENA_XDP_MAX_SINGLE_FRAME_SIZE)
 		rc = ENA_XDP_CURRENT_MTU_TOO_LARGE;
 	else if (!ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
 		rc = ENA_XDP_NO_ENOUGH_QUEUES;

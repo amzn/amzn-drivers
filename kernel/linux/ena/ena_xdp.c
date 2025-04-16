@@ -348,7 +348,7 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 		}
 
 		prev_mtu = netdev->max_mtu;
-		netdev->max_mtu = prog ? ENA_XDP_MAX_MTU : adapter->max_mtu;
+		netdev->max_mtu = prog ? ENA_XDP_MAX_SINGLE_FRAME_SIZE : adapter->max_mtu;
 
 		if (!old_bpf_prog)
 			netif_info(adapter, drv, adapter->netdev,
@@ -358,7 +358,7 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 	} else if (rc == ENA_XDP_CURRENT_MTU_TOO_LARGE) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Failed to set xdp program, the current MTU (%d) is larger than the maximum allowed MTU (%lu) while xdp is on",
-			  netdev->mtu, ENA_XDP_MAX_MTU);
+			  netdev->mtu, ENA_XDP_MAX_SINGLE_FRAME_SIZE);
 		NL_SET_ERR_MSG_MOD(bpf->extack,
 				   "Failed to set xdp program, the current MTU is larger than the maximum allowed MTU. Check the dmesg for more info");
 		return -EINVAL;
