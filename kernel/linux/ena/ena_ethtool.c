@@ -140,6 +140,10 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(xsk_need_wakeup_set),
 	ENA_STAT_TX_ENTRY(xsk_wakeup_request),
 #endif /* ENA_AF_XDP_SUPPORT */
+#ifdef ENA_XDP_MB_SUPPORT
+	ENA_STAT_TX_ENTRY(xdp_frags_exceeded),
+	ENA_STAT_TX_ENTRY(xdp_short_linear_part),
+#endif /* ENA_XDP_MB_SUPPORT */
 };
 
 static const struct ena_stats ena_stats_rx_strings[] = {

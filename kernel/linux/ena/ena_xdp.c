@@ -61,6 +61,10 @@ static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
 		if (unlikely(is_llq && header_len < tx_max_header_size)) {
 			netdev_err_once(adapter->netdev,
 					"xdp: dropped multi-buffer packets with short linear part\n");
+
+			ena_increase_stat(&tx_ring->tx_stats.xdp_short_linear_part, 1,
+					  &tx_ring->syncp);
+
 			rc = -EINVAL;
 			goto error_report_map_error;
 		}
@@ -75,6 +79,10 @@ static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
 		if (too_many_tx_frags) {
 			netdev_err_once(adapter->netdev,
 					"xdp: dropped multi-buffer packets with too many frags\n");
+
+			ena_increase_stat(&tx_ring->tx_stats.xdp_frags_exceeded, 1,
+					  &tx_ring->syncp);
+
 			rc = -ENOMEM;
 			goto error_report_map_error;
 		}

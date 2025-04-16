@@ -237,6 +237,10 @@ struct ena_stats_tx {
 	u64 xsk_need_wakeup_set;
 	u64 xsk_wakeup_request;
 #endif /* ENA_AF_XDP_SUPPORT */
+#ifdef ENA_XDP_MB_SUPPORT
+	u64 xdp_frags_exceeded;
+	u64 xdp_short_linear_part;
+#endif /* ENA_XDP_MB_SUPPORT */
 };
 
 struct ena_stats_rx {
