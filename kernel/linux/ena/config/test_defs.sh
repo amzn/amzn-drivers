@@ -70,7 +70,10 @@ try_compile_async "#include <linux/etherdevice.h>"       \
                   ""                                     \
                   "5.15.0 <= LINUX_VERSION_CODE"
 
-try_compile_async "#include <net/xdp_sock_drv.h>"        \
+try_compile_async "#include <net/xdp_sock_drv.h>
+                  #if ENA_REQUIRE_MIN_VERSION(5, 10, 0)
+                  #error
+                  #endif"                                \
                   "xsk_buff_dma_sync_for_cpu(NULL);"     \
                   "ENA_XSK_BUFF_DMA_SYNC_SINGLE_ARG"     \
                   ""                                     \
