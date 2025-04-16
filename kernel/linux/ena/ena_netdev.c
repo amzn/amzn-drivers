@@ -2078,8 +2078,16 @@ static void ena_free_io_irq(struct ena_adapter *adapter)
 
 #endif /* ENA_NETIF_ENABLE_CPU_RMAP */
 	for (i = ENA_IO_IRQ_FIRST_IDX; i < ENA_MAX_MSIX_VEC(io_queue_count); i++) {
+#ifdef ENA_NETIF_ENABLE_CPU_RMAP
+		struct ena_napi *ena_napi;
+#endif /* ENA_NETIF_ENABLE_CPU_RMAP */
+
 		irq = &adapter->irq_tbl[i];
 		irq_update_affinity_hint(irq->vector, NULL);
+#ifdef ENA_NETIF_ENABLE_CPU_RMAP
+		ena_napi = irq->data;
+		netif_napi_set_irq(&ena_napi->napi, -1);
+#endif /* ENA_NETIF_ENABLE_CPU_RMAP */
 		free_irq(irq->vector, irq->data);
 	}
 }
