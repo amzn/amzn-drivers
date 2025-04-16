@@ -1194,4 +1194,19 @@ static inline int ena_xdp_return_buff(struct xdp_buff *xdp)
 }
 #endif /* defined(ENA_XDP_SUPPORT) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0) */
 
+#if defined(ENA_XDP_SUPPORT) && defined(ENA_HAVE_XDP_MB_DEPS)
+#define ENA_XDP_MB_SUPPORT
+#endif
+
+#if defined(ENA_XDP_MB_SUPPORT) && !defined(ENA_HAVE_SKB_FRAG_FILL_PAGE_DESC)
+static inline void skb_frag_fill_page_desc(skb_frag_t *frag,
+					   struct page *page,
+					   int off, int size)
+{
+	frag->bv_page = page;
+	frag->bv_offset = off;
+	skb_frag_size_set(frag, size);
+}
+#endif /* defined(ENA_XDP_MB_SUPPORT) && !defined(ENA_HAVE_SKB_FRAG_FILL_PAGE_DESC) */
+
 #endif /* _KCOMPAT_H_ */

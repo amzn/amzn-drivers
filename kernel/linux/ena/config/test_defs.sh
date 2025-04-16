@@ -163,3 +163,35 @@ try_compile_async "#include <linux/dim.h>"               \
                   "ENA_NET_DIM_SAMPLE_PARAM_BY_REF"      \
                   ""                                     \
                   "6.13.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/skbuff.h>"                 \
+                  "skb_frag_fill_page_desc(NULL,NULL,0,0);"   \
+                  "ENA_HAVE_SKB_FRAG_FILL_PAGE_DESC"          \
+                  ""                                          \
+                  "6.5 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp.h>
+                   #include <linux/mm.h>
+                   #include <linux/bpf.h>
+                   #include <linux/skbuff.h>"                             \
+                  "{
+                     struct bpf_prog_aux aux;
+                     struct skb_shared_info shinfo;
+
+                     aux.xdp_has_frags = false;
+                     shinfo.xdp_frags_size = 0;
+
+                     xdp_get_buff_len(NULL);
+                     xdp_buff_set_frag_pfmemalloc(NULL);
+                     xdp_buff_clear_frags_flag(NULL);
+                     page_is_pfmemalloc(NULL);
+                     xdp_get_shared_info_from_frame(NULL);
+                     xdp_buff_has_frags(NULL);
+                     xdp_frame_has_frags(NULL);
+                     xdp_update_skb_shared_info(NULL, 0, 0, 0, false);
+                     xdp_buff_set_frags_flag(NULL);
+                     __xdp_rxq_info_reg(NULL, NULL, 0, 0, 0);
+                   }"                                                     \
+                  "ENA_HAVE_XDP_MB_DEPS"                                  \
+                  ""                                                      \
+                  "5.18 <= LINUX_VERSION_CODE"
