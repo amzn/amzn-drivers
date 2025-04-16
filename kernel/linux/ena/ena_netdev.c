@@ -411,7 +411,6 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-	tx_ring->cpu = ena_irq->cpu;
 	return 0;
 
 err_push_buf_intermediate_buf:
