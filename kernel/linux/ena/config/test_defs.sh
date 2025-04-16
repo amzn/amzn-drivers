@@ -85,12 +85,6 @@ try_compile_async "#include <linux/skbuff.h>"            \
                   ""                                     \
                   "6.10.0 > LINUX_VERSION_CODE"
 
-try_compile_async "#include <net/xdp.h>"                           \
-                  "NETDEV_XDP_ACT_XSK_ZEROCOPY;"                   \
-                  "ENA_HAVE_NETDEV_XDP_ACT_XSK_ZEROCOPY"           \
-                  ""                                               \
-                  "6.3 <= LINUX_VERSION_CODE"
-
 try_compile_async "#include <linux/ethtool.h> "               \
                   "struct ethtool_tcpip6_spec tcp_ip6;"       \
                   "ENA_ETHTOOL_NFC_IPV6_SUPPORTED"            \
