@@ -209,3 +209,11 @@ try_compile_async "#include <linux/timer.h>"    \
                   "ENA_HAVE_DEL_TIMER"          \
                   ""                            \
                   "6.15 > LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"                 \
+                  "{
+                    netif_napi_add_config(NULL, NULL, NULL, 0);
+                  }"                                             \
+                  "ENA_NETIF_NAPI_ADD_CONFIG"                    \
+                  ""                                             \
+                  "6.13.0 <= LINUX_VERSION_CODE"

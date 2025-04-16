@@ -1006,8 +1006,12 @@ static inline ssize_t strscpy(char *dest, const char *src, size_t count)
 
 static inline void ena_netif_napi_add(struct net_device *dev,
 				      struct napi_struct *napi,
-				      int (*poll)(struct napi_struct *, int))
+				      int (*poll)(struct napi_struct *, int),
+				      int index)
 {
+#ifdef ENA_NETIF_NAPI_ADD_CONFIG
+	netif_napi_add_config(dev, napi, poll, index);
+#else
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)) && \
 	!(RHEL_RELEASE_CODE && \
 	  ((RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 8)) && \
@@ -1020,6 +1024,7 @@ static inline void ena_netif_napi_add(struct net_device *dev,
 #else
 	netif_napi_add(dev, napi, poll);
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0) */
+#endif /* ENA_NETIF_NAPI_ADD_CONFIG */
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)

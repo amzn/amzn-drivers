@@ -2175,7 +2175,7 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 			napi_handler = ena_xdp_io_poll;
 #endif /* ENA_XDP_SUPPORT */
 
-		ena_netif_napi_add(adapter->netdev, &napi->napi, napi_handler);
+		ena_netif_napi_add(adapter->netdev, &napi->napi, napi_handler, i);
 
 #ifdef ENA_BUSY_POLL_SUPPORT
 		napi_hash_add(&adapter->ena_napi[i].napi);
