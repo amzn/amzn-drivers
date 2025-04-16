@@ -3037,7 +3037,7 @@ static int ena_tx_map_skb(struct ena_ring *tx_ring,
 	tx_info->skb = skb;
 	ena_buf = tx_info->bufs;
 
-	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+	if (likely(tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
 		/* When the device is LLQ mode, the driver will copy
 		 * the header into the device memory space.
 		 * the ena_com layer assume the header is in a linear
@@ -3619,7 +3619,7 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 					  max_queue_ext->max_rx_sq_depth);
 		max_tx_queue_size = max_queue_ext->max_tx_cq_depth;
 
-		if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		if (likely(ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV))
 			max_tx_queue_size = min_t(u32, max_tx_queue_size,
 						  llq->max_llq_depth);
 		else
@@ -3637,7 +3637,7 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 					  max_queues->max_sq_depth);
 		max_tx_queue_size = max_queues->max_cq_depth;
 
-		if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		if (likely(ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV))
 			max_tx_queue_size = min_t(u32, max_tx_queue_size,
 						  llq->max_llq_depth);
 		else
@@ -3651,7 +3651,7 @@ static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 	}
 
 	if (adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE) {
-		if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+		if (likely(ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
 			u32 max_wide_llq_size = max_tx_queue_size;
 
 			if (llq->max_wide_llq_depth == 0) {
@@ -3954,7 +3954,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	if (unlikely(rc))
 		goto err_admin_init;
 
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+	if (likely(ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV))
 		dev_info(&pdev->dev, "ENA Large LLQ is %s\n",
 			adapter->llq_policy == ENA_LLQ_HEADER_SIZE_POLICY_LARGE ?
 			"enabled" : "disabled");
@@ -4588,7 +4588,7 @@ static u32 ena_calc_max_io_queue_num(struct pci_dev *pdev,
 	}
 
 	/* In case of LLQ use the llq fields for the tx SQ/CQ */
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+	if (likely(ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV))
 		io_tx_sq_num = get_feat_ctx->llq.max_llq_num;
 
 	max_num_io_queues = min_t(u32, num_online_cpus(), ENA_MAX_NUM_IO_QUEUES);
@@ -4908,7 +4908,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->xdp_num_queues = 0;
 
 	adapter->rx_copybreak = ENA_DEFAULT_RX_COPYBREAK;
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+	if (likely(ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV))
 		adapter->disable_meta_caching =
 			!!(get_feat_ctx.llq.accel_mode.u.get.supported_flags &
 			   BIT(ENA_ADMIN_DISABLE_META_CACHING));

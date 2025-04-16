@@ -912,7 +912,7 @@ static void ena_get_ringparam(struct net_device *netdev,
 	ring->tx_max_pending = adapter->max_tx_ring_size;
 	ring->rx_max_pending = adapter->max_rx_ring_size;
 #ifdef ENA_LARGE_LLQ_ETHTOOL
-	if (adapter->ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+	if (likely(adapter->ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
 		bool large_llq_supported = adapter->large_llq_header_supported;
 
 		kernel_ring->tx_push = true;
@@ -976,7 +976,7 @@ static int ena_set_ringparam(struct net_device *netdev,
 		new_tx_push_buf_len = kernel_ring->tx_push_buf_len;
 
 		placement = adapter->ena_dev->tx_mem_queue_type;
-		if (placement == ENA_ADMIN_PLACEMENT_POLICY_HOST)
+		if (unlikely(placement == ENA_ADMIN_PLACEMENT_POLICY_HOST))
 			return -EOPNOTSUPP;
 
 		if (new_tx_push_buf_len != ENA_LLQ_HEADER &&

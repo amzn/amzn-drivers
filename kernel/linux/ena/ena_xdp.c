@@ -52,7 +52,7 @@ static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
 	data = tx_info->xdpf->data;
 	header_len = tx_info->xdpf->len;
 	tx_max_header_size = tx_ring->tx_max_header_size;
-	is_llq = tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV;
+	is_llq = likely(tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV);
 
 #ifdef ENA_XDP_MB_SUPPORT
 	if (xdp_has_frags) {
@@ -847,7 +847,7 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 
 		size = desc.len;
 
-		if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+		if (likely(tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
 			/* Designate part of the packet for LLQ */
 			push_len = min_t(u32, size, tx_ring->tx_max_header_size);
 			ena_tx_ctx.push_header = xsk_buff_raw_get_data(xsk_pool, desc.addr);
