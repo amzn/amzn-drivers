@@ -657,6 +657,43 @@ static inline void ena_reset_device(struct ena_adapter *adapter,
 	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 }
 
+static inline int ena_tx_map_frags(struct skb_shared_info *sh_info,
+				   struct ena_tx_buffer *tx_info,
+				   struct ena_ring *tx_ring,
+				   struct ena_com_buf *ena_buf,
+				   u16 delta)
+{
+	u32 nr_frags = sh_info->nr_frags;
+	dma_addr_t dma;
+	u32 frag_len;
+	int i, rc;
+
+	for (i = 0; i < nr_frags; i++) {
+		const skb_frag_t *frag = &sh_info->frags[i];
+
+		frag_len = skb_frag_size(frag);
+
+		if (unlikely(delta >= frag_len)) {
+			delta -= frag_len;
+			continue;
+		}
+
+		dma = skb_frag_dma_map(tx_ring->dev, frag, delta,
+				       frag_len - delta, DMA_TO_DEVICE);
+		rc = dma_mapping_error(tx_ring->dev, dma);
+		if (unlikely(rc))
+			return rc;
+
+		ena_buf->paddr = dma;
+		ena_buf->len = frag_len - delta;
+		ena_buf++;
+		tx_info->num_of_bufs++;
+		delta = 0;
+	}
+
+	return 0;
+}
+
 /* Allocate a page and DMA map it
  * @rx_ring: The IO queue pair which requests the allocation
  *

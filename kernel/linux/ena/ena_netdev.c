@@ -3012,11 +3012,11 @@ static int ena_tx_map_skb(struct ena_ring *tx_ring,
 			  u16 *header_len)
 {
 	struct ena_adapter *adapter = tx_ring->adapter;
-	u32 skb_head_len, frag_len, last_frag;
 	struct ena_com_buf *ena_buf;
 	u16 push_len = 0, delta = 0;
+	u32 skb_head_len;
 	dma_addr_t dma;
-	int i = 0;
+	int rc;
 
 	skb_head_len = skb_headlen(skb);
 	tx_info->skb = skb;
@@ -3056,7 +3056,8 @@ static int ena_tx_map_skb(struct ena_ring *tx_ring,
 	if (skb_head_len > push_len) {
 		dma = dma_map_single(tx_ring->dev, skb->data + push_len,
 				     skb_head_len - push_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(tx_ring->dev, dma)))
+		rc = dma_mapping_error(tx_ring->dev, dma);
+		if (unlikely(rc))
 			goto error_report_dma_error;
 
 		ena_buf->paddr = dma;
@@ -3069,29 +3070,9 @@ static int ena_tx_map_skb(struct ena_ring *tx_ring,
 		tx_info->map_linear_data = 0;
 	}
 
-	last_frag = skb_shinfo(skb)->nr_frags;
-
-	for (i = 0; i < last_frag; i++) {
-		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-
-		frag_len = skb_frag_size(frag);
-
-		if (unlikely(delta >= frag_len)) {
-			delta -= frag_len;
-			continue;
-		}
-
-		dma = skb_frag_dma_map(tx_ring->dev, frag, delta,
-				       frag_len - delta, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(tx_ring->dev, dma)))
-			goto error_report_dma_error;
-
-		ena_buf->paddr = dma;
-		ena_buf->len = frag_len - delta;
-		ena_buf++;
-		tx_info->num_of_bufs++;
-		delta = 0;
-	}
+	rc = ena_tx_map_frags(skb_shinfo(skb), tx_info, tx_ring, ena_buf, delta);
+	if (unlikely(rc))
+		goto error_report_dma_error;
 
 	return 0;
 
@@ -3104,7 +3085,7 @@ error_report_dma_error:
 
 	ena_unmap_tx_buff(tx_ring, tx_info);
 
-	return -EINVAL;
+	return rc;
 }
 
 /* Called with netif_tx_lock. */

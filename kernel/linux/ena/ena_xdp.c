@@ -6,51 +6,120 @@
 #include "ena_xdp.h"
 #ifdef ENA_XDP_SUPPORT
 
+#ifdef ENA_XDP_MB_SUPPORT
+static bool ena_xdp_too_many_tx_frags(u8 nr_frags, u16 sgl_size,
+				      u32 header_len, u8 tx_max_header_size,
+				      bool is_llq)
+{
+	if (likely(nr_frags < sgl_size))
+		return false;
+
+	/* In non-LLQ case: The linear part of the xdp_buff will be the first
+	 * buffer of the packet in addition to the frag buffers.
+	 *
+	 * In LLQ case: If the linear part of the xdp_buff fits the header
+	 * part of the LLQ entry perfectly, the linear part of the xdp_buff
+	 * will not be used as the first buffer.
+	 */
+	if (unlikely(is_llq && (nr_frags == sgl_size) &&
+	    (header_len == tx_max_header_size)))
+		return false;
+
+	return true;
+}
+
+#endif  /* ENA_XDP_MB_SUPPORT */
 static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
 				struct ena_tx_buffer *tx_info,
 				struct xdp_frame *xdpf,
 				struct ena_com_tx_ctx *ena_tx_ctx)
 {
 	struct ena_adapter *adapter = tx_ring->adapter;
+#ifdef ENA_XDP_MB_SUPPORT
+	bool xdp_has_frags = xdp_frame_has_frags(xdpf);
+	struct skb_shared_info *sh_info;
+#endif /* ENA_XDP_MB_SUPPORT */
 	struct ena_com_buf *ena_buf;
-	int push_len = 0;
+	u8 tx_max_header_size;
+	int rc, push_len = 0;
+	u32 header_len;
 	dma_addr_t dma;
+	bool is_llq;
 	void *data;
-	u32 size;
 
+	ena_buf = tx_info->bufs;
 	tx_info->xdpf = xdpf;
 	data = tx_info->xdpf->data;
-	size = tx_info->xdpf->len;
+	header_len = tx_info->xdpf->len;
+	tx_max_header_size = tx_ring->tx_max_header_size;
+	is_llq = tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV;
 
-	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+#ifdef ENA_XDP_MB_SUPPORT
+	if (xdp_has_frags) {
+		bool too_many_tx_frags;
+
+		if (unlikely(is_llq && header_len < tx_max_header_size)) {
+			netdev_err_once(adapter->netdev,
+					"xdp: dropped multi-buffer packets with short linear part\n");
+			rc = -EINVAL;
+			goto error_report_map_error;
+		}
+
+		sh_info = xdp_get_shared_info_from_frame(xdpf);
+		too_many_tx_frags = ena_xdp_too_many_tx_frags(sh_info->nr_frags,
+							      tx_ring->sgl_size,
+							      header_len,
+							      tx_max_header_size,
+							      is_llq);
+
+		if (too_many_tx_frags) {
+			netdev_err_once(adapter->netdev,
+					"xdp: dropped multi-buffer packets with too many frags\n");
+			rc = -ENOMEM;
+			goto error_report_map_error;
+		}
+	}
+
+#endif /* ENA_XDP_MB_SUPPORT */
+	if (is_llq) {
 		/* Designate part of the packet for LLQ */
-		push_len = min_t(u32, size, tx_ring->tx_max_header_size);
+		push_len = min_t(u32, header_len, tx_max_header_size);
 
 		ena_tx_ctx->push_header = data;
 
-		size -= push_len;
+		header_len -= push_len;
 		data += push_len;
 	}
 
 	ena_tx_ctx->header_len = push_len;
 
-	if (size > 0) {
+	if (header_len > 0) {
 		dma = dma_map_single(tx_ring->dev,
 				     data,
-				     size,
+				     header_len,
 				     DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(tx_ring->dev, dma)))
+		rc = dma_mapping_error(tx_ring->dev, dma);
+		if (unlikely(rc))
 			goto error_report_dma_error;
 
 		tx_info->map_linear_data = 0;
 
-		ena_buf = tx_info->bufs;
 		ena_buf->paddr = dma;
-		ena_buf->len = size;
+		ena_buf->len = header_len;
 
 		ena_tx_ctx->ena_bufs = ena_buf;
-		ena_tx_ctx->num_bufs = tx_info->num_of_bufs = 1;
+		ena_buf++;
+		tx_info->num_of_bufs = 1;
 	}
+
+#ifdef ENA_XDP_MB_SUPPORT
+	if (xdp_has_frags) {
+		rc = ena_tx_map_frags(sh_info, tx_info, tx_ring, ena_buf, 0);
+		if (unlikely(rc))
+			goto error_report_dma_error;
+	}
+#endif
+	ena_tx_ctx->num_bufs = tx_info->num_of_bufs;
 
 	return 0;
 
@@ -58,8 +127,14 @@ error_report_dma_error:
 	ena_increase_stat(&tx_ring->tx_stats.dma_mapping_err, 1,
 			  &tx_ring->syncp);
 	netif_warn(adapter, tx_queued, adapter->netdev, "Failed to map xdp buff\n");
+#ifdef ENA_XDP_MB_SUPPORT
+error_report_map_error:
+#endif
+	tx_info->xdpf = NULL;
 
-	return -EINVAL;
+	ena_unmap_tx_buff(tx_ring, tx_info);
+
+	return rc;
 }
 
 int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
@@ -78,7 +153,7 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 
 	rc = ena_xdp_tx_map_frame(tx_ring, tx_info, xdpf, &ena_tx_ctx);
 	if (unlikely(rc))
-		goto err;
+		return rc;
 
 	ena_tx_ctx.req_id = req_id;
 
@@ -100,9 +175,7 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 
 error_unmap_dma:
 	ena_unmap_tx_buff(tx_ring, tx_info);
-err:
 	tx_info->xdpf = NULL;
-
 	return rc;
 }
 
@@ -345,7 +418,11 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 				if (rc)
 					return rc;
 			}
+#ifdef ENA_XDP_MB_SUPPORT
+			xdp_features_set_redirect_target(netdev, true);
+#else
 			xdp_features_set_redirect_target(netdev, false);
+#endif /* ENA_XDP_MB_SUPPORT */
 		} else if (old_bpf_prog) {
 			xdp_features_clear_redirect_target(netdev);
 			netif_dbg(adapter, drv, adapter->netdev, "Removing XDP program\n");
