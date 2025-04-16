@@ -203,3 +203,9 @@ try_compile_async "#include <linux/skbuff.h>"		 \
                   "ENA_HAVE_SKB_METADATA_SET"		 \
                   ""					 \
                   "4.15 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/timer.h>"    \
+                  "del_timer(NULL);"            \
+                  "ENA_HAVE_DEL_TIMER"          \
+                  ""                            \
+                  "6.15 > LINUX_VERSION_CODE"
