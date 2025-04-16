@@ -2797,8 +2797,7 @@ static int ena_close(struct net_device *netdev)
 			  "Destroy failure, restarting device\n");
 
 		debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
-		if (debug_area)
-			ena_dump_stats_to_buf(adapter, debug_area);
+		ena_dump_stats_to_buf(adapter, debug_area);
 		ena_dump_stats_to_dmesg(adapter);
 		/* rtnl lock already obtained in dev_ioctl() layer */
 		ena_destroy_device(adapter, false);
@@ -4535,8 +4534,7 @@ static void ena_timer_service(unsigned long data)
 
 	check_for_empty_rx_ring(adapter);
 
-	if (debug_area)
-		ena_dump_stats_to_buf(adapter, debug_area);
+	ena_dump_stats_to_buf(adapter, debug_area);
 
 	if (host_info)
 		ena_update_host_info(host_info, adapter->netdev);
