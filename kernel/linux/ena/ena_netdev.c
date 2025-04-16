@@ -1239,6 +1239,37 @@ void ena_fill_rx_frags(struct ena_ring *rx_ring,
 	}
 }
 
+struct sk_buff *ena_rx_skb_copybreak(struct ena_ring *rx_ring,
+				     struct ena_rx_buffer *rx_info,
+				     u16 len, int pkt_offset,
+				     void *buf_data_addr)
+{
+	struct sk_buff *skb;
+
+	skb = ena_alloc_skb(rx_ring, NULL, len);
+	if (unlikely(!skb))
+		return NULL;
+
+	skb_copy_to_linear_data(skb, buf_data_addr, len);
+	dma_sync_single_for_device(rx_ring->dev,
+				   dma_unmap_addr(&rx_info->ena_buf, paddr) + pkt_offset,
+				   len, DMA_FROM_DEVICE);
+
+	skb_put(skb, len);
+	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
+		  "RX allocated small packet. len %d.\n", skb->len);
+#ifdef ENA_BUSY_POLL_SUPPORT
+	skb_mark_napi_id(skb, rx_ring->napi);
+#endif
+	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+
+	/* Don't reuse the RX page if we're on the wrong NUMA */
+	if (page_to_nid(rx_info->page) != numa_mem_id())
+		ena_free_rx_page(rx_ring, rx_info);
+
+	return skb;
+}
+
 static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 {
 	int tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
@@ -1279,31 +1310,9 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 	page_offset = rx_info->page_offset;
 	buf_addr = page_address(rx_info->page) + page_offset;
 
-	if ((len <= rx_ring->rx_copybreak) && likely(descs == 1)) {
-		skb = ena_alloc_skb(rx_ring, NULL, len);
-		if (unlikely(!skb))
-			return NULL;
-
-		skb_copy_to_linear_data(skb, buf_addr + buf_offset, len);
-		dma_sync_single_for_device(rx_ring->dev,
-					   dma_unmap_addr(&rx_info->ena_buf, paddr) + pkt_offset,
-					   len,
-					   DMA_FROM_DEVICE);
-
-		skb_put(skb, len);
-		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
-			  "RX allocated small packet. len %d.\n", skb->len);
-#ifdef ENA_BUSY_POLL_SUPPORT
-		skb_mark_napi_id(skb, rx_ring->napi);
-#endif
-		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
-
-		/* Don't reuse the RX page if we're on the wrong NUMA */
-		if (page_to_nid(rx_info->page) != numa_mem_id())
-			ena_free_rx_page(rx_ring, rx_info);
-
-		return skb;
-	}
+	if ((len <= rx_ring->rx_copybreak) && likely(descs == 1))
+		return ena_rx_skb_copybreak(rx_ring, rx_info, len, pkt_offset,
+					    buf_addr + buf_offset);
 
 	buf_len = SKB_DATA_ALIGN(len + buf_offset + tailroom);
 
@@ -1533,7 +1542,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 			if (xdp_verdict == ENA_XDP_PASS) {
 				skb = ena_rx_skb_after_xdp_pass(rx_ring, rx_info,
 								&ena_rx_ctx, &xdp,
-								nr_frags);
+								nr_frags, xdp_len);
 			} else {
 				/* Packets were passed for transmission, unmap them
 				 * from the RX side.

@@ -693,6 +693,10 @@ void ena_update_ring_numa_node(struct ena_ring *rx_ring);
 void ena_unmap_rx_buff_attrs(struct ena_ring *rx_ring,
 			     struct ena_rx_buffer *rx_info,
 			     unsigned long attrs);
+struct sk_buff *ena_rx_skb_copybreak(struct ena_ring *rx_ring,
+				     struct ena_rx_buffer *rx_info,
+				     u16 len, int pkt_offset,
+				     void *buf_data_addr);
 void ena_fill_rx_frags(struct ena_ring *rx_ring,
 		       u32 descs,
 		       struct ena_com_rx_buf_info *ena_bufs,

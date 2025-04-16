@@ -1090,12 +1090,17 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 					  struct ena_rx_buffer *rx_info,
 					  struct ena_com_rx_ctx *ena_rx_ctx,
 					  struct xdp_buff *xdp,
-					  u8 nr_frags)
+					  u8 nr_frags,
+					  int xdp_len)
 {
 	struct sk_buff *skb;
 	int buf_offset;
 	u16 buf_len;
 	u16 len;
+
+	if (xdp_len <= rx_ring->rx_copybreak && likely(!nr_frags))
+		return ena_rx_skb_copybreak(rx_ring, rx_info, xdp_len,
+					    ena_rx_ctx->pkt_offset, xdp->data);
 
 #ifdef XDP_HAS_FRAME_SZ
 	buf_len = xdp->frame_sz;

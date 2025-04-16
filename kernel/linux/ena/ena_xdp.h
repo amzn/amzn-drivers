@@ -59,7 +59,8 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 					  struct ena_rx_buffer *rx_info,
 					  struct ena_com_rx_ctx *ena_rx_ctx,
 					  struct xdp_buff *xdp,
-					  u8 nr_frags);
+					  u8 nr_frags,
+					  int xdp_len);
 int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 	       int *xdp_len, u8 *nr_frags);
 #ifdef ENA_AF_XDP_SUPPORT
