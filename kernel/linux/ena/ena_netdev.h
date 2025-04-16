@@ -298,6 +298,9 @@ struct ena_ring {
 	struct ena_com_io_sq *ena_com_io_sq;
 #ifdef ENA_XDP_SUPPORT
 	struct bpf_prog *xdp_bpf_prog;
+#ifdef ENA_XDP_MB_SUPPORT
+	bool xdp_prog_support_frags;
+#endif /* ENA_XDP_MB_SUPPORT */
 	struct xdp_rxq_info xdp_rxq;
 	spinlock_t xdp_tx_lock;	/* synchronize XDP TX/Redirect traffic */
 	/* Used for rx queues only to point to the xdp tx ring, to

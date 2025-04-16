@@ -258,6 +258,10 @@ void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 		rx_ring = &adapter->rx_ring[i];
 		old_bpf_prog = xchg(&rx_ring->xdp_bpf_prog, prog);
 
+#ifdef ENA_XDP_MB_SUPPORT
+		if (prog)
+			rx_ring->xdp_prog_support_frags = prog->aux->xdp_has_frags;
+#endif
 		if (!old_bpf_prog && prog) {
 			rx_ring->rx_headroom = XDP_PACKET_HEADROOM;
 		} else if (old_bpf_prog && !prog) {
@@ -301,6 +305,18 @@ static int ena_destroy_and_free_all_xdp_queues(struct ena_adapter *adapter)
 	return 0;
 }
 
+static int ena_get_max_xdp_mtu(struct ena_adapter *adapter, struct bpf_prog *prog)
+{
+#ifndef ENA_XDP_MB_SUPPORT
+	return prog ? ENA_XDP_MAX_SINGLE_FRAME_SIZE : adapter->max_mtu;
+#else
+	if (!prog || prog->aux->xdp_has_frags)
+		return adapter->max_mtu;
+
+	return ENA_XDP_MAX_SINGLE_FRAME_SIZE;
+#endif
+}
+
 static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
@@ -310,7 +326,7 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 	bool is_up;
 
 	is_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
-	rc = ena_xdp_allowed(adapter);
+	rc = ena_xdp_allowed(adapter, prog);
 	if (rc == ENA_XDP_ALLOWED) {
 		old_bpf_prog = adapter->xdp_bpf_prog;
 		if (prog) {
@@ -340,7 +356,7 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 		}
 
 		prev_mtu = netdev->max_mtu;
-		netdev->max_mtu = prog ? ENA_XDP_MAX_SINGLE_FRAME_SIZE : adapter->max_mtu;
+		netdev->max_mtu = ena_get_max_xdp_mtu(adapter, prog);
 
 		if (!old_bpf_prog)
 			netif_info(adapter, drv, adapter->netdev,
@@ -1127,6 +1143,15 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 	return skb;
 }
 
+static bool ena_xdp_prog_is_frags_supported(struct ena_ring *rx_ring)
+{
+#ifdef ENA_XDP_MB_SUPPORT
+	return rx_ring->xdp_prog_support_frags;
+#else
+	return false;
+#endif
+}
+
 int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 	       int *xdp_len, u8 *nr_frags)
 {
@@ -1139,8 +1164,8 @@ int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 	int ret;
 	int i;
 
-	/* XDP multi-buffer packets not supported */
-	if (unlikely(descs > 1)) {
+	/* Drop unsupported multibuffer packets */
+	if (!ena_xdp_prog_is_frags_supported(rx_ring) && descs > 1) {
 		netdev_err_once(rx_ring->adapter->netdev,
 				"xdp: dropped unsupported multi-buffer packets\n");
 

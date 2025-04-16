@@ -91,11 +91,21 @@ static inline bool ena_xdp_legal_queue_count(struct ena_adapter *adapter,
 	return 2 * queues <= adapter->max_num_io_queues;
 }
 
-static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
+static inline bool ena_xdp_is_mtu_legal(unsigned int mtu, struct bpf_prog *prog)
+{
+#ifndef ENA_XDP_MB_SUPPORT
+	return !prog || mtu <= ENA_XDP_MAX_SINGLE_FRAME_SIZE;
+#else
+	return !prog || prog->aux->xdp_has_frags || mtu <= ENA_XDP_MAX_SINGLE_FRAME_SIZE;
+#endif
+}
+
+static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter,
+						    struct bpf_prog *prog)
 {
 	enum ena_xdp_errors_t rc = ENA_XDP_ALLOWED;
 
-	if (adapter->netdev->mtu > ENA_XDP_MAX_SINGLE_FRAME_SIZE)
+	if (!ena_xdp_is_mtu_legal(adapter->netdev->mtu, prog))
 		rc = ENA_XDP_CURRENT_MTU_TOO_LARGE;
 	else if (!ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
 		rc = ENA_XDP_NO_ENOUGH_QUEUES;

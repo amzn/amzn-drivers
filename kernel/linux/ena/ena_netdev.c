@@ -2898,8 +2898,7 @@ int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count)
 #endif /* ENA_XDP_SUPPORT */
 	adapter->num_io_queues = new_channel_count;
 #ifdef ENA_XDP_SUPPORT
-	if (ena_xdp_present(adapter) &&
-	    ena_xdp_allowed(adapter) == ENA_XDP_ALLOWED) {
+	if (ena_xdp_present(adapter)) {
 		adapter->xdp_first_ring = new_channel_count;
 		adapter->xdp_num_queues = new_channel_count;
 		if (prev_channel_count > new_channel_count)
