@@ -168,16 +168,8 @@ int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 {
 	int rc;
 
-#ifdef AF_XDP_BUSY_POLL_SUPPORTED
-#ifdef ENA_AF_XDP_SUPPORT
-	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid,
-			      rx_ring->napi->napi_id);
-#else
-	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid, 0);
-#endif /* ENA_AF_XDP_SUPPORT */
-#else
-	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid);
-#endif /* AF_XDP_BUSY_POLL_SUPPORTED */
+	rc = ena_xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid,
+				  rx_ring->napi->napi_id, ENA_PAGE_SIZE);
 
 	netif_dbg(rx_ring->adapter, ifup, rx_ring->netdev,
 		  "Registering RX info for queue %d with napi id %d\n",

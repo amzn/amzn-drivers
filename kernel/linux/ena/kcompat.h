@@ -1209,4 +1209,28 @@ static inline void skb_frag_fill_page_desc(skb_frag_t *frag,
 }
 #endif /* defined(ENA_XDP_MB_SUPPORT) && !defined(ENA_HAVE_SKB_FRAG_FILL_PAGE_DESC) */
 
+#ifdef ENA_XDP_SUPPORT
+static inline int ena_xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
+				       struct net_device *dev, u32 queue_index,
+				       unsigned int napi_id, u32 frag_size)
+{
+#ifdef ENA_XDP_MB_SUPPORT
+	return __xdp_rxq_info_reg(xdp_rxq, dev, queue_index, napi_id, frag_size);
+
+#else /* ENA_XDP_MB_SUPPORT */
+
+#ifdef AF_XDP_BUSY_POLL_SUPPORTED
+#ifdef ENA_AF_XDP_SUPPORT
+	return xdp_rxq_info_reg(xdp_rxq, dev, queue_index, napi_id);
+#else
+	return xdp_rxq_info_reg(xdp_rxq, dev, queue_index, 0);
+#endif /* ENA_AF_XDP_SUPPORT */
+#else
+	return xdp_rxq_info_reg(xdp_rxq, dev, queue_index);
+#endif /* AF_XDP_BUSY_POLL_SUPPORTED */
+
+#endif /* ENA_XDP_MB_SUPPORT */
+}
+#endif /* ENA_XDP_SUPPORT */
+
 #endif /* _KCOMPAT_H_ */
