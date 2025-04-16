@@ -189,3 +189,11 @@ try_compile_async "#include <net/xdp.h>
                   "ENA_HAVE_XDP_MB_DEPS"                                  \
                   ""                                                      \
                   "5.18 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"         \
+                  "{
+                    netif_enable_cpu_rmap(NULL, 0);
+                  }"                                     \
+                  "ENA_NETIF_ENABLE_CPU_RMAP"            \
+                  ""                                     \
+                  "6.15.0 <= LINUX_VERSION_CODE"

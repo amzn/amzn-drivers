@@ -5,9 +5,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#ifndef ENA_NETIF_ENABLE_CPU_RMAP
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif /* CONFIG_RFS_ACCEL */
+#endif /* ENA_NETIF_ENABLE_CPU_RMAP */
 #include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -259,6 +261,7 @@ int ena_xmit_common(struct ena_adapter *adapter,
 	return 0;
 }
 
+#ifndef ENA_NETIF_ENABLE_CPU_RMAP
 static int ena_init_rx_cpu_rmap(struct ena_adapter *adapter)
 {
 #ifdef CONFIG_RFS_ACCEL
@@ -287,6 +290,7 @@ static int ena_init_rx_cpu_rmap(struct ena_adapter *adapter)
 	return 0;
 }
 
+#endif /* ENA_NETIF_ENABLE_CPU_RMAP */
 static void ena_init_io_rings_common(struct ena_adapter *adapter,
 				     struct ena_ring *ring, u16 qid)
 {
@@ -1915,7 +1919,11 @@ static int ena_enable_msix(struct ena_adapter *adapter)
 		adapter->num_io_queues = irq_cnt - ENA_ADMIN_MSIX_VEC;
 	}
 
+#ifndef ENA_NETIF_ENABLE_CPU_RMAP
 	if (ena_init_rx_cpu_rmap(adapter))
+#else
+	if (netif_enable_cpu_rmap(adapter->netdev, adapter->num_io_queues))
+#endif /* ENA_NETIF_ENABLE_CPU_RMAP */
 		netif_warn(adapter, probe, adapter->netdev,
 			   "Failed to map IRQs to CPUs\n");
 
@@ -2060,6 +2068,7 @@ static void ena_free_io_irq(struct ena_adapter *adapter)
 	struct ena_irq *irq;
 	int i;
 
+#ifndef ENA_NETIF_ENABLE_CPU_RMAP
 #ifdef CONFIG_RFS_ACCEL
 	if (adapter->msix_vecs >= 1) {
 		free_irq_cpu_rmap(adapter->netdev->rx_cpu_rmap);
@@ -2067,6 +2076,7 @@ static void ena_free_io_irq(struct ena_adapter *adapter)
 	}
 #endif /* CONFIG_RFS_ACCEL */
 
+#endif /* ENA_NETIF_ENABLE_CPU_RMAP */
 	for (i = ENA_IO_IRQ_FIRST_IDX; i < ENA_MAX_MSIX_VEC(io_queue_count); i++) {
 		irq = &adapter->irq_tbl[i];
 		irq_update_affinity_hint(irq->vector, NULL);
@@ -5052,6 +5062,7 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	ena_dev = adapter->ena_dev;
 	netdev = adapter->netdev;
 
+#ifndef ENA_NETIF_ENABLE_CPU_RMAP
 #ifdef CONFIG_RFS_ACCEL
 	if ((adapter->msix_vecs >= 1) && (netdev->rx_cpu_rmap)) {
 		free_irq_cpu_rmap(netdev->rx_cpu_rmap);
@@ -5059,6 +5070,7 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	}
 
 #endif /* CONFIG_RFS_ACCEL */
+#endif /* ENA_NETIF_ENABLE_CPU_RMAP */
 	ena_sysfs_terminate(&adapter->pdev->dev);
 	/* Make sure timer and reset routine won't be called after
 	 * freeing device resources.
