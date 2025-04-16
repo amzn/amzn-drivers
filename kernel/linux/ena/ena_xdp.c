@@ -220,6 +220,16 @@ int ena_xdp_xmit(struct net_device *dev, int n,
 	/* Ring doorbell to make device aware of the packets */
 	if (flags & XDP_XMIT_FLUSH)
 		ena_ring_tx_doorbell(tx_ring);
+	else
+		/* In case a doorbell is not requested by the OS (XDP_XMIT_FLUSH), write
+		 * combine (WC) buffers might not be flushed on exit.
+		 * Later, in case other CPU refers to the same queue, it might trigger
+		 * a doorbell when not all WC buffers flushed to the device from the
+		 * first CPU.
+		 * This barrier guarantees that WC buffers of current CPU will be flushed
+		 * before switching context to other CPU transmitting in the same queue.
+		 */
+		wmb();
 
 	spin_unlock(&tx_ring->xdp_tx_lock);
 
