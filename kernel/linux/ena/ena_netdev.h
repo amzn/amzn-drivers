@@ -716,7 +716,7 @@ int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id);
 
 static inline void ena_ring_tx_doorbell(struct ena_ring *tx_ring)
 {
-	ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+	ena_com_write_tx_sq_doorbell(tx_ring->ena_com_io_sq);
 	ena_increase_stat(&tx_ring->tx_stats.doorbells, 1, &tx_ring->syncp);
 }
 

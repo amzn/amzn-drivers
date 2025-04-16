@@ -770,9 +770,9 @@ int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 #ifdef ENA_AF_XDP_SUPPORT
 ring_doorbell:
 #endif /* ENA_AF_XDP_SUPPORT */
-	/* ena_com_write_sq_doorbell issues a wmb() */
+	/* ena_com_write_rx_sq_doorbell issues a wmb() */
 	if (likely(i))
-		ena_com_write_sq_doorbell(rx_ring->ena_com_io_sq);
+		ena_com_write_rx_sq_doorbell(rx_ring->ena_com_io_sq);
 
 	rx_ring->next_to_use = next_to_use;
 
