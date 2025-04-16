@@ -1942,7 +1942,6 @@ static void ena_setup_mgmnt_intr(struct ena_adapter *adapter)
 		pci_irq_vector(adapter->pdev, ENA_MGMNT_IRQ_IDX);
 #endif
 	cpu = cpumask_first(cpu_online_mask);
-	adapter->irq_tbl[ENA_MGMNT_IRQ_IDX].cpu = cpu;
 	cpumask_set_cpu(cpu,
 			&adapter->irq_tbl[ENA_MGMNT_IRQ_IDX].affinity_hint_mask);
 }
