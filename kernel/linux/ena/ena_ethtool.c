@@ -927,7 +927,7 @@ static void ena_get_ringparam(struct net_device *netdev,
 		kernel_ring->tx_push_buf_len = 0;
 	}
 
-#endif
+#endif /* ENA_LARGE_LLQ_ETHTOOL */
 	ring->tx_pending = adapter->tx_ring[0].ring_size;
 	ring->rx_pending = adapter->rx_ring[0].ring_size;
 }
