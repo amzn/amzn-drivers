@@ -38,7 +38,8 @@ enum ENA_XDP_ACTIONS {
 
 #define ENA_XDP_FEATURES (NETDEV_XDP_ACT_BASIC |        \
 			  NETDEV_XDP_ACT_REDIRECT |     \
-			  NETDEV_XDP_ACT_XSK_ZEROCOPY)
+			  NETDEV_XDP_ACT_XSK_ZEROCOPY | \
+			  NETDEV_XDP_ACT_RX_SG)
 
 #define ENA_XDP_FORWARDED (ENA_XDP_TX | ENA_XDP_REDIRECT)
 
@@ -54,6 +55,13 @@ int ena_xdp_xmit(struct net_device *dev, int n,
 int ena_xdp(struct net_device *netdev, struct netdev_bpf *bpf);
 int ena_xdp_register_rxq_info(struct ena_ring *rx_ring);
 void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring);
+struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
+					  struct ena_rx_buffer *rx_info,
+					  struct ena_com_rx_ctx *ena_rx_ctx,
+					  struct xdp_buff *xdp,
+					  u8 nr_frags);
+int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
+	       int *xdp_len, u8 *nr_frags);
 #ifdef ENA_AF_XDP_SUPPORT
 void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);
 void ena_xdp_free_rx_bufs_zc(struct ena_ring *rx_ring);

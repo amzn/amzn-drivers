@@ -542,6 +542,8 @@ void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 
 void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 
+struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag, u16 len);
+
 int ena_set_lpc_state(struct ena_adapter *adapter, bool enabled);
 
 int ena_update_queue_params(struct ena_adapter *adapter,
@@ -688,6 +690,17 @@ void ena_down(struct ena_adapter *adapter);
 int ena_up(struct ena_adapter *adapter);
 void ena_unmask_interrupt(struct ena_ring *tx_ring, struct ena_ring *rx_ring);
 void ena_update_ring_numa_node(struct ena_ring *rx_ring);
+void ena_unmap_rx_buff_attrs(struct ena_ring *rx_ring,
+			     struct ena_rx_buffer *rx_info,
+			     unsigned long attrs);
+void ena_fill_rx_frags(struct ena_ring *rx_ring,
+		       u32 descs,
+		       struct ena_com_rx_buf_info *ena_bufs,
+		       struct skb_shared_info *sh_info,
+#ifdef ENA_XDP_MB_SUPPORT
+		       struct xdp_buff *xdp,
+#endif /* ENA_XDP_MB_SUPPORT */
+		       struct sk_buff *skb);
 void ena_rx_checksum(struct ena_ring *rx_ring,
 		     struct ena_com_rx_ctx *ena_rx_ctx,
 		     struct sk_buff *skb);
@@ -715,6 +728,21 @@ static inline u32 get_rss_indirection_table_size(struct ena_adapter *adapter)
 		return 0;
 
 	return (1UL << ena_dev->rss.tbl_log_size);
+}
+
+static inline void ena_rx_release_packet_buffers(struct ena_ring *rx_ring,
+						 struct ena_com_rx_ctx *ena_rx_ctx)
+{
+	int i;
+
+	for (i = 0; i < ena_rx_ctx->descs; i++) {
+		int req_id = rx_ring->ena_bufs[i].req_id;
+
+		ena_unmap_rx_buff_attrs(rx_ring,
+					&rx_ring->rx_buffer_info[req_id],
+					ENA_DMA_ATTR_SKIP_CPU_SYNC);
+		rx_ring->rx_buffer_info[req_id].page = NULL;
+	}
 }
 
 #endif /* !(ENA_H) */

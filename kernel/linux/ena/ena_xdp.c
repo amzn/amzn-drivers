@@ -1085,4 +1085,121 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 
 	return ret;
 }
+
+struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
+					  struct ena_rx_buffer *rx_info,
+					  struct ena_com_rx_ctx *ena_rx_ctx,
+					  struct xdp_buff *xdp,
+					  u8 nr_frags)
+{
+	struct sk_buff *skb;
+	int buf_offset;
+	u16 buf_len;
+	u16 len;
+
+#ifdef XDP_HAS_FRAME_SZ
+	buf_len = xdp->frame_sz;
+#else
+	buf_len = ENA_PAGE_SIZE;
+#endif
+	len = xdp->data_end - xdp->data;
+	buf_offset = xdp->data - xdp->data_hard_start;
+
+	skb = ena_alloc_skb(rx_ring, xdp->data_hard_start, buf_len);
+	if (unlikely(!skb))
+		return NULL;
+
+	skb_reserve(skb, buf_offset);
+	skb_put(skb, len);
+
+	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+
+#ifdef ENA_XDP_MB_SUPPORT
+	if (nr_frags) {
+		struct skb_shared_info *sh_info = xdp_get_shared_info_from_buff(xdp);
+
+		xdp_update_skb_shared_info(skb, nr_frags,
+					   sh_info->xdp_frags_size,
+					   nr_frags * buf_len,
+					   xdp_buff_is_frag_pfmemalloc(xdp));
+	}
+
+#endif /* ENA_XDP_MB_SUPPORT */
+	ena_rx_release_packet_buffers(rx_ring, ena_rx_ctx);
+
+	return skb;
+}
+
+int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
+	       int *xdp_len, u8 *nr_frags)
+{
+	struct ena_com_rx_buf_info *ena_bufs = rx_ring->ena_bufs;
+#ifdef ENA_XDP_MB_SUPPORT
+	struct skb_shared_info *sh_info;
+#endif /* ENA_XDP_MB_SUPPORT */
+	struct ena_rx_buffer *rx_info;
+	u16 req_id;
+	int ret;
+	int i;
+
+	/* XDP multi-buffer packets not supported */
+	if (unlikely(descs > 1)) {
+		netdev_err_once(rx_ring->adapter->netdev,
+				"xdp: dropped unsupported multi-buffer packets\n");
+
+		for (i = 0; i < descs; i++)
+			*xdp_len += rx_ring->ena_bufs[i].len;
+
+		ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
+		return ENA_XDP_RECYCLE;
+	}
+
+	req_id = ena_bufs[0].req_id;
+	rx_info = &rx_ring->rx_buffer_info[req_id];
+
+	if (unlikely(!rx_info->page)) {
+		struct ena_adapter *adapter = rx_ring->adapter;
+
+		netif_err(adapter, rx_err, rx_ring->netdev,
+			  "XDP: Page is NULL. qid %u req_id %u\n",
+			  rx_ring->qid, req_id);
+		ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1, &rx_ring->syncp);
+		ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
+		return ENA_XDP_DROP;
+	}
+
+	*nr_frags = 0;
+
+	xdp_prepare_buff(xdp, page_address(rx_info->page),
+			 rx_info->buf_offset,
+			 ena_bufs[0].len, false);
+#ifdef ENA_XDP_MB_SUPPORT
+	xdp_buff_clear_frags_flag(xdp);
+
+	if (descs > 1) {
+		sh_info = xdp_get_shared_info_from_buff(xdp);
+		sh_info->nr_frags = 0;
+		sh_info->xdp_frags_size = 0;
+		xdp_buff_set_frags_flag(xdp);
+		ena_fill_rx_frags(rx_ring, descs, ena_bufs, sh_info, xdp, NULL);
+	}
+#endif /* ENA_XDP_MB_SUPPORT */
+
+	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
+		  "RX xdp created. linear len %ld\n",
+		  xdp->data_end - xdp->data);
+
+	ret = ena_xdp_execute(rx_ring, xdp);
+
+	/* The XDP program may change the packet size and number of frags, making adjustments */
+#ifdef ENA_XDP_MB_SUPPORT
+	*xdp_len = xdp_get_buff_len(xdp);
+	if (descs > 1)
+		*nr_frags = sh_info->nr_frags;
+#else
+	*xdp_len = xdp->data_end - xdp->data;
+#endif /* ENA_XDP_MB_SUPPORT */
+
+	return ret;
+}
 #endif /* ENA_XDP_SUPPORT */
