@@ -1244,21 +1244,28 @@ void ena_fill_rx_frags(struct ena_ring *rx_ring,
 
 struct sk_buff *ena_rx_skb_copybreak(struct ena_ring *rx_ring,
 				     struct ena_rx_buffer *rx_info,
-				     u16 len, int pkt_offset,
+				     u16 len, u8 meta_len, int pkt_offset,
 				     void *buf_data_addr)
 {
+	u16 len_with_meta = len + meta_len;
 	struct sk_buff *skb;
 
-	skb = ena_alloc_skb(rx_ring, NULL, len);
+	skb = ena_alloc_skb(rx_ring, NULL, len_with_meta);
 	if (unlikely(!skb))
 		return NULL;
 
-	skb_copy_to_linear_data(skb, buf_data_addr, len);
+	skb_copy_to_linear_data(skb, buf_data_addr - meta_len, len_with_meta);
 	dma_sync_single_for_device(rx_ring->dev,
 				   dma_unmap_addr(&rx_info->ena_buf, paddr) + pkt_offset,
 				   len, DMA_FROM_DEVICE);
 
-	skb_put(skb, len);
+	skb_put(skb, len_with_meta);
+
+	if (meta_len) {
+		skb_metadata_set(skb, meta_len);
+		__skb_pull(skb, meta_len);
+	}
+
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 		  "RX allocated small packet. len %d.\n", skb->len);
 #ifdef ENA_BUSY_POLL_SUPPORT
@@ -1314,7 +1321,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 	buf_addr = page_address(rx_info->page) + page_offset;
 
 	if ((len <= rx_ring->rx_copybreak) && likely(descs == 1))
-		return ena_rx_skb_copybreak(rx_ring, rx_info, len, pkt_offset,
+		return ena_rx_skb_copybreak(rx_ring, rx_info, len, 0, pkt_offset,
 					    buf_addr + buf_offset);
 
 	buf_len = SKB_DATA_ALIGN(len + buf_offset + tailroom);

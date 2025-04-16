@@ -1196,13 +1196,15 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 					  u8 nr_frags,
 					  int xdp_len)
 {
+	u8 meta_len = xdp->data - xdp->data_meta;
+	u16 len_with_meta = xdp_len + meta_len;
 	struct sk_buff *skb;
 	int buf_offset;
 	u16 buf_len;
 	u16 len;
 
-	if (xdp_len <= rx_ring->rx_copybreak && likely(!nr_frags))
-		return ena_rx_skb_copybreak(rx_ring, rx_info, xdp_len,
+	if (len_with_meta <= rx_ring->rx_copybreak && likely(!nr_frags))
+		return ena_rx_skb_copybreak(rx_ring, rx_info, xdp_len, meta_len,
 					    ena_rx_ctx->pkt_offset, xdp->data);
 
 #ifdef XDP_HAS_FRAME_SZ
@@ -1234,6 +1236,9 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 
 #endif /* ENA_XDP_MB_SUPPORT */
 	ena_rx_release_packet_buffers(rx_ring, 0, nr_frags);
+
+	if (meta_len)
+		skb_metadata_set(skb, meta_len);
 
 	return skb;
 }
@@ -1289,7 +1294,7 @@ int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 
 	xdp_prepare_buff(xdp, page_address(rx_info->page),
 			 rx_info->buf_offset,
-			 ena_bufs[0].len, false);
+			 ena_bufs[0].len, true);
 #ifdef ENA_XDP_MB_SUPPORT
 	xdp_buff_clear_frags_flag(xdp);
 

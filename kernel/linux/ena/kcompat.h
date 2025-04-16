@@ -1233,4 +1233,8 @@ static inline int ena_xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 }
 #endif /* ENA_XDP_SUPPORT */
 
+#ifndef ENA_HAVE_SKB_METADATA_SET
+static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len) {}
+#endif /* ENA_HAVE_SKB_METADATA_SET */
+
 #endif /* _KCOMPAT_H_ */

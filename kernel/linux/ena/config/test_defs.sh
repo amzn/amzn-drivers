@@ -197,3 +197,9 @@ try_compile_async "#include <linux/netdevice.h>"         \
                   "ENA_NETIF_ENABLE_CPU_RMAP"            \
                   ""                                     \
                   "6.15.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/skbuff.h>"		 \
+                  "skb_metadata_set(NULL,0);"		 \
+                  "ENA_HAVE_SKB_METADATA_SET"		 \
+                  ""					 \
+                  "4.15 <= LINUX_VERSION_CODE"
