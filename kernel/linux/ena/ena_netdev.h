@@ -731,11 +731,12 @@ static inline u32 get_rss_indirection_table_size(struct ena_adapter *adapter)
 }
 
 static inline void ena_rx_release_packet_buffers(struct ena_ring *rx_ring,
-						 struct ena_com_rx_ctx *ena_rx_ctx)
+						 int first_to_release,
+						 int last_to_release)
 {
 	int i;
 
-	for (i = 0; i < ena_rx_ctx->descs; i++) {
+	for (i = first_to_release; i <= last_to_release; i++) {
 		int req_id = rx_ring->ena_bufs[i].req_id;
 
 		ena_unmap_rx_buff_attrs(rx_ring,

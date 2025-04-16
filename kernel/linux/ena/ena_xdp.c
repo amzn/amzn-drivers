@@ -1125,7 +1125,7 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 	}
 
 #endif /* ENA_XDP_MB_SUPPORT */
-	ena_rx_release_packet_buffers(rx_ring, ena_rx_ctx);
+	ena_rx_release_packet_buffers(rx_ring, 0, nr_frags);
 
 	return skb;
 }
@@ -1199,6 +1199,11 @@ int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 #else
 	*xdp_len = xdp->data_end - xdp->data;
 #endif /* ENA_XDP_MB_SUPPORT */
+
+	/* Release the buffers of frags that were freed by bpf_xdp_adjust_tail()
+	 * in the xdp program (if any)
+	 */
+	ena_rx_release_packet_buffers(rx_ring, *nr_frags + 1, descs - 1);
 
 	return ret;
 }

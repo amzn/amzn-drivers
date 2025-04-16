@@ -1539,7 +1539,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 				 * from the RX side.
 				 */
 				if (xdp_verdict & (ENA_XDP_FORWARDED | ENA_XDP_DROP))
-					ena_rx_release_packet_buffers(rx_ring, &ena_rx_ctx);
+					ena_rx_release_packet_buffers(rx_ring, 0, nr_frags);
 
 				total_len += xdp_len;
 				xdp_flags |= xdp_verdict;
