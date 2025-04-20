@@ -31,6 +31,26 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.14.0 release notes
+**New Features**
+* XDP multi-buffer support
+* XDP bpf_xdp_adjust_tail support for multi-buffer packets
+* XDP Metadata support
+
+**Bug fixes**
+* Add memory barrier on ena_xdp_xmit exit
+* Resolve WARN_ON when freeing IRQs
+
+**Minor Changes**
+* Reduce stats prints on resets
+* Eliminate duplication of rx request id recycling
+* Separate TX/RX doorbell logic
+* Add likely to llq checks
+* Remove redundant checks and unused fields sets
+* XDP multi-buffer TX error counters
+* Fix print mismatch between qid and req id
+* Upstream backports
+
 ## r2.13.3 release notes
 **New Features**
 * Fragment bypass support
