@@ -4068,6 +4068,10 @@ ena_detach(device_t pdev)
 		return (EBUSY);
 	}
 
+	rc = bus_generic_detach(pdev);
+	if (rc != 0)
+		return (rc);
+
 	ether_ifdetach(adapter->ifp);
 
 	ifmedia_removeall(&adapter->media);
@@ -4134,7 +4138,7 @@ ena_detach(device_t pdev)
 
 	free(ena_dev, M_DEVBUF);
 
-	return (bus_generic_detach(pdev));
+	return (0);
 }
 
 /******************************************************************************
