@@ -7,7 +7,7 @@ ENA driver is supported on all FreeBSD releases starting from 13.0
 The driver was verified on the following distributions:
 
 **Releases:**
-* FreeBSD 13.4
+* FreeBSD 13.5
 * FreeBSD 14.2
 * FreeBSD 15
 
@@ -19,6 +19,14 @@ The driver was verified on the following distributions:
 | stable/13 | 185159f77c9 |
 | HEAD      | 8020c05683f |
 +-----------+-------------+
+
+## r2.8.1 release notes
+**Bug Fixes**
+* Fix LLQ normal width misconfiguration
+* Check for errors when detaching children first, not last
+
+**Minor Changes**
+* Remove \n from sysctl description
 
 ## r2.8.0 release notes
 **Features**
