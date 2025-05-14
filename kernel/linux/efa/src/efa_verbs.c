@@ -1660,11 +1660,12 @@ static void efa_cq_user_mmap_entries_remove(struct efa_cq *cq)
 	rdma_user_mmap_entry_remove(cq->mmap_entry);
 }
 
-#if defined(HAVE_IB_VOID_DESTROY_CQ) || defined(HAVE_IB_INT_DESTROY_CQ)
-#ifdef HAVE_IB_INT_DESTROY_CQ
+#ifdef HAVE_IB_INT_DESTROY_CQ_UDATA
 int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
-#else
+#elif defined(HAVE_IB_VOID_DESTROY_CQ_UDATA)
 void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+#else
+int efa_destroy_cq(struct ib_cq *ibcq)
 #endif
 {
 	struct efa_dev *dev = to_edev(ibcq->device);
@@ -1686,52 +1687,16 @@ void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	}
 	efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
 			DMA_FROM_DEVICE);
-#ifndef HAVE_CQ_CORE_ALLOCATION
-	kfree(cq);
-#endif
-#ifdef HAVE_IB_INT_DESTROY_CQ
-	return 0;
-#endif
-}
-#else
-#ifdef HAVE_DESTROY_CQ_UDATA
-int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
-#else
-int efa_destroy_cq(struct ib_cq *ibcq)
-#endif
-{
-	struct efa_dev *dev = to_edev(ibcq->device);
-	struct efa_cq *cq = to_ecq(ibcq);
-	int err;
-
-	ibdev_dbg(&dev->ibdev,
-		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
-		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
-
-	err = efa_destroy_cq_idx(dev, cq->cq_idx);
-	if (err)
-		return err;
-
-	efa_cq_user_mmap_entries_remove(cq);
-
-	if (cq->eq) {
-#ifdef HAVE_XARRAY
-		xa_erase(&dev->cqs_xa, cq->cq_idx);
-#else
-		dev->cqs_arr[cq->cq_idx] = NULL;
-#endif
-		synchronize_irq(cq->eq->irq.irqn);
-	}
-	efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
-			DMA_FROM_DEVICE);
-
 #ifdef HAVE_EFA_KVERBS
 	kfree(cq->sub_cq_arr);
 #endif
+#ifndef HAVE_CQ_CORE_ALLOCATION
 	kfree(cq);
-	return 0;
-}
 #endif
+#ifndef HAVE_IB_VOID_DESTROY_CQ_UDATA
+	return 0;
+#endif
+}
 
 static struct efa_eq *efa_vec2eq(struct efa_dev *dev, int vec)
 {

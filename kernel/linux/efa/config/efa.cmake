@@ -256,10 +256,6 @@ try_compile_dev_or_ops(dereg_mr ""
   "int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata) { return 0; }"
   HAVE_DEREG_MR_UDATA "")
 
-try_compile_dev_or_ops(destroy_cq ""
-  "int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) { return 0; }"
-  HAVE_DESTROY_CQ_UDATA "")
-
 try_compile_dev_or_ops(destroy_qp ""
   "int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata) { return 0; }"
   HAVE_DESTROY_QP_UDATA "")
@@ -282,7 +278,7 @@ struct ib_device_ops ops = {
 
 try_compile_dev_or_ops(destroy_cq ""
   "void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) {}"
-  HAVE_IB_VOID_DESTROY_CQ "")
+  HAVE_IB_VOID_DESTROY_CQ_UDATA "")
 
 try_compile(""
   "
@@ -392,7 +388,7 @@ try_compile_dev_or_ops(destroy_ah ""
 
 try_compile_dev_or_ops(destroy_cq ""
   "int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata) { return 0; }"
-  HAVE_IB_INT_DESTROY_CQ "")
+  HAVE_IB_INT_DESTROY_CQ_UDATA "")
 
 try_compile("#include <rdma/ib_umem.h>"
   "

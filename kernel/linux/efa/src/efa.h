@@ -317,12 +317,10 @@ struct ib_qp *efa_kzalloc_qp(struct ib_pd *ibpd,
 			     struct ib_qp_init_attr *init_attr,
 			     struct ib_udata *udata);
 #endif
-#ifdef HAVE_IB_INT_DESTROY_CQ
+#ifdef HAVE_IB_INT_DESTROY_CQ_UDATA
 int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
-#elif defined(HAVE_IB_VOID_DESTROY_CQ)
+#elif defined(HAVE_IB_VOID_DESTROY_CQ_UDATA)
 void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
-#elif defined(HAVE_DESTROY_CQ_UDATA)
-int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 #else
 int efa_destroy_cq(struct ib_cq *ibcq);
 #endif
