@@ -31,6 +31,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.14.1 release notes
+**Bug fixes**
+* Avoid setting xdp_ring pointer with uninitialized rings
+
 ## r2.14.0 release notes
 **New Features**
 * XDP multi-buffer support
