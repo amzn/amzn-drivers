@@ -313,6 +313,9 @@ void ena_init_io_rings(struct ena_adapter *adapter,
 {
 	struct ena_com_dev *ena_dev;
 	struct ena_ring *txr, *rxr;
+#ifdef ENA_XDP_SUPPORT
+	int xdp_ring_index;
+#endif /* ENA_XDP_SUPPORT */
 	int i;
 
 	ena_dev = adapter->ena_dev;
@@ -356,7 +359,10 @@ void ena_init_io_rings(struct ena_adapter *adapter,
 			rxr->rx_headroom = NET_SKB_PAD;
 			adapter->ena_napi[i].dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
 #ifdef ENA_XDP_SUPPORT
-			rxr->xdp_ring = &adapter->tx_ring[i + adapter->num_io_queues];
+
+			xdp_ring_index = i + adapter->num_io_queues;
+			if (xdp_ring_index < adapter->max_num_io_queues)
+				rxr->xdp_ring = &adapter->tx_ring[xdp_ring_index];
 #endif
 		}
 	}
