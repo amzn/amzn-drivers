@@ -103,22 +103,6 @@ try_compile("" "struct ib_cq_init_attr attr;" HAVE_CREATE_CQ_ATTR "")
 
 try_compile("" "struct rdma_ah_attr attr;" HAVE_CREATE_AH_RDMA_ATTR "")
 
-try_compile(""
-  "
-struct device dev = {
-  .dma_ops = NULL,
-};
-  "
-  HAVE_DEV_PARENT "")
-
-try_compile(""
-  "
-struct device_rh dev = {
-  .dma_ops = NULL,
-};
-  "
-  HAVE_DEV_PARENT "")
-
 try_compile_dev_or_ops(post_send ""
   "
 int efa_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr, const struct ib_send_wr **bad_wr)
@@ -300,8 +284,6 @@ try_compile(""
   "int a = IB_PORT_PHYS_STATE_LINK_UP;"
   HAVE_IB_PORT_PHYS_STATE_LINK_UP "")
 
-try_compile("#include <linux/mm.h>" "kvzalloc(0, 0);" HAVE_KVZALLOC "")
-
 try_compile(""
   "
 struct ib_device *dev;
@@ -318,8 +300,6 @@ ibdev_err(dev, \"World\");
 
 try_compile("" "int a = IB_QPT_DRIVER;" HAVE_IB_QPT_DRIVER "")
 
-try_compile("" "ib_is_udata_cleared(NULL, 0, 0);" HAVE_IB_IS_UDATA_CLEARED "")
-
 try_compile(""
   "
 struct ib_device dev = {
@@ -327,14 +307,6 @@ struct ib_device dev = {
 };
   "
   HAVE_DRIVER_ID "")
-
-try_compile(""
-  "
-struct ib_mr mr = {
-  .length = 0,
-};
-  "
-  HAVE_IB_MR_LENGTH "")
 
 try_compile(""
   "
@@ -359,8 +331,6 @@ rdma_user_mmap_io(NULL, NULL, 0, 0, pgt, NULL);
 
 try_compile("" "int a = RDMA_NODE_UNSPECIFIED;" HAVE_RDMA_NODE_UNSPECIFIED "")
 
-try_compile("#include <linux/bitfield.h>" "" HAVE_BITFIELD_H "")
-
 try_compile("#include <rdma/ib_umem.h>"
   "
 struct ib_device *dev;
@@ -375,8 +345,6 @@ try_compile("" "struct rdma_ah_init_attr ah_attr;" HAVE_CREATE_AH_INIT_ATTR "")
 try_compile_dev_or_ops(alloc_mr ""
   "struct ib_mr *efa_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type, u32 max_num_sg, struct ib_udata *udata) { return NULL; }"
   HAVE_ALLOC_MR_UDATA "")
-
-try_compile("" "atomic64_fetch_inc(NULL);" HAVE_ATOMIC64_FETCH_INC "")
 
 try_compile_dev_or_ops(dealloc_pd ""
   "int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata) { return 0; }"

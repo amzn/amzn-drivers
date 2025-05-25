@@ -6,9 +6,7 @@
 #ifndef _EFA_COMMON_H_
 #define _EFA_COMMON_H_
 
-#ifdef HAVE_BITFIELD_H
 #include <linux/bitfield.h>
-#endif
 
 #define EFA_COMMON_SPEC_VERSION_MAJOR        2
 #define EFA_COMMON_SPEC_VERSION_MINOR        0

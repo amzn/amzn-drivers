@@ -587,11 +587,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.node_guid = dev->dev_attr.guid;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = dev->neqs ?: 1;
-#ifdef HAVE_DEV_PARENT
 	dev->ibdev.dev.parent = &pdev->dev;
-#else
-	dev->ibdev.dma_device = &pdev->dev;
-#endif
 
 #ifndef HAVE_UVERBS_CMD_MASK_NOT_NEEDED
 	dev->ibdev.uverbs_cmd_mask |=

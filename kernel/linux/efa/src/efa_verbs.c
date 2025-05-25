@@ -2575,9 +2575,7 @@ skip_umem_pg_sz:
 
 	mr->ibmr.lkey = result.l_key;
 	mr->ibmr.rkey = result.r_key;
-#ifdef HAVE_IB_MR_LENGTH
 	mr->ibmr.length = length;
-#endif
 #ifndef HAVE_IB_MR_TYPE
 	mr->type = IB_MR_TYPE_USER;
 #endif
@@ -2761,9 +2759,7 @@ struct ib_mr *efa_get_dma_mr(struct ib_pd *ibpd, int access_flags)
 
 	mr->ibmr.lkey = result.l_key;
 	mr->ibmr.rkey = result.r_key;
-#ifdef HAVE_IB_MR_LENGTH
 	mr->ibmr.length = length;
-#endif
 #ifndef HAVE_IB_MR_TYPE
 	mr->type = IB_MR_TYPE_DMA;
 #endif
