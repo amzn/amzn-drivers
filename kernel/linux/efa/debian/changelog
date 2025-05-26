@@ -1,3 +1,10 @@
+efa (2.15.1-1.amzn1) unstable; urgency=medium
+  * Cleanup destroy CQ kernel compatibility
+  * Remove backports for kernels older than 4.14
+  * Fix support for RHEL 9.6 compatibility
+
+ -- Yonatan Nachum <ynachum@amazon.com>  Mon, 26 May 2025 07:16:41 +0000
+
 efa (2.15.0-1.amzn1) unstable; urgency=medium
   * Fix page size optimization for large physically contiguous MRs
   * Cleanup interrupt related code

@@ -3,6 +3,11 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.15.1 release notes
+* Cleanup destroy CQ kernel compatibility
+* Remove backports for kernels older than 4.14
+* Fix support for RHEL 9.6 compatibility
+
 ## r2.15.0 release notes
 * Fix page size optimization for large physically contiguous MRs
 * Cleanup interrupt related code
