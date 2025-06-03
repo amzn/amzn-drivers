@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2023-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
 
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.10)
 project(efa_nv_peermem C)
 
 set(KERNEL_VER "" CACHE STRING "Kernel version to build for")
