@@ -100,6 +100,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Tue Jun 03 2025 Yonatan Nachum <ynachum@amazon.com> - 2.15.2
+- Fix cmake 4.0 compatibility failure
+
 * Mon May 26 2025 Yonatan Nachum <ynachum@amazon.com> - 2.15.1
 - Cleanup destroy CQ kernel compatibility
 - Remove backports for kernels older than 4.14

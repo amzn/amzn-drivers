@@ -1,3 +1,8 @@
+efa (2.15.2-1.amzn1) unstable; urgency=medium
+  * Fix cmake 4.0 compatibility failure
+
+ -- Yonatan Nachum <ynachum@amazon.com>  Tue, 03 Jun 2025 09:35:06 +0000
+
 efa (2.15.1-1.amzn1) unstable; urgency=medium
   * Cleanup destroy CQ kernel compatibility
   * Remove backports for kernels older than 4.14
