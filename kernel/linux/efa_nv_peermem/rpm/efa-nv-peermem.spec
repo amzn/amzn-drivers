@@ -71,6 +71,10 @@ install -m 644 Kbuild.in				%{buildroot}%{install_path}/src
 /etc/modules-load.d/efa_nv_peermem.conf
 
 %changelog
+* Tue Jun 03 2025 Yonatan Nachum <ynachum@amazon.com> - 1.2.0
+- Fix cmake 4.0 compatibility failure
+- Add interface definitions header
+
 * Thu Feb 15 2024 Michael Margolin <mrgolin@amazon.com> - 1.1.1
 - Reduce build process output to stdout
 

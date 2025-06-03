@@ -3,7 +3,7 @@
 set -e
 
 NAME=efa-nv-peermem
-DRIVER_VERSION=1.1.1
+DRIVER_VERSION=1.2.0
 
 dkms remove -m ${NAME} -v ${DRIVER_VERSION} --all
 

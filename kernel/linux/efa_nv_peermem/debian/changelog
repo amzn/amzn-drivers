@@ -1,3 +1,9 @@
+efa-nv-peermem (1.2.0-1.amzn1) unstable; urgency=medium
+  * Fix cmake 4.0 compatibility failure
+  * Add interface definitions header
+
+ -- Yonatan Nachum <ynachum@amazon.com>  Tue, 03 Jun 2025 11:24:52 +0000
+
 efa-nv-peermem (1.1.1-1.amzn1) unstable; urgency=medium
   * Reduce build process output to stdout
 
