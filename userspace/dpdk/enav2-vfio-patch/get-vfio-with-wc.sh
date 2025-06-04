@@ -32,6 +32,9 @@ function err {
 	bold "${RED}ERROR: ${@}"
 }
 
+function red {
+	bold "${RED}${@}"
+}
 function green {
 	bold "${GREEN}${@}"
 }
@@ -75,7 +78,8 @@ function download_kernel_src_apt {
 
 	bold "\nDownload Linux kernel source with vfio"
 	if ! apt-get -q -y source linux-image-unsigned-$(uname -r); then
-		err "Cannot download Linux kernel source.\nPlease uncomment appropriate 'deb-src' line in the /etc/apt/sources.list file"
+		err "Cannot download Linux kernel source"
+		red "Uncomment relevant 'deb-src' line in /etc/apt/sources.list or add it into relevant file in /etc/apt/sources.list.d"
 		exit 1
 	fi
 	green Done
@@ -115,9 +119,15 @@ function apply_wc_patch {
 		exit 1
 	fi
 
-	if ! patch --ignore-whitespace -p1 < "${wc_patch}"; then
-		err "Cannot apply patch: ${wc_patch}!"
-		exit 1
+	# Run the patch and capture output
+	PATCH_OUTPUT=$(patch --ignore-whitespace -p1 < "${wc_patch}" 2>&1 || true)
+	echo "$PATCH_OUTPUT"
+
+	# Exit with failure if any patch hunk (section) failed
+	FAILED_HUNKS=$(echo "$PATCH_OUTPUT" | grep -c "Hunk #[0-9]\+ FAILED" || true)
+	if [ "$FAILED_HUNKS" -gt 0 ]; then
+    		err "Patch ${wc_patch} failed: $FAILED_HUNKS patch hunks did not apply."
+    		exit 1
 	fi
 }
 
