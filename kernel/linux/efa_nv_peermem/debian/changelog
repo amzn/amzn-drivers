@@ -1,3 +1,9 @@
+efa-nv-peermem (1.2.1-1.amzn1) unstable; urgency=medium
+  * Fix cmake dependency on Amazon Linux 2
+  * Fix Nvidia DKMS dependency
+
+ -- Michael Margolin <mrgolin@amazon.com>  Wed, 04 Jun 2025 13:04:31 +0000
+
 efa-nv-peermem (1.2.0-1.amzn1) unstable; urgency=medium
   * Fix cmake 4.0 compatibility failure
   * Add interface definitions header
