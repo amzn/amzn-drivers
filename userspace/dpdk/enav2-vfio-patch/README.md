@@ -38,7 +38,6 @@ Script was tested on:
 - Amazon Linux 2 AMI (HVM), SSD Volume Type - ami-0bb3fad3c0286ebd5
 - Amazon Linux AMI 2018.03.0 (HVM), SSD Volume Type - ami-015232c01a82b847b
 - Red Hat Enterprise Linux 8 (HVM), SSD Volume Type - ami-08f4717d06813bf00
-- Ubuntu Server 24.04 LTS (HVM), SSD Volume Type - ami-084568db4383264d4
 - Ubuntu Server 20.04 LTS (HVM), SSD Volume Type - ami-06fd8a495a537da8b
 - Ubuntu Server 18.04 LTS (HVM), SSD Volume Type - ami-0823c236601fef765
 
