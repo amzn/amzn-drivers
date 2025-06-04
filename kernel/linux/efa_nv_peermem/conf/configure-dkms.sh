@@ -21,7 +21,13 @@ if [ $nvidia_path ]; then
 	fi
 fi
 
+if hash cmake3 2>/dev/null; then
+    CMAKE=cmake3
+else
+    CMAKE=cmake
+fi
+
 mkdir -p build
 pushd build
-cmake -DKERNEL_VER=$kernelver $extra_flags ..
+$CMAKE -DKERNEL_VER=$kernelver $extra_flags ..
 popd

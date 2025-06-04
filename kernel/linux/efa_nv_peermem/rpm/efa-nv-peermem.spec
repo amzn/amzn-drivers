@@ -1,4 +1,4 @@
-# Copyright 2023-2024 Amazon.com, Inc. or its affiliates. All rights reserved
+# Copyright 2023-2025 Amazon.com, Inc. or its affiliates. All rights reserved
 
 %define name			efa-nv-peermem
 %define driver_name		efa_nv_peermem
@@ -23,6 +23,10 @@ Requires: %kernel_module_package_buildreqs
 # dependency so that our install does not break.
 %if 0%{?rhel} >= 8
 Requires: libarchive >= 3.3.3
+%endif
+
+%if 0%{?amzn} == 2
+Requires: cmake3
 %endif
 
 %define install_path /usr/src/%{name}-%{version}

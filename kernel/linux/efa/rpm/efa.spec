@@ -1,4 +1,4 @@
-# Copyright 2019-2024 Amazon.com, Inc. or its affiliates. All rights reserved
+# Copyright 2019-2025 Amazon.com, Inc. or its affiliates. All rights reserved
 
 %define name			efa
 %define driver_name		efa
@@ -20,6 +20,10 @@ Requires:	dkms %kernel_module_package_buildreqs cmake
 # dependency so that our install does not break.
 %if 0%{?rhel} >= 8
 Requires: libarchive >= 3.3.3
+%endif
+
+%if 0%{?amzn} == 2
+Requires: cmake3
 %endif
 
 # Replace the compile time dependency efa-gdr package
