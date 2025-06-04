@@ -1,3 +1,8 @@
+efa (2.15.3-1.amzn1) unstable; urgency=medium
+  * Fix cmake dependency on Amazon Linux 2
+
+ -- Michael Margolin <mrgolin@amazon.com>  Wed, 04 Jun 2025 13:05:57 +0000
+
 efa (2.15.2-1.amzn1) unstable; urgency=medium
   * Fix cmake 4.0 compatibility failure
 

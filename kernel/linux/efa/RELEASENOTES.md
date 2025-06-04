@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.15.3 release notes
+* Fix cmake dependency on Amazon Linux 2
+
 ## r2.15.2 release notes
 * Fix cmake 4.0 compatibility failure
 

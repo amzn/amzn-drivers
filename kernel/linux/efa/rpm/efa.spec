@@ -104,6 +104,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Jun 04 2025 Michael Margolin <mrgolin@amazon.com> - 2.15.3
+- Fix cmake dependency on Amazon Linux 2
+
 * Tue Jun 03 2025 Yonatan Nachum <ynachum@amazon.com> - 2.15.2
 - Fix cmake 4.0 compatibility failure
 
