@@ -2132,13 +2132,11 @@ static void ena_disable_io_intr_sync(struct ena_adapter *adapter)
 		synchronize_irq(adapter->irq_tbl[i].vector);
 }
 
-static void ena_del_napi_in_range(struct ena_adapter *adapter,
-				  int first_index,
-				  int count)
+static void ena_del_napi(struct ena_adapter *adapter, int count)
 {
 	int i;
 
-	for (i = first_index; i < first_index + count; i++) {
+	for (i = 0; i < count; i++) {
 #ifdef ENA_BUSY_POLL_SUPPORT
 		napi_hash_del(&adapter->ena_napi[i].napi);
 #endif /* ENA_BUSY_POLL_SUPPORT */
@@ -2156,13 +2154,12 @@ static void ena_del_napi_in_range(struct ena_adapter *adapter,
 #endif /* ENA_BUSY_POLL_SUPPORT */
 }
 
-static void ena_init_napi_in_range(struct ena_adapter *adapter,
-				   int first_index, int count)
+static void ena_init_napi(struct ena_adapter *adapter, int count)
 {
 	int (*napi_handler)(struct napi_struct *napi, int budget);
 	int i;
 
-	for (i = first_index; i < first_index + count; i++) {
+	for (i = 0; i < count; i++) {
 		struct ena_napi *napi = &adapter->ena_napi[i];
 		struct ena_ring *rx_ring, *tx_ring;
 
@@ -2196,14 +2193,12 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 }
 
 #ifdef ENA_BUSY_POLL_SUPPORT
-static void ena_napi_disable_in_range(struct ena_adapter *adapter,
-				      int first_index,
-				      int count)
+static void ena_napi_disable(struct ena_adapter *adapter, int count)
 {
 	struct ena_ring *rx_ring;
 	int i, timeout;
 
-	for (i = first_index; i < first_index + count; i++) {
+	for (i = 0; i < count; i++) {
 		napi_disable(&adapter->ena_napi[i].napi);
 
 		rx_ring = &adapter->rx_ring[i];
@@ -2223,14 +2218,12 @@ static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 	}
 }
 #else
-static void ena_napi_disable_in_range(struct ena_adapter *adapter,
-				      int first_index,
-				      int count)
+static void ena_napi_disable(struct ena_adapter *adapter, int count)
 {
 	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++) {
+	for (i = 0; i < count; i++) {
 		napi = &adapter->ena_napi[i].napi;
 #ifdef ENA_NAPI_IRQ_AND_QUEUE_ASSOC
 		if (!ENA_IS_XDP_INDEX(adapter, i)) {
@@ -2247,14 +2240,12 @@ static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 }
 #endif
 
-static void ena_napi_enable_in_range(struct ena_adapter *adapter,
-				     int first_index,
-				     int count)
+static void ena_napi_enable(struct ena_adapter *adapter, int count)
 {
 	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++) {
+	for (i = 0; i < count; i++) {
 		napi = &adapter->ena_napi[i].napi;
 		napi_enable(napi);
 #ifdef ENA_NAPI_IRQ_AND_QUEUE_ASSOC
@@ -2339,9 +2330,8 @@ static int ena_up_complete(struct ena_adapter *adapter)
 	/* enable transmits */
 	netif_tx_start_all_queues(adapter->netdev);
 
-	ena_napi_enable_in_range(adapter,
-				 0,
-				 adapter->xdp_num_queues + adapter->num_io_queues);
+	ena_napi_enable(adapter,
+			adapter->xdp_num_queues + adapter->num_io_queues);
 
 	return 0;
 }
@@ -2630,7 +2620,7 @@ int ena_up(struct ena_adapter *adapter)
 	 * interrupt, causing the ISR to fire immediately while the poll
 	 * function wasn't set yet, causing a null dereference
 	 */
-	ena_init_napi_in_range(adapter, 0, io_queue_count);
+	ena_init_napi(adapter, io_queue_count);
 
 	/* If the device stopped supporting interrupt moderation, need
 	 * to disable adaptive interrupt moderation.
@@ -2697,7 +2687,7 @@ err_up:
 err_create_queues_with_backoff:
 	ena_free_io_irq(adapter);
 err_req_irq:
-	ena_del_napi_in_range(adapter, 0, io_queue_count);
+	ena_del_napi(adapter, io_queue_count);
 
 	return rc;
 }
@@ -2717,7 +2707,7 @@ void ena_down(struct ena_adapter *adapter)
 	netif_tx_disable(adapter->netdev);
 
 	/* After this point the napi handler won't enable the tx queue */
-	ena_napi_disable_in_range(adapter, 0, io_queue_count);
+	ena_napi_disable(adapter, io_queue_count);
 
 	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags)) {
 		int rc;
@@ -2734,7 +2724,7 @@ void ena_down(struct ena_adapter *adapter)
 
 	ena_disable_io_intr_sync(adapter);
 	ena_free_io_irq(adapter);
-	ena_del_napi_in_range(adapter, 0, io_queue_count);
+	ena_del_napi(adapter, io_queue_count);
 
 	ena_free_all_tx_bufs(adapter);
 	ena_free_all_rx_bufs(adapter);
