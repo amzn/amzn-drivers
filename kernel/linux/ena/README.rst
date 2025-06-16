@@ -940,6 +940,27 @@ pair) zero copy, its index should meet the following criteria:
 Both the currently configured channels and the maximum available for the instance can be queried
 using :code:`ethtool -l`.
 
+Hardware Packet Timestamping
+============================
+.. _`packet timestamping linux documentation`: https://www.kernel.org/doc/html/latest/networking/timestamping.html
+
+ENA driver supports packet timestamping. The feature is available on all ENIs.
+
+The feature is disabled by default, for utilization,
+please consult with `packet timestamping linux documentation`_.
+
+In order to check the supported HW configuration, please use :code:`ethtool -T`.
+
+In order to check the active configuration (set by the user), please use the method
+described in `packet timestamping linux documentation`_ or through sysfs:
+
+.. code-block:: shell
+
+  cat /sys/bus/pci/devices/<domain:bus:slot.function>/hw_packet_timestamping_state
+
+Please note that controlling (enable/disable) HW packet timestamping causes a momentary
+disruption in networking due to reconfiguration.
+
 Useful links
 ============
 .. _`EC2 Nitro instance types`: https://docs.aws.amazon.com/ec2/latest/instancetypes/ec2-nitro-instances.html

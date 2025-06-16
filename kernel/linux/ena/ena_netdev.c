@@ -97,6 +97,7 @@ MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
 static void check_for_admin_com_state(struct ena_adapter *adapter);
+int ena_configure_hw_timestamping(struct ena_adapter *adapter);
 static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
 				 struct ena_adapter *adapter);
 
@@ -1027,11 +1028,23 @@ int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
 	return handle_invalid_req_id(tx_ring, req_id, tx_info);
 }
 
+static inline bool ena_hw_tx_timestamp_requested(struct ena_adapter *adapter)
+{
+	return adapter->hw_ts_state.ts_cfg.tx_type == HWTSTAMP_TX_ON;
+}
+
+static inline bool ena_hw_rx_timestamp_requested(struct ena_adapter *adapter)
+{
+	return adapter->hw_ts_state.ts_cfg.rx_filter == HWTSTAMP_FILTER_ALL;
+}
+
 static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 {
+	struct skb_shared_hwtstamps tx_hw_timestamp = {};
 	u32 total_done = 0, tx_bytes = 0;
 	u16 req_id, next_to_clean;
 	struct netdev_queue *txq;
+	u64 hw_timestamp = 0;
 	int rc, tx_pkts = 0;
 	bool above_thresh;
 
@@ -1042,8 +1055,9 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 		struct ena_tx_buffer *tx_info;
 		struct sk_buff *skb;
 
-		rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq,
-						&req_id);
+		rc = ena_com_tx_comp_metadata_get(tx_ring->ena_com_io_cq,
+						  &req_id,
+						  &hw_timestamp);
 		if (rc) {
 			handle_tx_comp_poll_error(tx_ring, req_id, rc);
 			break;
@@ -1071,6 +1085,12 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 
 		tx_bytes += tx_info->total_tx_size;
 		tx_info->total_tx_size = 0;
+
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
+			tx_hw_timestamp.hwtstamp = ns_to_ktime(hw_timestamp);
+			skb_tstamp_tx(skb, &tx_hw_timestamp);
+		}
+
 		dev_kfree_skb(skb);
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
@@ -1592,6 +1612,9 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		ena_set_rx_hash(rx_ring, &ena_rx_ctx, skb);
 
 		skb_record_rx_queue(skb, rx_ring->qid);
+
+		if (unlikely(ena_hw_rx_timestamp_requested(rx_ring->adapter)))
+			skb_hwtstamps(skb)->hwtstamp = ns_to_ktime(ena_rx_ctx.timestamp);
 
 		if ((rx_ring->ena_bufs[0].len <= rx_ring->rx_copybreak) &&
 		    likely(ena_rx_ctx.descs == 1))
@@ -3225,6 +3248,10 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
+		     ena_hw_tx_timestamp_requested(tx_ring->adapter)))
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
 	skb_tx_timestamp(skb);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
@@ -3567,6 +3594,213 @@ static int ena_rx_flow_steer(struct net_device *dev,
 }
 
 #endif /* CONFIG_RFS_ACCEL */
+int ena_configure_hw_timestamping(struct ena_adapter *adapter)
+{
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	u8 tx_hw_support, rx_hw_support;
+	u8 tx_enable, rx_enable;
+	int rc;
+
+	if (!ena_com_hw_timestamping_supported(ena_dev)) {
+		netdev_dbg(adapter->netdev, "HW timestamping is not supported\n");
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	tx_enable = ena_hw_tx_timestamp_requested(adapter);
+	rx_enable = ena_hw_rx_timestamp_requested(adapter);
+
+	tx_hw_support = (adapter->hw_ts_state.hw_tx_supported ==
+			 ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_ALL);
+	rx_hw_support = (adapter->hw_ts_state.hw_rx_supported ==
+			 ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_ALL);
+
+	/* Check for configuration mismatch */
+	if ((tx_enable && !tx_hw_support) || (rx_enable && !rx_hw_support)) {
+		netdev_err(adapter->netdev,
+			   "HW timestamping configuration mismatch. TX/RX req: %d/%d, TX/RX supp: %d/%d\n",
+			   tx_enable, rx_enable,
+			   tx_hw_support, rx_hw_support);
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rc = ena_com_set_hw_timestamping_configuration(ena_dev,
+						       tx_enable,
+						       rx_enable);
+	if (rc) {
+		netdev_err(adapter->netdev,
+			   "Failed to set HW timestamping configuration, error: %d\n",
+			   rc);
+		goto out;
+	}
+
+	ena_dev->use_extended_tx_cdesc = tx_enable;
+	ena_dev->use_extended_rx_cdesc = rx_enable;
+
+	return 0;
+
+out:
+	/* In case of failure, set requested configuration to off/none.
+	 * Also remove the need to use extended completion descriptors.
+	 */
+	adapter->hw_ts_state.ts_cfg.tx_type = HWTSTAMP_TX_OFF;
+	adapter->hw_ts_state.ts_cfg.rx_filter = HWTSTAMP_FILTER_NONE;
+
+	adapter->ena_dev->use_extended_tx_cdesc = false;
+	adapter->ena_dev->use_extended_rx_cdesc = false;
+
+	return rc;
+}
+
+static int ena_set_timestamp_config_internal(struct ena_adapter *adapter,
+					     struct hwtstamp_config *config)
+{
+	int rc_ts, rc = 0;
+	bool dev_was_up;
+
+	if (!ena_com_hw_timestamping_supported(adapter->ena_dev)) {
+		netdev_err(adapter->netdev, "HW timestamping is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	switch (config->tx_type) {
+	case HWTSTAMP_TX_OFF:
+	case HWTSTAMP_TX_ON:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (config->rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+#ifdef ENA_HAVE_HWTSTAMP_FILTER_NTP_ALL
+	case HWTSTAMP_FILTER_NTP_ALL:
+#endif /* ENA_HAVE_HWTSTAMP_FILTER_NTP_ALL */
+	case HWTSTAMP_FILTER_ALL:
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	/* Store the configuration internally */
+	memcpy(&adapter->hw_ts_state.ts_cfg,
+	       config,
+	       sizeof(adapter->hw_ts_state.ts_cfg));
+
+	dev_was_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
+	ena_close(adapter->netdev);
+
+	/* Needs to be called before queues are created in ena_up().
+	 * In case the procedure fails, return to default configuration and
+	 * continue with driver initialization.
+	 */
+	rc_ts = ena_configure_hw_timestamping(adapter);
+
+	if (dev_was_up)
+		rc = ena_up(adapter);
+
+	return rc_ts ? rc_ts : rc;
+}
+
+static int ena_set_timestamp_config(struct ena_adapter *adapter, struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	int rc;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	rc = ena_set_timestamp_config_internal(adapter, &config);
+	if (rc) {
+		netdev_err(adapter->netdev,
+			   "Unable to set HW timestamp configuration, error = %d\n",
+			   rc);
+		return rc;
+	}
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
+}
+
+#ifdef SIOCGHWTSTAMP
+static int ena_get_timestamp_config(struct ena_adapter *adapter, struct ifreq *ifr)
+{
+	if (!ena_com_hw_timestamping_supported(adapter->ena_dev))
+		return -EOPNOTSUPP;
+
+	return copy_to_user(ifr->ifr_data, &adapter->hw_ts_state.ts_cfg,
+			    sizeof(adapter->hw_ts_state.ts_cfg)) ? -EFAULT : 0;
+}
+
+#endif /* SIOCGHWTSTAMP */
+static int ena_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct ena_adapter *adapter = netdev_priv(dev);
+
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return ena_set_timestamp_config(adapter, ifr);
+#ifdef SIOCGHWTSTAMP
+	case SIOCGHWTSTAMP:
+		return ena_get_timestamp_config(adapter, ifr);
+#endif /* SIOCGHWTSTAMP */
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+#ifdef ENA_HAVE_NDO_HWTSTAMP
+static int ena_hwtstamp_get(struct net_device *dev,
+			    struct kernel_hwtstamp_config *kernel_config)
+{
+	struct ena_adapter *adapter = netdev_priv(dev);
+
+	if (!ena_com_hw_timestamping_supported(adapter->ena_dev))
+		return -EOPNOTSUPP;
+
+	kernel_config->flags = 0;
+	kernel_config->tx_type = adapter->hw_ts_state.ts_cfg.tx_type;
+	kernel_config->rx_filter = adapter->hw_ts_state.ts_cfg.rx_filter;
+
+	return 0;
+}
+
+static int ena_hwtstamp_set(struct net_device *dev,
+			    struct kernel_hwtstamp_config *kernel_config,
+			    struct netlink_ext_ack *extack)
+{
+	struct ena_adapter *adapter = netdev_priv(dev);
+	struct hwtstamp_config config;
+	int rc;
+
+	config.flags = 0;
+	config.tx_type = kernel_config->tx_type;
+	config.rx_filter = kernel_config->rx_filter;
+
+	rc = ena_set_timestamp_config_internal(adapter, &config);
+	if (rc)
+		netdev_err(adapter->netdev,
+			   "Unable to set HW timestamp configuration, error: %d\n",
+			   rc);
+
+	return rc;
+}
+
+#endif /* ENA_HAVE_NDO_HWTSTAMP */
 static const struct net_device_ops ena_netdev_ops = {
 	.ndo_open		= ena_open,
 	.ndo_stop		= ena_close,
@@ -3599,6 +3833,15 @@ static const struct net_device_ops ena_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= ena_rx_flow_steer,
 #endif /* CONFIG_RFS_ACCEL */
+#ifdef ENA_HAVE_NDO_ETH_IOCTL
+	.ndo_eth_ioctl		= ena_ioctl,
+#else
+	.ndo_do_ioctl		= ena_ioctl,
+#endif /* ENA_HAVE_NDO_ETH_IOCTL */
+#ifdef ENA_HAVE_NDO_HWTSTAMP
+	.ndo_hwtstamp_get	= ena_hwtstamp_get,
+	.ndo_hwtstamp_set	= ena_hwtstamp_set
+#endif /* ENA_HAVE_NDO_HWTSTAMP */
 };
 
 static int ena_calc_io_queue_size(struct ena_adapter *adapter,
@@ -3981,8 +4224,17 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 		goto err_admin_init;
 	}
 
+	rc = ena_com_get_hw_timestamping_support(ena_dev, &adapter->hw_ts_state.hw_tx_supported,
+						 &adapter->hw_ts_state.hw_rx_supported);
+	if (unlikely(rc && (rc != -EOPNOTSUPP))) {
+		netdev_err(netdev, "Failed to get HW timestamping support, error: %d\n", rc);
+		goto err_phc_destroy;
+	}
+
 	return 0;
 
+err_phc_destroy:
+	ena_phc_destroy(adapter);
 err_admin_init:
 	ena_com_abort_admin_commands(ena_dev);
 	ena_com_wait_for_abort_completion(ena_dev);
@@ -4123,6 +4375,13 @@ int ena_restore_device(struct ena_adapter *adapter)
 		goto err_disable_msix;
 	}
 
+	/* Restore HW packet timestamp configuration, if requested */
+	rc = ena_configure_hw_timestamping(adapter);
+	if (rc && (rc != -EOPNOTSUPP)) {
+		dev_err(&pdev->dev, "Failed to restore HW timestamping configuration\n");
+		goto err_disable_msix;
+	}
+
 	/* If the interface was up before the reset bring it up */
 	if (adapter->dev_up_before_reset) {
 		rc = ena_up(adapter);
@@ -4212,10 +4471,13 @@ static enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter 
 							     struct ena_ring *tx_ring)
 {
 	struct net_device *netdev = adapter->netdev;
+	u64 hw_timestamp = 0;
 	u16 req_id;
 	int rc;
 
-	rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq, &req_id);
+	rc = ena_com_tx_comp_metadata_get(tx_ring->ena_com_io_cq,
+					  &req_id,
+					  &hw_timestamp);
 
 	/* TX CQ is empty */
 	if (rc == -EAGAIN) {
@@ -4987,6 +5249,10 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Cannot init Flow steering rules rc: %d\n", rc);
 		goto err_rss;
 	}
+
+	/* Default requested configuration as disabled */
+	adapter->hw_ts_state.ts_cfg.tx_type = HWTSTAMP_TX_OFF;
+	adapter->hw_ts_state.ts_cfg.rx_filter = HWTSTAMP_FILTER_NONE;
 
 #ifdef ENA_HAVE_NETDEV_XDP_FEATURES
 	if (ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))

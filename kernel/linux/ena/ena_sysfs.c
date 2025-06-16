@@ -124,6 +124,49 @@ static ssize_t ena_large_llq_show(struct device *dev,
 static DEVICE_ATTR(large_llq_header, S_IRUGO | S_IWUSR, ena_large_llq_show,
 		   ena_large_llq_set);
 
+/* Enough to cover each print string and the value */
+#define ENA_HW_PACKET_TIMESTAMPING_MAX_LEN 32
+static ssize_t ena_hw_packet_timestamping_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct ena_adapter *adapter = dev_get_drvdata(dev);
+	struct hw_timestamp_state *hwpt_state = &adapter->hw_ts_state;
+	int rc = 0, write_rc;
+
+	/* HW configuration */
+	write_rc = snprintf(buf,
+			    ENA_HW_PACKET_TIMESTAMPING_MAX_LEN,
+			    "HW TX support: %u\n",
+			    hwpt_state->hw_tx_supported);
+	buf += write_rc;
+	rc += write_rc;
+	write_rc = snprintf(buf,
+			    ENA_HW_PACKET_TIMESTAMPING_MAX_LEN,
+			    "HW RX support: %u\n",
+			    hwpt_state->hw_rx_supported);
+	buf += write_rc;
+	rc += write_rc;
+
+	/* User configuration */
+	write_rc = snprintf(buf,
+			    ENA_HW_PACKET_TIMESTAMPING_MAX_LEN,
+			    "TX configuration: %u\n",
+			    hwpt_state->ts_cfg.tx_type == HWTSTAMP_TX_ON);
+	buf += write_rc;
+	rc += write_rc;
+	write_rc = snprintf(buf,
+			    ENA_HW_PACKET_TIMESTAMPING_MAX_LEN,
+			    "RX configuration: %u\n",
+			    hwpt_state->ts_cfg.rx_filter == HWTSTAMP_FILTER_ALL);
+	buf += write_rc;
+	rc += write_rc;
+
+	return rc;
+}
+
+static DEVICE_ATTR(hw_packet_timestamping_state, S_IRUGO,
+		   ena_hw_packet_timestamping_show, NULL);
 /******************************************************************************
  *****************************************************************************/
 int ena_sysfs_init(struct device *dev)
@@ -141,6 +184,9 @@ int ena_sysfs_init(struct device *dev)
 
 	if (device_create_file(dev, &dev_attr_large_llq_header))
 		dev_err(dev, "Failed to create large_llq_header sysfs entry");
+
+	if (device_create_file(dev, &dev_attr_hw_packet_timestamping_state))
+		dev_err(dev, "Failed to create hw_packet_timestamping_state sysfs entry");
 	return 0;
 }
 
@@ -153,4 +199,5 @@ void ena_sysfs_terminate(struct device *dev)
 	device_remove_file(dev, &dev_attr_phc_error_bound);
 #endif /* ENA_PHC_SUPPORT */
 	device_remove_file(dev, &dev_attr_large_llq_header);
+	device_remove_file(dev, &dev_attr_hw_packet_timestamping_state);
 }

@@ -490,6 +490,25 @@ static int ena_get_ts_info(struct net_device *netdev,
 
 	info->phc_index = ena_phc_get_index(adapter);
 
+	if (ena_com_hw_timestamping_supported(adapter->ena_dev)) {
+		if (adapter->hw_ts_state.hw_tx_supported !=
+		    ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_NONE) {
+			info->so_timestamping |= SOF_TIMESTAMPING_TX_HARDWARE |
+						 SOF_TIMESTAMPING_RAW_HARDWARE;
+
+			info->tx_types = BIT(HWTSTAMP_TX_OFF) |
+					 BIT(HWTSTAMP_TX_ON);
+		}
+
+		if (adapter->hw_ts_state.hw_rx_supported !=
+		    ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_NONE) {
+			info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE;
+
+			info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+					   BIT(HWTSTAMP_FILTER_ALL);
+		}
+	}
+
 	return 0;
 }
 

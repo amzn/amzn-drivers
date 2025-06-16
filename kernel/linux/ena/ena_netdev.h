@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/net_tstamp.h>
 #ifdef ENA_XDP_SUPPORT
 #include <net/xdp.h>
 #endif
@@ -419,6 +420,12 @@ enum ena_llq_header_size_policy_t {
 	ENA_LLQ_HEADER_SIZE_POLICY_LARGE
 };
 
+struct hw_timestamp_state {
+	struct hwtstamp_config ts_cfg;
+	u8 hw_tx_supported;
+	u8 hw_rx_supported;
+};
+
 /* adapter specific private data structure */
 struct ena_adapter {
 	struct ena_com_dev *ena_dev;
@@ -512,6 +519,8 @@ struct ena_adapter {
 #endif
 	u32 xdp_first_ring;
 	u32 xdp_num_queues;
+
+	struct hw_timestamp_state hw_ts_state;
 };
 
 #define ENA_RESET_STATS_ENTRY(reset_reason, stat) \

@@ -71,6 +71,7 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_HOST_ATTR_CONFIG                  = 28,
 	ENA_ADMIN_PHC_CONFIG                        = 29,
 	ENA_ADMIN_FLOW_STEERING_CONFIG              = 30,
+	ENA_ADMIN_HW_TIMESTAMP                      = 31,
 	ENA_ADMIN_FEATURES_OPCODE_NUM               = 32,
 };
 
@@ -171,6 +172,21 @@ enum ena_admin_ena_srd_flags {
 enum ena_admin_frag_bypass_feature_version {
 	/* Enable only */
 	ENA_ADMIN_FRAG_BYPASS_FEATURE_VERSION_0     = 0,
+};
+
+enum ena_admin_hw_timestamp_feature_version {
+	/* RX only - NONE/All Traffic */
+	ENA_ADMIN_HW_TIMESTAMP_FEATURE_VERSION_1    = 1,
+};
+
+enum ena_admin_hw_timestamp_tx_support {
+	ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_NONE      = 0,
+	ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_ALL       = 1,
+};
+
+enum ena_admin_hw_timestamp_rx_support {
+	ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_NONE      = 0,
+	ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_ALL       = 1,
 };
 
 struct ena_admin_aq_common_desc {
@@ -714,6 +730,29 @@ struct ena_admin_feature_llq_desc {
 	struct ena_admin_accel_mode_req accel_mode;
 };
 
+struct ena_admin_feature_hw_ts_desc {
+	/* HW timestamp version as defined in
+	 * enum ena_admin_hw_timestamp_feature_version,
+	 * used only for GET command as max supported HW timestamp version by
+	 * device.
+	 */
+	u8 version;
+
+	/* TX state
+	 * Used for GET command as device support indication
+	 * Used for SET command as enable/disable
+	 * Supported values from enum ena_admin_hw_timestamp_tx_support
+	 */
+	u8 tx;
+
+	/* RX state
+	 * Used for GET command as device support indication
+	 * Used for SET command as enable/disable
+	 * Supported values from enum ena_admin_hw_timestamp_rx_support
+	 */
+	u8 rx;
+};
+
 struct ena_admin_flow_steering_rule_params {
 	u8 dst_ip[16];
 
@@ -1230,6 +1269,8 @@ struct ena_admin_get_feat_resp {
 
 		struct ena_admin_feature_phc_desc phc;
 
+		struct ena_admin_feature_hw_ts_desc hw_ts;
+
 		struct ena_admin_get_extra_properties_strings_desc extra_properties_strings;
 
 		struct ena_admin_get_extra_properties_flags_desc extra_properties_flags;
@@ -1275,6 +1316,8 @@ struct ena_admin_set_feat_cmd {
 
 		/* Fragment bypass configuration */
 		struct ena_admin_feature_frag_bypass_desc frag_bypass;
+
+		struct ena_admin_feature_hw_ts_desc hw_ts;
 	} u;
 };
 

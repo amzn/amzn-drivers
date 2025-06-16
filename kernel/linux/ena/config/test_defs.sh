@@ -235,3 +235,30 @@ try_compile_async "#include <linux/smp.h>"                      \
                   "ENA_HAVE_SMP_STORE_RELEASE"                  \
                   ""                                            \
                   "3.14.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"         \
+                  "{
+                    struct net_device_ops dev_ops;
+                    dev_ops.ndo_eth_ioctl = NULL;
+                  }"                                     \
+                  "ENA_HAVE_NDO_ETH_IOCTL"               \
+                  ""                                     \
+                  "5.15.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"         \
+                  "{
+                    struct net_device_ops dev_ops;
+                    dev_ops.ndo_hwtstamp_get = NULL;
+                    dev_ops.ndo_hwtstamp_set = NULL;
+                  }"                                     \
+                  "ENA_HAVE_NDO_HWTSTAMP"                \
+                  ""                                     \
+                  "6.6.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/net_tstamp.h>"            \
+                  "{
+                    int rx_filter = HWTSTAMP_FILTER_NTP_ALL;
+                  }"                                         \
+                  "ENA_HAVE_HWTSTAMP_FILTER_NTP_ALL"         \
+                  ""                                         \
+                  "4.13.0 <= LINUX_VERSION_CODE"

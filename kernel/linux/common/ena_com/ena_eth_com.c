@@ -45,6 +45,10 @@ void ena_com_dump_single_rx_cdesc(struct ena_com_io_cq *io_cq,
 			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_LAST_MASK, desc->base.status),
 			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ7_MASK, desc->base.status),
 			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ17_MASK, desc->base.status));
+		if (unlikely(ena_com_is_extended_rx_cdesc(io_cq)))
+			netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
+				   "RX descriptor timestamp %llu",
+				   (u64)desc->timestamp_low | (u64)desc->timestamp_high << 32);
 	}
 }
 
@@ -59,6 +63,10 @@ void ena_com_dump_single_tx_cdesc(struct ena_com_io_cq *io_cq,
 			   desc_arr[1],
 			   FIELD_GET((u32)ENA_ETH_IO_TX_CDESC_PHASE_MASK, desc->base.flags),
 			   FIELD_GET((u32)ENA_ETH_IO_TX_CDESC_MBZ6_MASK, desc->base.flags));
+		if (unlikely(ena_com_is_extended_tx_cdesc(io_cq)))
+			netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
+				   "TX descriptor timestamp %llu",
+				   (u64)desc->timestamp_low | (u64)desc->timestamp_high << 32);
 	}
 }
 
@@ -616,6 +624,10 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 
 	/* Get rx flags from the last pkt */
 	ena_com_rx_set_flags(ena_rx_ctx, cdesc);
+
+	if (unlikely(ena_com_is_extended_rx_cdesc(io_cq)))
+		ena_rx_ctx->timestamp = (u64)cdesc->timestamp_low |
+					(u64)cdesc->timestamp_high << 32;
 
 	netdev_dbg(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
 		   "l3_proto %d l4_proto %d l3_csum_err %d l4_csum_err %d hash %d frag %d cdesc_status %x\n",

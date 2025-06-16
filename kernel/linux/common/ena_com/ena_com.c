@@ -1089,6 +1089,80 @@ static int ena_com_get_feature(struct ena_com_dev *ena_dev,
 				      feature_ver);
 }
 
+bool ena_com_hw_timestamping_supported(struct ena_com_dev *ena_dev)
+{
+	return ena_com_check_supported_feature_id(ena_dev,
+						  ENA_ADMIN_HW_TIMESTAMP);
+}
+
+int ena_com_get_hw_timestamping_support(struct ena_com_dev *ena_dev,
+					u8 *tx_support,
+					u8 *rx_support)
+{
+	struct ena_admin_get_feat_resp get_resp;
+	int ret;
+
+	*tx_support = ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_NONE;
+	*rx_support = ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_NONE;
+
+	if (!ena_com_hw_timestamping_supported(ena_dev)) {
+		netdev_dbg(ena_dev->net_device, "HW timestamping is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	ret = ena_com_get_feature(ena_dev,
+				  &get_resp,
+				  ENA_ADMIN_HW_TIMESTAMP,
+				  ENA_ADMIN_HW_TIMESTAMP_FEATURE_VERSION_1);
+
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to get HW timestamp configuration, error: %d\n", ret);
+		return ret;
+	}
+
+	*tx_support = get_resp.u.hw_ts.tx;
+	*rx_support = get_resp.u.hw_ts.rx;
+
+	return 0;
+}
+
+int ena_com_set_hw_timestamping_configuration(struct ena_com_dev *ena_dev,
+					      u8 tx_enable,
+					      u8 rx_enable)
+{
+	struct ena_admin_set_feat_resp resp;
+	struct ena_admin_set_feat_cmd cmd;
+	int ret;
+
+	if (!ena_com_hw_timestamping_supported(ena_dev)) {
+		netdev_dbg(ena_dev->net_device, "HW timestamping is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&cmd, 0x0, sizeof(cmd));
+
+	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
+	cmd.feat_common.feature_id = ENA_ADMIN_HW_TIMESTAMP;
+	cmd.u.hw_ts.tx = tx_enable ? ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_ALL :
+				     ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_NONE;
+	cmd.u.hw_ts.rx = rx_enable ? ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_ALL :
+				     ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_NONE;
+
+	ret = ena_com_execute_admin_command(&ena_dev->admin_queue,
+					    (struct ena_admin_aq_entry *)&cmd,
+					    sizeof(cmd),
+					    (struct ena_admin_acq_entry *)&resp,
+					    sizeof(resp));
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to set HW timestamping configuration, error: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int ena_com_get_current_hash_function(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->rss.hash_func;

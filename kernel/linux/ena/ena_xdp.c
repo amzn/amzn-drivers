@@ -672,6 +672,7 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 	u16 next_to_clean, req_id;
 	int rc, tx_pkts = 0;
 	u32 total_done = 0;
+	u64 hw_timestamp;
 
 	next_to_clean = tx_ring->next_to_clean;
 
@@ -679,8 +680,9 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 		struct ena_tx_buffer *tx_info;
 		struct xdp_frame *xdpf;
 
-		rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq,
-						&req_id);
+		rc = ena_com_tx_comp_metadata_get(tx_ring->ena_com_io_cq,
+						  &req_id,
+						  &hw_timestamp);
 		if (rc) {
 			handle_tx_comp_poll_error(tx_ring, req_id, rc);
 			break;
@@ -730,14 +732,16 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
 	int rc, cleaned_pkts, zc_pkts, acked_pkts;
 	struct ena_tx_buffer *tx_info;
+	u64 hw_timestamp;
 	u32 total_done;
 	u16 req_id;
 
 	acked_pkts = 0;
 
 	while (acked_pkts < budget) {
-		rc = ena_com_tx_comp_req_id_get(tx_ring->ena_com_io_cq,
-						&req_id);
+		rc = ena_com_tx_comp_metadata_get(tx_ring->ena_com_io_cq,
+						  &req_id,
+						  &hw_timestamp);
 		if (rc) {
 			handle_tx_comp_poll_error(tx_ring, req_id, rc);
 			break;
