@@ -691,7 +691,7 @@ PHC get time requests should be within reasonable bounds,
 avoid excessive utilization to ensure optimal performance and efficiency.
 The ENA device restricts the frequency of PHC get time requests to a maximum
 of 125 requests per second. If this limit is surpassed, the get time request
-will fail, leading to an increment in the phc_err statistic.
+will fail, leading to an increment in the phc_err_ts statistic.
 
 **PHC error bound**
 
@@ -713,25 +713,27 @@ sysfs:
 
 **PHC statistics**
 
-PHC can be monitored using :code:`ethtool -S` counters:
+- PHC can be monitored using :code:`ethtool -S` counters
+- PHC errors must remain below 1% of all PHC requests to maintain the desired level of accuracy and reliability
 
 =================   ======================================================
-**phc_cnt**         Number of successful retrieved timestamps (below expire timeout).
-**phc_exp**         Number of expired retrieved timestamps (above expire timeout).
-**phc_skp**         Number of skipped get time attempts (during block period).
-**phc_err**         Number of failed get time attempts due to timestamp/error bound errors
-                    (entering into block state).
-                    Must remain below 1% of all PHC requests to maintain the desired level of
-                    accuracy and reliability.
+**phc_cnt**         | Number of successful retrieved timestamps (below expire timeout).
+**phc_exp**         | Number of expired retrieved timestamps (above expire timeout).
+**phc_skp**         | Number of skipped get time attempts (during block period).
+**phc_err_dv**      | Number of failed get time attempts due to device errors (entering into block state).
+**phc_err_ts**      | Number of failed get time attempts due to timestamp errors (entering into block state),
+                    | This occurs if driver exceeded the request limit or device received an invalid timestamp.
+**phc_err_eb**      | Number of failed get time attempts due to error bound errors (entering into block state),
+                    | This occurs if device received an excessively high or invalid error bound.
 =================   ======================================================
 
 PHC timeouts:
 
 =================   ======================================================
-**expire**          Max time for a valid timestamp retrieval, passing this threshold will fail
-                    the get time request and block new requests until block timeout.
-**block**           Blocking period starts once get time request expires or fails, all get time
-                    requests during block period will be skipped.
+**expire**          | Max time for a valid timestamp retrieval, passing this threshold will fail
+                    | the get time request and block new requests until block timeout.
+**block**           | Blocking period starts once get time request expires or fails,
+                    | all get time requests during block period will be skipped.
 =================   ======================================================
 
 Statistics

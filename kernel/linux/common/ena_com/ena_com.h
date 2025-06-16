@@ -226,7 +226,9 @@ struct ena_com_stats_phc {
 	u64 phc_cnt;
 	u64 phc_exp;
 	u64 phc_skp;
-	u64 phc_err;
+	u64 phc_err_dv;
+	u64 phc_err_ts;
+	u64 phc_err_eb;
 };
 
 struct ena_com_admin_queue {

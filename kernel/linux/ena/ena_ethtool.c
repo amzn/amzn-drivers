@@ -204,7 +204,9 @@ static const struct ena_stats ena_stats_ena_com_phc_strings[] = {
 	ENA_STAT_ENA_COM_PHC_ENTRY(phc_cnt),
 	ENA_STAT_ENA_COM_PHC_ENTRY(phc_exp),
 	ENA_STAT_ENA_COM_PHC_ENTRY(phc_skp),
-	ENA_STAT_ENA_COM_PHC_ENTRY(phc_err),
+	ENA_STAT_ENA_COM_PHC_ENTRY(phc_err_dv),
+	ENA_STAT_ENA_COM_PHC_ENTRY(phc_err_ts),
+	ENA_STAT_ENA_COM_PHC_ENTRY(phc_err_eb),
 };
 
 #define ENA_STATS_ARRAY_GLOBAL		ARRAY_SIZE(ena_stats_global_strings)
