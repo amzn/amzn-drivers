@@ -3998,9 +3998,9 @@ static void ena_set_forced_llq_size_policy(struct ena_adapter *adapter)
 	}
 }
 
-static int ena_set_llq_configurations(struct ena_adapter *adapter,
-				      struct ena_llq_configurations *llq_config,
-				      struct ena_admin_feature_llq_desc *llq)
+static void ena_set_llq_configurations(struct ena_adapter *adapter,
+				       struct ena_llq_configurations *llq_config,
+				       struct ena_admin_feature_llq_desc *llq)
 {
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	bool use_large_llq;
@@ -4030,8 +4030,6 @@ static int ena_set_llq_configurations(struct ena_adapter *adapter,
 		llq_config->llq_ring_entry_size_value = 256;
 		adapter->llq_policy = ENA_LLQ_HEADER_SIZE_POLICY_LARGE;
 	}
-
-	return 0;
 }
 
 static int ena_set_queues_placement_policy(struct pci_dev *pdev,
@@ -4192,11 +4190,7 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 
 	*wd_state = !!(aenq_groups & BIT(ENA_ADMIN_KEEP_ALIVE));
 
-	rc = ena_set_llq_configurations(adapter, &llq_config, &get_feat_ctx->llq);
-	if (rc) {
-		netdev_err(netdev, "Cannot set llq configuration rc= %d\n", rc);
-		goto err_admin_init;
-	}
+	ena_set_llq_configurations(adapter, &llq_config, &get_feat_ctx->llq);
 
 	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx->llq,
 					     &llq_config);
