@@ -1211,12 +1211,11 @@ void ena_fill_rx_frags(struct ena_ring *rx_ring,
 		       struct sk_buff *skb)
 {
 	int tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	int page_offset, buf_offset, pkt_offset, len;
+	int buf_offset, pkt_offset, len;
 	struct ena_rx_buffer *rx_info;
 	dma_addr_t pre_reuse_paddr;
 	struct page *rx_info_page;
-	u16 buf_len, req_id, buf;
-	bool reuse_rx_buf_page;
+	u16 req_id, buf;
 
 	for (buf = 1; buf < descs; ++buf) {
 		len = ena_bufs[buf].len;
@@ -1227,8 +1226,6 @@ void ena_fill_rx_frags(struct ena_ring *rx_ring,
 		/* rx_info->buf_offset includes rx_ring->rx_headroom */
 		buf_offset = rx_info->buf_offset;
 		pkt_offset = buf_offset - rx_ring->rx_headroom;
-		buf_len = SKB_DATA_ALIGN(len + buf_offset + tailroom);
-		page_offset = rx_info->page_offset;
 
 		pre_reuse_paddr = dma_unmap_addr(&rx_info->ena_buf, paddr);
 
@@ -1240,6 +1237,10 @@ void ena_fill_rx_frags(struct ena_ring *rx_ring,
 		rx_info_page = rx_info->page;
 
 		if (skb) {
+			u16 buf_len = SKB_DATA_ALIGN(len + buf_offset + tailroom);
+			int page_offset = rx_info->page_offset;
+			bool reuse_rx_buf_page;
+
 			reuse_rx_buf_page = ena_try_rx_buf_page_reuse(rx_info,
 								      buf_len,
 								      len,
