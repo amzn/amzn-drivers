@@ -803,4 +803,34 @@ static inline void ena_rx_release_packet_buffers(struct ena_ring *rx_ring,
 	}
 }
 
+static inline bool ena_too_many_tx_frags(u8 nr_frags, u16 sgl_size,
+					 u32 header_len, u8 tx_max_header_size,
+					 bool is_llq)
+{
+	if (likely(nr_frags < sgl_size))
+		return false;
+
+	/* If the number of frags is the maximum allowed number of bufs in a
+	 * tx packet then usually the buffer holding the linear part of the
+	 * skb/xdp_frame will add another buffer to the packet, increasing the
+	 * number of buffers in the packet over the allowed limit.
+	 *
+	 * Except for the following cases:
+	 * 1. In LLQ case: If the linear part of the skb/xdp_frame fits the
+	 *    header part of the LLQ entry perfectly, the linear part of the
+	 *    skb/xdp_frame will not be used as the first buffer.
+	 * 2. In non-LLQ case: if the size of the linear part is 0, then the
+	 *    linear part will not become an extra buffer.
+	 */
+	if (unlikely(nr_frags == sgl_size)) {
+		if (likely(is_llq && (header_len <= tx_max_header_size)))
+			return false;
+
+		if (unlikely(!is_llq && !header_len))
+			return false;
+	}
+
+	return true;
+}
+
 #endif /* !(ENA_H) */

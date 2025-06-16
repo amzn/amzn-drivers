@@ -6,29 +6,6 @@
 #include "ena_xdp.h"
 #ifdef ENA_XDP_SUPPORT
 
-#ifdef ENA_XDP_MB_SUPPORT
-static bool ena_xdp_too_many_tx_frags(u8 nr_frags, u16 sgl_size,
-				      u32 header_len, u8 tx_max_header_size,
-				      bool is_llq)
-{
-	if (likely(nr_frags < sgl_size))
-		return false;
-
-	/* In non-LLQ case: The linear part of the xdp_buff will be the first
-	 * buffer of the packet in addition to the frag buffers.
-	 *
-	 * In LLQ case: If the linear part of the xdp_buff fits the header
-	 * part of the LLQ entry perfectly, the linear part of the xdp_buff
-	 * will not be used as the first buffer.
-	 */
-	if (unlikely(is_llq && (nr_frags == sgl_size) &&
-	    (header_len == tx_max_header_size)))
-		return false;
-
-	return true;
-}
-
-#endif  /* ENA_XDP_MB_SUPPORT */
 static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
 				struct ena_tx_buffer *tx_info,
 				struct xdp_frame *xdpf,
@@ -70,13 +47,13 @@ static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
 		}
 
 		sh_info = xdp_get_shared_info_from_frame(xdpf);
-		too_many_tx_frags = ena_xdp_too_many_tx_frags(sh_info->nr_frags,
-							      tx_ring->sgl_size,
-							      header_len,
-							      tx_max_header_size,
-							      is_llq);
+		too_many_tx_frags = ena_too_many_tx_frags(sh_info->nr_frags,
+							  tx_ring->sgl_size,
+							  header_len,
+							  tx_max_header_size,
+							  is_llq);
 
-		if (too_many_tx_frags) {
+		if (unlikely(too_many_tx_frags)) {
 			netdev_err_once(adapter->netdev,
 					"xdp: dropped multi-buffer packets with too many frags\n");
 

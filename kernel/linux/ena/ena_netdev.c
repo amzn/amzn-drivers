@@ -3032,16 +3032,16 @@ static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx,
 static int ena_check_and_linearize_skb(struct ena_ring *tx_ring,
 				       struct sk_buff *skb)
 {
-	int num_frags, header_len, rc;
+	bool is_llq = likely(tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV);
+	bool too_many_tx_frags;
+	int rc;
 
-	num_frags = skb_shinfo(skb)->nr_frags;
-	header_len = skb_headlen(skb);
-
-	if (num_frags < tx_ring->sgl_size)
-		return 0;
-
-	if ((num_frags == tx_ring->sgl_size) &&
-	    (header_len < tx_ring->tx_max_header_size))
+	too_many_tx_frags = ena_too_many_tx_frags(skb_shinfo(skb)->nr_frags,
+						  tx_ring->sgl_size,
+						  skb_headlen(skb),
+						  tx_ring->tx_max_header_size,
+						  is_llq);
+	if (likely(!too_many_tx_frags))
 		return 0;
 
 	ena_increase_stat(&tx_ring->tx_stats.linearize, 1, &tx_ring->syncp);
