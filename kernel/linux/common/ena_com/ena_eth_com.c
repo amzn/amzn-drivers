@@ -207,7 +207,7 @@ static int ena_com_close_bounce_buffer(struct ena_com_io_sq *io_sq)
 
 static void *get_sq_desc(struct ena_com_io_sq *io_sq)
 {
-	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+	if (likely(io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV))
 		return get_sq_desc_llq(io_sq);
 
 	return get_sq_desc_regular_queue(io_sq);
@@ -253,7 +253,7 @@ static int ena_com_sq_update_reqular_queue_tail(struct ena_com_io_sq *io_sq)
 
 static int ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
 {
-	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+	if (likely(io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV))
 		return ena_com_sq_update_llq_tail(io_sq);
 
 	return ena_com_sq_update_reqular_queue_tail(io_sq);
