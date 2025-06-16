@@ -472,21 +472,20 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	desc = get_sq_desc(io_sq);
 	if (unlikely(!desc))
 		return -EFAULT;
-	memset(desc, 0x0, sizeof(struct ena_eth_io_tx_desc));
+
+	desc->len_ctrl = FIELD_PREP(ENA_ETH_IO_TX_DESC_PHASE_MASK, (u32)io_sq->phase);
 
 	/* Set first desc when we don't have meta descriptor */
 	if (!have_meta)
 		desc->len_ctrl |= ENA_ETH_IO_TX_DESC_FIRST_MASK;
 
-	desc->buff_addr_hi_hdr_sz |=
+	desc->buff_addr_hi_hdr_sz =
 		FIELD_PREP(ENA_ETH_IO_TX_DESC_HEADER_LENGTH_MASK, (u32)header_len);
-
-	desc->len_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_DESC_PHASE_MASK, (u32)io_sq->phase);
 
 	desc->len_ctrl |= ENA_ETH_IO_TX_DESC_COMP_REQ_MASK;
 
 	/* Bits 0-9 */
-	desc->meta_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK, (u32)ena_tx_ctx->req_id);
+	desc->meta_ctrl = FIELD_PREP(ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK, (u32)ena_tx_ctx->req_id);
 
 	desc->meta_ctrl |= FIELD_PREP(ENA_ETH_IO_TX_DESC_DF_MASK, ena_tx_ctx->df);
 
