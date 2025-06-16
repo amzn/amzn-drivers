@@ -1774,6 +1774,8 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 	tx_ring = ena_napi->tx_ring;
 	rx_ring = ena_napi->rx_ring;
 
+	WRITE_ONCE(tx_ring->tx_stats.last_napi_jiffies, jiffies);
+
 	tx_budget = tx_ring->ring_size / ENA_TX_POLL_BUDGET_DIVIDER;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags) ||
@@ -1839,8 +1841,6 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 #ifdef ENA_BUSY_POLL_SUPPORT
 	ena_bp_unlock_napi(rx_ring);
 #endif
-	tx_ring->tx_stats.last_napi_jiffies = jiffies;
-
 	return ret;
 }
 

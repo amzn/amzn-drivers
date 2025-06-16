@@ -1110,6 +1110,8 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 
 	tx_ring = ena_napi->tx_ring;
 
+	WRITE_ONCE(tx_ring->tx_stats.last_napi_jiffies, jiffies);
+
 	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags) ||
 	    test_bit(ENA_FLAG_TRIGGER_RESET, &tx_ring->adapter->flags)) {
 		napi_complete_done(napi, 0);
@@ -1184,7 +1186,6 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 	u64_stats_update_begin(&tx_ring->syncp);
 	tx_ring->tx_stats.tx_poll++;
 	u64_stats_update_end(&tx_ring->syncp);
-	tx_ring->tx_stats.last_napi_jiffies = jiffies;
 
 	return ret;
 }
