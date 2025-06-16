@@ -873,8 +873,9 @@ void ena_unmap_tx_buff(struct ena_ring *tx_ring,
  */
 static void ena_free_tx_bufs(struct ena_ring *tx_ring)
 {
-	bool is_xdp_ring, print_once = true;
-	u32 i;
+	unsigned long longest_jiffies_since_submitted = 0;
+	u32 i, uncompleted_skbs = 0;
+	bool is_xdp_ring;
 
 	is_xdp_ring = ENA_IS_XDP_INDEX(tx_ring->adapter, tx_ring->qid);
 
@@ -886,16 +887,14 @@ static void ena_free_tx_bufs(struct ena_ring *tx_ring)
 			continue;
 
 		jiffies_since_submitted = jiffies - tx_info->tx_sent_jiffies;
-		if (print_once) {
-			netif_notice(tx_ring->adapter, ifdown, tx_ring->netdev,
-				     "Free uncompleted tx skb qid %d, idx 0x%x, %u msecs since submission\n",
-				     tx_ring->qid, i, jiffies_to_msecs(jiffies_since_submitted));
-			print_once = false;
-		} else {
-			netif_dbg(tx_ring->adapter, ifdown, tx_ring->netdev,
-				  "Free uncompleted tx skb qid %d, idx 0x%x, %u msecs since submission\n",
-				  tx_ring->qid, i, jiffies_to_msecs(jiffies_since_submitted));
-		}
+		if (jiffies_since_submitted > longest_jiffies_since_submitted)
+			longest_jiffies_since_submitted = jiffies_since_submitted;
+
+		netif_dbg(tx_ring->adapter, ifdown, tx_ring->netdev,
+			 "Free uncompleted tx skb qid %d, idx 0x%x, %u msecs since submission\n",
+			 tx_ring->qid, i, jiffies_to_msecs(jiffies_since_submitted));
+
+		uncompleted_skbs++;
 
 		ena_unmap_tx_buff(tx_ring, tx_info);
 
@@ -908,6 +907,13 @@ static void ena_free_tx_bufs(struct ena_ring *tx_ring)
 	if (!is_xdp_ring)
 		netdev_tx_reset_queue(netdev_get_tx_queue(tx_ring->netdev,
 							  tx_ring->qid));
+
+	if (uncompleted_skbs)
+		netif_info(tx_ring->adapter, ifdown, tx_ring->netdev,
+			   "Freed %u uncompleted tx skbs, qid %d, longest msecs since submission %u\n",
+			   uncompleted_skbs,
+			   tx_ring->qid,
+			   jiffies_to_msecs(longest_jiffies_since_submitted));
 }
 
 static void ena_free_all_tx_bufs(struct ena_adapter *adapter)
