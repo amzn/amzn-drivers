@@ -449,25 +449,37 @@ static void ena_com_handle_single_admin_completion(struct ena_com_admin_queue *a
 		return;
 	}
 
-	if (!comp_ctx->occupied)
-		return;
-
-	comp_ctx->status = ENA_CMD_COMPLETED;
-	comp_ctx->comp_status = cqe->acq_common_descriptor.status;
-
 	if (comp_ctx->user_cqe)
 		memcpy(comp_ctx->user_cqe, (void *)cqe, comp_ctx->comp_size);
+
+	comp_ctx->comp_status = cqe->acq_common_descriptor.status;
+
+	/* Make sure that the response is filled in before reporting completion */
+	smp_wmb();
+	comp_ctx->status = ENA_CMD_COMPLETED;
+	/* Ensure status is written before waking waiting thread */
+	smp_wmb();
 
 	if (!admin_queue->polling)
 		complete(&comp_ctx->wait_event);
 }
 
-static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_queue)
+static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_queue,
+					    bool busy_poll_ownership)
 {
 	struct ena_admin_acq_entry *cqe = NULL;
 	u16 comp_num = 0;
 	u16 head_masked;
 	u8 phase;
+
+	/* Only try to acquire ownership once if busy_poll_ownership is false. This
+	 * is to prevent two threads fighting over ownership concurrently. The boolean
+	 * allows to distinguish the thread with the higher priority
+	 */
+	while (!(atomic_cmpxchg(&admin_queue->polling_for_completions, 0, 1) == 0)) {
+		if (!busy_poll_ownership)
+			return;
+	}
 
 	head_masked = admin_queue->cq.head & (admin_queue->q_depth - 1);
 	phase = admin_queue->cq.phase;
@@ -497,6 +509,8 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 	admin_queue->cq.phase = phase;
 	admin_queue->sq.head += comp_num;
 	admin_queue->stats.completed_cmd += comp_num;
+
+	atomic_set_release(&admin_queue->polling_for_completions, 0);
 }
 
 static int ena_com_comp_status_to_errno(struct ena_com_admin_queue *admin_queue,
@@ -545,7 +559,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 
 	while (1) {
 		spin_lock_irqsave(&admin_queue->q_lock, flags);
-		ena_com_handle_admin_completion(admin_queue);
+		ena_com_handle_admin_completion(admin_queue, true);
 		spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
 		if (comp_ctx->status != ENA_CMD_SUBMITTED)
@@ -770,32 +784,33 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 	 */
 	if (unlikely(comp_ctx->status == ENA_CMD_SUBMITTED)) {
 		spin_lock_irqsave(&admin_queue->q_lock, flags);
-		ena_com_handle_admin_completion(admin_queue);
+		ena_com_handle_admin_completion(admin_queue, true);
 		admin_queue->stats.no_completion++;
 		spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
-		if (comp_ctx->status == ENA_CMD_COMPLETED) {
-			admin_queue->is_missing_admin_interrupt = true;
-			netdev_err(admin_queue->ena_dev->net_device,
-				   "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
-				   comp_ctx->cmd_opcode, admin_queue->auto_polling ? "ON" : "OFF");
-			/* Check if fallback to polling is enabled */
-			if (admin_queue->auto_polling)
-				admin_queue->polling = true;
-		} else {
+		ret = -ETIME;
+		/* Now that the admin queue has been polled, check whether the
+		 * request was fulfilled by the device
+		 */
+		if (comp_ctx->status != ENA_CMD_COMPLETED) {
 			netdev_err(admin_queue->ena_dev->net_device,
 				   "The ena device didn't send a completion for the admin cmd %d status %d\n",
 				   comp_ctx->cmd_opcode, comp_ctx->status);
+			goto close_aq;
 		}
-		/* Check if shifted to polling mode.
-		 * This will happen if there is a completion without an interrupt
-		 * and autopolling mode is enabled. Continuing normal execution in such case
+
+		admin_queue->is_missing_admin_interrupt = true;
+
+		netdev_err(admin_queue->ena_dev->net_device,
+			   "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
+			   comp_ctx->cmd_opcode, admin_queue->auto_polling ? "ON" : "OFF");
+		/* If fallback to polling is not enabled, missing an interrupt
+		 * is considered an error
 		 */
-		if (!admin_queue->polling) {
-			admin_queue->running_state = false;
-			ret = -ETIME;
-			goto err;
-		}
+		if (!admin_queue->auto_polling)
+			goto close_aq;
+
+		ena_com_set_admin_polling_mode(admin_queue->ena_dev, true);
 	} else if (unlikely(comp_ctx->status == ENA_CMD_ABORTED)) {
 		netdev_err(admin_queue->ena_dev->net_device, "Command was aborted\n");
 		spin_lock_irqsave(&admin_queue->q_lock, flags);
@@ -806,8 +821,14 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 	}
 
 	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
+	comp_ctxt_release(admin_queue, comp_ctx);
+
+	return ret;
+close_aq:
+	admin_queue->running_state = false;
 err:
 	comp_ctxt_release(admin_queue, comp_ctx);
+
 	return ret;
 }
 
@@ -2017,6 +2038,7 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 	admin_queue->curr_cmd_id = 0;
 
 	atomic_set(&admin_queue->outstanding_cmds, 0);
+	atomic_set(&admin_queue->polling_for_completions, 0);
 
 	spin_lock_init(&admin_queue->q_lock);
 
@@ -2296,7 +2318,7 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 
 void ena_com_admin_q_comp_intr_handler(struct ena_com_dev *ena_dev)
 {
-	ena_com_handle_admin_completion(&ena_dev->admin_queue);
+	ena_com_handle_admin_completion(&ena_dev->admin_queue, false);
 }
 
 /* ena_handle_specific_aenq_event:

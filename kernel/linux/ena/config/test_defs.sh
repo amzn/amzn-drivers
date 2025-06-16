@@ -217,3 +217,21 @@ try_compile_async "#include <linux/netdevice.h>"                 \
                   "ENA_NETIF_NAPI_ADD_CONFIG"                    \
                   ""                                             \
                   "6.13.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/atomic.h>"             \
+                  "{
+                    atomic_t atomic_flag;
+                    atomic_set_release(&atomic_flag, 0);
+                  }"                                      \
+                  "ENA_HAVE_ATOMIC_SET_RELEASE"           \
+                  ""                                      \
+                  "4.3.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/smp.h>"                      \
+                  "{
+                    int flag;
+                    smp_store_release(&flag, 0);
+                   }"                                           \
+                  "ENA_HAVE_SMP_STORE_RELEASE"                  \
+                  ""                                            \
+                  "3.14.0 <= LINUX_VERSION_CODE"

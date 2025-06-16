@@ -754,6 +754,24 @@ static inline void netdev_rss_key_fill(void *buffer, size_t len)
 #define READ_ONCE(x) ACCESS_ONCE(x)
 #endif
 
+#ifndef ENA_HAVE_ATOMIC_SET_RELEASE
+#ifdef ENA_HAVE_SMP_STORE_RELEASE
+#define atomic_set_release(p, v) do {		\
+	smp_store_release(&(p)->counter, (v));	\
+} while (0)
+#else /* ENA_HAVE_SMP_STORE_RELEASE */
+#define atomic_set_release(p, v) do {					\
+	/* Using smp_mb(), ensures all read/write operations are	\
+	 * completed before proceeding to write value v to address p.	\
+	 * The most strict implementation is chosen to ensure release	\
+	 * semantics on all platforms and kernel configurations.	\
+	 */								\
+	smp_mb();							\
+	WRITE_ONCE((p)->counter, v);					\
+} while (0)
+#endif /* ENA_HAVE_SMP_STORE_RELEASE */
+#endif /* ENA_HAVE_ATOMIC_SET_RELEASE */
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9 ,0)
 #define ENA_GENERIC_PM_OPS
 #endif
