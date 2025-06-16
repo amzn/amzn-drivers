@@ -965,7 +965,7 @@ static void ena_destroy_all_io_queues(struct ena_adapter *adapter)
 
 void ena_get_and_dump_head_rx_cdesc(struct ena_com_io_cq *io_cq)
 {
-	struct ena_eth_io_rx_cdesc_base *cdesc;
+	struct ena_eth_io_rx_cdesc_ext *cdesc;
 
 	cdesc = ena_com_get_next_rx_cdesc(io_cq);
 	ena_com_dump_single_rx_cdesc(io_cq, cdesc);
@@ -973,7 +973,7 @@ void ena_get_and_dump_head_rx_cdesc(struct ena_com_io_cq *io_cq)
 
 void ena_get_and_dump_head_tx_cdesc(struct ena_com_io_cq *io_cq)
 {
-	struct ena_eth_io_tx_cdesc *cdesc;
+	struct ena_eth_io_tx_cdesc_ext *cdesc;
 	u16 target_cdesc_idx;
 
 	target_cdesc_idx = io_cq->head & (io_cq->q_depth - 1);
@@ -2364,6 +2364,7 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 	ctx.mem_queue_type = ena_dev->tx_mem_queue_type;
 	ctx.msix_vector = msix_vector;
 	ctx.queue_size = tx_ring->ring_size;
+	ctx.use_extended_cdesc = ena_dev->use_extended_tx_cdesc;
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (unlikely(rc)) {
@@ -2430,6 +2431,7 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 	ctx.mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 	ctx.msix_vector = msix_vector;
 	ctx.queue_size = rx_ring->ring_size;
+	ctx.use_extended_cdesc = ena_dev->use_extended_rx_cdesc;
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (unlikely(rc)) {

@@ -163,6 +163,14 @@ struct ena_eth_io_tx_cdesc {
 	u16 sq_head_idx;
 };
 
+struct ena_eth_io_tx_cdesc_ext {
+	struct ena_eth_io_tx_cdesc base;
+
+	u32 reserved_w2;
+
+	u32 reserved_w3;
+};
+
 struct ena_eth_io_rx_desc {
 	/* In bytes. 0 means 64KB */
 	u16 length;
