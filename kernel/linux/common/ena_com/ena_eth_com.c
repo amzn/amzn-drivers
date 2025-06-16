@@ -38,7 +38,7 @@ void ena_com_dump_single_rx_cdesc(struct ena_com_io_cq *io_cq,
 		u32 *desc_arr = (u32 *)desc;
 
 		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
-			   "RX descriptor value[0x%08x 0x%08x 0x%08x 0x%08x] phase[%u] first[%u] last[%u] MBZ7[%u] MZB17[%u]\n",
+			   "RX descriptor value[0x%08x 0x%08x 0x%08x 0x%08x] phase[%u] first[%u] last[%u] MBZ7[%u] MBZ17[%u]\n",
 			   desc_arr[0], desc_arr[1], desc_arr[2], desc_arr[3],
 			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_PHASE_MASK, desc->status),
 			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_FIRST_MASK, desc->status),
