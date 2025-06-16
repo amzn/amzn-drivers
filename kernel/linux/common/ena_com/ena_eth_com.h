@@ -223,8 +223,8 @@ static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
 					     u16 *req_id)
 {
 	struct ena_com_dev *dev = ena_com_io_cq_to_ena_dev(io_cq);
-	u8 expected_phase, cdesc_phase;
 	struct ena_eth_io_tx_cdesc *cdesc;
+	u8 expected_phase, cdesc_phase;
 	u16 masked_head;
 	u8 flags;
 

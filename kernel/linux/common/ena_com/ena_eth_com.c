@@ -87,7 +87,6 @@ static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
 					      u8 *bounce_buffer)
 {
 	struct ena_com_llq_info *llq_info = &io_sq->llq_info;
-
 	u16 dst_tail_mask;
 	u32 dst_offset;
 
@@ -416,15 +415,15 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 		       struct ena_com_tx_ctx *ena_tx_ctx,
 		       int *nb_hw_desc)
 {
-	struct ena_eth_io_tx_desc *desc = NULL;
 	struct ena_com_buf *ena_bufs = ena_tx_ctx->ena_bufs;
 	void *buffer_to_push = ena_tx_ctx->push_header;
 	u16 header_len = ena_tx_ctx->header_len;
+	struct ena_eth_io_tx_desc *desc = NULL;
 	u16 num_bufs = ena_tx_ctx->num_bufs;
 	u16 start_tail = io_sq->tail;
-	int i, rc;
 	bool have_meta;
 	u64 addr_hi;
+	int i, rc;
 
 	WARN(io_sq->direction != ENA_COM_IO_QUEUE_DIRECTION_TX, "wrong Q type");
 
