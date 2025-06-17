@@ -1260,4 +1260,8 @@ static inline int ena_xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len) {}
 #endif /* ENA_HAVE_SKB_METADATA_SET */
 
+#ifndef timer_container_of
+#define timer_container_of(adapter, t, timer_service) from_timer(adapter, t, timer_service)
+#endif /* timer_container_of */
+
 #endif /* _KCOMPAT_H_ */

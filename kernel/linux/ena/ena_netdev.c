@@ -4788,7 +4788,8 @@ static void ena_update_host_info(struct ena_admin_host_info *host_info,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
 static void ena_timer_service(struct timer_list *t)
 {
-	struct ena_adapter *adapter = from_timer(adapter, t, timer_service);
+	struct ena_adapter *adapter = timer_container_of(adapter, t,
+							 timer_service);
 #else
 static void ena_timer_service(unsigned long data)
 {
