@@ -31,6 +31,20 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.15.0 release notes
+**New Features**
+* HW packet timestamping support and extended cdescs
+
+**Bug fixes**
+* Synchronize AQ with the interrupt on timeout
+* Check ena_com_get_feature() return value before using its output
+* Fix conditions for too many tx buffers in a packet
+* Compilation fix for Linux Kernel 6.16
+
+**Minor Changes**
+* PHC error statistics
+* Removal of several memset/zero operations on the TX path
+
 ## r2.14.1 release notes
 **Bug fixes**
 * Avoid setting xdp_ring pointer with uninitialized rings
