@@ -179,6 +179,7 @@ struct efa_cq {
 	u16 cq_idx;
 	/* NULL when no interrupts requested */
 	struct efa_eq *eq;
+	struct ib_umem *umem;
 #ifdef HAVE_EFA_KVERBS
 	u8 *buf;
 	size_t buf_size;
@@ -329,6 +330,12 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata);
 #else
 		  struct uverbs_attr_bundle *attrs);
+#endif
+int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+#ifndef HAVE_CREATE_CQ_BUNDLE
+		       struct ib_umem *umem, struct ib_udata *udata);
+#else
+		       struct ib_umem *umem, struct uverbs_attr_bundle *attrs);
 #endif
 #ifndef HAVE_CQ_CORE_ALLOCATION
 #ifdef HAVE_CREATE_CQ_NO_UCONTEXT

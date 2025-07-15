@@ -280,6 +280,16 @@ struct ib_device dev = {
   "
   HAVE_IB_DEVICE_DRIVER_DEF "")
 
+try_compile(
+  "
+#include <rdma/uverbs_ioctl.h>"
+  "
+struct uverbs_attr_bundle bundle = {
+  .driver_udata = {0},
+};
+  "
+  HAVE_ATTR_BUNDLE_DRIVER_UDATA "")
+
 try_compile(""
   "int a = IB_PORT_PHYS_STATE_LINK_UP;"
   HAVE_IB_PORT_PHYS_STATE_LINK_UP "")
@@ -445,6 +455,10 @@ try_compile_dev_or_ops(create_cq ""
   "int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr, struct uverbs_attr_bundle *attrs) { return 0; }"
   HAVE_CREATE_CQ_BUNDLE "")
 
+try_compile_dev_or_ops(create_cq_umem ""
+"int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr, struct ib_umem *umem, struct uverbs_attr_bundle *attrs) { return 0; }"
+  HAVE_CREATE_CQ_UMEM "")
+
 try_compile("" "fallthrough;" HAVE_FALLTHROUGH "")
 
 try_compile("#include <linux/log2.h>" "u64 x = bits_per(1);" HAVE_LOG2_BITS_PER "")
@@ -468,6 +482,50 @@ struct ib_block_iter *iter;
 size_t nb = iter->__sg_numblocks;
   "
   HAVE_IB_BLOCK_ITER_SG_NUM_BLOCKS "")
+
+try_compile(
+  "
+#include <rdma/uverbs_ioctl.h>
+  "
+  "
+struct uverbs_attr_bundle *attrs;
+attrs = rdma_udata_to_uverbs_attr_bundle(NULL);
+  "
+  HAVE_UDATA_TO_UVERBS_ATTR_BUNDLE "")
+
+try_compile(
+  "
+#include <rdma/uverbs_ioctl.h>
+  "
+  "
+int fd;
+fd = uverbs_get_raw_fd(NULL, NULL, 0);
+  "
+  HAVE_UVERBS_ATTR_RAW_FD "")
+
+try_compile(
+  "
+#include <rdma/ib_umem.h>
+  "
+  "
+struct ib_umem *umem;
+dma_addr_t addr;
+
+addr = ib_umem_start_dma_addr(umem);
+  "
+  HAVE_IB_UMEM_START_DMA_ADDR "")
+
+try_compile(
+  "
+#include <rdma/ib_umem.h>
+  "
+  "
+struct ib_umem *umem;
+bool contiguous;
+
+contiguous = ib_umem_is_contiguous(umem);
+  "
+  HAVE_IB_UMEM_IS_CONTIGUOUS "")
 
 wait_for_pids()
 message("-- Inspecting kernel - done")

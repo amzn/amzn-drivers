@@ -490,6 +490,9 @@ static const struct ib_device_ops efa_dev_ops = {
 #else
 	.create_cq = efa_kzalloc_cq,
 #endif
+#ifdef HAVE_CREATE_CQ_UMEM
+	.create_cq_umem = efa_create_cq_umem,
+#endif
 #ifdef HAVE_QP_CORE_ALLOCATION
 	.create_qp = efa_create_qp,
 #else

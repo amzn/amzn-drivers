@@ -392,4 +392,54 @@ err_release:
 #endif
 #endif
 
+#ifndef HAVE_IB_UMEM_START_DMA_ADDR
+static inline dma_addr_t ib_umem_start_dma_addr(struct ib_umem *umem)
+{
+#ifdef HAVE_IB_UMEM_SGT_APPEND
+	return sg_dma_address(umem->sgt_append.sgt.sgl) + ib_umem_offset(umem);
+#else
+	return U64_MAX;
+#endif
+}
+#endif
+
+#ifndef HAVE_IB_UMEM_IS_CONTIGUOUS
+static inline bool ib_umem_is_contiguous(struct ib_umem *umem)
+{
+#ifdef HAVE_IB_UMEM_FIND_SINGLE_PG_SIZE
+	dma_addr_t dma_addr;
+	unsigned long pgsz;
+
+	/*
+	 * Select the smallest aligned page that can contain the whole umem if
+	 * it was contiguous.
+	 */
+	dma_addr = ib_umem_start_dma_addr(umem);
+	pgsz = roundup_pow_of_two((dma_addr ^ (umem->length - 1 + dma_addr)) + 1);
+	return !!ib_umem_find_best_pgsz(umem, pgsz, dma_addr);
+#else
+	return false;
+#endif
+}
+#endif
+
+#if !defined(HAVE_UDATA_TO_UVERBS_ATTR_BUNDLE) && defined(HAVE_ATTR_BUNDLE_DRIVER_UDATA)
+#include <rdma/uverbs_ioctl.h>
+
+static inline struct uverbs_attr_bundle *
+rdma_udata_to_uverbs_attr_bundle(struct ib_udata *udata)
+{
+	return container_of(udata, struct uverbs_attr_bundle, driver_udata);
+}
+#endif
+
+#ifndef HAVE_CREATE_CQ_UMEM
+enum efa_uverbs_attrs_create_cq_cmd_attr_ids {
+	UVERBS_ATTR_CREATE_CQ_BUFFER_VA = 8,
+	UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH,
+	UVERBS_ATTR_CREATE_CQ_BUFFER_FD,
+	UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET,
+};
+#endif
+
 #endif /* _KCOMPAT_H_ */
