@@ -3,7 +3,7 @@
 set -e
 
 NAME=efa
-DRIVER_VERSION=2.15.3
+DRIVER_VERSION=2.17.0
 
 dkms remove -m ${NAME} -v ${DRIVER_VERSION} --all
 

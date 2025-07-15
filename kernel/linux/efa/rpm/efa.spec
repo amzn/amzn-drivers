@@ -104,6 +104,10 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Tue Jul 15 2025 Yonatan Nachum <ynachum@amazon.com> - 2.17.0
+- Add Network HW statistics counters
+- Add CQ with external memory support
+
 * Wed Jun 04 2025 Michael Margolin <mrgolin@amazon.com> - 2.15.3
 - Fix cmake dependency on Amazon Linux 2
 
