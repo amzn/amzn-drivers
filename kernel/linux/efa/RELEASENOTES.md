@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.17.1 release notes
+* Fix create kernel CQ backport
+
 ## r2.17.0 release notes
 * Add Network HW statistics counters
 * Add CQ with external memory support

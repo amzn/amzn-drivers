@@ -104,6 +104,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Jul 16 2025 Yonatan Nachum <ynachum@amazon.com> - 2.17.1
+- Fix create kernel CQ backport
+
 * Tue Jul 15 2025 Yonatan Nachum <ynachum@amazon.com> - 2.17.0
 - Add Network HW statistics counters
 - Add CQ with external memory support

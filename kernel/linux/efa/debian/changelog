@@ -1,3 +1,8 @@
+efa (2.17.1-1.amzn1) unstable; urgency=medium
+  * Fix create kernel CQ backport
+
+ -- Yonatan Nachum <ynachum@amazon.com>  Wed, 16 Jul 2025 13:39:55 +0000
+
 efa (2.17.0-1.amzn1) unstable; urgency=medium
   * Add Network HW statistics counters
   * Add CQ with external memory support

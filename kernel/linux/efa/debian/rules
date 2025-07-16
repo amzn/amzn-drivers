@@ -9,7 +9,7 @@ include /usr/share/dpkg/pkg-info.mk
 export DH_VERBOSE = 1
 
 NAME	= efa
-VERSION = 2.17.0
+VERSION = 2.17.1
 DESTDIR:=`pwd`/debian/${NAME}
 INSTALL_PATH = /usr/src/${NAME}-${VERSION}
 
