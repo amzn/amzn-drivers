@@ -1918,8 +1918,10 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 #ifdef HAVE_EFA_KVERBS
 #ifdef HAVE_CREATE_CQ_BUNDLE
-	if (attrs)
+	if (attrs) {
 		udata = &attrs->driver_udata;
+		ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext, ibucontext);
+	}
 #endif
 
 	if (!udata)
