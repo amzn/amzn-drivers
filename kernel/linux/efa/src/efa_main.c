@@ -39,7 +39,7 @@ static const struct pci_device_id efa_pci_tbl[] = {
 
 #define DRV_MODULE_VER_MAJOR           2
 #define DRV_MODULE_VER_MINOR           17
-#define DRV_MODULE_VER_SUBMINOR        1
+#define DRV_MODULE_VER_SUBMINOR        2
 
 #ifndef DRV_MODULE_VERSION
 #define DRV_MODULE_VERSION \

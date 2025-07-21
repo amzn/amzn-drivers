@@ -104,6 +104,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Mon Jul 21 2025 Yonatan Nachum <ynachum@amazon.com> - 2.17.2
+- Fix create user CQ
+
 * Wed Jul 16 2025 Yonatan Nachum <ynachum@amazon.com> - 2.17.1
 - Fix create kernel CQ backport
 
