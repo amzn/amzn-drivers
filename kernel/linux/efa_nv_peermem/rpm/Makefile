@@ -2,7 +2,7 @@
 
 NAME = efa-nv-peermem
 SPEC = $(NAME).spec
-VERSION	= 1.2.1
+VERSION	= 1.2.2
 
 TOPDIR  := $(shell git rev-parse --show-toplevel)
 TAG	?= HEAD
