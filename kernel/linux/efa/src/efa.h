@@ -351,15 +351,21 @@ struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev,
 #endif
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
+#ifdef HAVE_REG_USER_MR_DMAH
+			 struct ib_dmah *dmah,
+#endif
 			 struct ib_udata *udata);
 #ifdef HAVE_MR_DMABUF
 struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 				     u64 length, u64 virt_addr,
 				     int fd, int access_flags,
-#ifndef HAVE_REG_USER_MR_DMABUF_BUNDLE
-				     struct ib_udata *udata);
-#else
+#if defined(HAVE_REG_USER_MR_DMAH)
+				     struct ib_dmah *dmah,
 				     struct uverbs_attr_bundle *attrs);
+#elif defined(HAVE_REG_USER_MR_DMABUF_BUNDLE)
+				     struct uverbs_attr_bundle *attrs);
+#else
+				     struct ib_udata *udata);
 #endif
 #endif
 #ifdef HAVE_EFA_KVERBS

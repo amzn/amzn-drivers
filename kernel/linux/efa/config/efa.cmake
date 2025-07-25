@@ -527,5 +527,13 @@ contiguous = ib_umem_is_contiguous(umem);
   "
   HAVE_IB_UMEM_IS_CONTIGUOUS "")
 
+try_compile_dev_or_ops(reg_user_mr_dmabuf ""
+  "
+struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length, u64 virt_addr,
+                                     int fd, int access_flags, struct ib_dmah *dmah,
+                                     struct uverbs_attr_bundle *attrs) { return 0; }
+  "
+  HAVE_REG_USER_MR_DMAH "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")
