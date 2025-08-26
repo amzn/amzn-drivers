@@ -44,6 +44,19 @@ enum ENA_XDP_ACTIONS {
 
 #define ENA_XDP_FORWARDED (ENA_XDP_TX | ENA_XDP_REDIRECT)
 
+struct ena_xdp_buff {
+	struct xdp_buff xdp;
+	u64 rx_timestamp;
+};
+
+static inline struct ena_xdp_buff *xsk_buff_to_ena_buff(struct xdp_buff *xdp)
+{
+	/* ena_xdp_buff shares its layout with xdp_buff_xsk and uses xdp_buff_xsk->cb
+	 * for the private fields (only rx_timestamp for now).
+	 */
+	return (struct ena_xdp_buff *)xdp;
+}
+
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
 					  int first, int last);
@@ -62,7 +75,7 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 					  struct xdp_buff *xdp,
 					  u8 nr_frags,
 					  int xdp_len);
-int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
+int ena_rx_xdp(struct ena_ring *rx_ring, struct ena_xdp_buff *ena_xdp, u16 descs,
 	       int *xdp_len, u8 *nr_frags);
 #ifdef ENA_AF_XDP_SUPPORT
 void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);

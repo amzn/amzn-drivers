@@ -1590,7 +1590,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 	u32 res_budget, work_done;
 	struct sk_buff *skb;
 #ifdef ENA_XDP_SUPPORT
-	struct xdp_buff xdp;
+	struct ena_xdp_buff xdp;
 	int xdp_flags = 0;
 	int xdp_verdict;
 #endif /* ENA_XDP_SUPPORT */
@@ -1600,7 +1600,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		  "%s qid %d\n", __func__, rx_ring->qid);
 	res_budget = budget;
 #ifdef ENA_XDP_SUPPORT
-	xdp_init_buff(&xdp, ENA_PAGE_SIZE, &rx_ring->xdp_rxq);
+	xdp_init_buff(&xdp.xdp, ENA_PAGE_SIZE, &rx_ring->xdp_rxq);
 #endif /* ENA_XDP_SUPPORT */
 
 	do {
@@ -1648,6 +1648,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 			int xdp_len = 0;
 			u8 nr_frags;
 
+			xdp.rx_timestamp = ena_rx_ctx.timestamp;
 			xdp_verdict = ena_rx_xdp(rx_ring, &xdp,
 						 ena_rx_ctx.descs,
 						 &xdp_len,
@@ -1655,7 +1656,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 			if (xdp_verdict == ENA_XDP_PASS) {
 				skb = ena_rx_skb_after_xdp_pass(rx_ring, rx_info,
-								&ena_rx_ctx, &xdp,
+								&ena_rx_ctx, &xdp.xdp,
 								nr_frags, xdp_len);
 			} else {
 				/* Packets were passed for transmission, unmap them
@@ -3967,6 +3968,23 @@ static const struct net_device_ops ena_netdev_ops = {
 #endif /* ENA_HAVE_NDO_HWTSTAMP */
 };
 
+#ifdef ENA_AF_XDP_SUPPORT
+static int ena_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
+{
+	struct ena_xdp_buff *_ctx = (void *)ctx;
+
+	if (_ctx->rx_timestamp == 0)
+		return -ENODATA;
+
+	*timestamp = _ctx->rx_timestamp;
+	return 0;
+}
+
+static const struct xdp_metadata_ops ena_xdp_metadata_ops = {
+	.xmo_rx_timestamp	= ena_xdp_rx_timestamp,
+};
+#endif /* ENA_AF_XDP_SUPPORT */
+
 #ifdef ENA_HAVE_NETDEV_QUEUE_STATS
 static void ena_accumulate_stats_rx(struct ena_ring *rx_ring,
 				    struct netdev_queue_stats_rx *stats)
@@ -5594,6 +5612,9 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			  adapter->max_num_io_queues);
 
 	netdev->netdev_ops = &ena_netdev_ops;
+#ifdef ENA_AF_XDP_SUPPORT
+	netdev->xdp_metadata_ops = &ena_xdp_metadata_ops;
+#endif /* ENA_AF_XDP_SUPPORT */
 #ifdef ENA_HAVE_NETDEV_QUEUE_STATS
 	netdev->stat_ops = &ena_stat_ops;
 #endif /* ENA_HAVE_NETDEV_QUEUE_STATS */

@@ -628,6 +628,8 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	if (unlikely(ena_com_is_extended_rx_cdesc(io_cq)))
 		ena_rx_ctx->timestamp = (u64)cdesc->timestamp_low |
 					(u64)cdesc->timestamp_high << 32;
+	else
+		ena_rx_ctx->timestamp = 0;
 
 	netdev_dbg(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
 		   "l3_proto %d l4_proto %d l3_csum_err %d l4_csum_err %d hash %d frag %d cdesc_status %x\n",

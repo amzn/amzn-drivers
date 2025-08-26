@@ -1000,6 +1000,8 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 			ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
 			xdp_verdict = ENA_XDP_RECYCLE;
 		} else if (likely(xdp_prog_present)) {
+			struct ena_xdp_buff *ena_xdp = xsk_buff_to_ena_buff(xdp);
+			ena_xdp->rx_timestamp = ena_rx_ctx.timestamp;
 			xdp_verdict = ena_xdp_execute(rx_ring, xdp);
 		}
 
@@ -1260,7 +1262,7 @@ static bool ena_xdp_prog_is_frags_supported(struct ena_ring *rx_ring)
 #endif
 }
 
-int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
+int ena_rx_xdp(struct ena_ring *rx_ring, struct ena_xdp_buff *ena_xdp, u16 descs,
 	       int *xdp_len, u8 *nr_frags)
 {
 	struct ena_com_rx_buf_info *ena_bufs = rx_ring->ena_bufs;
@@ -1271,6 +1273,7 @@ int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 	u16 req_id;
 	int ret;
 	int i;
+	struct xdp_buff *xdp = &ena_xdp->xdp;
 
 	/* Drop unsupported multibuffer packets */
 	if (!ena_xdp_prog_is_frags_supported(rx_ring) && descs > 1) {
