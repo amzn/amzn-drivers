@@ -102,12 +102,15 @@ function download_kernel_src {
 }
 
 function apply_wc_patch {
-        if [ "${KERNEL_VERSION}" -ge 6080000 ]; then
-                echo "Using patch for kernel version 6.8"
-                local wc_patch="${BASE_PATH}/patches/linux-6.8-vfio-wc.patch"
-        elif [ "${KERNEL_VERSION}" -ge 5150000 ]; then
-                echo "Using patch for kernel version 5.15"
-                local wc_patch="${BASE_PATH}/patches/linux-5.15-vfio-wc.patch"
+	if [ "${KERNEL_VERSION}" -ge 6120000 ]; then
+			echo "Using patch for kernel version 6.12"
+			local wc_patch="${BASE_PATH}/patches/linux-6.12-vfio-wc.patch"
+	elif [ "${KERNEL_VERSION}" -ge 6080000 ]; then
+			echo "Using patch for kernel version 6.8"
+			local wc_patch="${BASE_PATH}/patches/linux-6.8-vfio-wc.patch"
+	elif [ "${KERNEL_VERSION}" -ge 5150000 ]; then
+			echo "Using patch for kernel version 5.15"
+			local wc_patch="${BASE_PATH}/patches/linux-5.15-vfio-wc.patch"
  	elif [ "${KERNEL_VERSION}" -ge 5080000 ]; then
 		echo "Using patch for kernel version 5.8"
 		local wc_patch="${BASE_PATH}/patches/linux-5.8-vfio-wc.patch"
