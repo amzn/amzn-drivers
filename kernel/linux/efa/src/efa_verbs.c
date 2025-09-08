@@ -1146,11 +1146,11 @@ static int efa_create_qp_kernel(struct ib_qp *ibqp, struct ib_qp_init_attr *init
 
 	create_qp_params.send_cq_idx = send_cq->cq_idx;
 	create_qp_params.recv_cq_idx = recv_cq->cq_idx;
-	create_qp_params.sq_depth = init_attr->cap.max_send_wr;
-	create_qp_params.sq_ring_size_in_bytes = (init_attr->cap.max_send_wr) *
+	create_qp_params.sq_depth = qp->sq.wq.max_wqes;
+	create_qp_params.sq_ring_size_in_bytes = (qp->sq.wq.queue_mask + 1) *
 			sizeof(struct efa_io_tx_wqe);
 
-	create_qp_params.rq_depth = init_attr->cap.max_recv_wr;
+	create_qp_params.rq_depth = qp->rq.wq.max_wqes;
 	create_qp_params.rq_ring_size_in_bytes = (qp->rq.wq.queue_mask + 1) *
 			sizeof(struct efa_io_rx_desc);
 	qp->rq_size = PAGE_ALIGN(create_qp_params.rq_ring_size_in_bytes);
