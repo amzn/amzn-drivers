@@ -492,7 +492,6 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 	ena_get_queue_stats(adapter, data, false);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 #ifdef ENA_HAVE_KERNEL_ETHTOOL_TS_INFO
 static int ena_get_ts_info(struct net_device *netdev,
 			   struct kernel_ethtool_ts_info *info)
@@ -535,7 +534,6 @@ static int ena_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
-#endif
 static int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
 					bool count_accumulated_stats)
 {
@@ -1492,13 +1490,8 @@ static int ena_get_all_steering_rules(struct ena_com_dev *ena_dev, struct ethtoo
 	return 0;
 }
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 2, 0)
-static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
-			 void *rules)
-#else
 static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 			 u32 *rules)
-#endif
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	int rc = 0;
@@ -1532,7 +1525,6 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 }
 #endif /* ETHTOOL_GRXRINGS */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
 static u32 ena_get_rxfh_indir_size(struct net_device *netdev)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
@@ -1691,14 +1683,14 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
 
 	return rc;
 }
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)/* >= 3.16.0 */
+#else /* >= 3.16.0 */
 static int ena_get_rxfh(struct net_device *netdev, u32 *indir)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
 	return ena_indirection_table_get(adapter, indir);
 }
-#endif /* >= 3.8.0 */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0) */
 
 #ifdef ENA_HAVE_ETHTOOL_RXFH_PARAM
 static int ena_set_rxfh(struct net_device *netdev,
@@ -1761,7 +1753,7 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 	return 0;
 }
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0) /* Kernel > 3.16 */
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) */
 static int ena_set_rxfh(struct net_device *netdev, const u32 *indir)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
@@ -1772,9 +1764,7 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir)
 
 	return rc;
 }
-#endif /* Kernel >= 3.8 */
-#endif /* ETHTOOL_GRXFH */
-#ifndef HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) */
 
 #ifdef ETHTOOL_SCHANNELS
 static void ena_get_channels(struct net_device *netdev,
@@ -1819,7 +1809,6 @@ static int ena_set_channels(struct net_device *netdev,
 }
 #endif /* ETHTOOL_SCHANNELS */
 
-#endif /* HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 static int ena_get_tunable(struct net_device *netdev,
 			   const struct ethtool_tunable *tuna, void *data)
@@ -1909,9 +1898,7 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_rxnfc		= ena_get_rxnfc,
 	.set_rxnfc		= ena_set_rxnfc,
 #endif /* ETHTOOL_GRXRINGS */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
 	.get_rxfh_indir_size    = ena_get_rxfh_indir_size,
-#endif /* >= 3.8.0 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 	.get_rxfh_key_size	= ena_get_rxfh_key_size,
 	.get_rxfh		= ena_get_rxfh,
@@ -1920,23 +1907,19 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_rxfh_fields	= ena_get_rxfh_fields,
 	.set_rxfh_fields	= ena_set_rxfh_fields,
 #endif /* ENA_HAVE_ETHTOOL_RXFH_FIELDS */
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+#else
 	.get_rxfh_indir		= ena_get_rxfh,
 	.set_rxfh_indir		= ena_set_rxfh,
-#endif /* >= 3.8.0 */
-#ifndef HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) */
 #ifdef ETHTOOL_SCHANNELS
 	.get_channels		= ena_get_channels,
 	.set_channels		= ena_set_channels,
 #endif /* ETHTOOL_SCHANNELS */
-#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 	.get_tunable		= ena_get_tunable,
 	.set_tunable		= ena_set_tunable,
 #endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 	.get_ts_info		= ena_get_ts_info,
-#endif
 	.get_priv_flags		= ena_get_priv_flags,
 	.set_priv_flags		= ena_set_priv_flags,
 };

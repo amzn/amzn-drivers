@@ -47,13 +47,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #endif
 
 #include <asm/io.h>
-
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33) )
-#include <linux/utsrelease.h>
-#else
 #include <generated/utsrelease.h>
-#endif
-
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
@@ -80,9 +74,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #include <linux/bitfield.h>
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 #include <linux/sizes.h>
-#endif
 
 /* For ACCESS_ONCE, WRITE_ONCE and READ_ONCE macros */
 #include<linux/compiler.h>
@@ -212,38 +204,12 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #ifndef RHEL_RELEASE_VERSION
 #define RHEL_RELEASE_VERSION(a,b) (((a) << 8) + (b))
 #endif
-#ifndef AX_RELEASE_VERSION
-#define AX_RELEASE_VERSION(a,b) (((a) << 8) + (b))
-#endif
-
-#ifndef AX_RELEASE_CODE
-#define AX_RELEASE_CODE 0
-#endif
 
 #ifndef RHEL_RELEASE_CODE
 #define RHEL_RELEASE_CODE 0
 #endif
 
-#if (AX_RELEASE_CODE && AX_RELEASE_CODE == AX_RELEASE_VERSION(3,0))
-#define RHEL_RELEASE_CODE RHEL_RELEASE_VERSION(5,0)
-#elif (AX_RELEASE_CODE && AX_RELEASE_CODE == AX_RELEASE_VERSION(3,1))
-#define RHEL_RELEASE_CODE RHEL_RELEASE_VERSION(5,1)
-#elif (AX_RELEASE_CODE && AX_RELEASE_CODE == AX_RELEASE_VERSION(3,2))
-#define RHEL_RELEASE_CODE RHEL_RELEASE_VERSION(5,3)
-#endif
-
 /*****************************************************************************/
-#if (RHEL_RELEASE_CODE && \
-	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,6)) && \
-     (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
-#define HAVE_RHEL6_NET_DEVICE_OPS_EXT
-#endif
-
-#if (RHEL_RELEASE_CODE && \
-	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,4)) && \
-     (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0)))
-#define HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
-#endif /* RHEL >= 6.4 && RHEL < 7.0 */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0) || \
 	(SLE_VERSION_CODE && \
@@ -259,85 +225,9 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #define NDO_GET_STATS_64_V2
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0) || \
-	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,5))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 #include <net/busy_poll.h>
 #endif
-
-/*****************************************************************************/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37) )
-/* The function netif_set_real_num_tx_queues() doesn't return value for
- * kernels < 2.6.37
- */
-static inline int _kc_netif_set_real_num_tx_queues(struct net_device *dev,
-                                                   unsigned int txq)
-{
-        netif_set_real_num_tx_queues(dev, txq);
-        return 0;
-}
-#define netif_set_real_num_tx_queues(dev, txq) \
-        _kc_netif_set_real_num_tx_queues(dev, txq)
-
-#endif /* < 2.6.37 */
-
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0) )
-#if !(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,5))
-typedef u32 netdev_features_t;
-#endif
-#undef PCI_EXP_TYPE_RC_EC
-#define  PCI_EXP_TYPE_RC_EC	0xa	/* Root Complex Event Collector */
-#ifndef CONFIG_BQL
-#define netdev_tx_completed_queue(_q, _p, _b) do {} while (0)
-#define netdev_completed_queue(_n, _p, _b) do {} while (0)
-#define netdev_tx_sent_queue(_q, _b) do {} while (0)
-#define netdev_sent_queue(_n, _b) do {} while (0)
-#define netdev_tx_reset_queue(_q) do {} while (0)
-#define netdev_reset_queue(_n) do {} while (0)
-#endif
-
-#endif /* < 3.3.0 */
-
-/******************************************************************************/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0) )
-#ifdef NET_ADDR_RANDOM
-#define eth_hw_addr_random(N) do { \
-	eth_random_addr(N->dev_addr); \
-	N->addr_assign_type |= NET_ADDR_RANDOM; \
-	} while (0)
-#else /* NET_ADDR_RANDOM */
-#define eth_hw_addr_random(N) eth_random_addr(N->dev_addr)
-#endif /* NET_ADDR_RANDOM */
-#if !(RHEL_RELEASE_CODE)
-/* If probe retry doesn't define, return no device */
-#define EPROBE_DEFER ENODEV
-#endif
-#endif /* >= 3.4.0 */
-
-/*****************************************************************************/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0) )
-#if !(RHEL_RELEASE_CODE)
-static inline bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
-{
-	const u16 *a = (const u16 *)addr1;
-	const u16 *b = (const u16 *)addr2;
-
-	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) == 0;
-}
-#endif
-#endif /* >= 3.5.0 */
-
-/******************************************************************************/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0) )
-#ifndef eth_random_addr
-#define eth_random_addr _kc_eth_random_addr
-static inline void _kc_eth_random_addr(u8 *addr)
-{
-        get_random_bytes(addr, ETH_ALEN);
-        addr[0] &= 0xfe; /* clear multicast */
-        addr[0] |= 0x02; /* set local assignment */
-}
-#endif
-#endif /* < 3.6.0 */
 
 /******************************************************************************/
 #ifndef CONFIG_NET_RX_BUSY_POLL
@@ -358,21 +248,6 @@ static inline void napi_hash_add(struct napi_struct *napi)
 }
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
-/*****************************************************************************/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0) )
-/* cpu_rmap is buggy on older version and causes dead lock */
-#ifdef CONFIG_RFS_ACCEL
-#undef CONFIG_RFS_ACCEL
-#endif
-
-#if !(RHEL_RELEASE_CODE)
-static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
-{
-	return index % n_rx_rings;
-}
-#endif
-#endif /* >= 3.8.0 */
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
 # define u64_stats_init(syncp)  seqcount_init(syncp.seq)
@@ -381,10 +256,8 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 #endif
 
 #if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) && \
-	!(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,8) && \
-	                        (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) \
-                            || (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,1)))) && \
-     !defined(UEK3_RELEASE)
+    !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))) && \
+    !defined(UEK3_RELEASE)
 static inline void reinit_completion(struct completion *x)
 {
          x->done = 0;
@@ -394,8 +267,7 @@ static inline void reinit_completion(struct completion *x)
 #endif /* < 3.13.0 */
 
 #if  (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) ) && \
-     (!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0) && \
-       RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))) \
+     (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0)) \
      && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))&& \
      !defined(UEK3_RELEASE))) || \
      (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
@@ -447,8 +319,7 @@ static inline void skb_set_hash(struct sk_buff *skb, __u32 hash,
 
 /*****************************************************************************/
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0)
-#if !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0) && \
-			        RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(6,6)) \
+#if !(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0)) \
     && !(defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,13,0,105))
 static inline int pci_msix_vec_count(struct pci_dev *dev)
 {
@@ -470,10 +341,6 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 }
 #endif /* SLE 12 */
 #endif /* RHEL 7 */
-#endif
-
-#if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(6,8)))
-#define napi_gro_flush(napi, flush_old) napi_gro_flush(napi)
 #endif
 
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0) || \
@@ -572,9 +439,7 @@ static inline void __napi_schedule_irqoff(struct napi_struct *n)
 /*****************************************************************************/
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0) \
-	|| (RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,7)) && \
-	                          (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7,0))) \
-	                      || RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2)) \
+	|| (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,2))) \
 	|| (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,19,0,51))
 #else
 static inline void napi_complete_done(struct napi_struct *n, int work_done)
@@ -715,10 +580,9 @@ do {									\
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) && \
-    !(RHEL_RELEASE_CODE && ((RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1)) && \
-			    (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6, 6)))) && \
-			    !defined(UBUNTU_VERSION_CODE) && \
-			    !defined(UEK3_RELEASE) && (!defined(DEBIAN_VERSION) || DEBIAN_VERSION != 8)
+    !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1))) && \
+    !defined(UBUNTU_VERSION_CODE) && \
+    !defined(UEK3_RELEASE) && (!defined(DEBIAN_VERSION) || DEBIAN_VERSION != 8)
 
 #define DO_ONCE(func, ...)						     \
 	({								     \
@@ -823,25 +687,6 @@ static inline struct page *dev_alloc_page(void)
 }
 #endif
 
-/* This entry might seem strange because of the #ifndef numa_mem_id(),
- * but these defines were taken from the Linux kernel
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34)
-#ifndef numa_mem_id
-#ifdef CONFIG_HAVE_MEMORYLESS_NODES
-static inline int numa_mem_id(void)
-{
-	return __this_cpu_read(_numa_mem_);
-}
-#else /* CONFIG_HAVE_MEMORYLESS_NODES */
-static inline int numa_mem_id(void)
-{
-	return numa_node_id();
-}
-#endif /* CONFIG_HAVE_MEMORYLESS_NODES */
-#endif /* numa_mem_id */
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34) */
-
 #ifndef fallthrough
 #define fallthrough do {} while (0)  /* fallthrough */
 #endif
@@ -849,10 +694,6 @@ static inline int numa_mem_id(void)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0) || \
 	(defined(RHEL_RELEASE_CODE) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 5))
 #define AF_XDP_BUSY_POLL_SUPPORTED
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
-#define ENA_LINEAR_FRAG_SUPPORTED
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
@@ -926,16 +767,6 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 #define ENA_AF_XDP_SUPPORT
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
-/* kernels older than 3.3.0 didn't have this function and
- * used netif_tx_queue_stopped() for the same purpose
- */
-static inline int netif_xmit_stopped(const struct netdev_queue *dev_queue)
-{
-	return netif_tx_queue_stopped(dev_queue);
-}
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #define NAPIF_STATE_SCHED BIT(NAPI_STATE_SCHED)
 #endif
@@ -953,21 +784,8 @@ static inline int netif_xmit_stopped(const struct netdev_queue *dev_queue)
 #define HAS_BPF_HEADER
 #endif
 
-#if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)) && \
-	!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 7))))
-static inline int ktime_compare(const ktime_t cmp1, const ktime_t cmp2)
-{
-	if (cmp1.tv64 < cmp2.tv64)
-		return -1;
-	if (cmp1.tv64 > cmp2.tv64)
-		return 1;
-	return 0;
-}
-#endif
-
 #if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)) && \
 	!(RHEL_RELEASE_CODE && \
-	(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 7)) && \
 	(RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 0)) && \
 	(RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1))))
 static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
@@ -978,8 +796,7 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 
-#if defined(ENA_PHC_INCLUDE) && ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)) || \
-	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 4)))
+#if defined(ENA_PHC_INCLUDE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 #define ENA_PHC_SUPPORT
 #endif /* ENA_PHC_SUPPORT */
 
@@ -994,11 +811,6 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 	(RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(8, 0)))
 #define ENA_PHC_SUPPORT_GETTIME64_EXTENDED
 #endif /* ENA_PHC_SUPPORT_GETTIME64_EXTENDED */
-
-#if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)) && \
-	!(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 4))))
-#define ptp_clock_register(info, parent) ptp_clock_register(info)
-#endif
 
 #endif /* CONFIG_PTP_1588_CLOCK */
 
@@ -1079,8 +891,6 @@ static inline void dma_unmap_page_attrs(struct device *dev,
     (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(4, 5, 0, 0)) || \
     (defined(IS_UEK) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 13))
 #define ENA_DMA_ATTR_SKIP_CPU_SYNC (1 << DMA_ATTR_SKIP_CPU_SYNC)
-#elif (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(6, 10)))
-#define	ENA_DMA_ATTR_SKIP_CPU_SYNC 0
 #else
 #define ENA_DMA_ATTR_SKIP_CPU_SYNC DMA_ATTR_SKIP_CPU_SYNC
 #endif
