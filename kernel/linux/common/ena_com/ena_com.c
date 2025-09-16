@@ -1900,8 +1900,8 @@ void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
 
 int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 {
-	const ktime_t zero_system_time = ktime_set(0, 0);
 	volatile struct ena_admin_phc_resp *resp = ena_dev->phc.virt_addr;
+	const ktime_t zero_system_time = ktime_set(0, 0);
 	struct ena_com_phc_info *phc = &ena_dev->phc;
 	ktime_t expire_time;
 	ktime_t block_time;
@@ -1937,17 +1937,20 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 				   "PHC get time request 0x%x failed (device error)\n", phc->req_id);
 			phc->stats.phc_err_dv++;
 		} else if (resp->error_flags & ENA_PHC_ERROR_FLAGS) {
-			/* Device updated req_id during blocking time but got PHC error
-			 * This occurs if device exceeded the get time request limit, received
-			 * an invalid timestamp, received an excessively high or invalid error bound
+			/* Device updated req_id during blocking time but got
+			 * a PHC error, this occurs if device:
+			 * - exceeded the get time request limit
+			 * - received an invalid timestamp
+			 * - received an excessively high error bound
+			 * - received an invalid error bound
 			 */
 			netdev_err(ena_dev->net_device,
 				   "PHC get time request 0x%x failed (error 0x%x)\n", phc->req_id,
 				   resp->error_flags);
 			phc->stats.phc_err_ts += !!(resp->error_flags &
-						    ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP);
+				ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP);
 			phc->stats.phc_err_eb += !!(resp->error_flags &
-						    ENA_ADMIN_PHC_ERROR_FLAG_ERROR_BOUND);
+				ENA_ADMIN_PHC_ERROR_FLAG_ERROR_BOUND);
 		} else {
 			/* Device updated req_id during blocking time
 			 * with valid timestamp and error bound
