@@ -533,6 +533,9 @@ struct ena_adapter {
 	struct ena_keep_alive_stats persistent_ka_stats;
 
 	struct devlink *devlink;
+#ifdef ENA_DEVLINK_SUPPORT
+	struct devlink_port devlink_port;
+#endif /* ENA_DEVLINK_SUPPORT */
 };
 
 #define ENA_RESET_STATS_ENTRY(reset_reason, stat) \
