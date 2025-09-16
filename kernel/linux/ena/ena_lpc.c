@@ -5,6 +5,7 @@
 
 #include "ena_lpc.h"
 #include "ena_xdp.h"
+#ifdef ENA_LPC_SUPPORT
 
 static void ena_free_ring_page_cache(struct ena_ring *rx_ring);
 
@@ -301,3 +302,4 @@ void ena_free_page_caches(struct ena_adapter *adapter)
 		ena_free_ring_page_cache(rx_ring);
 	}
 }
+#endif /* ENA_LPC_SUPPORT */

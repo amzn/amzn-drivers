@@ -28,8 +28,10 @@
 #include "ena_pci_id_tbl.h"
 #include "ena_sysfs.h"
 #include "ena_xdp.h"
+#ifdef ENA_LPC_SUPPORT
 
 #include "ena_lpc.h"
+#endif /* ENA_LPC_SUPPORT */
 
 #include "ena_phc.h"
 
@@ -48,6 +50,10 @@ MODULE_DESCRIPTION(DEVICE_NAME);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_GENERATION);
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+#define ENA_PAGECOUNT_MAX_BIAS LONG_MAX
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (5 * HZ)
 
@@ -83,10 +89,12 @@ static int enable_frag_bypass = 0;
 module_param(enable_frag_bypass, int, 0444);
 MODULE_PARM_DESC(enable_frag_bypass, "Enable fragment bypass.\n");
 
+#ifdef ENA_LPC_SUPPORT
 static int lpc_size = ENA_LPC_MULTIPLIER_NOT_CONFIGURED;
 module_param(lpc_size, int, 0444);
 MODULE_PARM_DESC(lpc_size, "Each local page cache (lpc) holds N * 1024 pages. This parameter sets N which is rounded up to a multiplier of 2. If zero, the page cache is disabled. Max: 32\n");
 
+#endif /* ENA_LPC_SUPPORT */
 #ifdef ENA_PHC_SUPPORT
 static int phc_enable = 0;
 module_param(phc_enable, uint, 0444);
@@ -568,6 +576,11 @@ static void ena_free_rx_resources(struct ena_adapter *adapter,
 {
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+	page_pool_destroy(rx_ring->page_pool);
+	rx_ring->page_pool = NULL;
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 
@@ -616,15 +629,24 @@ static void ena_free_all_io_rx_resources(struct ena_adapter *adapter)
 		ena_free_rx_resources(adapter, i);
 }
 
+#ifndef ENA_LPC_SUPPORT
+static struct page *ena_alloc_map_page(struct ena_ring *rx_ring,
+				       dma_addr_t *dma)
+#else
 struct page *ena_alloc_map_page(struct ena_ring *rx_ring,
 				dma_addr_t *dma)
+#endif /* ENA_LPC_SUPPORT */
 {
 	struct page *page;
 
 	/* This would allocate the page on the same NUMA node the executing code
 	 * is running on.
 	 */
+#ifdef ENA_PAGE_POOL_SUPPORT
+	page = page_pool_dev_alloc_pages(rx_ring->page_pool);
+#else
 	page = dev_alloc_page();
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	if (!page) {
 		ena_increase_stat(&rx_ring->rx_stats.page_alloc_fail, 1, &rx_ring->syncp);
 		return ERR_PTR(-ENOSPC);
@@ -633,6 +655,9 @@ struct page *ena_alloc_map_page(struct ena_ring *rx_ring,
 	/* To enable NIC-side port-mirroring, AKA SPAN port,
 	 * we make the buffer readable from the nic as well
 	 */
+#ifdef ENA_PAGE_POOL_SUPPORT
+	*dma = page_pool_get_dma_addr(page);
+#else
 	*dma = dma_map_page(rx_ring->dev, page, 0, ENA_PAGE_SIZE,
 			    DMA_BIDIRECTIONAL);
 	if (unlikely(dma_mapping_error(rx_ring->dev, *dma))) {
@@ -641,6 +666,7 @@ struct page *ena_alloc_map_page(struct ena_ring *rx_ring,
 		__free_page(page);
 		return ERR_PTR(-EIO);
 	}
+#endif /* ENA_PAGE_POOL_SUPPORT */
 
 	return page;
 }
@@ -681,7 +707,11 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 #endif /* ENA_AF_XDP_SUPPORT */
 
 	/* We handle DMA here */
+#ifdef ENA_LPC_SUPPORT
 	page = ena_lpc_get_page(rx_ring, &dma, &rx_info->is_lpc_page);
+#else
+	page = ena_alloc_map_page(rx_ring, &dma);
+#endif /* ENA_LPC_SUPPORT */
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
@@ -690,6 +720,16 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 
 	tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+	if (!ena_xdp_present_ring(rx_ring)) {
+		page_pool_fragment_page(page, ENA_PAGECOUNT_MAX_BIAS);
+		rx_info->pagecnt_bias = ENA_PAGECOUNT_MAX_BIAS - 1;
+	} else {
+		/* For XDP, DRB is not used so we don't frag the page */
+		rx_info->pagecnt_bias = 1;
+	}
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	rx_info->page = page;
 	rx_info->dma_addr = dma;
 	rx_info->page_offset = 0;
@@ -704,15 +744,20 @@ void ena_unmap_rx_buff_attrs(struct ena_ring *rx_ring,
 			     struct ena_rx_buffer *rx_info,
 			     unsigned long attrs)
 {
+#ifdef ENA_LPC_SUPPORT
 	/* LPC pages are unmapped at cache destruction */
 	if (rx_info->is_lpc_page)
 		return;
 
+#endif /* ENA_LPC_SUPPORT */
 	ena_dma_unmap_page_attrs(rx_ring->dev, rx_info->dma_addr, ENA_PAGE_SIZE,
 				 DMA_BIDIRECTIONAL, attrs);
 }
 
 static void ena_free_rx_page(struct ena_ring *rx_ring,
+#ifdef ENA_PAGE_POOL_SUPPORT
+			     bool allow_direct,
+#endif /* ENA_PAGE_POOL_SUPPORT */
 			     struct ena_rx_buffer *rx_info)
 {
 	struct page *page = rx_info->page;
@@ -723,9 +768,17 @@ static void ena_free_rx_page(struct ena_ring *rx_ring,
 		return;
 	}
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+	page_pool_unref_page(page, rx_info->pagecnt_bias);
+	page_pool_put_full_page(rx_ring->page_pool, page, allow_direct);
+#else
+	/* The page pool mechanism unmaps page when the page is freed from
+	 * the pool.
+	 */
 	ena_unmap_rx_buff_attrs(rx_ring, rx_info, 0);
 
 	__free_page(page);
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	rx_info->page = NULL;
 }
 
@@ -736,7 +789,11 @@ int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 	u32 i;
 
 	next_to_use = rx_ring->next_to_use;
+#ifdef ENA_PAGE_POOL_SUPPORT
+	if (rx_ring->page_pool)
+		page_pool_nid_changed(rx_ring->page_pool, numa_mem_id());
 
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	for (i = 0; i < num; i++) {
 		struct ena_rx_buffer *rx_info;
 
@@ -811,7 +868,11 @@ static void ena_free_rx_bufs(struct ena_adapter *adapter,
 		struct ena_rx_buffer *rx_info = &rx_ring->rx_buffer_info[i];
 
 		if (rx_info->page)
+#ifdef ENA_PAGE_POOL_SUPPORT
+			ena_free_rx_page(rx_ring, false, rx_info);
+#else
 			ena_free_rx_page(rx_ring, rx_info);
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	}
 }
 
@@ -1177,7 +1238,11 @@ static bool ena_try_rx_buf_page_reuse(struct ena_rx_buffer *rx_info, u16 buf_len
 	 * for data + headroom + tailroom.
 	 */
 	if (SKB_DATA_ALIGN(len + pkt_offset) + ENA_MIN_RX_BUF_SIZE <= ena_buf->len) {
+#ifdef ENA_PAGE_POOL_SUPPORT
+		rx_info->pagecnt_bias--;
+#else
 		page_ref_inc(rx_info->page);
+#endif /* ENA_PAGE_POOL_SUPPORT */
 		rx_info->page_offset += buf_len;
 		ena_buf->paddr += buf_len;
 		ena_buf->len -= buf_len;
@@ -1255,9 +1320,17 @@ void ena_fill_rx_frags(struct ena_ring *rx_ring,
 				 * by the buffer as expected from skb->truesize
 				 */
 				buf_len = ENA_PAGE_SIZE - page_offset;
+#ifdef ENA_PAGE_POOL_SUPPORT
+				page_pool_unref_page(rx_info->page,
+						     rx_info->pagecnt_bias);
+#else
+				/* The page pool mechanism unmaps page
+				 * when the page is freed from the pool.
+				 */
 				ena_unmap_rx_buff_attrs(rx_ring,
 							rx_info,
 							ENA_DMA_ATTR_SKIP_CPU_SYNC);
+#endif /* ENA_PAGE_POOL_SUPPORT */
 				rx_info->page = NULL;
 			}
 
@@ -1313,7 +1386,11 @@ struct sk_buff *ena_rx_skb_copybreak(struct ena_ring *rx_ring,
 
 	/* Don't reuse the RX page if we're on the wrong NUMA */
 	if (page_to_nid(rx_info->page) != numa_mem_id())
+#ifdef ENA_PAGE_POOL_SUPPORT
+		ena_free_rx_page(rx_ring, true, rx_info);
+#else
 		ena_free_rx_page(rx_ring, rx_info);
+#endif /* ENA_PAGE_POOL_SUPPORT */
 
 	return skb;
 }
@@ -1363,7 +1440,12 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 	reuse_rx_buf_page = ena_try_rx_buf_page_reuse(rx_info, buf_len, len, pkt_offset);
 
 	if (!reuse_rx_buf_page) {
+#ifndef ENA_PAGE_POOL_SUPPORT
+		/* The page pool mechanism unmaps page when the page is freed
+		 * from the pool.
+		 */
 		ena_unmap_rx_buff_attrs(rx_ring, rx_info, ENA_DMA_ATTR_SKIP_CPU_SYNC);
+#endif /* ENA_PAGE_POOL_SUPPORT */
 		/* Make sure buf_len represents the actual size used
 		 * by the buffer as expected from skb->truesize
 		 */
@@ -1383,8 +1465,12 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 		  "RX skb created. len %d.\n",
 		  skb->len);
 
-	if (!reuse_rx_buf_page)
+	if (!reuse_rx_buf_page) {
+#ifdef ENA_PAGE_POOL_SUPPORT
+		page_pool_unref_page(rx_info->page, rx_info->pagecnt_bias);
+#endif /* ENA_PAGE_POOL_SUPPORT */
 		rx_info->page = NULL;
+	}
 
 	ena_fill_rx_frags(rx_ring, descs, ena_bufs, skb_shinfo(skb),
 #ifdef ENA_XDP_MB_SUPPORT
@@ -1397,6 +1483,10 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 	skb_mark_napi_id(skb, rx_ring->napi);
 
 #endif
+#ifdef ENA_PAGE_POOL_SUPPORT
+	skb_mark_for_recycle(skb);
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	return skb;
 }
 
@@ -2511,6 +2601,45 @@ static void set_io_rings_size(struct ena_adapter *adapter,
 	}
 }
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+static int ena_create_page_pool(struct ena_adapter *adapter)
+{
+	struct page_pool_params pp_params = {};
+	struct ena_ring *rx_ring;
+	int rc, i;
+
+	pp_params.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
+	pp_params.dma_dir = DMA_BIDIRECTIONAL;
+	pp_params.max_len = ENA_PAGE_SIZE;
+	pp_params.order = 0;
+	pp_params.netdev = adapter->netdev;
+	pp_params.dev = &adapter->pdev->dev;
+	pp_params.nid = NUMA_NO_NODE;
+	for (i = 0; i < adapter->num_io_queues; i++) {
+		rx_ring = &adapter->rx_ring[i];
+#ifdef ENA_AF_XDP_SUPPORT
+		/* For AF XDP rings we use buffers allocated from UMEM */
+		if (unlikely(ENA_IS_XSK_RING(rx_ring)))
+			continue;
+
+#endif /* ENA_AF_XDP_SUPPORT */
+		pp_params.pool_size = rx_ring->ring_size;
+		pp_params.napi = rx_ring->napi;
+		rx_ring->page_pool = page_pool_create(&pp_params);
+		if (IS_ERR(rx_ring->page_pool)) {
+			rc = PTR_ERR(rx_ring->page_pool);
+			rx_ring->page_pool = NULL;
+			netif_err(adapter, ifup, adapter->netdev,
+				  "Failed to initialize Page Pool on qid %d. Error code %d.\n",
+				  rx_ring->qid, rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 /* This function allows queue allocation to backoff when the system is
  * low on memory. If there is not enough memory to allocate io queues
  * the driver will try to allocate smaller queues.
@@ -2550,14 +2679,22 @@ static int create_queues_with_size_backoff(struct ena_adapter *adapter)
 		if (rc)
 			goto err_setup_rx;
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+		rc = ena_create_page_pool(adapter);
+		if (rc)
+			goto err_create_rx_queues;
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 		rc = ena_create_all_io_rx_queues(adapter);
 		if (rc)
 			goto err_create_rx_queues;
 
+#ifdef ENA_LPC_SUPPORT
 		rc = ena_create_page_caches(adapter);
 		if (rc) /* Cache memory is freed in case of failure */
 			goto err_create_rx_queues;
 
+#endif /* ENA_LPC_SUPPORT */
 		return 0;
 
 err_create_rx_queues:
@@ -2733,7 +2870,9 @@ int ena_up(struct ena_adapter *adapter)
 	return rc;
 
 err_up:
+#ifdef ENA_LPC_SUPPORT
 	ena_free_page_caches(adapter);
+#endif /* ENA_LPC_SUPPORT */
 	ena_destroy_all_tx_queues(adapter);
 	ena_free_all_io_tx_resources(adapter);
 	ena_destroy_all_rx_queues(adapter);
@@ -2783,8 +2922,10 @@ void ena_down(struct ena_adapter *adapter)
 
 	ena_free_all_tx_bufs(adapter);
 	ena_free_all_rx_bufs(adapter);
+#ifdef ENA_LPC_SUPPORT
 	ena_free_all_cache_pages(adapter);
 	ena_free_page_caches(adapter);
+#endif /* ENA_LPC_SUPPORT */
 	ena_free_all_io_tx_resources(adapter);
 	ena_free_all_io_rx_resources(adapter);
 }
@@ -2873,6 +3014,7 @@ static int ena_close(struct net_device *netdev)
 	return 0;
 }
 
+#ifdef ENA_LPC_SUPPORT
 int ena_set_lpc_state(struct ena_adapter *adapter, bool enabled)
 {
 	/* In XDP, lpc_size might be positive even with LPC disabled, use cache
@@ -2907,6 +3049,7 @@ int ena_set_lpc_state(struct ena_adapter *adapter, bool enabled)
 	return 0;
 }
 
+#endif /* ENA_LPC_SUPPORT */
 int ena_update_queue_params(struct ena_adapter *adapter,
 			    u32 new_tx_size,
 			    u32 new_rx_size,
@@ -5391,6 +5534,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->num_io_queues = clamp_val(num_io_queues, ENA_MIN_NUM_IO_QUEUES,
 					   max_num_io_queues);
+#ifdef ENA_LPC_SUPPORT
 
 	if (lpc_size < ENA_LPC_MULTIPLIER_NOT_CONFIGURED) {
 		dev_warn(&pdev->dev,
@@ -5404,6 +5548,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->used_lpc_size = lpc_size != ENA_LPC_MULTIPLIER_NOT_CONFIGURED ? lpc_size :
 				 ENA_LPC_DEFAULT_MULTIPLIER;
 
+#endif /* ENA_LPC_SUPPORT */
 	adapter->max_num_io_queues = max_num_io_queues;
 	adapter->last_monitored_qid = 0;
 

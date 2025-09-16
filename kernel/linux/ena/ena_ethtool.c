@@ -196,9 +196,26 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(xdp_invalid),
 	ENA_STAT_RX_ENTRY(xdp_redirect),
 #endif
+#ifdef ENA_LPC_SUPPORT
 	ENA_STAT_RX_ENTRY(lpc_warm_up),
 	ENA_STAT_RX_ENTRY(lpc_full),
 	ENA_STAT_RX_ENTRY(lpc_wrong_numa),
+#endif /* ENA_LPC_SUPPORT */
+#ifdef ENA_PAGE_POOL_SUPPORT
+#ifdef CONFIG_PAGE_POOL_STATS
+	ENA_STAT_RX_ENTRY(pp_alloc_fast),
+	ENA_STAT_RX_ENTRY(pp_alloc_slow),
+	ENA_STAT_RX_ENTRY(pp_alloc_slow_hi_ord),
+	ENA_STAT_RX_ENTRY(pp_alloc_empty),
+	ENA_STAT_RX_ENTRY(pp_alloc_refill),
+	ENA_STAT_RX_ENTRY(pp_alloc_waive),
+	ENA_STAT_RX_ENTRY(pp_cached),
+	ENA_STAT_RX_ENTRY(pp_cache_full),
+	ENA_STAT_RX_ENTRY(pp_ring),
+	ENA_STAT_RX_ENTRY(pp_ring_full),
+	ENA_STAT_RX_ENTRY(pp_released_ref),
+#endif /* CONFIG_PAGE_POOL_STATS */
+#endif /* ENA_PAGE_POOL_SUPPORT */
 #ifdef ENA_AF_XDP_SUPPORT
 	ENA_STAT_RX_ENTRY(xsk_need_wakeup_set),
 	ENA_STAT_RX_ENTRY(zc_queue_pkt_copy),
@@ -235,6 +252,7 @@ static const struct ena_stats ena_stats_ena_com_phc_strings[] = {
 /* Used to report number of active and XDP TX queues */
 #define ENA_QUEUE_SIZE_STATS_NUM	2
 
+#ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
 static const char ena_priv_flags_strings[][ETH_GSTRING_LEN] = {
 #define ENA_PRIV_FLAGS_LPC	BIT(0)
 	"local_page_cache",
@@ -242,6 +260,7 @@ static const char ena_priv_flags_strings[][ETH_GSTRING_LEN] = {
 
 #define ENA_PRIV_FLAGS_NR ARRAY_SIZE(ena_priv_flags_strings)
 
+#endif /* ENA_LPC_SUPPORT */
 static void ena_safe_update_stat(u64 *src, u64 *dst,
 				 struct u64_stats_sync *syncp)
 {
@@ -321,6 +340,45 @@ static void ena_metrics_stats(struct ena_adapter *adapter, u64 **data)
 	}
 }
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+static void ena_fetch_page_pool_stats(struct ena_adapter *adapter)
+{
+#ifdef CONFIG_PAGE_POOL_STATS
+	struct page_pool_stats stats;
+	struct ena_ring *rx_ring;
+	struct page_pool *pool;
+	int i;
+
+	for (i = 0; i < adapter->max_num_io_queues; i++) {
+		rx_ring = &adapter->rx_ring[i];
+		memset(&stats, 0, sizeof(stats));
+		pool = rx_ring->page_pool;
+
+		if (!pool || !page_pool_get_stats(pool, &stats))
+			continue;
+
+		u64_stats_update_begin(&rx_ring->syncp);
+		rx_ring->rx_stats.pp_alloc_fast = stats.alloc_stats.fast;
+		rx_ring->rx_stats.pp_alloc_slow = stats.alloc_stats.slow;
+		rx_ring->rx_stats.pp_alloc_slow_hi_ord =
+			stats.alloc_stats.slow_high_order;
+		rx_ring->rx_stats.pp_alloc_empty = stats.alloc_stats.empty;
+		rx_ring->rx_stats.pp_alloc_refill = stats.alloc_stats.refill;
+		rx_ring->rx_stats.pp_alloc_waive = stats.alloc_stats.waive;
+
+		rx_ring->rx_stats.pp_cached = stats.recycle_stats.cached;
+		rx_ring->rx_stats.pp_cache_full =
+			stats.recycle_stats.cache_full;
+		rx_ring->rx_stats.pp_ring = stats.recycle_stats.ring;
+		rx_ring->rx_stats.pp_ring_full = stats.recycle_stats.ring_full;
+		rx_ring->rx_stats.pp_released_ref =
+			stats.recycle_stats.released_refcnt;
+		u64_stats_update_end(&rx_ring->syncp);
+	}
+#endif /* CONFIG_PAGE_POOL_STATS */
+}
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 static void ena_dump_stats_for_queue(struct ena_ring *ring, int stats_count,
 				     u64 **data, enum ena_stat_type stat_type,
 				     const struct ena_stats *stats_strings)
@@ -386,6 +444,10 @@ static void ena_get_queue_stats(struct ena_adapter *adapter, u64 *data,
 	*data++ = adapter->num_io_queues;
 	*data++ = adapter->xdp_num_queues;
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+	ena_fetch_page_pool_stats(adapter);
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	if (print_accumulated_queue_stats) {
 		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX; i++) {
 			ena_stats = &ena_accum_stats_tx_strings[i];
@@ -583,8 +645,10 @@ int ena_get_sset_count(struct net_device *netdev, int sset)
 		return ena_get_base_sw_stats_count(adapter) +
 		       ena_get_queue_sw_stats_count(adapter, false) +
 		       ena_get_hw_stats_count(adapter);
+#ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
 	case ETH_SS_PRIV_FLAGS:
 		return ENA_PRIV_FLAGS_NR;
+#endif /* ENA_LPC_SUPPORT */
 	}
 
 	return -EOPNOTSUPP;
@@ -730,9 +794,11 @@ static void ena_get_ethtool_strings(struct net_device *netdev,
 		data = ena_get_base_strings(adapter, data, true);
 		ena_get_queue_strings(adapter, data, false);
 		break;
+#ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
 	case ETH_SS_PRIV_FLAGS:
 		memcpy(data, ena_priv_flags_strings, sizeof(ena_priv_flags_strings));
 		break;
+#endif /* ENA_LPC_SUPPORT */
 	}
 }
 
@@ -934,8 +1000,10 @@ static void ena_get_drvinfo(struct net_device *dev,
 	if (ret < 0)
 		netif_dbg(adapter, drv, dev,
 			  "bus info will be truncated, status = %zd\n", ret);
+#ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
 
 	info->n_priv_flags = ENA_PRIV_FLAGS_NR;
+#endif /* ENA_LPC_SUPPORT */
 }
 
 static void ena_get_ringparam(struct net_device *netdev,
@@ -1849,6 +1917,7 @@ static int ena_set_tunable(struct net_device *netdev,
 	return ret;
 }
 #endif /* 3.18.0 */
+#ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
 
 static u32 ena_get_priv_flags(struct net_device *netdev)
 {
@@ -1868,6 +1937,7 @@ static int ena_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 	/* LPC is the only supported private flag for now */
 	return ena_set_lpc_state(adapter, !!(priv_flags & ENA_PRIV_FLAGS_LPC));
 }
+#endif /* ENA_LPC_SUPPORT */
 
 static const struct ethtool_ops ena_ethtool_ops = {
 #ifdef ENA_HAVE_ETHTOOL_OPS_SUPPORTED_COALESCE_PARAMS
@@ -1920,8 +1990,10 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.set_tunable		= ena_set_tunable,
 #endif
 	.get_ts_info		= ena_get_ts_info,
+#ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
 	.get_priv_flags		= ena_get_priv_flags,
 	.set_priv_flags		= ena_set_priv_flags,
+#endif /* ENA_LPC_SUPPORT */
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev)

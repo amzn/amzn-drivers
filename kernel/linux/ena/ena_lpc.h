@@ -3,7 +3,11 @@
  * All rights reserved.
  */
 
+#ifndef ENA_LPC_H
+#define ENA_LPC_H
+
 #include "ena_netdev.h"
+#ifdef ENA_LPC_SUPPORT
 
 /* LPC definitions */
 #define ENA_LPC_DEFAULT_MULTIPLIER 2
@@ -37,3 +41,5 @@ struct page *ena_lpc_get_page(struct ena_ring *rx_ring, dma_addr_t *dma,
 bool ena_is_lpc_supported(struct ena_adapter *adapter,
 			  struct ena_ring *rx_ring,
 			  bool error_print);
+#endif /* ENA_LPC_SUPPORT */
+#endif /* ENA_LPC_H */

@@ -30,6 +30,9 @@
 #ifdef ENA_HAS_DEVLINK_HEADERS
 #include <net/devlink.h>
 #endif /* ENA_HAS_DEVLINK_HEADERS */
+#ifdef ENA_PAGE_POOL_SUPPORT
+#include <net/page_pool/helpers.h>
+#endif /* ENA_PAGE_POOL_SUPPORT */
 
 #include "ena_com.h"
 #include "ena_eth_com.h"
@@ -128,8 +131,10 @@
 
 #define ENA_MMIO_DISABLE_REG_READ	BIT(0)
 
+#ifdef ENA_LPC_SUPPORT
 struct ena_page_cache;
 
+#endif /* ENA_LPC_SUPPORT */
 #ifdef ENA_PHC_SUPPORT
 struct ena_phc_info;
 
@@ -216,7 +221,15 @@ struct ena_rx_buffer {
 	u32 page_offset;
 	u32 buf_offset;
 	struct ena_com_buf ena_buf;
+#ifdef ENA_LPC_SUPPORT
 	bool is_lpc_page;
+#endif /* ENA_LPC_SUPPORT */
+#ifdef ENA_PAGE_POOL_SUPPORT
+	/* Used to locally frag a page allocated from page pool via the DRB
+	 * mechanism, thus avoiding atomic ops to update the page ref.
+	 */
+	long pagecnt_bias;
+#endif /* ENA_PAGE_POOL_SUPPORT */
 } ____cacheline_aligned;
 
 struct ena_stats_tx {
@@ -277,9 +290,26 @@ struct ena_stats_rx {
 	u64 xdp_invalid;
 	u64 xdp_redirect;
 #endif
+#ifdef ENA_LPC_SUPPORT
 	u64 lpc_warm_up;
 	u64 lpc_full;
 	u64 lpc_wrong_numa;
+#endif /* ENA_LPC_SUPPORT */
+#ifdef ENA_PAGE_POOL_SUPPORT
+#ifdef CONFIG_PAGE_POOL_STATS
+	u64 pp_alloc_fast;
+	u64 pp_alloc_slow;
+	u64 pp_alloc_slow_hi_ord;
+	u64 pp_alloc_empty;
+	u64 pp_alloc_refill;
+	u64 pp_alloc_waive;
+	u64 pp_cached;
+	u64 pp_cache_full;
+	u64 pp_ring;
+	u64 pp_ring_full;
+	u64 pp_released_ref;
+#endif /* CONFIG_PAGE_POOL_STATS */
+#endif /* ENA_PAGE_POOL_SUPPORT */
 #ifdef ENA_AF_XDP_SUPPORT
 	u64 xsk_need_wakeup_set;
 	u64 zc_queue_pkt_copy;
@@ -302,7 +332,12 @@ struct ena_ring {
 	struct pci_dev *pdev;
 	struct napi_struct *napi;
 	struct net_device *netdev;
+#ifdef ENA_LPC_SUPPORT
 	struct ena_page_cache *page_cache;
+#endif /* ENA_LPC_SUPPORT */
+#ifdef ENA_PAGE_POOL_SUPPORT
+	struct page_pool *page_pool;
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	struct ena_com_dev *ena_dev;
 	struct ena_adapter *adapter;
 	struct ena_com_io_cq *ena_com_io_cq;
@@ -457,11 +492,13 @@ struct ena_adapter {
 	u32 num_io_queues;
 	u32 max_num_io_queues;
 
+#ifdef ENA_LPC_SUPPORT
 	/* Local page cache size when it's enabled */
 	u32 configured_lpc_size;
 	/* Current Local page cache size */
 	u32 used_lpc_size;
 
+#endif /* ENA_LPC_SUPPORT */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
 	struct msix_entry *msix_entries;
 #endif
@@ -585,8 +622,10 @@ void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 
 struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag, u16 len);
 
+#ifdef ENA_LPC_SUPPORT
 int ena_set_lpc_state(struct ena_adapter *adapter, bool enabled);
 
+#endif /* ENA_LPC_SUPPORT */
 int ena_update_queue_params(struct ena_adapter *adapter,
 			    u32 new_tx_size,
 			    u32 new_rx_size,
@@ -732,6 +771,7 @@ static inline int ena_tx_map_frags(struct skb_shared_info *sh_info,
 	return 0;
 }
 
+#ifdef ENA_LPC_SUPPORT
 /* Allocate a page and DMA map it
  * @rx_ring: The IO queue pair which requests the allocation
  *
@@ -740,6 +780,7 @@ static inline int ena_tx_map_frags(struct skb_shared_info *sh_info,
  */
 struct page *ena_alloc_map_page(struct ena_ring *rx_ring, dma_addr_t *dma);
 
+#endif /* ENA_LPC_SUPPORT */
 int ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 int ena_restore_device(struct ena_adapter *adapter);
 void ena_get_and_dump_head_tx_cdesc(struct ena_com_io_cq *io_cq);
@@ -823,9 +864,14 @@ static inline void ena_rx_release_packet_buffers(struct ena_ring *rx_ring,
 	for (i = first_to_release; i <= last_to_release; i++) {
 		int req_id = rx_ring->ena_bufs[i].req_id;
 
+#ifndef ENA_PAGE_POOL_SUPPORT
+		/* The page pool mechanism unmaps page when the page is freed
+		 * from the pool.
+		 */
 		ena_unmap_rx_buff_attrs(rx_ring,
 					&rx_ring->rx_buffer_info[req_id],
 					ENA_DMA_ATTR_SKIP_CPU_SYNC);
+#endif /* ENA_PAGE_POOL_SUPPORT */
 		rx_ring->rx_buffer_info[req_id].page = NULL;
 	}
 }

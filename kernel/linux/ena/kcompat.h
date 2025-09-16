@@ -1078,4 +1078,16 @@ static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len) {}
 #define ENA_DEVLINK_SUPPORT
 #endif /* ENA_DEVLINK_INCLUDE && CONFIG_NET_DEVLINK && KERNEL >= 6.12 */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#define ENA_PAGE_POOL_SUPPORT
+#else
+#define ENA_LPC_SUPPORT
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
+
+#ifdef ENA_PAGE_POOL_SUPPORT
+#define ENA_XDP_MEM_TYPE MEM_TYPE_PAGE_POOL
+#else
+#define ENA_XDP_MEM_TYPE MEM_TYPE_PAGE_SHARED
+#endif /* ENA_PAGE_POOL_SUPPORT */
+
 #endif /* _KCOMPAT_H_ */

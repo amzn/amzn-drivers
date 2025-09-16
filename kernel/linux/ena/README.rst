@@ -506,6 +506,16 @@ descriptor it was received on would be recycled. When a packet smaller
 than RX copybreak bytes is received, it is copied into a new memory
 buffer and the RX descriptor is returned to HW.
 
+.. _`page_pool.rst`: https://elixir.bootlin.com/linux/latest/source/Documentation/networking/page_pool.rst
+Page Pool Support
+=================
+
+Starting from kernel 6.12, ENA Linux driver introduces Page Pool support.
+Page Pool is a kernel memory management mechanism aimed to provide an efficient
+way to process page allocations and recycle pages to reduce CPU contention.
+For kernels older than 6.12 ENA Linux driver supports LPC.
+More information about Page Pool can be found in here: `page_pool.rst`_
+
 .. _`LPC`:
 
 Local Page Cache (LPC)

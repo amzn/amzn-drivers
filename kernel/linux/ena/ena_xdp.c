@@ -234,6 +234,11 @@ static void ena_init_all_xdp_queues(struct ena_adapter *adapter)
  */
 int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 {
+#ifdef ENA_PAGE_POOL_SUPPORT
+	void *allocator = rx_ring->page_pool;
+#else
+	void *allocator = NULL;
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	int rc;
 
 	rc = ena_xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid,
@@ -254,10 +259,10 @@ int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_XSK_BUFF_POOL, NULL);
 		xsk_pool_set_rxq_info(rx_ring->xsk_pool, &rx_ring->xdp_rxq);
 	} else {
-		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_PAGE_SHARED, NULL);
+		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, ENA_XDP_MEM_TYPE, allocator);
 	}
 #else
-	rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_PAGE_SHARED, NULL);
+	rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, ENA_XDP_MEM_TYPE, allocator);
 #endif /* ENA_AF_XDP_SUPPORT */
 
 	if (rc) {
@@ -1239,6 +1244,10 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 	if (meta_len)
 		skb_metadata_set(skb, meta_len);
 
+#ifdef ENA_PAGE_POOL_SUPPORT
+	skb_mark_for_recycle(skb);
+
+#endif /* ENA_PAGE_POOL_SUPPORT */
 	return skb;
 }
 
