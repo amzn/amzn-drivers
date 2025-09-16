@@ -4796,12 +4796,13 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 		jiffies_since_last_intr = jiffies - READ_ONCE(ena_napi->last_intr_jiffies);
 		jiffies_since_last_napi = jiffies - READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
 		netif_err(adapter, tx_err, netdev,
-			  "Lost TX completions are above the threshold (%d > %d). Completion transmission timeout: %u (msec). %u msecs since last interrupt, %u msecs since last napi execution.\n",
+			  "Lost TX completions are above the threshold (%d > %d). Completion transmission timeout: %u (msec). %u msecs since last interrupt, %u msecs since last napi execution. qid %d.\n",
 			  missed_tx,
 			  missed_tx_thresh,
 			  jiffies_to_msecs(miss_tx_comp_to_jiffies),
 			  jiffies_to_msecs(jiffies_since_last_intr),
-			  jiffies_to_msecs(jiffies_since_last_napi));
+			  jiffies_to_msecs(jiffies_since_last_napi),
+			  tx_ring->qid);
 		if (unlikely(READ_ONCE(ena_napi->last_intr_jiffies) == 0))
 			missing_first_interrupt = true;
 
