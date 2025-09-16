@@ -1264,4 +1264,8 @@ static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len) {}
 #define timer_container_of(adapter, t, timer_service) from_timer(adapter, t, timer_service)
 #endif /* timer_container_of */
 
+#if defined(ENA_DEVLINK_INCLUDE) && defined(CONFIG_NET_DEVLINK) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#define ENA_DEVLINK_SUPPORT
+#endif /* ENA_DEVLINK_INCLUDE && CONFIG_NET_DEVLINK && KERNEL >= 6.12 */
+
 #endif /* _KCOMPAT_H_ */

@@ -27,6 +27,9 @@
 #include <uapi/linux/bpf.h>
 #endif
 #include <linux/u64_stats_sync.h>
+#ifdef ENA_HAS_DEVLINK_HEADERS
+#include <net/devlink.h>
+#endif /* ENA_HAS_DEVLINK_HEADERS */
 
 #include "ena_com.h"
 #include "ena_eth_com.h"
@@ -528,6 +531,8 @@ struct ena_adapter {
 
 	struct hw_timestamp_state hw_ts_state;
 	struct ena_keep_alive_stats persistent_ka_stats;
+
+	struct devlink *devlink;
 };
 
 #define ENA_RESET_STATS_ENTRY(reset_reason, stat) \

@@ -11,6 +11,7 @@ $(DRIVER_NAME)-srcs := ena_netdev.c \
 		ena_xdp.c \
 		dim.c \
 		net_dim.c \
+		ena_devlink.c \
 		$(ENA_COM_PATH)/ena_com.c \
 		$(ENA_COM_PATH)/ena_eth_com.c
 
@@ -90,6 +91,10 @@ endif
 
 ifdef ENA_PHC_INCLUDE
 	ccflags-y += -DENA_PHC_INCLUDE
+endif
+
+ifdef ENA_DEVLINK_INCLUDE
+	ccflags-y += -DENA_DEVLINK_INCLUDE
 endif
 
 all: $(DRIVER_NAME).ko

@@ -275,3 +275,10 @@ try_compile_async "#include <net/netdev_queues.h>"       \
                   "ENA_HAVE_NETDEV_QUEUE_STATS"          \
                   ""                                     \
                   "6.10.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/devlink.h>"                    \
+                  "{
+                   }"                                           \
+                  "ENA_HAS_DEVLINK_HEADERS"                     \
+                  ""                                            \
+                  "4.6.0 <= LINUX_VERSION_CODE"

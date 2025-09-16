@@ -336,6 +336,7 @@ ena_ethtool.c       ethtool callbacks.
 ena_xdp.[ch]        XDP files
 ena_pci_id_tbl.h    Supported device IDs.
 ena_phc.[ch]        PTP hardware clock infrastructure (see `PHC`_ for more info)
+ena_devlink.[ch]    devlink files.
 =================   ======================================================
 
 Management Interface:
@@ -785,6 +786,26 @@ RSS
   ``skb``.
 - The user can provide a hash key, hash function, and configure the
   indirection table through ``ethtool(8)``.
+
+DEVLINK SUPPORT
+===============
+.. _`devlink`: https://www.kernel.org/doc/html/latest/networking/devlink/index.html
+
+`devlink`_ supports reloading the driver and initiating re-negotiation with the ENA device
+
+.. code-block:: shell
+
+  sudo devlink dev reload pci/<domain:bus:slot.function>
+  # for example:
+  sudo devlink dev reload pci/0000:00:06.0
+
+In order to use devlink, environment variable ``ENA_DEVLINK_INCLUDE`` needs to be set.
+
+.. code-block:: shell
+
+  ENA_DEVLINK_INCLUDE=1 make
+
+Note that `devlink`_ is supported in the driver from Linux Kernel v6.12 and on.
 
 DATA PATH
 =========
