@@ -33,6 +33,10 @@
 
 #include "ena_phc.h"
 
+#ifdef ENA_HAVE_NETDEV_QUEUE_STATS
+#include <net/netdev_queues.h>
+
+#endif /* ENA_HAVE_NETDEV_QUEUE_STATS */
 static char driver_info[] = DEVICE_NAME " v" DRV_MODULE_GENERATION "\n";
 
 MODULE_AUTHOR("Amazon.com, Inc. or its affiliates");
@@ -2798,18 +2802,7 @@ void ena_down(struct ena_adapter *adapter)
 	ena_free_all_io_rx_resources(adapter);
 }
 
-/* ena_open - Called when a network interface is made active
- * @netdev: network interface device structure
- *
- * Returns 0 on success, negative value on failure
- *
- * The open entry point is called when a network interface is made
- * active by the system (IFF_UP).  At this point all resources needed
- * for transmit and receive operations are allocated, the interrupt
- * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
- */
-static int ena_open(struct net_device *netdev)
+static int ena_set_real_num_io_queues(struct net_device *netdev)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	int rc;
@@ -2827,11 +2820,30 @@ static int ena_open(struct net_device *netdev)
 		return rc;
 	}
 
-	rc = ena_up(adapter);
+	return 0;
+}
+
+/* ena_open - Called when a network interface is made active
+ * @netdev: network interface device structure
+ *
+ * Returns 0 on success, negative value on failure
+ *
+ * The open entry point is called when a network interface is made
+ * active by the system (IFF_UP).  At this point all resources needed
+ * for transmit and receive operations are allocated, the interrupt
+ * handler is registered with the OS, the watchdog timer is started,
+ * and the stack is notified that the interface is ready.
+ */
+static int ena_open(struct net_device *netdev)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	int rc;
+
+	rc = ena_set_real_num_io_queues(netdev);
 	if (rc)
 		return rc;
 
-	return rc;
+	return ena_up(adapter);
 }
 
 /* ena_close - Disables a network interface
@@ -3004,7 +3016,10 @@ int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count)
 			  0,
 			  adapter->xdp_num_queues +
 			  adapter->num_io_queues);
-	return dev_was_up ? ena_open(adapter->netdev) : 0;
+	if (dev_was_up)
+		return ena_open(adapter->netdev);
+
+	return ena_set_real_num_io_queues(adapter->netdev);
 }
 
 static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx,
@@ -3877,6 +3892,119 @@ static const struct net_device_ops ena_netdev_ops = {
 #endif /* ENA_HAVE_NDO_HWTSTAMP */
 };
 
+#ifdef ENA_HAVE_NETDEV_QUEUE_STATS
+static void ena_accumulate_stats_rx(struct ena_ring *rx_ring,
+				    struct netdev_queue_stats_rx *stats)
+{
+	u64 bytes, packets, alloc_fail, csum_bad;
+	unsigned int start;
+
+	do {
+		start = ena_u64_stats_fetch_begin(&rx_ring->syncp);
+		bytes = rx_ring->rx_stats.bytes;
+		packets = rx_ring->rx_stats.cnt;
+		alloc_fail = rx_ring->rx_stats.skb_alloc_fail +
+			     rx_ring->rx_stats.page_alloc_fail;
+		csum_bad = rx_ring->rx_stats.csum_bad;
+	} while (ena_u64_stats_fetch_retry(&rx_ring->syncp, start));
+
+	stats->bytes += bytes;
+	stats->packets += packets;
+	stats->alloc_fail += alloc_fail;
+	stats->csum_bad += csum_bad;
+}
+
+static void ena_get_queue_stats_rx(struct net_device *netdev, int qid,
+				   struct netdev_queue_stats_rx *stats)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
+
+	/* Unreported stats are initialized to 0xff */
+	stats->bytes = 0;
+	stats->packets = 0;
+	stats->alloc_fail = 0;
+	stats->csum_bad = 0;
+	ena_accumulate_stats_rx(rx_ring, stats);
+}
+
+static void ena_accumulate_stats_tx(struct ena_ring *tx_ring,
+				    struct netdev_queue_stats_tx *stats)
+{
+	u64 bytes, packets, stop, wake;
+	unsigned int start;
+
+	do {
+		start = ena_u64_stats_fetch_begin(&tx_ring->syncp);
+		bytes = tx_ring->tx_stats.bytes;
+		packets = tx_ring->tx_stats.cnt;
+		stop = tx_ring->tx_stats.queue_stop;
+		wake = tx_ring->tx_stats.queue_wakeup;
+	} while (ena_u64_stats_fetch_retry(&tx_ring->syncp, start));
+
+	stats->bytes += bytes;
+	stats->packets += packets;
+	stats->stop += stop;
+	stats->wake += wake;
+}
+
+static void ena_get_queue_stats_tx(struct net_device *netdev, int qid,
+				   struct netdev_queue_stats_tx *stats)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_ring *tx_ring = &adapter->tx_ring[qid];
+
+	/* Unreported stats are initialized to 0xff */
+	stats->bytes = 0;
+	stats->packets = 0;
+	stats->stop = 0;
+	stats->wake = 0;
+	ena_accumulate_stats_tx(tx_ring, stats);
+}
+
+static void ena_get_base_stats(struct net_device *netdev,
+			       struct netdev_queue_stats_rx *rx,
+			       struct netdev_queue_stats_tx *tx)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	unsigned int start;
+	int i;
+
+	do {
+		start = ena_u64_stats_fetch_begin(&adapter->syncp);
+		rx->hw_drops = adapter->dev_stats.ka_stats.rx_drops +
+			       adapter->persistent_ka_stats.rx_drops;
+		rx->hw_drop_overruns = adapter->dev_stats.ka_stats.rx_overruns +
+				       adapter->persistent_ka_stats.rx_overruns;
+		tx->hw_drops = adapter->dev_stats.ka_stats.tx_drops +
+			       adapter->persistent_ka_stats.tx_drops;
+	} while (ena_u64_stats_fetch_retry(&adapter->syncp, start));
+
+	/* Count inactive queues stats, as they will not be called by
+	 * ena_get_queue_stats
+	 */
+	rx->bytes = 0;
+	rx->packets = 0;
+	rx->alloc_fail = 0;
+	rx->csum_bad = 0;
+	tx->bytes = 0;
+	tx->packets = 0;
+	tx->stop = 0;
+	tx->wake = 0;
+
+	for (i = adapter->num_io_queues; i < adapter->max_num_io_queues; i++) {
+		ena_accumulate_stats_tx(&adapter->tx_ring[i], tx);
+		ena_accumulate_stats_rx(&adapter->rx_ring[i], rx);
+	}
+}
+
+static const struct netdev_stat_ops ena_stat_ops = {
+	.get_queue_stats_rx	= ena_get_queue_stats_rx,
+	.get_queue_stats_tx	= ena_get_queue_stats_tx,
+	.get_base_stats		= ena_get_base_stats,
+};
+
+#endif /* ENA_HAVE_NETDEV_QUEUE_STATS */
 static int ena_calc_io_queue_size(struct ena_adapter *adapter,
 				  struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
@@ -5269,6 +5397,9 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			  adapter->max_num_io_queues);
 
 	netdev->netdev_ops = &ena_netdev_ops;
+#ifdef ENA_HAVE_NETDEV_QUEUE_STATS
+	netdev->stat_ops = &ena_stat_ops;
+#endif /* ENA_HAVE_NETDEV_QUEUE_STATS */
 	netdev->watchdog_timeo = TX_TIMEOUT;
 	ena_set_ethtool_ops(netdev);
 

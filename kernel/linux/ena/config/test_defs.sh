@@ -262,3 +262,16 @@ try_compile_async "#include <linux/net_tstamp.h>"            \
                   "ENA_HAVE_HWTSTAMP_FILTER_NTP_ALL"         \
                   ""                                         \
                   "4.13.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/netdev_queues.h>"       \
+                  "{
+                    struct netdev_queue_stats_rx rx_stats;
+                    struct netdev_queue_stats_tx tx_stats;
+                    rx_stats.bytes = 0;
+                    rx_stats.alloc_fail = 0;
+                    tx_stats.hw_drop_ratelimits = 0;
+                    tx_stats.stop = 0;
+                  }"                                     \
+                  "ENA_HAVE_NETDEV_QUEUE_STATS"          \
+                  ""                                     \
+                  "6.10.0 <= LINUX_VERSION_CODE"
