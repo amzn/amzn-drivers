@@ -552,12 +552,12 @@ static int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
 
 static int ena_get_base_sw_stats_count(struct ena_adapter *adapter)
 {
-	int count = ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM_ADMIN;
-
 	if (ena_phc_is_active(adapter))
-		count += ENA_STATS_ARRAY_ENA_COM_PHC;
+		return ENA_STATS_ARRAY_GLOBAL +
+		       ENA_STATS_ARRAY_ENA_COM_ADMIN +
+		       ENA_STATS_ARRAY_ENA_COM_PHC;
 
-	return count;
+	return ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM_ADMIN;
 }
 
 static int ena_get_hw_stats_count(struct ena_adapter *adapter)

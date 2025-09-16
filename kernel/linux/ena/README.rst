@@ -727,8 +727,27 @@ sysfs:
 
 **PHC statistics**
 
-- PHC can be monitored using :code:`ethtool -S` counters
-- PHC errors must remain below 1% of all PHC requests to maintain the desired level of accuracy and reliability
+PHC can be monitored using:
+
+- ethtool counters:
+
+.. code-block:: shell
+
+  ethtool -S <interface> | grep phc
+
+  # for example:
+  ethtool -S eth0 | grep phc
+
+- debugfs (if mounted):
+
+.. code-block:: shell
+
+  sudo cat /sys/kernel/debug/<domain:bus:slot.function>/phc_stats
+
+  # for example:
+  sudo cat /sys/kernel/debug/0000:00:06.0/phc_stats
+
+PHC errors must remain below 1% of all PHC requests to maintain the desired level of accuracy and reliability
 
 =================   ======================================================
 **phc_cnt**         | Number of successful retrieved timestamps (below expire timeout).
