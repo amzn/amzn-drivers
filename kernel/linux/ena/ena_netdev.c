@@ -3114,6 +3114,7 @@ int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count)
 	int prev_channel_count;
 #endif /* ENA_XDP_SUPPORT */
 	bool dev_was_up;
+	int rc;
 
 	dev_was_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 	ena_close(adapter->netdev);
@@ -3138,16 +3139,25 @@ int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count)
 	}
 #endif /* ENA_XDP_SUPPORT */
 
-	/* We need to destroy the rss table so that the indirection
-	 * table will be reinitialized by ena_up()
+	/* Destroy and reconfigure RSS components to reflect the queue count
+	 * update.
 	 */
 	ena_com_rss_destroy(ena_dev);
+
 	ena_init_io_rings(adapter,
 			  0,
 			  adapter->xdp_num_queues +
 			  adapter->num_io_queues);
+
 	if (dev_was_up)
 		return ena_open(adapter->netdev);
+
+	/* In case the device was up, rss reconfiguration will happen through
+	 * ena_open flow.
+	 */
+	rc = ena_rss_configure(adapter);
+	if (unlikely(rc))
+		return rc;
 
 	return ena_set_real_num_io_queues(adapter->netdev);
 }
