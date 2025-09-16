@@ -310,7 +310,6 @@ void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
 	netif_dbg(rx_ring->adapter, ifdown, rx_ring->netdev,
 		  "Unregistering RX info for queue %d",
 		  rx_ring->qid);
-	xdp_rxq_info_unreg_mem_model(&rx_ring->xdp_rxq);
 	xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 }
 
