@@ -173,8 +173,8 @@ struct ena_tx_buffer {
 	/* Indicate if bufs[0] map the linear data of the skb. */
 	u8 map_linear_data;
 
-	/* Used for detect missing tx packets to limit the number of prints */
-	u8 print_once;
+	/* Used for detecting missed tx packets */
+	bool timed_out;
 #ifdef ENA_AF_XDP_SUPPORT
 
 	/* used for ordering TX completions when needed (e.g. AF_XDP) */
@@ -230,6 +230,7 @@ struct ena_stats_tx {
 	u64 bad_req_id;
 	u64 llq_buffer_copy;
 	u64 missed_tx;
+	atomic64_t pending_timedout_pkts;
 	u64 unmask_interrupt;
 	u64 last_napi_jiffies;
 #ifdef ENA_AF_XDP_SUPPORT

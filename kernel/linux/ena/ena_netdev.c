@@ -259,7 +259,7 @@ int ena_xmit_common(struct ena_adapter *adapter,
 	tx_info->tx_descs = nb_hw_desc;
 	tx_info->total_tx_size = bytes;
 	tx_info->tx_sent_jiffies = jiffies;
-	tx_info->print_once = 0;
+	tx_info->timed_out = false;
 
 	ring->next_to_use = ENA_TX_RING_IDX_NEXT(next_to_use,
 						 ring->ring_size);
@@ -421,6 +421,10 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	for (i = 0; i < tx_ring->ring_size; i++)
 		tx_ring->free_ids[i] = i;
 
+	/* Initialize pending timed-out packets counter to 0 since we're setting
+	 * up fresh TX resources and there can't be any timed-out packets yet
+	 */
+	atomic64_set(&tx_ring->tx_stats.pending_timedout_pkts, 0);
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
 	return 0;
@@ -1039,11 +1043,11 @@ static inline bool ena_hw_rx_timestamp_requested(struct ena_adapter *adapter)
 static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 {
 	struct skb_shared_hwtstamps tx_hw_timestamp = {};
+	int rc, tx_pkts = 0, missed_tx = 0;
 	u32 total_done = 0, tx_bytes = 0;
 	u16 req_id, next_to_clean;
 	struct netdev_queue *txq;
 	u64 hw_timestamp = 0;
-	int rc, tx_pkts = 0;
 	bool above_thresh;
 
 	next_to_clean = tx_ring->next_to_clean;
@@ -1072,6 +1076,14 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 		/* prefetch skb_end_pointer() to speedup skb_shinfo(skb) */
 		prefetch(&skb->end);
 
+		/* The pending_timedout_pkts counter is incremented for each
+		 * timed out packet. Therefore in tx cleanup routine we need to
+		 * count those timed out pkts, to maintain accurate statistics
+		 * of currently pending timed out packets.
+		 */
+		if (unlikely(tx_info->timed_out))
+			missed_tx++;
+
 		tx_info->skb = NULL;
 		tx_info->tx_sent_jiffies = 0;
 
@@ -1098,6 +1110,7 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 						     tx_ring->ring_size);
 	}
 
+	atomic64_sub(missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
 	tx_ring->next_to_clean = next_to_clean;
 	ena_com_comp_ack(tx_ring->ena_com_io_sq, total_done);
 
@@ -4664,7 +4677,7 @@ static void check_pending_pkts_in_txsq(struct ena_ring *tx_ring,
 
 	for (i = first_index; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
-		if (tx_buf->tx_sent_jiffies == 0 || tx_buf->print_once)
+		if (tx_buf->tx_sent_jiffies == 0 || tx_buf->timed_out)
 			continue;
 
 		timeout = tx_buf->tx_sent_jiffies + miss_tx_comp_to_jiffies;
@@ -4731,7 +4744,7 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 
 			missed_tx++;
 
-			if (tx_buf->print_once)
+			if (tx_buf->timed_out)
 				continue;
 
 			/* Add new TX completions which are missed */
@@ -4742,10 +4755,11 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 				     tx_ring->qid, i, jiffies_to_msecs(jiffies_since_last_intr),
 				     jiffies_to_msecs(jiffies_since_last_napi), napi_scheduled);
 
-			tx_buf->print_once = 1;
+			tx_buf->timed_out = true;
 		}
 	}
 
+	atomic64_add(new_missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
 	/* Checking if this TX ring missing TX completions have passed the threshold */
 	if (unlikely(missed_tx > missed_tx_thresh)) {
 		jiffies_since_last_intr = jiffies - READ_ONCE(ena_napi->last_intr_jiffies);

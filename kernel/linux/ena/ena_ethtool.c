@@ -13,7 +13,9 @@
 
 struct ena_stats {
 	char name[ETH_GSTRING_LEN];
-	int stat_offset;
+	u16 stat_offset;
+	bool is_atomic;
+	u8 reserved;
 };
 
 struct ena_hw_metrics {
@@ -68,6 +70,15 @@ enum ena_stat_type {
 #define ENA_METRIC_ENI_ENTRY(stat) { \
 	.name = #stat \
 }
+
+#define ENA_STAT_ENTRY_ATOMIC(stat, stat_type) { \
+	.name = #stat, \
+	.stat_offset = offsetof(struct ena_stats_##stat_type, stat) / sizeof(u64), \
+	.is_atomic = true \
+}
+
+#define ENA_STAT_TX_ENTRY_ATOMIC(stat) \
+	ENA_STAT_ENTRY_ATOMIC(stat, tx)
 
 static const struct ena_stats ena_stats_global_strings[] = {
 	ENA_STAT_GLOBAL_ENTRY(total_resets),
@@ -137,6 +148,7 @@ static const struct ena_stats ena_accum_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(bad_req_id),
 	ENA_STAT_TX_ENTRY(llq_buffer_copy),
 	ENA_STAT_TX_ENTRY(missed_tx),
+	ENA_STAT_TX_ENTRY_ATOMIC(pending_timedout_pkts),
 #ifdef ENA_AF_XDP_SUPPORT
 	ENA_STAT_TX_ENTRY(xsk_cnt),
 	ENA_STAT_TX_ENTRY(xsk_bytes),
@@ -324,7 +336,12 @@ static void ena_dump_stats_for_queue(struct ena_ring *ring, int stats_count,
 		else
 			ptr = (u64 *)&ring->rx_stats + ena_stats->stat_offset;
 
-		ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
+		if (ena_stats->is_atomic) {
+			**data = atomic64_read((atomic64_t *)ptr);
+			(*data)++;
+		} else {
+			ena_safe_update_stat(ptr, (*data)++, &ring->syncp);
+		}
 	}
 }
 
@@ -346,8 +363,11 @@ static void ena_accumulate_queues_for_stat(struct ena_adapter *adapter,
 			ptr = (u64 *)&ring->rx_stats + ena_stats->stat_offset;
 		}
 
-		ena_safe_accumulate_stat(ptr, &accumulated_sum,
-					 &ring->syncp);
+		if (ena_stats->is_atomic)
+			accumulated_sum += atomic64_read((atomic64_t *)ptr);
+		else
+			ena_safe_accumulate_stat(ptr, &accumulated_sum,
+						 &ring->syncp);
 	}
 
 	ena_safe_update_stat(&accumulated_sum, (*data)++,

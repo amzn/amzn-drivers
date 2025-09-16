@@ -646,8 +646,8 @@ int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags)
 #endif /* ENA_AF_XDP_SUPPORT */
 static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 {
+	int rc, tx_pkts = 0, missed_tx = 0;
 	u16 next_to_clean, req_id;
-	int rc, tx_pkts = 0;
 	u32 total_done = 0;
 	u64 hw_timestamp;
 
@@ -672,6 +672,14 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 
 		tx_info = &tx_ring->tx_buffer_info[req_id];
 
+		/* The pending_timedout_pkts counter is incremented for each
+		 * timed out packet. Therefore in tx cleanup routine we need to
+		 * count those timed out pkts, to maintain accurate statistics
+		 * of currently pending timed out packets.
+		 */
+		if (unlikely(tx_info->timed_out))
+			missed_tx++;
+
 		tx_info->tx_sent_jiffies = 0;
 
 		xdpf = tx_info->xdpf;
@@ -690,6 +698,7 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 			  "tx_poll: q %d pkt #%d req_id %d\n", tx_ring->qid, tx_pkts, req_id);
 	}
 
+	atomic64_sub(missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
 	tx_ring->next_to_clean = next_to_clean;
 	ena_com_comp_ack(tx_ring->ena_com_io_sq, total_done);
 
@@ -706,8 +715,8 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
  */
 static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 {
+	int rc, cleaned_pkts, zc_pkts, acked_pkts, missed_tx = 0;
 	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
-	int rc, cleaned_pkts, zc_pkts, acked_pkts;
 	struct ena_tx_buffer *tx_info;
 	u64 hw_timestamp;
 	u32 total_done;
@@ -731,6 +740,14 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 
 		tx_info = &tx_ring->tx_buffer_info[req_id];
 
+		/* The pending_timedout_pkts counter is incremented for each
+		 * timed out packet. Therefore in tx cleanup routine we need to
+		 * count those timed out pkts, to maintain accurate statistics
+		 * of currently pending timed out packets.
+		 */
+		if (unlikely(tx_info->timed_out))
+			missed_tx++;
+
 		tx_info->tx_sent_jiffies = 0;
 
 		tx_info->acked = 1;
@@ -738,6 +755,7 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 		acked_pkts++;
 	}
 
+	atomic64_sub(missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
 	/* AF XDP expects the completions to be ordered but HW doesn't guarantee
 	 * this. Force ordering.
 	 */
