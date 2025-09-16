@@ -536,6 +536,10 @@ struct ena_adapter {
 #ifdef ENA_DEVLINK_SUPPORT
 	struct devlink_port devlink_port;
 #endif /* ENA_DEVLINK_SUPPORT */
+#ifdef CONFIG_DEBUG_FS
+
+	struct dentry *debugfs_base;
+#endif /* CONFIG_DEBUG_FS */
 };
 
 #define ENA_RESET_STATS_ENTRY(reset_reason, stat) \

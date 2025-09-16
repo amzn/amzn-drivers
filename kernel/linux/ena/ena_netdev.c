@@ -39,6 +39,8 @@
 #endif /* ENA_HAVE_NETDEV_QUEUE_STATS */
 #include "ena_devlink.h"
 
+#include "ena_debugfs.h"
+
 static char driver_info[] = DEVICE_NAME " v" DRV_MODULE_GENERATION "\n";
 
 MODULE_AUTHOR("Amazon.com, Inc. or its affiliates");
@@ -5515,6 +5517,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_flow_steering;
 	}
 
+	ena_debugfs_init(netdev);
+
 	INIT_WORK(&adapter->reset_task, ena_fw_reset_device);
 
 	adapter->last_keep_alive_jiffies = jiffies;
@@ -5617,6 +5621,8 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 #endif /* CONFIG_RFS_ACCEL */
 #endif /* ENA_NETIF_ENABLE_CPU_RMAP */
 	ena_sysfs_terminate(&adapter->pdev->dev);
+	ena_debugfs_terminate(netdev);
+
 	/* Make sure timer and reset routine won't be called after
 	 * freeing device resources.
 	 */

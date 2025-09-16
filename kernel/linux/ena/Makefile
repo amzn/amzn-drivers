@@ -16,12 +16,14 @@ $(DRIVER_NAME)-srcs := ena_netdev.c \
 		$(ENA_COM_PATH)/ena_eth_com.c
 
 $(DRIVER_NAME)-sysfs-srcs := ena_sysfs.c
+$(DRIVER_NAME)-debug_fs-srcs := ena_debugfs.c
 
 HEADER_FILES := $(shell find $(this_mkfile_path) $(this_mkfile_path)/$(ENA_COM_PATH) -type f -name '*.h')
 
 obj-m += $(DRIVER_NAME).o
 $(DRIVER_NAME)-objs := $(patsubst %.c,%.o,$($(DRIVER_NAME)-srcs))
 $(DRIVER_NAME)-$(CONFIG_SYSFS) += $(patsubst %.c,%.o,$($(DRIVER_NAME)-sysfs-srcs))
+$(DRIVER_NAME)-$(CONFIG_DEBUG_FS) += $(patsubst %.c,%.o,$($(DRIVER_NAME)-debug_fs-srcs))
 
 ccflags-y := -I$(src)
 ccflags-y += -I$(src)/$(ENA_COM_PATH)/
@@ -99,7 +101,7 @@ endif
 
 all: $(DRIVER_NAME).ko
 
-$(DRIVER_NAME).ko: config.h $(HEADER_FILES) $($(DRIVER_NAME)-srcs) $($(DRIVER_NAME)-sysfs-srcs)
+$(DRIVER_NAME).ko: config.h $(HEADER_FILES) $($(DRIVER_NAME)-srcs) $($(DRIVER_NAME)-sysfs-srcs) $($(DRIVER_NAME)-debug_fs-srcs)
 	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(CURDIR) modules
 
 config.h:
