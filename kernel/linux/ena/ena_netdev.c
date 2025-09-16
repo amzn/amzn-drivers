@@ -417,9 +417,6 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	for (i = 0; i < tx_ring->ring_size; i++)
 		tx_ring->free_ids[i] = i;
 
-	/* Reset tx statistics */
-	memset(&tx_ring->tx_stats, 0x0, sizeof(tx_ring->tx_stats));
-
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
 	return 0;
@@ -538,9 +535,6 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 	/* Req id ring for receiving RX pkts out of order */
 	for (i = 0; i < rx_ring->ring_size; i++)
 		rx_ring->free_ids[i] = i;
-
-	/* Reset rx statistics */
-	memset(&rx_ring->rx_stats, 0x0, sizeof(rx_ring->rx_stats));
 
 #ifdef ENA_BUSY_POLL_SUPPORT
 	ena_bp_init_lock(rx_ring);
@@ -2638,6 +2632,37 @@ static void ena_associate_irq_and_napi(struct ena_adapter *adapter)
 }
 
 #endif
+static void ena_accumulate_synced_stats(u64 *dst, u64 *src, int len,
+					struct u64_stats_sync *syncp)
+{
+	unsigned int start;
+	u64 val;
+	int i;
+
+	for (i = 0; i < len; i++) {
+		do {
+			start = ena_u64_stats_fetch_begin(syncp);
+			val = src[i];
+		} while (ena_u64_stats_fetch_retry(syncp, start));
+
+		u64_stats_update_begin(syncp);
+		dst[i] += val;
+		u64_stats_update_end(syncp);
+	}
+}
+
+static void ena_save_persistent_stats(struct ena_adapter *adapter)
+{
+	int len;
+
+	len = sizeof(struct ena_keep_alive_stats) / sizeof(u64);
+	ena_accumulate_synced_stats((u64 *)&adapter->persistent_ka_stats,
+				    (u64 *)&adapter->dev_stats.ka_stats,
+				    len, &adapter->syncp);
+	memset(&adapter->dev_stats.ka_stats, 0,
+	       sizeof(adapter->dev_stats.ka_stats));
+}
+
 int ena_up(struct ena_adapter *adapter)
 {
 	int io_queue_count, rc, i;
@@ -2744,6 +2769,7 @@ void ena_down(struct ena_adapter *adapter)
 	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags)) {
 		int rc;
 
+		ena_save_persistent_stats(adapter);
 		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
 		if (rc)
 			netif_err(adapter, ifdown, adapter->netdev,
@@ -3439,7 +3465,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 		return NULL;
 #endif
 
-	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
+	for (i = 0; i < adapter->max_num_io_queues; i++) {
 		u64 bytes, packets;
 
 		tx_ring = &adapter->tx_ring[i];
@@ -3452,10 +3478,6 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 
 		stats->tx_packets += packets;
 		stats->tx_bytes += bytes;
-
-		/* In XDP there isn't an RX queue counterpart */
-		if (ENA_IS_XDP_INDEX(adapter, i))
-			continue;
 
 		rx_ring = &adapter->rx_ring[i];
 
@@ -3471,9 +3493,12 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 
 	do {
 		start = ena_u64_stats_fetch_begin(&adapter->syncp);
-		rx_drops = adapter->dev_stats.rx_drops;
-		tx_drops = adapter->dev_stats.tx_drops;
-		rx_overruns = adapter->dev_stats.rx_overruns;
+		rx_drops = adapter->dev_stats.ka_stats.rx_drops +
+			   adapter->persistent_ka_stats.rx_drops;
+		tx_drops = adapter->dev_stats.ka_stats.tx_drops +
+			   adapter->persistent_ka_stats.tx_drops;
+		rx_overruns = adapter->dev_stats.ka_stats.rx_overruns +
+			      adapter->persistent_ka_stats.rx_overruns;
 	} while (ena_u64_stats_fetch_retry(&adapter->syncp, start));
 
 	stats->rx_dropped = rx_drops;
@@ -3507,7 +3532,7 @@ static struct net_device_stats *ena_get_stats(struct net_device *netdev)
 	int i;
 
 	memset(stats, 0, sizeof(*stats));
-	for (i = 0; i < adapter->num_io_queues; i++) {
+	for (i = 0; i < adapter->max_num_io_queues; i++) {
 		unsigned long bytes, packets;
 
 		tx_ring = &adapter->tx_ring[i];
@@ -3534,7 +3559,8 @@ static struct net_device_stats *ena_get_stats(struct net_device *netdev)
 
 	do {
 		start = ena_u64_stats_fetch_begin(&tx_ring->syncp);
-		rx_drops = (unsigned long)adapter->dev_stats.rx_drops;
+		rx_drops = (unsigned long)adapter->dev_stats.ka_stats.rx_drops +
+					  adapter->persistent_ka_stats.rx_drops;
 	} while (ena_u64_stats_fetch_retry(&tx_ring->syncp, start));
 
 	stats->rx_dropped = rx_drops;
@@ -4302,8 +4328,10 @@ int ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 	/* Stop the device from sending AENQ events (in case reset flag is set
 	 *  and device is up, ena_down() already reset the device.
 	 */
-	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up))
+	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up)) {
+		ena_save_persistent_stats(adapter);
 		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
+	}
 
 	ena_free_mgmnt_irq(adapter);
 
@@ -5203,10 +5231,10 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ena_com_interrupt_moderation_supported(adapter->ena_dev))
 		ena_com_enable_adaptive_moderation(adapter->ena_dev);
 
+	/* Init all potential io rings */
 	ena_init_io_rings(adapter,
 			  0,
-			  adapter->xdp_num_queues +
-			  adapter->num_io_queues);
+			  adapter->max_num_io_queues);
 
 	netdev->netdev_ops = &ena_netdev_ops;
 	netdev->watchdog_timeo = TX_TIMEOUT;
@@ -5579,9 +5607,9 @@ static void ena_keep_alive_wd(void *adapter_data,
 	/* These stats are accumulated by the device, so the counters indicate
 	 * all drops since last reset.
 	 */
-	adapter->dev_stats.rx_drops = rx_drops;
-	adapter->dev_stats.tx_drops = tx_drops;
-	adapter->dev_stats.rx_overruns = rx_overruns;
+	adapter->dev_stats.ka_stats.rx_drops = rx_drops;
+	adapter->dev_stats.ka_stats.tx_drops = tx_drops;
+	adapter->dev_stats.ka_stats.rx_overruns = rx_overruns;
 	u64_stats_update_end(&adapter->syncp);
 }
 

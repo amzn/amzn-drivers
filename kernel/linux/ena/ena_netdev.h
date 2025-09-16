@@ -370,7 +370,14 @@ enum ena_busy_poll_state_t {
 	ENA_BP_STATE_POLL,
 	ENA_BP_STATE_DISABLE
 };
+
 #endif
+struct ena_keep_alive_stats {
+	u64 rx_drops;
+	u64 tx_drops;
+	u64 rx_overruns;
+};
+
 struct ena_stats_dev {
 	u64 tx_timeout;
 	u64 suspend;
@@ -379,9 +386,6 @@ struct ena_stats_dev {
 	u64 interface_up;
 	u64 interface_down;
 	u64 admin_q_pause;
-	u64 rx_drops;
-	u64 tx_drops;
-	u64 rx_overruns;
 	u64 reset_fail;
 	u64 total_resets;
 	u64 bad_tx_req_id;
@@ -398,6 +402,7 @@ struct ena_stats_dev {
 	u64 admin_to;
 	u64 device_request_reset;
 	u64 missing_first_intr;
+	struct ena_keep_alive_stats ka_stats;
 };
 
 enum ena_flags_t {
@@ -521,6 +526,7 @@ struct ena_adapter {
 	u32 xdp_num_queues;
 
 	struct hw_timestamp_state hw_ts_state;
+	struct ena_keep_alive_stats persistent_ka_stats;
 };
 
 #define ENA_RESET_STATS_ENTRY(reset_reason, stat) \

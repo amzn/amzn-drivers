@@ -219,6 +219,9 @@ static const struct ena_stats ena_stats_ena_com_phc_strings[] = {
 #define ENA_STATS_ARRAY_ENA_SRD		ARRAY_SIZE(ena_srd_info_strings)
 #define ENA_METRICS_ARRAY_ENI		ARRAY_SIZE(ena_hw_stats_strings)
 
+/* Used to report number of active and XDP TX queues */
+#define ENA_QUEUE_SIZE_STATS_NUM	2
+
 static const char ena_priv_flags_strings[][ETH_GSTRING_LEN] = {
 #define ENA_PRIV_FLAGS_LPC	BIT(0)
 	"local_page_cache",
@@ -327,14 +330,14 @@ static void ena_dump_stats_for_queue(struct ena_ring *ring, int stats_count,
 
 static void ena_accumulate_queues_for_stat(struct ena_adapter *adapter,
 					   const struct ena_stats *ena_stats,
-					   u32 queues_nr, u64 **data,
+					   u64 **data,
 					   enum ena_stat_type stat_type)
 {
 	u64 *ptr, accumulated_sum = 0;
 	struct ena_ring *ring;
 	int i;
 
-	for (i = 0; i < queues_nr; i++) {
+	for (i = 0; i < adapter->max_num_io_queues; i++) {
 		if (stat_type == ENA_TX_STAT) {
 			ring = &adapter->tx_ring[i];
 			ptr = (u64 *)&ring->tx_stats + ena_stats->stat_offset;
@@ -354,30 +357,31 @@ static void ena_accumulate_queues_for_stat(struct ena_adapter *adapter,
 static void ena_get_queue_stats(struct ena_adapter *adapter, u64 *data,
 				bool print_accumulated_queue_stats)
 {
-	u32 queues_nr = adapter->num_io_queues + adapter->xdp_num_queues;
 	const struct ena_stats *ena_stats;
 	struct ena_ring *ring;
 	int i;
+
+	/* Report number of active and XDP TX queues */
+	*data++ = adapter->num_io_queues;
+	*data++ = adapter->xdp_num_queues;
 
 	if (print_accumulated_queue_stats) {
 		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX; i++) {
 			ena_stats = &ena_accum_stats_tx_strings[i];
 
 			ena_accumulate_queues_for_stat(adapter, ena_stats,
-						       queues_nr, &data,
-						       ENA_TX_STAT);
+						       &data, ENA_TX_STAT);
 		}
 
 		for (i = 0; i < ENA_STATS_ARRAY_RX; i++) {
 			ena_stats = &ena_stats_rx_strings[i];
 
 			ena_accumulate_queues_for_stat(adapter, ena_stats,
-						       adapter->num_io_queues,
 						       &data, ENA_RX_STAT);
 		}
 	}
 
-	for (i = 0; i < queues_nr; i++) {
+	for (i = 0; i < adapter->max_num_io_queues; i++) {
 		/* Tx stats */
 		ring = &adapter->tx_ring[i];
 
@@ -390,10 +394,6 @@ static void ena_get_queue_stats(struct ena_adapter *adapter, u64 *data,
 					 ENA_ACCUM_STATS_ARRAY_TX,
 					 &data, ENA_TX_STAT,
 					 ena_accum_stats_tx_strings);
-
-		/* XDP TX queues don't have a RX queue counterpart */
-		if (ENA_IS_XDP_INDEX(adapter, i))
-			continue;
 
 		/* Rx stats */
 		ring = &adapter->rx_ring[i];
@@ -518,12 +518,14 @@ static int ena_get_ts_info(struct net_device *netdev,
 static int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
 					bool count_accumulated_stats)
 {
-	int count = (adapter->num_io_queues + adapter->xdp_num_queues) *
-		    (ENA_ACCUM_STATS_ARRAY_TX + ENA_PER_Q_STATS_ARRAY_TX) +
-		     adapter->num_io_queues * ENA_STATS_ARRAY_RX;
+	int count = adapter->max_num_io_queues * (ENA_ACCUM_STATS_ARRAY_TX +
+		    ENA_PER_Q_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX);
 
 	if (count_accumulated_stats)
 		count += ENA_STATS_ARRAY_RX + ENA_ACCUM_STATS_ARRAY_TX;
+
+	/* Add entries to report number of active queues + XDP TX queues */
+	count += ENA_QUEUE_SIZE_STATS_NUM;
 
 	return count;
 }
@@ -601,10 +603,12 @@ static void ena_metrics_stats_strings(struct ena_adapter *adapter, u8 **data)
 static void ena_get_queue_strings(struct ena_adapter *adapter, u8 *data,
 				  bool print_accumulated_queue_stats)
 {
-	u32 queues_nr = adapter->num_io_queues + adapter->xdp_num_queues;
 	const struct ena_stats *ena_stats;
 	bool is_xdp;
 	int i, j;
+
+	ethtool_puts(&data, "num_of_active_io_queues");
+	ethtool_puts(&data, "num_of_xdp_tx_queues");
 
 	if (print_accumulated_queue_stats) {
 		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX; i++) {
@@ -620,7 +624,7 @@ static void ena_get_queue_strings(struct ena_adapter *adapter, u8 *data,
 		}
 	}
 
-	for (i = 0; i < queues_nr; i++) {
+	for (i = 0; i < adapter->max_num_io_queues; i++) {
 		is_xdp = ENA_IS_XDP_INDEX(adapter, i);
 		/* Tx stats */
 		for (j = 0; j < ENA_PER_Q_STATS_ARRAY_TX; j++) {
@@ -638,10 +642,6 @@ static void ena_get_queue_strings(struct ena_adapter *adapter, u8 *data,
 					is_xdp ? "xdp_tx" : "tx",
 					ena_stats->name);
 		}
-
-		/* XDP TX queues don't have a RX queue counterpart */
-		if (is_xdp)
-			continue;
 
 		/* Rx stats */
 		for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
@@ -1902,7 +1902,6 @@ void ena_set_ethtool_ops(struct net_device *netdev)
 
 static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 {
-	u32 queues_nr = adapter->num_io_queues + adapter->xdp_num_queues;
 	u8 *base_strings_buf = NULL, *queue_strings_buf = NULL;
 	int base_strings_num, queue_strings_num, i, j, k, rc;
 	u64 *base_data_buf = NULL, *queue_data_buf = NULL;
@@ -1973,14 +1972,17 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 				  base_strings_buf + i * ETH_GSTRING_LEN,
 				  base_data_buf[i]);
 
-		/* Print accumulated queue stats */
-		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX; i++)
+		/* Print number of active and XDP TX queues and accumulated
+		 * queue stats
+		 */
+		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX +
+				ENA_QUEUE_SIZE_STATS_NUM; i++)
 			netif_err(adapter, drv, netdev, "%s: %llu\n",
 				  queue_strings_buf + i * ETH_GSTRING_LEN,
 				  queue_data_buf[i]);
 
 		/* Print per queue stats */
-		for (j = 0; j < queues_nr; j++) {
+		for (j = 0; j < adapter->max_num_io_queues; j++) {
 			for (k = 0; k < ENA_PER_Q_STATS_ARRAY_TX; k++, i++)
 				netif_err(adapter, drv, netdev, "%s: %llu\n",
 					  queue_strings_buf + i * ETH_GSTRING_LEN,
@@ -1990,10 +1992,6 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 				netif_dbg(adapter, drv, netdev, "%s: %llu\n",
 					  queue_strings_buf + i * ETH_GSTRING_LEN,
 					  queue_data_buf[i]);
-
-			/* XDP TX queues don't have a RX queue counterpart */
-			if (ENA_IS_XDP_INDEX(adapter, j))
-				continue;
 
 			for (k = 0; k < ENA_STATS_ARRAY_RX; k++, i++)
 				netif_dbg(adapter, drv, netdev, "%s: %llu\n",
