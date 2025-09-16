@@ -1658,6 +1658,12 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 	return work_done;
 
 error:
+	work_done = budget - res_budget;
+	u64_stats_update_begin(&rx_ring->syncp);
+	rx_ring->rx_stats.bytes += total_len;
+	rx_ring->rx_stats.cnt += work_done;
+	rx_ring->rx_stats.rx_copybreak_pkt += rx_copybreak_pkt;
+	u64_stats_update_end(&rx_ring->syncp);
 #ifdef ENA_XDP_SUPPORT
 	if (xdp_flags & ENA_XDP_REDIRECT)
 		xdp_do_flush();
@@ -4520,6 +4526,25 @@ static enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter 
 	return ENA_REGS_RESET_MISS_INTERRUPT;
 }
 
+static void check_pending_pkts_in_txsq(struct ena_ring *tx_ring,
+				       int first_index, u32 *new_missed_tx,
+				       unsigned long miss_tx_comp_to_jiffies)
+{
+	struct ena_tx_buffer *tx_buf;
+	unsigned long timeout;
+	int i;
+
+	for (i = first_index; i < tx_ring->ring_size; i++) {
+		tx_buf = &tx_ring->tx_buffer_info[i];
+		if (tx_buf->tx_sent_jiffies == 0 || tx_buf->print_once)
+			continue;
+
+		timeout = tx_buf->tx_sent_jiffies + miss_tx_comp_to_jiffies;
+		if (time_is_before_jiffies(timeout))
+			(*new_missed_tx)++;
+	}
+}
+
 static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct ena_ring *tx_ring)
 {
 	unsigned long miss_tx_comp_to_jiffies = adapter->missing_tx_completion_to_jiffies;
@@ -4550,8 +4575,11 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 			netif_err(adapter, tx_err, netdev,
 				  "Potential MSIX issue on Tx side Queue = %d. Reset the device\n",
 				  tx_ring->qid);
-			ena_reset_device(adapter, ENA_REGS_RESET_MISS_FIRST_INTERRUPT);
-			return -EIO;
+			check_pending_pkts_in_txsq(tx_ring, i, &new_missed_tx,
+						   miss_tx_comp_to_jiffies);
+			reset_reason = ENA_REGS_RESET_MISS_FIRST_INTERRUPT;
+			rc = -EIO;
+			goto out;
 		}
 
 		/* Checking if current TX buffer got timeout */
@@ -4611,10 +4639,14 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 		napi_scheduled = !!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED);
 		if (!napi_scheduled)
 			reset_reason = check_cdesc_in_tx_cq(adapter, tx_ring);
-		/* Update reset reason */
-		ena_reset_device(adapter, reset_reason);
+
 		rc = -EIO;
 	}
+
+out:
+	if (rc)
+		/* Update reset reason */
+		ena_reset_device(adapter, reset_reason);
 
 	/* Add the newly discovered missing TX completions */
 	ena_increase_stat(&tx_ring->tx_stats.missed_tx, new_missed_tx, &tx_ring->syncp);
