@@ -5,8 +5,71 @@
 
 #include "linux/pci.h"
 #include "ena_devlink.h"
+#ifdef ENA_PHC_SUPPORT
+#include "ena_phc.h"
+#endif /* ENA_PHC_SUPPORT */
 #ifdef ENA_DEVLINK_SUPPORT
 
+#if defined(ENA_PHC_SUPPORT) && defined(ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM)
+static int ena_devlink_enable_phc_validate(struct devlink *devlink, u32 id,
+					   union devlink_param_value val,
+					   struct netlink_ext_ack *extack)
+{
+	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
+
+	if (!val.vbool)
+		return 0;
+
+	if (!ena_com_phc_supported(adapter->ena_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support PHC");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+#endif /* ENA_PHC_SUPPORT && ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM */
+static const struct devlink_param ena_devlink_params[] = {
+#if defined(ENA_PHC_SUPPORT) && defined(ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM)
+	DEVLINK_PARAM_GENERIC(ENABLE_PHC,
+			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL,
+			      NULL,
+			      ena_devlink_enable_phc_validate),
+#endif /* ENA_PHC_SUPPORT && ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM */
+};
+
+void ena_devlink_params_get(struct devlink *devlink)
+{
+#if defined(ENA_PHC_SUPPORT) && defined(ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM)
+	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
+	union devlink_param_value val;
+	int err;
+
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
+					      &val);
+	if (err) {
+		netdev_err(adapter->netdev, "Failed to query PHC param\n");
+		return;
+	}
+
+	ena_phc_enable(adapter, val.vbool);
+#endif /* ENA_PHC_SUPPORT && ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM */
+}
+
+#if defined(ENA_PHC_SUPPORT) && defined(ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM)
+void ena_devlink_disable_phc_param(struct devlink *devlink)
+{
+	union devlink_param_value value;
+
+	value.vbool = false;
+	devl_param_driverinit_value_set(devlink,
+					DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
+					value);
+}
+
+#endif /* ENA_PHC_SUPPORT && ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM */
 static void ena_devlink_port_register(struct devlink *devlink)
 {
 	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
@@ -80,6 +143,31 @@ static const struct devlink_ops ena_devlink_ops = {
 	.reload_up	= ena_devlink_reload_up,
 };
 
+static int ena_devlink_configure_params(struct devlink *devlink)
+{
+	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
+#if defined(ENA_PHC_SUPPORT) && defined(ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM)
+	union devlink_param_value value;
+#endif /* ENA_PHC_SUPPORT && ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM */
+	int rc;
+
+	rc = devlink_params_register(devlink, ena_devlink_params,
+				     ARRAY_SIZE(ena_devlink_params));
+	if (rc) {
+		netdev_err(adapter->netdev, "Failed to register devlink params\n");
+		return rc;
+	}
+
+#if defined(ENA_PHC_SUPPORT) && defined(ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM)
+	value.vbool = ena_phc_is_enabled(adapter);
+	devl_param_driverinit_value_set(devlink,
+					DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
+					value);
+
+#endif /* ENA_PHC_SUPPORT && ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM */
+	return 0;
+}
+
 struct devlink *ena_devlink_alloc(struct ena_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
@@ -97,11 +185,26 @@ struct devlink *ena_devlink_alloc(struct ena_adapter *adapter)
 	ENA_DEVLINK_PRIV(devlink) = adapter;
 	adapter->devlink = devlink;
 
+	if (ena_devlink_configure_params(devlink))
+		goto free_devlink;
+
 	return devlink;
+
+free_devlink:
+	devlink_free(devlink);
+	return NULL;
+}
+
+static void ena_devlink_configure_params_clean(struct devlink *devlink)
+{
+	devlink_params_unregister(devlink, ena_devlink_params,
+				  ARRAY_SIZE(ena_devlink_params));
 }
 
 void ena_devlink_free(struct devlink *devlink)
 {
+	ena_devlink_configure_params_clean(devlink);
+
 	devlink_free(devlink);
 }
 

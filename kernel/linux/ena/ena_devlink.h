@@ -18,6 +18,10 @@ struct devlink *ena_devlink_alloc(struct ena_adapter *adapter);
 void ena_devlink_free(struct devlink *devlink);
 void ena_devlink_register(struct devlink *devlink, struct device *dev);
 void ena_devlink_unregister(struct devlink *devlink);
+void ena_devlink_params_get(struct devlink *devlink);
+#ifdef ENA_PHC_SUPPORT
+void ena_devlink_disable_phc_param(struct devlink *devlink);
+#endif /* ENA_PHC_SUPPORT */
 #else /* ENA_DEVLINK_SUPPORT */
 
 #ifndef ENA_HAS_DEVLINK_HEADERS
@@ -32,6 +36,10 @@ static inline struct devlink *ena_devlink_alloc(struct ena_adapter *adapter)
 static inline void ena_devlink_free(struct devlink *devlink) { }
 static inline void ena_devlink_register(struct devlink *devlink, struct device *dev) { }
 static inline void ena_devlink_unregister(struct devlink *devlink) { }
+static inline void ena_devlink_params_get(struct devlink *devlink) {}
+#ifdef ENA_PHC_SUPPORT
+static inline void ena_devlink_disable_phc_param(struct devlink *devlink) {}
+#endif /* ENA_PHC_SUPPORT */
 #endif /* ENA_DEVLINK_SUPPORT */
 
 #endif /* DEVLINK_H */

@@ -4323,6 +4323,8 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	}
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0) */
 
+	ena_devlink_params_get(adapter->devlink);
+
 	/* ENA admin level init */
 	rc = ena_com_admin_init(ena_dev, &aenq_handlers);
 	if (unlikely(rc)) {

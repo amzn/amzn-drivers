@@ -282,3 +282,11 @@ try_compile_async "#include <net/devlink.h>"                    \
                   "ENA_HAS_DEVLINK_HEADERS"                     \
                   ""                                            \
                   "4.6.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/devlink.h>"                         \
+                  "{
+                    int dummy = DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC;
+                   }"                                                \
+                  "ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM"         \
+                  ""                                                 \
+                  "6.17.0 <= LINUX_VERSION_CODE"
