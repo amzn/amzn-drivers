@@ -4220,11 +4220,9 @@ static int ena_set_queues_placement_policy(struct pci_dev *pdev,
 					   struct ena_admin_feature_llq_desc *llq,
 					   struct ena_llq_configurations *llq_default_configurations)
 {
-	u32 llq_feature_mask;
 	int rc;
 
-	llq_feature_mask = 1 << ENA_ADMIN_LLQ;
-	if (!(ena_dev->supported_features & llq_feature_mask)) {
+	if (!(ena_dev->supported_features & BIT(ENA_ADMIN_LLQ))) {
 		dev_warn(&pdev->dev,
 			"LLQ is not supported Fallback to host mode policy.\n");
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
