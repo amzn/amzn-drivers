@@ -285,7 +285,7 @@ static void ena_metrics_stats(struct ena_adapter *adapter, u64 **data)
 		(*data) += supported_metrics_count;
 
 	} else if (ena_com_get_cap(dev, ENA_ADMIN_ENI_STATS)) {
-		struct ena_admin_eni_stats eni_stats;
+		struct ena_admin_eni_stats eni_stats = {};
 
 		ena_com_get_eni_stats(dev, &eni_stats);
 		/* Updating regardless of rc - once we told ethtool how many stats we have
@@ -300,7 +300,7 @@ static void ena_metrics_stats(struct ena_adapter *adapter, u64 **data)
 	}
 
 	if (ena_com_get_cap(dev, ENA_ADMIN_ENA_SRD_INFO)) {
-		struct ena_admin_ena_srd_info ena_srd_info;
+		struct ena_admin_ena_srd_info ena_srd_info = {};
 
 		ena_com_get_ena_srd_info(dev, &ena_srd_info);
 		/* Get ENA SRD mode */
