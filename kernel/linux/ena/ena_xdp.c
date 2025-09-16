@@ -990,7 +990,7 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 
 		/* XDP multi-buffer packets not supported */
 		if (unlikely(ena_rx_ctx.descs > 1)) {
-			netdev_err_once(rx_ring->adapter->netdev,
+			netdev_err_once(rx_ring->netdev,
 					"xdp: dropped unsupported multi-buffer packets\n");
 			ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
 			xdp_verdict = ENA_XDP_RECYCLE;
@@ -1071,7 +1071,7 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 	}
 
 	if (unlikely(rc)) {
-		struct ena_adapter *adapter = netdev_priv(rx_ring->netdev);
+		struct ena_adapter *adapter = rx_ring->adapter;
 
 		if (rc == -ENOSPC) {
 			ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1, &rx_ring->syncp);
@@ -1265,7 +1265,7 @@ int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 
 	/* Drop unsupported multibuffer packets */
 	if (!ena_xdp_prog_is_frags_supported(rx_ring) && descs > 1) {
-		netdev_err_once(rx_ring->adapter->netdev,
+		netdev_err_once(rx_ring->netdev,
 				"xdp: dropped unsupported multi-buffer packets\n");
 
 		for (i = 0; i < descs; i++)

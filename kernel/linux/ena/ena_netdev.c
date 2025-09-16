@@ -1694,7 +1694,7 @@ error:
 		ena_ring_tx_doorbell(rx_ring->xdp_ring);
 
 #endif
-	adapter = netdev_priv(rx_ring->netdev);
+	adapter = rx_ring->adapter;
 
 	if (rc == -ENOSPC) {
 		ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1, &rx_ring->syncp);
