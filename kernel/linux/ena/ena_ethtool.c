@@ -166,6 +166,7 @@ static const struct ena_stats ena_per_q_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(tx_poll),
 	ENA_STAT_TX_ENTRY(doorbells),
 	ENA_STAT_TX_ENTRY(unmask_interrupt),
+	ENA_STAT_TX_ENTRY(lost_interrupt),
 };
 
 static const struct ena_stats ena_stats_rx_strings[] = {

@@ -146,6 +146,7 @@ struct ena_irq {
 struct ena_napi {
 	unsigned long last_intr_jiffies ____cacheline_aligned;
 	u8 interrupts_masked;
+	bool lost_interrupt_unmask_handled;
 	struct napi_struct napi;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
@@ -236,6 +237,7 @@ struct ena_stats_tx {
 	atomic64_t pending_timedout_pkts;
 	u64 unmask_interrupt;
 	u64 last_napi_jiffies;
+	u64 lost_interrupt;
 #ifdef ENA_AF_XDP_SUPPORT
 	u64 xsk_cnt;
 	u64 xsk_bytes;
@@ -310,6 +312,10 @@ struct ena_ring {
 #ifdef ENA_XDP_MB_SUPPORT
 	bool xdp_prog_support_frags;
 #endif /* ENA_XDP_MB_SUPPORT */
+#endif /* ENA_XDP_SUPPORT */
+	unsigned long last_checked_last_napi_jiffies;
+	bool last_checked_is_cq_empty;
+#ifdef ENA_XDP_SUPPORT
 	struct xdp_rxq_info xdp_rxq;
 	spinlock_t xdp_tx_lock;	/* synchronize XDP TX/Redirect traffic */
 	/* Used for rx queues only to point to the xdp tx ring, to
@@ -760,7 +766,9 @@ void ena_init_io_rings(struct ena_adapter *adapter,
 		       int first_index, int count);
 void ena_down(struct ena_adapter *adapter);
 int ena_up(struct ena_adapter *adapter);
-void ena_unmask_interrupt(struct ena_ring *tx_ring, struct ena_ring *rx_ring);
+void ena_unmask_interrupt(struct ena_ring *tx_ring,
+			  struct ena_ring *rx_ring,
+			  bool lost_interrupt);
 void ena_update_ring_numa_node(struct ena_ring *rx_ring);
 void ena_unmap_rx_buff_attrs(struct ena_ring *rx_ring,
 			     struct ena_rx_buffer *rx_info,

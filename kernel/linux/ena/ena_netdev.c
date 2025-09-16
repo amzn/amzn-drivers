@@ -315,6 +315,8 @@ static void ena_init_io_rings_common(struct ena_adapter *adapter,
 	ring->numa_node = 0;
 	ring->no_interrupt_event_cnt = 0;
 	u64_stats_init(&ring->syncp);
+	ring->last_checked_last_napi_jiffies = jiffies;
+	ring->last_checked_is_cq_empty = true;
 }
 
 void ena_init_io_rings(struct ena_adapter *adapter,
@@ -1748,7 +1750,8 @@ static void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
 }
 
 void ena_unmask_interrupt(struct ena_ring *tx_ring,
-			  struct ena_ring *rx_ring)
+			  struct ena_ring *rx_ring,
+			  bool lost_interrupt)
 {
 	u32 rx_interval = tx_ring->interrupt_interval;
 	struct ena_eth_io_intr_reg intr_reg;
@@ -1776,7 +1779,8 @@ void ena_unmask_interrupt(struct ena_ring *tx_ring,
 				rx_interval,
 				tx_ring->interrupt_interval,
 				true,
-				no_moderation_update);
+				no_moderation_update,
+				lost_interrupt);
 
 	ena_increase_stat(&tx_ring->tx_stats.unmask_interrupt, 1,
 			  &tx_ring->syncp);
@@ -1876,7 +1880,7 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 				ena_adjust_adaptive_rx_intr_moderation(ena_napi);
 
 			ena_update_ring_numa_node(rx_ring);
-			ena_unmask_interrupt(tx_ring, rx_ring);
+			ena_unmask_interrupt(tx_ring, rx_ring, false);
 		}
 
 		ret = rx_work_done;
@@ -2240,6 +2244,7 @@ static void ena_init_napi(struct ena_adapter *adapter, int count)
 
 		napi->tx_ring = tx_ring;
 		napi->qid = i;
+		napi->lost_interrupt_unmask_handled = false;
 	}
 }
 
@@ -2752,7 +2757,8 @@ int ena_up(struct ena_adapter *adapter)
 	/* Enable completion queues interrupt */
 	for (i = 0; i < adapter->num_io_queues; i++)
 		ena_unmask_interrupt(&adapter->tx_ring[i],
-				     &adapter->rx_ring[i]);
+				     &adapter->rx_ring[i],
+				     false);
 
 	/* schedule napi in case we had pending packets
 	 * from the last time we disable napi
@@ -4629,7 +4635,7 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 	if (likely(READ_ONCE(ena_napi->last_intr_jiffies) != 0))
 		return 0;
 
-	if (ena_com_cq_empty(rx_ring->ena_com_io_cq))
+	if (ena_com_rx_cq_empty(rx_ring->ena_com_io_cq))
 		return 0;
 
 	rx_ring->no_interrupt_event_cnt++;
@@ -5020,6 +5026,94 @@ static void ena_update_hints(struct ena_adapter *adapter,
 	}
 }
 
+static void check_ring_for_lost_interrupt(struct ena_ring *ring,
+					  u64 last_napi_jiffies,
+					  bool *lost_interrupt)
+{
+	struct ena_com_io_cq *ena_com_io_cq = ring->ena_com_io_cq;
+	bool is_cq_empty;
+
+	is_cq_empty = (ena_com_io_cq->direction ==
+		       ENA_COM_IO_QUEUE_DIRECTION_TX) ?
+		       ena_com_tx_cq_empty(ena_com_io_cq) :
+		       ena_com_rx_cq_empty(ena_com_io_cq);
+
+	if (!is_cq_empty && !ring->last_checked_is_cq_empty &&
+	    last_napi_jiffies == ring->last_checked_last_napi_jiffies)
+		*lost_interrupt = true;
+
+	ring->last_checked_last_napi_jiffies = last_napi_jiffies;
+	ring->last_checked_is_cq_empty = is_cq_empty;
+}
+
+static void check_for_lost_interrupts(struct ena_adapter *adapter)
+{
+	struct ena_ring *tx_ring, *rx_ring;
+	unsigned long last_napi_jiffies;
+	struct ena_napi *ena_napi;
+	bool lost_interrupt;
+	int i;
+
+	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+		return;
+
+	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
+		return;
+
+	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
+		lost_interrupt = false;
+		tx_ring = &adapter->tx_ring[i];
+		ena_napi = container_of(tx_ring->napi, struct ena_napi, napi);
+
+		/* In order to classify a lost interrupt the following
+		 * conditions should be met:
+		 * 1. NAPI is not scheduled
+		 * 2. The completion queue is not empty now and not in the
+		 *    previous check for either rx or tx rings
+		 * 3. The last_napi_jiffies hasn't changed since the last check
+		 */
+		if (!!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED)) {
+			/* Reset indication of handled lost interrupt
+			 * once ring is back to healthy state
+			 */
+			ena_napi->lost_interrupt_unmask_handled = false;
+
+			continue;
+		}
+
+		last_napi_jiffies =
+			READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
+		check_ring_for_lost_interrupt(tx_ring, last_napi_jiffies,
+					      &lost_interrupt);
+
+		rx_ring = NULL;
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			rx_ring = &adapter->rx_ring[i];
+			check_ring_for_lost_interrupt(rx_ring,
+						      last_napi_jiffies,
+						      &lost_interrupt);
+		}
+
+		if (lost_interrupt) {
+			/* Send unmask interrupt only one time once identified,
+			 * and not in a sequence until handled
+			 */
+			if (!ena_napi->lost_interrupt_unmask_handled) {
+				ena_napi->lost_interrupt_unmask_handled = true;
+				ena_unmask_interrupt(tx_ring, rx_ring, true);
+				ena_increase_stat(&tx_ring->tx_stats.lost_interrupt,
+						  1,
+						  &tx_ring->syncp);
+			}
+		} else {
+			/* Reset indication of handled lost interrupt
+			 * once ring is back to healthy state
+			 */
+			ena_napi->lost_interrupt_unmask_handled = false;
+		}
+	}
+}
+
 static void ena_update_host_info(struct ena_admin_host_info *host_info,
 				 struct net_device *netdev)
 {
@@ -5046,6 +5140,8 @@ static void ena_timer_service(unsigned long data)
 	check_for_missing_keep_alive(adapter);
 
 	check_for_admin_com_state(adapter);
+
+	check_for_lost_interrupts(adapter);
 
 	check_for_missing_completions(adapter);
 
