@@ -4637,34 +4637,58 @@ static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 	return 0;
 }
 
-static enum ena_regs_reset_reason_types check_cdesc_in_tx_cq(struct ena_adapter *adapter,
-							     struct ena_ring *tx_ring)
+static void check_cdesc_in_tx_cq(struct ena_adapter *adapter,
+				 struct ena_ring *tx_ring,
+				 enum ena_regs_reset_reason_types *reset_reason,
+				 bool missing_first_interrupt)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct ena_tx_buffer *tx_buf;
+	int rc, i, missed_tx = 0;
 	u64 hw_timestamp = 0;
-	u16 req_id;
-	int rc;
+	u16 req_id = 0;
 
 	rc = ena_com_tx_comp_metadata_get(tx_ring->ena_com_io_cq,
 					  &req_id,
 					  &hw_timestamp);
-
-	/* TX CQ is empty */
-	if (rc == -EAGAIN) {
+	switch (rc) {
+	case -EAGAIN:
 		netif_err(adapter, tx_err, netdev, "No completion descriptors found in CQ %d",
 			  tx_ring->qid);
-
-		return ENA_REGS_RESET_MISS_TX_CMPL;
-	} else if (rc == -EFAULT) {
-		netif_err(adapter, tx_err, netdev, "Faulty descriptor found in CQ %d", tx_ring->qid);
-		ena_get_and_dump_head_tx_cdesc(tx_ring->ena_com_io_cq);
+		*reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
+		return;
+	case -EFAULT:
+	case -EINVAL:
+		handle_tx_comp_poll_error(tx_ring, req_id, rc);
+		return;
+	default:
+		break;
 	}
 
 	/* TX CQ has cdescs */
-	netif_err(adapter, tx_err, netdev,
-		  "Completion descriptors found in CQ %d", tx_ring->qid);
+	for (i = 0; i < tx_ring->ring_size; i++) {
+		tx_buf = &tx_ring->tx_buffer_info[req_id];
 
-	return ENA_REGS_RESET_MISS_INTERRUPT;
+		if (tx_buf->timed_out)
+			missed_tx++;
+
+		rc = ena_com_tx_comp_metadata_get(tx_ring->ena_com_io_cq,
+						  &req_id, &hw_timestamp);
+		if (rc) {
+			handle_tx_comp_poll_error(tx_ring, req_id, rc);
+			break;
+		}
+	}
+
+	atomic64_sub(missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
+	missed_tx = atomic64_read(&tx_ring->tx_stats.pending_timedout_pkts);
+
+	if (missed_tx)
+		*reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
+	else if (missing_first_interrupt)
+		*reset_reason = ENA_REGS_RESET_MISS_FIRST_INTERRUPT;
+	else
+		*reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
 }
 
 static void check_pending_pkts_in_txsq(struct ena_ring *tx_ring,
@@ -4681,9 +4705,13 @@ static void check_pending_pkts_in_txsq(struct ena_ring *tx_ring,
 			continue;
 
 		timeout = tx_buf->tx_sent_jiffies + miss_tx_comp_to_jiffies;
-		if (time_is_before_jiffies(timeout))
+		if (time_is_before_jiffies(timeout)) {
+			tx_buf->timed_out = true;
 			(*new_missed_tx)++;
+		}
 	}
+
+	atomic64_add(*new_missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
 }
 
 static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct ena_ring *tx_ring)
@@ -4693,12 +4721,12 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
 	u32 missed_tx_thresh = adapter->missing_tx_completion_threshold;
 	unsigned long jiffies_since_last_napi, jiffies_since_last_intr;
+	bool is_expired, missing_first_interrupt = false;
 	struct net_device *netdev = adapter->netdev;
+	int napi_scheduled, i, rc = 0, missed_tx;
 	unsigned long graceful_timeout, timeout;
-	u32 missed_tx = 0, new_missed_tx = 0;
-	int napi_scheduled, i, rc = 0;
 	struct ena_tx_buffer *tx_buf;
-	bool is_expired;
+	u32 new_missed_tx = 0;
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
@@ -4714,11 +4742,11 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 		if (unlikely(READ_ONCE(ena_napi->last_intr_jiffies) == 0 && is_expired)) {
 			/* If first interrupt is still not received, schedule a reset */
 			netif_err(adapter, tx_err, netdev,
-				  "Potential MSIX issue on Tx side Queue = %d. Reset the device\n",
+				  "Potential MSIX issue on Tx side Queue = %d.\n",
 				  tx_ring->qid);
+			missing_first_interrupt = true;
 			check_pending_pkts_in_txsq(tx_ring, i, &new_missed_tx,
 						   miss_tx_comp_to_jiffies);
-			reset_reason = ENA_REGS_RESET_MISS_FIRST_INTERRUPT;
 			rc = -EIO;
 			goto out;
 		}
@@ -4742,8 +4770,6 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 				reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
 			}
 
-			missed_tx++;
-
 			if (tx_buf->timed_out)
 				continue;
 
@@ -4760,6 +4786,7 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 	}
 
 	atomic64_add(new_missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
+	missed_tx = atomic64_read(&tx_ring->tx_stats.pending_timedout_pkts);
 	/* Checking if this TX ring missing TX completions have passed the threshold */
 	if (unlikely(missed_tx > missed_tx_thresh)) {
 		jiffies_since_last_intr = jiffies - READ_ONCE(ena_napi->last_intr_jiffies);
@@ -4771,6 +4798,14 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 			  jiffies_to_msecs(miss_tx_comp_to_jiffies),
 			  jiffies_to_msecs(jiffies_since_last_intr),
 			  jiffies_to_msecs(jiffies_since_last_napi));
+		if (unlikely(READ_ONCE(ena_napi->last_intr_jiffies) == 0))
+			missing_first_interrupt = true;
+
+		rc = -EIO;
+	}
+
+out:
+	if (rc) {
 		netif_err(adapter, tx_err, netdev, "Resetting the device\n");
 		/* Set the reset flag to prevent NAPI from running */
 		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
@@ -4780,15 +4815,12 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 		smp_mb();
 		napi_scheduled = !!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED);
 		if (!napi_scheduled)
-			reset_reason = check_cdesc_in_tx_cq(adapter, tx_ring);
+			check_cdesc_in_tx_cq(adapter, tx_ring, &reset_reason,
+					     missing_first_interrupt);
 
-		rc = -EIO;
-	}
-
-out:
-	if (rc)
 		/* Update reset reason */
 		ena_reset_device(adapter, reset_reason);
+	}
 
 	/* Add the newly discovered missing TX completions */
 	ena_increase_stat(&tx_ring->tx_stats.missed_tx, new_missed_tx, &tx_ring->syncp);
