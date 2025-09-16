@@ -290,3 +290,11 @@ try_compile_async "#include <net/devlink.h>"                         \
                   "ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM"         \
                   ""                                                 \
                   "6.17.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h>"          \
+                  "{
+                    struct ethtool_rxfh_fields rxfh;
+                  }"                                    \
+                  "ENA_HAVE_ETHTOOL_RXFH_FIELDS"        \
+                  ""                                    \
+                  "6.17.0 <= LINUX_VERSION_CODE"

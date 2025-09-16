@@ -1092,9 +1092,17 @@ static u16 ena_flow_data_to_flow_hash(u32 hash_fields)
 	return data;
 }
 
+#ifdef ENA_HAVE_ETHTOOL_RXFH_FIELDS
+static int ena_get_rxfh_fields(struct net_device *netdev,
+			       struct ethtool_rxfh_fields *cmd)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+#else
 static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 			    struct ethtool_rxnfc *cmd)
 {
+#endif /* ENA_HAVE_ETHTOOL_RXFH_FIELDS */
 	enum ena_admin_flow_hash_proto proto;
 	u16 hash_fields;
 	int rc;
@@ -1143,9 +1151,18 @@ static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 	return 0;
 }
 
+#ifdef ENA_HAVE_ETHTOOL_RXFH_FIELDS
+static int ena_set_rxfh_fields(struct net_device *netdev,
+			       const struct ethtool_rxfh_fields *cmd,
+			       struct netlink_ext_ack *extack)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+#else
 static int ena_set_rss_hash(struct ena_com_dev *ena_dev,
 			    struct ethtool_rxnfc *cmd)
 {
+#endif /* ENA_HAVE_ETHTOOL_RXFH_FIELDS */
 	enum ena_admin_flow_hash_proto proto;
 	u16 hash_fields;
 
@@ -1312,9 +1329,11 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 	int rc = 0;
 
 	switch (info->cmd) {
+#ifndef ENA_HAVE_ETHTOOL_RXFH_FIELDS
 	case ETHTOOL_SRXFH:
 		rc = ena_set_rss_hash(adapter->ena_dev, info);
 		break;
+#endif /* ENA_HAVE_ETHTOOL_RXFH_FIELDS */
 	case ETHTOOL_SRXCLSRLINS:
 		rc = ena_set_steering_rule(adapter->ena_dev, info);
 		break;
@@ -1489,9 +1508,11 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		info->data = adapter->num_io_queues;
 		rc = 0;
 		break;
+#ifndef ENA_HAVE_ETHTOOL_RXFH_FIELDS
 	case ETHTOOL_GRXFH:
 		rc = ena_get_rss_hash(adapter->ena_dev, info);
 		break;
+#endif /* ENA_HAVE_ETHTOOL_RXFH_FIELDS */
 	case ETHTOOL_GRXCLSRLCNT:
 		rc = ena_get_steering_rules_cnt(adapter->ena_dev, info);
 		break;
@@ -1895,6 +1916,10 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_rxfh_key_size	= ena_get_rxfh_key_size,
 	.get_rxfh		= ena_get_rxfh,
 	.set_rxfh		= ena_set_rxfh,
+#ifdef ENA_HAVE_ETHTOOL_RXFH_FIELDS
+	.get_rxfh_fields	= ena_get_rxfh_fields,
+	.set_rxfh_fields	= ena_set_rxfh_fields,
+#endif /* ENA_HAVE_ETHTOOL_RXFH_FIELDS */
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
 	.get_rxfh_indir		= ena_get_rxfh,
 	.set_rxfh_indir		= ena_set_rxfh,
