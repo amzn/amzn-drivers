@@ -4393,10 +4393,8 @@ static int ena_device_init(struct ena_adapter *adapter, struct pci_dev *pdev,
 	adapter->netdev->features = prev_netdev_features;
 
 	rc = ena_phc_init(adapter);
-	if (unlikely(rc && (rc != -EOPNOTSUPP))) {
-		netdev_err(netdev, "Failed initiating PHC, error: %d\n", rc);
-		goto err_admin_init;
-	}
+	if (unlikely(rc && (rc != -EOPNOTSUPP)))
+		netdev_err(netdev, "Failed initializing PHC, error: %d\n", rc);
 
 	rc = ena_com_get_hw_timestamping_support(ena_dev, &adapter->hw_ts_state.hw_tx_supported,
 						 &adapter->hw_ts_state.hw_rx_supported);
