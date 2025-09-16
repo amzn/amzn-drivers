@@ -4604,6 +4604,11 @@ static void ena_fw_reset_device(struct work_struct *work)
 	rtnl_lock();
 
 	if (likely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		netif_err(adapter, drv, adapter->netdev, "Trigger reset is on\n");
+
+		if (adapter->reset_reason != ENA_REGS_RESET_NORMAL)
+			ena_dump_stats_to_dmesg(adapter);
+
 		rc |= ena_destroy_device(adapter, false);
 		rc |= ena_restore_device(adapter);
 		adapter->dev_stats.reset_fail += !!rc;
@@ -5062,12 +5067,6 @@ static void ena_timer_service(unsigned long data)
 			mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
 			return;
 		}
-
-		netif_err(adapter, drv, adapter->netdev,
-			  "Trigger reset is on\n");
-
-		if (adapter->reset_reason != ENA_REGS_RESET_NORMAL)
-			ena_dump_stats_to_dmesg(adapter);
 
 		queue_work(ena_wq, &adapter->reset_task);
 		return;
