@@ -31,6 +31,25 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.16.0 release notes
+**New Features**
+* Page Pool support
+* Lost interrupt identification mechanism
+* Persistent stats across resets and reconfigurations
+* Driver reload via Devlink
+* PHC enablement via Devlink
+* PHC stats via Debugfs
+
+**Bug Fixes**
+* Missing Tx completions correct identification
+* RSS components initialization during queue count change
+* Missing queue stats update on error paths
+* SRD and ENI stats zero-initialization
+
+**Minor Changes**
+* Treat PHC initialization failure as non-fatal
+* Netdev queue stats support (netdev-genl)
+
 ## r2.15.0 release notes
 **New Features**
 * HW packet timestamping support and extended cdescs
