@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2019-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2019-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_P2P_H_
@@ -28,7 +28,6 @@ enum efa_p2p_prov {
 
 struct efa_p2p_provider {
 	const struct efa_p2p_ops ops;
-	enum efa_p2p_prov type;
 };
 
 struct efa_p2pmem {

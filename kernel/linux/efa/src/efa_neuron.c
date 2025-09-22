@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2021-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2021-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -165,24 +165,17 @@ static char *neuronmem_provider_string(void)
 	return "NEURON";
 }
 
-struct neuronmem_provider {
-	struct efa_p2p_provider p2p;
-};
-
-static const struct neuronmem_provider prov = {
-	.p2p = {
-		.ops = {
-			.get_provider_string = neuronmem_provider_string,
-			.try_get = neuronmem_get,
-			.to_page_list = neuronmem_to_page_list,
-			.release = neuronmem_release,
-			.get_page_size = neuronmem_pgsz,
-		},
-		.type = EFA_P2P_PROVIDER_NEURON,
+static const struct efa_p2p_provider prov = {
+	.ops = {
+		.get_provider_string = neuronmem_provider_string,
+		.try_get = neuronmem_get,
+		.to_page_list = neuronmem_to_page_list,
+		.release = neuronmem_release,
+		.get_page_size = neuronmem_pgsz,
 	},
 };
 
 const struct efa_p2p_provider *neuronmem_get_provider(void)
 {
-	return &prov.p2p;
+	return &prov;
 }
