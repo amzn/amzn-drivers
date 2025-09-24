@@ -107,6 +107,11 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Wed Sep 24 2025 Michael Margolin <mrgolin@amazon.com> - 2.17.3
+- Support P2P with NVIDIA 580 drivers
+- Adjust MR registration for 6.17 and on kernels
+- Fix kernel QP creation when depth is not a power of 2
+
 * Mon Jul 21 2025 Yonatan Nachum <ynachum@amazon.com> - 2.17.2
 - Fix create user CQ
 

@@ -3,6 +3,11 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r2.17.3 release notes
+* Support P2P with NVIDIA 580 drivers
+* Adjust MR registration for 6.17 and on kernels
+* Fix kernel QP creation when depth is not a power of 2
+
 ## r2.17.2 release notes
 * Fix create user CQ
 
