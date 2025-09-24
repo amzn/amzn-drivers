@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2021-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2021-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 list(APPEND efa_sources
   efa_com_cmd.c efa_com.c efa_main.c efa_verbs.c efa_sysfs.c
@@ -7,8 +7,8 @@ list(APPEND efa_sources
   efa_common_defs.h efa_regs_defs.h efa_sysfs.h
   efa_io_defs.h efa-abi.h efa.h kcompat.h)
 if(ENABLE_P2P)
-  list(APPEND efa_sources efa_p2p.c efa_p2p.h efa_gdr.c nv-p2p.h
-    efa_neuron.c neuron_p2p.h)
+  list(APPEND efa_sources efa_p2p.c efa_p2p.h efa_nvmem_impl.h efa_nvmem_v1.c
+    efa_nvmem_v2.c nv-p2p.h nv-p2p_v2.h efa_neuron.c neuron_p2p.h)
 endif()
 if(ENABLE_KVERBS)
   list(APPEND efa_sources efa_verbs.h efa_data_verbs.c)

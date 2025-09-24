@@ -93,8 +93,11 @@ install -m 644 CMakeLists.txt		%{buildroot}%{install_path}/src
 install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
 install -m 644 efa_p2p.c		%{buildroot}%{install_path}/src
 install -m 644 efa_p2p.h		%{buildroot}%{install_path}/src
-install -m 644 efa_gdr.c		%{buildroot}%{install_path}/src
+install -m 644 efa_nvmem_impl.h		%{buildroot}%{install_path}/src
+install -m 644 efa_nvmem_v1.c		%{buildroot}%{install_path}/src
+install -m 644 efa_nvmem_v2.c		%{buildroot}%{install_path}/src
 install -m 644 nv-p2p.h			%{buildroot}%{install_path}/src
+install -m 644 nv-p2p_v2.h		%{buildroot}%{install_path}/src
 install -m 644 efa_neuron.c		%{buildroot}%{install_path}/src
 install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 

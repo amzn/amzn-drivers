@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2019-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2019-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_p2p.h"
@@ -14,7 +14,8 @@ static const struct efa_p2p_provider *prov_arr[EFA_P2P_PROVIDER_MAX];
 /* Register all providers here */
 static void p2p_providers_init(void)
 {
-	prov_arr[EFA_P2P_PROVIDER_NVMEM] = nvmem_get_provider();
+	prov_arr[EFA_P2P_PROVIDER_NVMEM_V1] = nvmem_v1_get_provider();
+	prov_arr[EFA_P2P_PROVIDER_NVMEM_V2] = nvmem_v2_get_provider();
 	prov_arr[EFA_P2P_PROVIDER_NEURON] = neuronmem_get_provider();
 }
 

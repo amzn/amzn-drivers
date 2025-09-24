@@ -3,10 +3,19 @@
  * Copyright 2019-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
+#ifndef _EFA_NVMEM_IMPL_H_
+#define _EFA_NVMEM_IMPL_H_
+
 #include <linux/module.h>
 
 #include "efa_p2p.h"
+#ifndef NV_P2P_MAJOR_VERSION
+#error "NV_P2P_MAJOR_VERSION has to be defined"
+#elif NV_P2P_MAJOR_VERSION == 1
 #include "nv-p2p.h"
+#else
+#include "nv-p2p_v2.h"
+#endif
 
 #define GPU_PAGE_SHIFT 16
 #define GPU_PAGE_SIZE BIT_ULL(GPU_PAGE_SHIFT)
@@ -307,7 +316,7 @@ static const struct efa_p2p_provider prov = {
 	},
 };
 
-const struct efa_p2p_provider *nvmem_get_provider(void)
+static const struct efa_p2p_provider *nvmem_get_provider(void)
 {
 	struct efa_nvmem_ops ops = {};
 	int err;
@@ -323,3 +332,5 @@ const struct efa_p2p_provider *nvmem_get_provider(void)
 
 	return &prov;
 }
+
+#endif /* _EFA_NVMEM_IMPL_H_ */

@@ -56,8 +56,11 @@ override_dh_auto_install:
 	install -m 644 src/Kbuild.in		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_p2p.c		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_p2p.h		${DESTDIR}/${INSTALL_PATH}/src
-	install -m 644 src/efa_gdr.c		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_nvmem_impl.h	${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_nvmem_v1.c	${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/efa_nvmem_v2.c	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/nv-p2p.h		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/nv-p2p_v2.h		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_neuron.c		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/neuron_p2p.h		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 README			${DESTDIR}/${INSTALL_PATH}
