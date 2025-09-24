@@ -8,7 +8,7 @@ list(APPEND efa_sources
   efa_io_defs.h efa-abi.h efa.h kcompat.h)
 if(ENABLE_P2P)
   list(APPEND efa_sources efa_p2p.c efa_p2p.h efa_nvmem_impl.h efa_nvmem_v1.c
-    efa_nvmem_v2.c nv-p2p.h nv-p2p_v2.h efa_neuron.c neuron_p2p.h)
+    efa_nvmem_v2.c nv-p2p.h nv-p2p_v2.h efa_neuronmem.c neuron_p2p.h)
 endif()
 if(ENABLE_KVERBS)
   list(APPEND efa_sources efa_verbs.h efa_data_verbs.c)
