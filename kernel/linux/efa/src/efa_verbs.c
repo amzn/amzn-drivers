@@ -1880,11 +1880,7 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 #else
 		       struct ib_umem *umem, struct uverbs_attr_bundle *attrs)
 {
-#ifndef HAVE_EFA_KVERBS
 	struct ib_udata *udata = &attrs->driver_udata;
-#else
-	struct ib_udata *udata = NULL;
-#endif
 #endif
 #ifdef HAVE_UDATA_TO_DRV_CONTEXT
 	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
@@ -1915,18 +1911,6 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		err = -EINVAL;
 		goto err_out;
 	}
-
-#ifdef HAVE_EFA_KVERBS
-#ifdef HAVE_CREATE_CQ_BUNDLE
-	if (attrs) {
-		udata = &attrs->driver_udata;
-		ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext, ibucontext);
-	}
-#endif
-
-	if (!udata)
-		return efa_create_cq_kernel(ibcq, attr);
-#endif
 
 	if (offsetofend(typeof(cmd), num_sub_cqs) > udata->inlen) {
 		ibdev_dbg(ibdev,
@@ -2092,7 +2076,7 @@ static int efa_create_cq_umem_backport(struct ib_cq *ibcq, const struct ib_cq_in
 #else
 					struct ib_udata *udata)
 {
-	struct uverbs_attr_bundle *attrs = NULL;
+	struct uverbs_attr_bundle *attrs = rdma_udata_to_uverbs_attr_bundle(udata);
 #endif
 	struct ib_device *ibdev = ibcq->device;
 	struct ib_umem_dmabuf *umem_dmabuf;
@@ -2102,14 +2086,6 @@ static int efa_create_cq_umem_backport(struct ib_cq *ibcq, const struct ib_cq_in
 	u64 buffer_va;
 	int buffer_fd;
 	int ret;
-
-#ifndef HAVE_CREATE_CQ_BUNDLE
-	if (udata)
-		attrs = rdma_udata_to_uverbs_attr_bundle(udata);
-#endif
-
-	if (!attrs)
-		return efa_create_cq_kernel(ibcq, attr);
 
 	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_VA)) {
 		ret = uverbs_copy_from(&buffer_va, attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_VA);
@@ -2168,6 +2144,10 @@ static int efa_create_cq_umem_backport(struct ib_cq *ibcq, const struct ib_cq_in
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct uverbs_attr_bundle *attrs)
 {
+#ifdef HAVE_EFA_KVERBS
+	if (!attrs)
+		return efa_create_cq_kernel(ibcq, attr);
+#endif
 #if !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 	return efa_create_cq_umem_backport(ibcq, attr, attrs);
 #else
@@ -2178,6 +2158,10 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata)
 {
+#ifdef HAVE_EFA_KVERBS
+	if (!udata)
+		return efa_create_cq_kernel(ibcq, attr);
+#endif
 #if !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 	return efa_create_cq_umem_backport(ibcq, attr, udata);
 #else
