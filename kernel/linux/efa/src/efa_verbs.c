@@ -707,7 +707,7 @@ static void efa_qp_terminate(struct efa_qp *qp)
 	efa_cq_dec_ref_cnt(send_cq, qp->sq.wq.sub_cq_idx);
 	efa_cq_dec_ref_cnt(recv_cq, qp->rq.wq.sub_cq_idx);
 
-	dev->qp_table[qp->ibqp.qp_num] = NULL;
+	dev->qp_table[qp->ibqp.qp_num & dev->qp_table_mask] = NULL;
 
 	efa_unlock_cqs(send_cq, recv_cq);
 	spin_unlock(&dev->qp_table_lock);
@@ -1193,7 +1193,7 @@ static int efa_create_qp_kernel(struct ib_qp *ibqp, struct ib_qp_init_attr *init
 	efa_unlock_cqs(send_cq, recv_cq);
 
 	spin_lock(&dev->qp_table_lock);
-	dev->qp_table[ibqp->qp_num] = qp;
+	dev->qp_table[ibqp->qp_num & dev->qp_table_mask] = qp;
 	spin_unlock(&dev->qp_table_lock);
 
 	ibdev_dbg(&dev->ibdev, "Created qp[%d] type %d\n", qp->ibqp.qp_num, init_attr->qp_type);
