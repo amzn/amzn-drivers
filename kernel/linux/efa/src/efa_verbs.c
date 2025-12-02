@@ -1966,13 +1966,13 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		if (umem->length < cq->size) {
 			ibdev_dbg(&dev->ibdev, "External memory too small\n");
 			err = -EINVAL;
-			goto err_free_mem;
+			goto err_out;
 		}
 
 		if (!ib_umem_is_contiguous(umem)) {
 			ibdev_dbg(&dev->ibdev, "Non contiguous CQ unsupported\n");
 			err = -EINVAL;
-			goto err_free_mem;
+			goto err_out;
 		}
 
 		cq->cpu_addr = NULL;
@@ -2001,7 +2001,7 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	err = efa_com_create_cq(&dev->edev, &params, &result);
 	if (err)
-		goto err_free_mem;
+		goto err_free_mapped;
 
 	resp.db_off = result.db_off;
 	resp.cq_idx = result.cq_idx;
@@ -2057,11 +2057,10 @@ err_remove_mmap:
 	efa_cq_user_mmap_entries_remove(cq);
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
-err_free_mem:
-	if (umem)
-		ib_umem_release(umem);
-	else
-		efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size, DMA_FROM_DEVICE);
+err_free_mapped:
+	if (!umem)
+		efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
+				DMA_FROM_DEVICE);
 
 err_out:
 	atomic64_inc(&dev->stats.create_cq_err);
@@ -2133,10 +2132,14 @@ static int efa_create_cq_umem_backport(struct ib_cq *ibcq, const struct ib_cq_in
 	}
 
 #ifdef HAVE_CREATE_CQ_BUNDLE
-	return efa_create_cq_umem(ibcq, attr, umem, attrs);
+	ret = efa_create_cq_umem(ibcq, attr, umem, attrs);
 #else
-	return efa_create_cq_umem(ibcq, attr, umem, udata);
+	ret = efa_create_cq_umem(ibcq, attr, umem, udata);
 #endif
+	if (ret)
+		ib_umem_release(umem);
+
+	return ret;
 }
 #endif
 
