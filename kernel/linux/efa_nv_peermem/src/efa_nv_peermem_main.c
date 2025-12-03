@@ -13,7 +13,7 @@
 #define DRV_MODULE_NAME                "EFA NV Peermem"
 #define DRV_MODULE_VER_MAJOR           1
 #define DRV_MODULE_VER_MINOR           2
-#define DRV_MODULE_VER_SUBMINOR        2
+#define DRV_MODULE_VER_SUBMINOR        3
 
 #ifndef DRV_MODULE_VERSION
 #define DRV_MODULE_VERSION \

@@ -75,6 +75,9 @@ install -m 644 Kbuild.in				%{buildroot}%{install_path}/src
 /etc/modules-load.d/efa_nv_peermem.conf
 
 %changelog
+* Wed Dec 03 2025 Michael Margolin <mrgolin@amazon.com> - 1.2.3
+- Fix build errors and warnings with new kernels and DKMS
+
 * Mon Jul 21 2025 Yonatan Nachum <ynachum@amazon.com> - 1.2.2
 - Fix Nvidia Module.symvers search
 
