@@ -14,7 +14,7 @@ License:	Dual BSD/GPL
 URL:		https://github.com/amzn/amzn-drivers/
 Source0:	%{name}-%{version}.tar
 
-Requires:	dkms %kernel_module_package_buildreqs cmake
+Requires:	dkms cmake
 %if %{defined kernel_module_package_buildreqs}
 Requires: %kernel_module_package_buildreqs
 %endif
