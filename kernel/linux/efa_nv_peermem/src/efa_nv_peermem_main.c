@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2023-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2023-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -64,7 +64,7 @@ int efa_nv_peermem_p2p_put_pages(uint64_t p2p_token,
 }
 EXPORT_SYMBOL_GPL(efa_nv_peermem_p2p_put_pages);
 
-int init_module(void)
+static int __init efa_nv_peermem_init(void)
 {
 	/* Make sure that we didn't inherit taint from Nvidia proprietary driver*/
 	if (test_bit(TAINT_PROPRIETARY_MODULE, &THIS_MODULE->taints)) {
@@ -84,6 +84,9 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+static void __exit efa_nv_peermem_cleanup(void)
 {
 }
+
+module_init(efa_nv_peermem_init);
+module_exit(efa_nv_peermem_cleanup);
