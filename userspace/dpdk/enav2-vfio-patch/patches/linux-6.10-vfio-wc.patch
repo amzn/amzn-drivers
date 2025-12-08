@@ -25,6 +25,6 @@ index 1cbc990d4..5e8c3d07c 100644
 +		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 +	else
 +		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-        vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+ 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
  
  	/*
