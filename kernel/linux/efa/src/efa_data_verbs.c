@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2024-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <rdma/ib_verbs.h>
@@ -529,7 +529,7 @@ static int efa_poll_sub_cq(struct efa_cq *cq, struct efa_sub_cq *sub_cq,
 		 * from the table.
 		 */
 		*cur_qp = dev->qp_table[qpn & dev->qp_table_mask];
-		if (!*cur_qp)
+		if (!*cur_qp || qpn != (*cur_qp)->ibqp.qp_num)
 			return -EINVAL;
 	}
 
