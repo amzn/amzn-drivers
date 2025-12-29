@@ -52,13 +52,22 @@ function download_kernel_src_yum {
 	echo "Use yum to get the kernel sources"
 
 	bold "\nInstall required applications and kernel headers"
-	yum install -y gcc "kernel-$(uname -r)" "kernel-devel-$(uname -r)" \
-	    git make elfutils-libelf-devel patch yum-utils
+	if [ "${KERNEL_VERSION}" -ge 6120000 ]; then
+		yum install -y gcc "kernel6.12-$(uname -r)" "kernel6.12-devel-$(uname -r)" \
+		    git make elfutils-libelf-devel patch yum-utils
+	else
+		yum install -y gcc "kernel-$(uname -r)" "kernel-devel-$(uname -r)" \
+		    git make elfutils-libelf-devel patch yum-utils
+	fi
 	green Done
 
 	# Download kernel source
 	bold "\nDownload kernel source with vfio"
-	yumdownloader --source "kernel-devel-$(uname -r)"
+	if [ "${KERNEL_VERSION}" -ge 6120000 ]; then
+		yumdownloader --source "kernel6.12-devel-$(uname -r)"
+	else
+		yumdownloader --source "kernel-devel-$(uname -r)"
+	fi
 	rpm2cpio kernel*.src.rpm | cpio -idmv
 	green Done
 
@@ -102,7 +111,10 @@ function download_kernel_src {
 }
 
 function apply_wc_patch {
-        if [ "${KERNEL_VERSION}" -ge 6080000 ]; then
+	if [ "${KERNEL_VERSION}" -ge 6120000 ]; then
+		echo "Using patch for kernel version 6.12"
+		local wc_patch="${BASE_PATH}/patches/linux-6.12-vfio-wc.patch"
+        elif [ "${KERNEL_VERSION}" -ge 6080000 ]; then
                 echo "Using patch for kernel version 6.8"
                 local wc_patch="${BASE_PATH}/patches/linux-6.8-vfio-wc.patch"
         elif [ "${KERNEL_VERSION}" -ge 5150000 ]; then
