@@ -3229,8 +3229,9 @@ static int ena_check_and_linearize_skb(struct ena_ring *tx_ring,
 						  tx_ring->tx_max_header_size,
 						  is_llq);
 	if (likely(!too_many_tx_frags))
-		return 0;
+		goto check_csum_partial;
 
+linearize:
 	ena_increase_stat(&tx_ring->tx_stats.linearize, 1, &tx_ring->syncp);
 
 	rc = skb_linearize(skb);
@@ -3240,6 +3241,28 @@ static int ena_check_and_linearize_skb(struct ena_ring *tx_ring,
 	}
 
 	return rc;
+
+check_csum_partial:
+	/* ENA hardware checksum offload can corrupt packets if the L4 header
+	 * (TCP) spans into fragments instead of being fully within the linear
+	 * part of the skb.
+	 *
+	 * skb_transport_offset() returns the transport header offset from
+	 * skb->data. If the TCP header extends beyond skb_headlen(), it crosses
+	 * into fragments. Linearize in that case so the hardware sees a fully
+	 * linear L4 header.
+	 *
+	 * This can occur with highly non-linear packets (e.g. from virtio-net)
+	 * where the linear head contains only minimal headers.
+	 */
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    /* Confirm packet is TCP */
+	    skb->csum_offset == offsetof(struct tcphdr, check) &&
+	    /* Check if TCP hdr end is beyond linear headlen */
+	    skb_transport_offset(skb) + sizeof(struct tcphdr) > skb_headlen(skb))
+		goto linearize;
+
+	return 0;
 }
 
 static int ena_tx_map_skb(struct ena_ring *tx_ring,
