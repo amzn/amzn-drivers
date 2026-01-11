@@ -535,5 +535,14 @@ struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length, 
   "
   HAVE_REG_USER_MR_DMAH "")
 
+try_compile(
+  "
+#include <errname.h>
+  "
+  "
+char *name = errname(ERR_PTR(-EIO));
+  "
+  HAVE_PRINT_ERR_PTR "")
+
 wait_for_pids()
 message("-- Inspecting kernel - done")
