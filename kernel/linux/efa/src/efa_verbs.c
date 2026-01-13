@@ -2228,7 +2228,7 @@ static int umem_to_page_list(struct efa_dev *dev,
 	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
 		  hp_cnt, pages_in_hp);
 
-	efa_rdma_umem_for_each_dma_block(umem, &biter, BIT(hp_shift))
+	rdma_umem_for_each_dma_block(umem, &biter, BIT(hp_shift))
 		page_list[hp_idx++] = rdma_block_iter_dma_address(&biter);
 
 	return 0;
@@ -2653,9 +2653,9 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 	}
 #endif
 
-	pg_sz = efa_umem_find_best_pgsz(mr->umem,
-					dev->dev_attr.page_size_cap,
-					virt_addr);
+	pg_sz = ib_umem_find_best_pgsz(mr->umem,
+				       dev->dev_attr.page_size_cap,
+				       virt_addr);
 	if (!pg_sz) {
 		ibdev_dbg(&dev->ibdev, "Failed to find a suitable page size in page_size_cap %#llx\n",
 			  dev->dev_attr.page_size_cap);

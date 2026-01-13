@@ -475,16 +475,6 @@ struct sg_append_table sgt = umem->sgt_append;
 
 try_compile(
   "
-#include <rdma/ib_verbs.h>
-  "
-  "
-struct ib_block_iter *iter;
-size_t nb = iter->__sg_numblocks;
-  "
-  HAVE_IB_BLOCK_ITER_SG_NUM_BLOCKS "")
-
-try_compile(
-  "
 #include <rdma/uverbs_ioctl.h>
   "
   "
