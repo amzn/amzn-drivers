@@ -3,6 +3,16 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r3.0.0 release notes
+* Improve admin error handling
+* Check for QP number correctness on completion poll
+* Remove unconditional backport of best page size finding
+* Print errno strings for error pointers
+* Simplify the code in CQ creation flows
+* Backport upstream changes in CQ with umem creation flow
+* Adjust DKMS configuration for new DKMS versions
+* Fix negative shift during MR registration
+
 ## r2.17.3 release notes
 * Support P2P with NVIDIA 580 drivers
 * Adjust MR registration for 6.17 and on kernels

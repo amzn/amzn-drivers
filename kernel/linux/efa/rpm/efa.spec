@@ -107,6 +107,16 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Tue Jan 13 2026 Michael Margolin <mrgolin@amazon.com> - 3.0.0
+- Improve admin error handling
+- Check for QP number correctness on completion poll
+- Remove unconditional backport of best page size finding
+- Print errno strings for error pointers
+- Simplify the code in CQ creation flows
+- Backport upstream changes in CQ with umem creation flow
+- Adjust DKMS configuration for new DKMS versions
+- Fix negative shift during MR registration
+
 * Wed Sep 24 2025 Michael Margolin <mrgolin@amazon.com> - 2.17.3
 - Support P2P with NVIDIA 580 drivers
 - Adjust MR registration for 6.17 and on kernels
