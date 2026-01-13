@@ -464,12 +464,16 @@ Description:
   two consecutive IO IRQs are bound.
 Example:
   For doing the following IO IRQs / CPU binding:
-  IRQ idx |  CPU
-  ----------------
-    1     |   0
-    2     |   2
-    3     |   4
-    4     |   6
+
+  =========    =====
+  IRQ idx      CPU
+  =========    =====
+  1            0
+  2            2
+  3            4
+  4            8
+  =========    =====
+
   the below command should be used:
 
   .. code-block:: sh
