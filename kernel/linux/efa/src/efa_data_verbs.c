@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2024-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2024-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <rdma/ib_verbs.h>
@@ -498,6 +498,7 @@ static enum ib_wc_status to_ib_status(enum efa_io_comp_status status)
 		return IB_WC_REM_INV_RD_REQ_ERR;
 	case EFA_IO_COMP_STATUS_REMOTE_ERROR_BAD_STATUS:
 		return IB_WC_BAD_RESP_ERR;
+	case EFA_IO_COMP_STATUS_REMOTE_ERROR_FEATURE_MISMATCH:
 	case EFA_IO_COMP_STATUS_REMOTE_ERROR_BAD_LENGTH:
 		return IB_WC_REM_INV_REQ_ERR;
 	case EFA_IO_COMP_STATUS_LOCAL_ERROR_UNRESP_REMOTE:
