@@ -68,6 +68,7 @@
 #define ENA_H
 
 
+#include "kcompat.h"
 #include "ena-com/ena_com.h"
 #include "ena-com/ena_eth_com.h"
 
