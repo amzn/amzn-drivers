@@ -72,8 +72,10 @@ CFLAGS += -DDEV_NETMAP
 # Try to determine if the driver should be built with the RSS option.
 # The requirements are similar as for the DEV_NETMAP option, except that the
 # script checks for the RSS option and variable instead.
+# Note: We check for net.inet.rss.buckets which only exists when RSS is enabled.
+# FreeBSD 16+ has net.inet.rss.hashalgo even without RSS, but buckets requires it.
 .if !make(clean) && ((!defined(RSS) && \
-    ${:!sysctl net.inet.rss > /dev/null 2>&1; echo \$?!} == 0) || \
+    ${:!sysctl net.inet.rss.buckets > /dev/null 2>&1; echo \$?!} == 0) || \
     (defined(RSS) && ${RSS} != 0))
 .info Enabling kernel RSS for the driver.
 CFLAGS += -DRSS

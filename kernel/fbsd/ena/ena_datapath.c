@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_NETMAP
 #include "ena_netmap.h"
 #endif /* DEV_NETMAP */
-#ifdef RSS
+#ifdef ENA_RSS_KEY_API
 #include <net/rss_config.h>
-#endif /* RSS */
+#endif /* ENA_RSS_KEY_API */
 
 #include <netinet6/ip6_var.h>
 
@@ -353,7 +353,7 @@ ena_rx_hash_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter))) {
 		mbuf->m_pkthdr.flowid = ena_rx_ctx->hash;
 
-#ifdef RSS
+#ifdef ENA_RSS_KEY_API
 		/*
 		 * Hardware and software RSS are in agreement only when both are
 		 * configured to Toeplitz algorithm.  This driver configures
@@ -364,7 +364,7 @@ ena_rx_hash_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 			M_HASHTYPE_SET(mbuf, M_HASHTYPE_OPAQUE_HASH);
 			return;
 		}
-#endif
+#endif /* ENA_RSS_KEY_API */
 
 		if (ena_rx_ctx->frag &&
 		    (ena_rx_ctx->l3_proto != ENA_ETH_IO_L3_PROTO_UNKNOWN)) {

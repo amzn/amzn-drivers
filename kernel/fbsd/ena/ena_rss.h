@@ -68,12 +68,11 @@
 #define ENA_RSS_H
 
 #include <sys/types.h>
-
-#ifdef RSS
-#include <net/rss_config.h>
-#endif
-
 #include "ena.h"
+
+#ifdef ENA_RSS_KEY_API
+#include <net/rss_config.h>
+#endif /* ENA_RSS_KEY_API */
 
 #define ENA_RX_RSS_MSG_RECORD_SZ 8
 

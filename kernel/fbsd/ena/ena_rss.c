@@ -166,7 +166,7 @@ ena_rss_init_default(struct ena_adapter *adapter)
 	}
 
 
-#ifdef RSS
+#ifdef ENA_RSS_KEY_API
 	uint8_t rss_algo = rss_gethashalgo();
 	if (rss_algo == RSS_HASH_TOEPLITZ) {
 		uint8_t hash_key[RSS_KEYSIZE];
@@ -174,7 +174,7 @@ ena_rss_init_default(struct ena_adapter *adapter)
 		rss_getkey(hash_key);
 		rc = ena_rss_set_hash(ena_dev, hash_key);
 	} else
-#endif
+#endif /* ENA_RSS_KEY_API */
 		rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ,
 		    NULL, ENA_HASH_KEY_SIZE, 0x0);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {

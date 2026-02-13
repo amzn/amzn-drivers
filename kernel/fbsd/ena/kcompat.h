@@ -37,4 +37,12 @@
  * for upstream releases where features are defined via compiler flags.
  */
 
+/*
+ * RSS hash key API is available when RSS is compiled in or on FreeBSD 16.0+
+ * where the API is exposed globally for symmetric hashing support.
+ */
+#if defined(RSS) || __FreeBSD_version >= 1600004
+#define ENA_RSS_KEY_API
+#endif
+
 #endif /* ENA_KCOMPAT_H */
