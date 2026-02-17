@@ -935,11 +935,11 @@ static int efa_qp_validate_cap(struct efa_dev *dev,
 			  init_attr->cap.max_recv_sge, dev->dev_attr.max_rq_sge);
 		return -EINVAL;
 	}
-	if (init_attr->cap.max_inline_data > dev->dev_attr.inline_buf_size) {
+	if (init_attr->cap.max_inline_data > dev->dev_attr.inline_buf_size_ex) {
 		ibdev_dbg(&dev->ibdev,
 			  "qp: requested inline data[%u] exceeds the max[%u]\n",
 			  init_attr->cap.max_inline_data,
-			  dev->dev_attr.inline_buf_size);
+			  dev->dev_attr.inline_buf_size_ex);
 		return -EINVAL;
 	}
 
