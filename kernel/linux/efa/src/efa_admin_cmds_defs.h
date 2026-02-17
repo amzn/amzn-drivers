@@ -42,6 +42,7 @@ enum efa_admin_aq_feature_id {
 	EFA_ADMIN_HW_HINTS                          = 5,
 	EFA_ADMIN_HOST_INFO                         = 6,
 	EFA_ADMIN_EVENT_QUEUE_ATTR                  = 7,
+	EFA_ADMIN_QUEUE_ATTR_2                      = 9,
 };
 
 /* QP transport type */
@@ -751,7 +752,12 @@ struct efa_admin_feature_queue_attr_desc_1 {
 	/* Maximum number of WQEs per Send Queue */
 	u32 max_sq_depth;
 
-	/* Maximum size of data that can be sent inline in a Send WQE */
+	/*
+	 * Maximum size of data that can be sent inline in a Send WQE
+	 * (deprecated by
+	 * efa_admin_feature_queue_attr_desc_2::inline_buf_size_ex on
+	 * supporting devices)
+	 */
 	u32 inline_buf_size;
 
 	/* Maximum number of buffer descriptors per Recv Queue */
@@ -803,6 +809,11 @@ struct efa_admin_feature_queue_attr_desc_1 {
 	 * two consecutive doorbells. Zero means unlimited.
 	 */
 	u16 max_tx_batch;
+};
+
+struct efa_admin_feature_queue_attr_desc_2 {
+	/* Maximum size of data that can be sent inline in a Send WQE */
+	u16 inline_buf_size_ex;
 };
 
 struct efa_admin_event_queue_attr_desc {
@@ -873,6 +884,8 @@ struct efa_admin_get_feature_resp {
 		struct efa_admin_feature_network_attr_desc network_attr;
 
 		struct efa_admin_feature_queue_attr_desc_1 queue_attr_1;
+
+		struct efa_admin_feature_queue_attr_desc_2 queue_attr_2;
 
 		struct efa_admin_event_queue_attr_desc event_queue_attr;
 

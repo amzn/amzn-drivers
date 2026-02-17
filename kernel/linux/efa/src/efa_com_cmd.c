@@ -542,6 +542,21 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->max_tx_batch = resp.u.queue_attr_1.max_tx_batch;
 	result->min_sq_depth = resp.u.queue_attr_1.min_sq_depth;
 
+	if (efa_com_check_supported_feature_id(edev, EFA_ADMIN_QUEUE_ATTR_2)) {
+		err = efa_com_get_feature(edev, &resp,
+					  EFA_ADMIN_QUEUE_ATTR_2);
+		if (err) {
+			ibdev_err_ratelimited(
+				edev->efa_dev,
+				"Failed to get queue attributes2 %d\n", err);
+			return err;
+		}
+
+		result->inline_buf_size_ex = resp.u.queue_attr_2.inline_buf_size_ex;
+	} else {
+		result->inline_buf_size_ex = result->inline_buf_size;
+	}
+
 	err = efa_com_get_feature(edev, &resp, EFA_ADMIN_NETWORK_ATTR);
 	if (err) {
 		ibdev_err_ratelimited(edev->efa_dev,
