@@ -62,6 +62,9 @@ static const char *efa_com_cmd_str(u8 cmd)
 	EFA_CMD_STR_CASE(DEALLOC_UAR);
 	EFA_CMD_STR_CASE(CREATE_EQ);
 	EFA_CMD_STR_CASE(DESTROY_EQ);
+#ifdef HAVE_EFA_KVERBS
+	EFA_CMD_STR_CASE(ALLOC_MR);
+#endif
 	default: return "unknown command opcode";
 	}
 #undef EFA_CMD_STR_CASE
