@@ -2804,8 +2804,7 @@ ena_set_llq_configurations(struct ena_llq_configurations *llq_config,
 	llq_config->llq_num_decs_before_header =
 	    ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
 
-	switch (ena_force_large_llq_header)
-	{
+	switch (ena_force_large_llq_header) {
 	case ENA_LLQ_HEADER_SIZE_POLICY_REGULAR:
 		use_large_llq = false;
 		break;
