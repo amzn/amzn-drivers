@@ -1,4 +1,4 @@
-# Copyright 2019-2025 Amazon.com, Inc. or its affiliates. All rights reserved
+# Copyright 2019-2026 Amazon.com, Inc. or its affiliates. All rights reserved
 
 %define name			efa
 %define driver_name		efa
@@ -14,7 +14,11 @@ License:	Dual BSD/GPL
 URL:		https://github.com/amzn/amzn-drivers/
 Source0:	%{name}-%{version}.tar
 
+%if %{defined kernel_module_package_buildreqs}
 Requires:	dkms %kernel_module_package_buildreqs cmake
+%else
+Requires:	dkms kernel-devel cmake
+%endif
 # RHEL 8.4 has a broken dependency between cmake and libarchive which
 # causes libarchive to not be updated properly in the update case. Express the
 # dependency so that our install does not break.
