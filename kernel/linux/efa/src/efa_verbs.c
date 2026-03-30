@@ -1008,13 +1008,14 @@ static void efa_qp_init_indices(struct efa_qp *qp)
 	qp->rq.wq.wrid_idx_pool_next = 0;
 }
 
-static void efa_setup_qp(struct efa_qp *qp, struct ib_qp_cap *cap)
+static void efa_setup_qp(struct efa_qp *qp, struct efa_dev *dev, struct ib_qp_cap *cap)
 {
 	u32 rq_desc_cnt;
 
 	efa_qp_init_indices(qp);
 
-	qp->sq.wq.max_wqes = roundup_pow_of_two(cap->max_send_wr);
+	qp->sq.wq.max_wqes = roundup_pow_of_two(max_t(u32, cap->max_send_wr,
+						      dev->dev_attr.min_sq_depth));
 	qp->sq.wq.max_sge = cap->max_send_sge;
 	qp->sq.wq.queue_mask = qp->sq.wq.max_wqes - 1;
 
@@ -1129,7 +1130,7 @@ static int efa_create_qp_kernel(struct ib_qp *ibqp, struct ib_qp_init_attr *init
 	if (err)
 		goto err_out;
 
-	efa_setup_qp(qp, &init_attr->cap);
+	efa_setup_qp(qp, dev, &init_attr->cap);
 
 	create_qp_params.uarn = dev->uarn;
 	create_qp_params.pd = to_epd(ibqp->pd)->pdn;
