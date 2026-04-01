@@ -48,17 +48,17 @@ function get_kernel_version {
 	printf "%d%02d%04d" "${ver_major}" "${ver_minor}" "${ver_subminor}"
 }
 
-function download_kernel_src_yum {
-	echo "Use yum to get the kernel sources"
+function download_kernel_src_dnf {
+	echo "Use dnf to get the kernel sources"
 
 	bold "\nInstall required applications and kernel headers"
-	yum install -y gcc "kernel-$(uname -r)" "kernel-devel-$(uname -r)" \
-	    git make elfutils-libelf-devel patch yum-utils
+	dnf install -y gcc kernel6.12-devel kernel6.12-headers \
+		git make elfutils-libelf-devel patch dnf-plugins-core
 	green Done
 
 	# Download kernel source
 	bold "\nDownload kernel source with vfio"
-	yumdownloader --source "kernel-devel-$(uname -r)"
+	dnf download --source kernel6.12-devel
 	rpm2cpio kernel*.src.rpm | cpio -idmv
 	green Done
 
@@ -96,18 +96,21 @@ function download_kernel_src {
 	if apt-get -v >/dev/null 2>/dev/null; then
 		download_kernel_src_apt
 	else
-		download_kernel_src_yum
+		download_kernel_src_dnf
 	fi
 	cd linux-*
 }
 
 function apply_wc_patch {
-        if [ "${KERNEL_VERSION}" -ge 6080000 ]; then
-                echo "Using patch for kernel version 6.8"
-                local wc_patch="${BASE_PATH}/patches/linux-6.8-vfio-wc.patch"
-        elif [ "${KERNEL_VERSION}" -ge 5150000 ]; then
-                echo "Using patch for kernel version 5.15"
-                local wc_patch="${BASE_PATH}/patches/linux-5.15-vfio-wc.patch"
+	if [ "${KERNEL_VERSION}" -ge 6120000 ]; then
+			echo "Using patch for kernel version 6.12"
+			local wc_patch="${BASE_PATH}/patches/linux-6.12-vfio-wc.patch"
+	elif [ "${KERNEL_VERSION}" -ge 6080000 ]; then
+			echo "Using patch for kernel version 6.8"
+			local wc_patch="${BASE_PATH}/patches/linux-6.8-vfio-wc.patch"
+	elif [ "${KERNEL_VERSION}" -ge 5150000 ]; then
+			echo "Using patch for kernel version 5.15"
+			local wc_patch="${BASE_PATH}/patches/linux-5.15-vfio-wc.patch"
  	elif [ "${KERNEL_VERSION}" -ge 5080000 ]; then
 		echo "Using patch for kernel version 5.8"
 		local wc_patch="${BASE_PATH}/patches/linux-5.8-vfio-wc.patch"
