@@ -1026,6 +1026,8 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 
 	if (xdp_flags & ENA_XDP_REDIRECT)
 		xdp_do_flush();
+	if (xdp_flags & ENA_XDP_TX)
+		ena_ring_tx_doorbell_locked(rx_ring->adapter, rx_ring->qid);
 
 	refill_required = ena_com_free_q_entries(rx_ring->ena_com_io_sq);
 	refill_threshold =
