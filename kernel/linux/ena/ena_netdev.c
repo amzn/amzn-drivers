@@ -1790,7 +1790,7 @@ static void ena_dim_work(struct work_struct *w)
 	dim->state = DIM_START_MEASURE;
 }
 
-static void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
+void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
 {
 	struct ena_ring *rx_ring = ena_napi->rx_ring;
 	struct dim_sample dim_sample;
@@ -1825,27 +1825,16 @@ void ena_unmask_interrupt(struct ena_ring *tx_ring,
 
 	tx_interval = READ_ONCE(tx_ring->interrupt_interval);
 	tx_interval_changed = READ_ONCE(tx_ring->prev_interrupt_interval) != tx_interval;
-
 	if (tx_interval_changed) {
 		WRITE_ONCE(tx_ring->prev_interrupt_interval, tx_interval);
 		no_moderation_update = false;
 	}
 
-	/* Rx ring can be NULL when for XDP tx queues which don't have an
-	 * accompanying rx_ring pair.
-	 */
-	if (rx_ring) {
-		rx_interval = READ_ONCE(rx_ring->interrupt_interval);
-
-		rx_interval_changed = READ_ONCE(rx_ring->prev_interrupt_interval) != rx_interval;
-
-		if (rx_interval_changed) {
-			WRITE_ONCE(rx_ring->prev_interrupt_interval, rx_interval);
-			no_moderation_update = false;
-		}
-	} else {
-		/* Initialize rx_interval when there is no rx_ring */
-		rx_interval = tx_interval;
+	rx_interval = READ_ONCE(rx_ring->interrupt_interval);
+	rx_interval_changed = READ_ONCE(rx_ring->prev_interrupt_interval) != rx_interval;
+	if (rx_interval_changed) {
+		WRITE_ONCE(rx_ring->prev_interrupt_interval, rx_interval);
+		no_moderation_update = false;
 	}
 
 	/* Update intr register: rx intr delay,
@@ -1864,7 +1853,6 @@ void ena_unmask_interrupt(struct ena_ring *tx_ring,
 	/* It is a shared MSI-X.
 	 * Tx and Rx CQ have pointer to it.
 	 * So we use one of them to reach the intr reg
-	 * The Tx ring is used because the rx_ring is NULL for XDP queues
 	 */
 	ena_com_unmask_intr(tx_ring->ena_com_io_cq, &intr_reg);
 }

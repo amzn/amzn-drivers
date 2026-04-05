@@ -854,6 +854,7 @@ void ena_set_rx_hash(struct ena_ring *rx_ring,
 		     struct ena_com_rx_ctx *ena_rx_ctx,
 		     struct sk_buff *skb);
 int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num);
+void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi);
 
 static inline void handle_tx_comp_poll_error(struct ena_ring *tx_ring, u16 req_id, int rc)
 {

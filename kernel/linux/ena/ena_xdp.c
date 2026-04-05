@@ -1109,7 +1109,10 @@ int ena_af_xdp_io_poll(struct napi_struct *napi, int budget)
 		    READ_ONCE(ena_napi->interrupts_masked)) {
 			smp_rmb(); /* make sure interrupts_masked is read */
 			WRITE_ONCE(ena_napi->interrupts_masked, false);
-			ena_unmask_interrupt(tx_ring, NULL, false);
+			if (ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev))
+				ena_adjust_adaptive_rx_intr_moderation(ena_napi);
+
+			ena_unmask_interrupt(tx_ring, rx_ring, false);
 			ena_update_ring_numa_node(rx_ring);
 		}
 		ret = work_done;
