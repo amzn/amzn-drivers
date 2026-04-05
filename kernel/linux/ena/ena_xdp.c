@@ -623,6 +623,7 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 {
 	int rc, cleaned_pkts, zc_pkts, acked_pkts, missed_tx = 0;
 	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
+	struct skb_shared_hwtstamps tx_hw_timestamp = {};
 	struct ena_tx_buffer *tx_info;
 	u32 total_done, tx_bytes = 0;
 #ifdef ENA_HAVE_XSK_TX_METADATA
@@ -675,6 +676,12 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 						 &ena_xsk_tx_metadata_ops,
 						 &hw_timestamp);
 #endif /* ENA_HAVE_XSK_TX_METADATA */
+
+		skb = tx_info->skb;
+		if (unlikely(skb && (skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS))) {
+			tx_hw_timestamp.hwtstamp = ns_to_ktime(hw_timestamp);
+			skb_tstamp_tx(skb, &tx_hw_timestamp);
+		}
 
 		tx_info->tx_sent_jiffies = 0;
 
@@ -1001,6 +1008,9 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 		ena_rx_checksum(rx_ring, &ena_rx_ctx, skb);
 		ena_set_rx_hash(rx_ring, &ena_rx_ctx, skb);
 		skb_record_rx_queue(skb, rx_ring->qid);
+		if (unlikely(ena_hw_rx_timestamp_requested(rx_ring->adapter)))
+			skb_hwtstamps(skb)->hwtstamp = ns_to_ktime(ena_rx_ctx.timestamp);
+
 		napi_gro_receive(napi, skb);
 
 	} while (likely(work_done <= budget));
