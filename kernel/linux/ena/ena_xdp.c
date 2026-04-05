@@ -502,15 +502,14 @@ static bool ena_can_queue_have_xsk_pool(struct ena_adapter *adapter, u16 qid)
 static bool ena_is_xsk_pool_params_allowed(struct ena_adapter *adapter,
 					   struct xsk_buff_pool *pool)
 {
-	if (xsk_pool_get_headroom(pool) > XDP_PACKET_HEADROOM) {
-		netdev_err(adapter->netdev,
-			   "Adding additional headroom to pool is not supported");
+	if (xsk_pool_get_chunk_size(pool) != ENA_PAGE_SIZE) {
+		netdev_err(adapter->netdev, "Only page size chunks are supported");
 
 		return false;
 	}
 
-	if (xsk_pool_get_chunk_size(pool) != ENA_PAGE_SIZE) {
-		netdev_err(adapter->netdev, "Only page size chunks are supported");
+	if (xsk_pool_get_rx_frame_size(pool) < ENA_MIN_RX_BUF_SIZE) {
+		netdev_err(adapter->netdev, "XSK pool frame size too small");
 
 		return false;
 	}
