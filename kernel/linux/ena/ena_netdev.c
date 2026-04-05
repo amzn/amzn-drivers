@@ -526,10 +526,7 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 		return -EEXIST;
 	}
 
-	/* alloc extra element so in rx path
-	 * we can always prefetch rx_info + 1
-	 */
-	size = sizeof(struct ena_rx_buffer) * (rx_ring->ring_size + 1);
+	size = sizeof(struct ena_rx_buffer) * rx_ring->ring_size;
 	node = cpu_to_node(ena_irq->cpu);
 
 	rx_ring->rx_buffer_info = vzalloc_node(size, node);
