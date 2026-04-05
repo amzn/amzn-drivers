@@ -655,6 +655,15 @@ static inline void ena_increase_stat(u64 *statp, u64 cnt,
 	u64_stats_update_end(syncp);
 }
 
+static inline void ena_update_tx_stats(struct ena_ring *tx_ring,
+				       u64 bytes)
+{
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->tx_stats.cnt++;
+	tx_ring->tx_stats.bytes += bytes;
+	u64_stats_update_end(&tx_ring->syncp);
+}
+
 int ena_get_sset_count(struct net_device *netdev, int sset);
 #ifdef ENA_BUSY_POLL_SUPPORT
 static inline void ena_bp_init_lock(struct ena_ring *rx_ring)

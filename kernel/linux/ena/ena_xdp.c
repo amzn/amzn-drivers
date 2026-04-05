@@ -151,10 +151,7 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 	if (rc)
 		goto error_unmap_dma;
 
-	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->tx_stats.cnt++;
-	tx_ring->tx_stats.bytes += xdpf->len;
-	u64_stats_update_end(&tx_ring->syncp);
+	ena_update_tx_stats(tx_ring, xdpf->len);
 
 	return rc;
 
