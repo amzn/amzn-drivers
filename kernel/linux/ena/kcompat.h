@@ -229,24 +229,6 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #endif
 
 /******************************************************************************/
-#ifndef CONFIG_NET_RX_BUSY_POLL
-static inline void skb_mark_napi_id(struct sk_buff *skb,
-				    struct napi_struct *napi)
-{
-
-}
-
-static inline void napi_hash_del(struct napi_struct *napi)
-{
-
-}
-
-static inline void napi_hash_add(struct napi_struct *napi)
-{
-
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
 # define u64_stats_init(syncp)  seqcount_init(syncp.seq)
