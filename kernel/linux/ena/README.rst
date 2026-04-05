@@ -689,7 +689,7 @@ can be loaded in the following way:
   sudo devlink dev param set pci/0000:00:06.0 name enable_phc value true cmode driverinit
   sudo devlink dev reload pci/0000:00:06.0
 
-This functionality is supported from Linux Kernel v6.16 and on.
+This functionality is supported from Linux Kernel v6.17 and on.
 
 All available PTP clock sources can be tracked here:
 
