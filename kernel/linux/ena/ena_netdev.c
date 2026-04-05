@@ -4675,8 +4675,7 @@ err_device_destroy:
 err:
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
 	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
-	dev_err(&pdev->dev,
-		"Reset attempt failed. Can not reset the device\n");
+	dev_err(&pdev->dev, "Restore attempt failed.\n");
 
 	return rc;
 }
