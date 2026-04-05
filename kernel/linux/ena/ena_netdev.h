@@ -656,10 +656,10 @@ static inline void ena_increase_stat(u64 *statp, u64 cnt,
 }
 
 static inline void ena_update_tx_stats(struct ena_ring *tx_ring,
-				       u64 bytes)
+				       u64 packets, u64 bytes)
 {
 	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->tx_stats.cnt++;
+	tx_ring->tx_stats.cnt += packets;
 	tx_ring->tx_stats.bytes += bytes;
 	u64_stats_update_end(&tx_ring->syncp);
 }

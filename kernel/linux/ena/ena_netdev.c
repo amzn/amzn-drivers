@@ -3432,7 +3432,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(rc))
 		goto error_unmap_dma;
 
-	ena_update_tx_stats(tx_ring, skb->len);
+	ena_update_tx_stats(tx_ring, 1, skb->len);
 
 	if (tx_ring->enable_bql)
 		netdev_tx_sent_queue(txq, skb->len);

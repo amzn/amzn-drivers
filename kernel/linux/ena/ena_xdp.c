@@ -151,8 +151,6 @@ int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 	if (rc)
 		goto error_unmap_dma;
 
-	ena_update_tx_stats(tx_ring, xdpf->len);
-
 	return rc;
 
 error_unmap_dma:
@@ -167,6 +165,7 @@ int ena_xdp_xmit(struct net_device *dev, int n,
 	struct ena_adapter *adapter = netdev_priv(dev);
 	struct ena_ring *tx_ring;
 	int qid, i, nxmit = 0;
+	u64 total_bytes = 0;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
@@ -186,10 +185,16 @@ int ena_xdp_xmit(struct net_device *dev, int n,
 	spin_lock(&tx_ring->xdp_tx_lock);
 
 	for (i = 0; i < n; i++) {
-		if (ena_xdp_xmit_frame(tx_ring, adapter, frames[i]))
+		struct xdp_frame *xdpf = frames[i];
+
+		if (ena_xdp_xmit_frame(tx_ring, adapter, xdpf))
 			break;
+
+		total_bytes += xdpf->len;
 		nxmit++;
 	}
+
+	ena_update_tx_stats(tx_ring, nxmit, total_bytes);
 
 	/* Ring doorbell to make device aware of the packets */
 	if (flags & XDP_XMIT_FLUSH)

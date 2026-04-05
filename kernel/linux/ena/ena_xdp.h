@@ -167,6 +167,8 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring,
 
 		if (ena_xdp_xmit_frame(xdp_ring, rx_ring->adapter, xdpf))
 			xdp_return_frame(xdpf);
+		else
+			ena_update_tx_stats(xdp_ring, 1, xdpf->len);
 
 		spin_unlock(&xdp_ring->xdp_tx_lock);
 		xdp_stat = &rx_ring->rx_stats.xdp_tx;
