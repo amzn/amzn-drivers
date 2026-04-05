@@ -624,9 +624,11 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 	int rc, cleaned_pkts, zc_pkts, acked_pkts, missed_tx = 0;
 	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
 	struct ena_tx_buffer *tx_info;
+	u32 total_done, tx_bytes = 0;
 #ifdef ENA_HAVE_XSK_TX_METADATA
 	bool is_tx_metadata_enabled;
 #endif /* ENA_HAVE_XSK_TX_METADATA */
+	struct netdev_queue *txq;
 	struct xdp_frame *xdpf;
 	/* Cleared for two reasons:
 	 * 1. To avoid leaking kernel memory to userspace.
@@ -634,13 +636,13 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 	 */
 	u64 hw_timestamp = 0;
 	struct sk_buff *skb;
-	u32 total_done;
 	u16 req_id;
 
 	acked_pkts = 0;
 #ifdef ENA_HAVE_XSK_TX_METADATA
 	is_tx_metadata_enabled = xp_tx_metadata_enabled(xsk_pool);
 #endif /* ENA_HAVE_XSK_TX_METADATA */
+	txq = netdev_get_tx_queue(tx_ring->netdev, tx_ring->qid);
 
 	while (acked_pkts < budget) {
 		rc = ena_com_tx_comp_metadata_get(tx_ring->ena_com_io_cq,
@@ -666,6 +668,7 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 		if (unlikely(tx_info->timed_out))
 			missed_tx++;
 
+		tx_bytes += tx_info->total_tx_size;
 #ifdef ENA_HAVE_XSK_TX_METADATA
 		if (unlikely(is_tx_metadata_enabled))
 			xsk_tx_metadata_complete(&tx_info->xsk_meta_compl,
@@ -679,6 +682,9 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 
 		acked_pkts++;
 	}
+
+	if (tx_ring->enable_bql)
+		netdev_tx_completed_queue(txq, acked_pkts, tx_bytes);
 
 	atomic64_sub(missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
 	/* AF XDP expects the completions to be ordered but HW doesn't guarantee
