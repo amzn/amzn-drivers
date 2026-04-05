@@ -835,7 +835,11 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 
 			/* prefetch skb_end_pointer() to speedup skb_shinfo(skb) */
 			prefetch(&skb->end);
+#ifdef ENA_SUPPORT_BUILD_AND_CONSUME_SKB
+			napi_consume_skb(skb, budget);
+#else
 			dev_kfree_skb(skb);
+#endif /* ENA_SUPPORT_BUILD_AND_CONSUME_SKB */
 			tx_info->skb = NULL;
 		}
 

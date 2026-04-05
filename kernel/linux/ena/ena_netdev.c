@@ -953,7 +953,11 @@ static void ena_free_tx_bufs(struct ena_ring *tx_ring)
 		if (is_xdp_ring)
 			xdp_return_frame(tx_info->xdpf);
 		else
+#ifdef ENA_SUPPORT_BUILD_AND_CONSUME_SKB
+			napi_consume_skb(tx_info->skb, 0);
+#else
 			dev_kfree_skb_any(tx_info->skb);
+#endif /* ENA_SUPPORT_BUILD_AND_CONSUME_SKB */
 	}
 
 	if (!is_xdp_ring)
@@ -1140,7 +1144,11 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 			skb_tstamp_tx(skb, &tx_hw_timestamp);
 		}
 
+#ifdef ENA_SUPPORT_BUILD_AND_CONSUME_SKB
+		napi_consume_skb(skb, budget);
+#else
 		dev_kfree_skb(skb);
+#endif /* ENA_SUPPORT_BUILD_AND_CONSUME_SKB */
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
 
@@ -1191,7 +1199,11 @@ struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag, u16 le
 	if (!first_frag)
 		skb = napi_alloc_skb(rx_ring->napi, len);
 	else
+#ifdef ENA_SUPPORT_BUILD_AND_CONSUME_SKB
+		skb = napi_build_skb(first_frag, len);
+#else
 		skb = build_skb(first_frag, len);
+#endif /* ENA_SUPPORT_BUILD_AND_CONSUME_SKB */
 
 	if (unlikely(!skb)) {
 		ena_increase_stat(&rx_ring->rx_stats.skb_alloc_fail, 1,
@@ -3480,7 +3492,11 @@ error_drop_packet_skip_unlock:
 #endif
 		ena_ring_tx_doorbell(tx_ring);
 
+#ifdef ENA_SUPPORT_BUILD_AND_CONSUME_SKB
+	napi_consume_skb(skb, 0);
+#else
 	dev_kfree_skb(skb);
+#endif /* ENA_SUPPORT_BUILD_AND_CONSUME_SKB */
 	return NETDEV_TX_OK;
 }
 

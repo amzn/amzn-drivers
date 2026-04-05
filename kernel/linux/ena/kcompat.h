@@ -1131,4 +1131,8 @@ static const struct file_operations __name ## _fops = {			\
 }
 #endif /* DEFINE_SHOW_ATTRIBUTE */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#define ENA_SUPPORT_BUILD_AND_CONSUME_SKB
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
+
 #endif /* _KCOMPAT_H_ */
