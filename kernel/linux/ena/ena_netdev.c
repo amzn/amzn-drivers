@@ -315,6 +315,7 @@ static void ena_init_io_rings_common(struct ena_adapter *adapter,
 void ena_init_io_rings(struct ena_adapter *adapter,
 		       int first_index, int count)
 {
+	u32 tx_interval, rx_interval;
 	struct ena_com_dev *ena_dev;
 	struct ena_ring *txr, *rxr;
 #ifdef ENA_XDP_SUPPORT
@@ -337,10 +338,10 @@ void ena_init_io_rings(struct ena_adapter *adapter,
 		txr->tx_mem_queue_type = ena_dev->tx_mem_queue_type;
 		txr->sgl_size = adapter->max_tx_sgl_size;
 		txr->enable_bql = enable_bql;
-		txr->interrupt_interval =
+		tx_interval =
 			ena_com_get_nonadaptive_moderation_interval_tx(ena_dev);
-		/* Initial value, mark as true */
-		txr->interrupt_interval_changed = true;
+		WRITE_ONCE(txr->prev_interrupt_interval, tx_interval);
+		WRITE_ONCE(txr->interrupt_interval, tx_interval);
 		txr->disable_meta_caching = adapter->disable_meta_caching;
 #ifdef ENA_XDP_SUPPORT
 		spin_lock_init(&txr->xdp_tx_lock);
@@ -355,10 +356,10 @@ void ena_init_io_rings(struct ena_adapter *adapter,
 			rxr->ring_size = adapter->requested_rx_ring_size;
 			rxr->rx_copybreak = adapter->rx_copybreak;
 			rxr->sgl_size = adapter->max_rx_sgl_size;
-			rxr->interrupt_interval =
+			rx_interval =
 				ena_com_get_nonadaptive_moderation_interval_rx(ena_dev);
-			/* Initial value, mark as true */
-			rxr->interrupt_interval_changed = true;
+			WRITE_ONCE(rxr->prev_interrupt_interval, rx_interval);
+			WRITE_ONCE(rxr->interrupt_interval, rx_interval);
 			rxr->empty_rx_queue = 0;
 			rxr->rx_headroom = NET_SKB_PAD;
 			adapter->ena_napi[i].dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
@@ -1782,9 +1783,7 @@ static void ena_dim_work(struct work_struct *w)
 		net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
 	struct ena_napi *ena_napi = container_of(dim, struct ena_napi, dim);
 
-	ena_napi->rx_ring->interrupt_interval = cur_moder.usec;
-	/* DIM will schedule the work in case there was a change in the profile. */
-	ena_napi->rx_ring->interrupt_interval_changed = true;
+	WRITE_ONCE(ena_napi->rx_ring->interrupt_interval, cur_moder.usec);
 
 	dim->state = DIM_START_MEASURE;
 }
@@ -1817,31 +1816,44 @@ void ena_unmask_interrupt(struct ena_ring *tx_ring,
 			  struct ena_ring *rx_ring,
 			  bool lost_interrupt)
 {
-	u32 rx_interval = tx_ring->interrupt_interval;
+	bool tx_interval_changed, rx_interval_changed;
 	struct ena_eth_io_intr_reg intr_reg;
 	bool no_moderation_update = true;
+	u32 rx_interval, tx_interval;
+
+	tx_interval = READ_ONCE(tx_ring->interrupt_interval);
+	tx_interval_changed = READ_ONCE(tx_ring->prev_interrupt_interval) != tx_interval;
+
+	if (tx_interval_changed) {
+		WRITE_ONCE(tx_ring->prev_interrupt_interval, tx_interval);
+		no_moderation_update = false;
+	}
 
 	/* Rx ring can be NULL when for XDP tx queues which don't have an
 	 * accompanying rx_ring pair.
 	 */
 	if (rx_ring) {
 		rx_interval = ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev) ?
-			rx_ring->interrupt_interval :
+			READ_ONCE(rx_ring->interrupt_interval) :
 			ena_com_get_nonadaptive_moderation_interval_rx(rx_ring->ena_dev);
 
-		no_moderation_update &= !rx_ring->interrupt_interval_changed;
-		rx_ring->interrupt_interval_changed = false;
-	}
+		rx_interval_changed = READ_ONCE(rx_ring->prev_interrupt_interval) != rx_interval;
 
-	no_moderation_update &= !tx_ring->interrupt_interval_changed;
-	tx_ring->interrupt_interval_changed = false;
+		if (rx_interval_changed) {
+			WRITE_ONCE(rx_ring->prev_interrupt_interval, rx_interval);
+			no_moderation_update = false;
+		}
+	} else {
+		/* Initialize rx_interval when there is no rx_ring */
+		rx_interval = tx_interval;
+	}
 
 	/* Update intr register: rx intr delay,
 	 * tx intr delay and interrupt unmask
 	 */
 	ena_com_update_intr_reg(&intr_reg,
 				rx_interval,
-				tx_ring->interrupt_interval,
+				tx_interval,
 				true,
 				no_moderation_update,
 				lost_interrupt);
