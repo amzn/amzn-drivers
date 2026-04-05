@@ -1577,6 +1577,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 #endif /* ENA_XDP_SUPPORT */
 	u32 res_budget, work_done;
 #ifdef ENA_XDP_SUPPORT
+	struct bpf_prog *xdp_prog;
 	struct xdp_buff *xdp;
 #endif /* ENA_XDP_SUPPORT */
 	struct sk_buff *skb;
@@ -1590,6 +1591,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		  "%s qid %d\n", __func__, rx_ring->qid);
 	res_budget = budget;
 #ifdef ENA_XDP_SUPPORT
+	xdp_prog = READ_ONCE(rx_ring->xdp_bpf_prog);
 	ena_xdp.adapter = adapter;
 	xdp = &ena_xdp.xdp_buff;
 	xdp_init_buff(xdp, ENA_PAGE_SIZE, &rx_ring->xdp_rxq);
@@ -1637,14 +1639,15 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 					rx_ring->ena_bufs[0].len,
 					DMA_FROM_DEVICE);
 #ifdef ENA_XDP_SUPPORT
-		if (ena_xdp_present_ring(rx_ring)) {
+		if (!!xdp_prog) {
 			int xdp_len = 0;
 			u8 nr_frags;
 
 			xdp_verdict = ena_rx_xdp(rx_ring, xdp,
 						 ena_rx_ctx.descs,
 						 &xdp_len,
-						 &nr_frags);
+						 &nr_frags,
+						 xdp_prog);
 
 			if (xdp_verdict == ENA_XDP_PASS) {
 				skb = ena_rx_skb_after_xdp_pass(rx_ring, rx_info,

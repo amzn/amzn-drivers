@@ -1010,7 +1010,7 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 	int xdp_verdict, req_id, rc, total_len;
 	struct ena_com_rx_ctx ena_rx_ctx = {};
 	struct ena_rx_buffer *rx_info;
-	bool xdp_prog_present;
+	struct bpf_prog *xdp_prog;
 	struct xdp_buff *xdp;
 	struct sk_buff *skb;
 	u32 xdp_flags = 0;
@@ -1021,7 +1021,7 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 	ena_rx_ctx.ena_bufs = rx_ring->ena_bufs;
 	ena_rx_ctx.max_bufs = rx_ring->sgl_size;
 
-	xdp_prog_present = ena_xdp_present_ring(rx_ring);
+	xdp_prog = READ_ONCE(rx_ring->xdp_bpf_prog);
 
 	work_done = 0;
 	total_len = 0;
@@ -1063,11 +1063,11 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 					"xdp: dropped unsupported multi-buffer packets\n");
 			ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
 			xdp_verdict = ENA_XDP_RECYCLE;
-		} else if (likely(xdp_prog_present)) {
+		} else if (likely(!!xdp_prog)) {
 #ifdef ENA_HAVE_XDP_HINTS_DEPS
 			ena_xdp_buff_fill(xdp, &ena_rx_ctx);
 #endif /* ENA_HAVE_XDP_HINTS_DEPS */
-			xdp_verdict = ena_xdp_execute(rx_ring, xdp);
+			xdp_verdict = ena_xdp_execute(rx_ring, xdp, xdp_prog);
 		}
 
 		/* Note that there can be several descriptors, since device
@@ -1328,7 +1328,7 @@ static bool ena_xdp_prog_is_frags_supported(struct ena_ring *rx_ring)
 }
 
 int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
-	       int *xdp_len, u8 *nr_frags)
+	       int *xdp_len, u8 *nr_frags, struct bpf_prog *xdp_prog)
 {
 	struct ena_com_rx_buf_info *ena_bufs = rx_ring->ena_bufs;
 #ifdef ENA_XDP_MB_SUPPORT
@@ -1386,7 +1386,7 @@ int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 		  "RX xdp created. linear len %ld\n",
 		  xdp->data_end - xdp->data);
 
-	ret = ena_xdp_execute(rx_ring, xdp);
+	ret = ena_xdp_execute(rx_ring, xdp, xdp_prog);
 
 	/* The XDP program may change the packet size and number of frags, making adjustments */
 #ifdef ENA_XDP_MB_SUPPORT

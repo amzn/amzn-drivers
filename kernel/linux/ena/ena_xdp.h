@@ -70,7 +70,7 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 					  u8 nr_frags,
 					  int xdp_len);
 int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
-	       int *xdp_len, u8 *nr_frags);
+	       int *xdp_len, u8 *nr_frags, struct bpf_prog *xdp_prog);
 #ifdef ENA_AF_XDP_SUPPORT
 void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);
 void ena_xdp_free_rx_bufs_zc(struct ena_ring *rx_ring);
@@ -134,15 +134,14 @@ static inline bool ena_is_zc_q_exist(struct ena_adapter *adapter)
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */
-static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
+static inline int ena_xdp_execute(struct ena_ring *rx_ring,
+				  struct xdp_buff *xdp,
+				  struct bpf_prog *xdp_prog)
 {
 	u32 verdict = ENA_XDP_PASS;
-	struct bpf_prog *xdp_prog;
 	struct ena_ring *xdp_ring;
 	struct xdp_frame *xdpf;
 	u64 *xdp_stat;
-
-	xdp_prog = READ_ONCE(rx_ring->xdp_bpf_prog);
 
 	verdict = bpf_prog_run_xdp(xdp_prog, xdp);
 
