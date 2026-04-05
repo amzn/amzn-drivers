@@ -762,7 +762,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 	if (llq_accel_mode_get.supported_flags & BIT(ENA_ADMIN_LIMIT_TX_BURST))
 		llq_info->max_entries_in_tx_burst =
 			llq_accel_mode_get.max_tx_burst_size /
-			llq_default_cfg->llq_ring_entry_size_value;
+			llq_info->desc_list_entry_size;
 
 	rc = ena_com_set_llq(ena_dev);
 	if (unlikely(rc))
