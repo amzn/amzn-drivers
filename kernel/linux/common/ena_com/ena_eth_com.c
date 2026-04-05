@@ -319,6 +319,13 @@ static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 			return -EFAULT;
 		}
 
+		if (unlikely(cdesc->base.req_id >= io_cq->q_depth)) {
+			netdev_err(dev->net_device,
+				   "Bad req_id in descriptor #%u on q_id: %u, req_id: %u\n", count,
+				   io_cq->qid, cdesc->base.req_id);
+			return -EIO;
+		}
+
 		ena_com_cq_inc_head(io_cq);
 		count++;
 		last = FIELD_GET(ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK, status);
@@ -574,7 +581,6 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 {
 	struct ena_com_rx_buf_info *ena_buf = &ena_rx_ctx->ena_bufs[0];
 	struct ena_eth_io_rx_cdesc_ext *cdesc = NULL;
-	u16 q_depth = io_cq->q_depth;
 	u16 cdesc_idx = 0;
 	u16 nb_hw_desc;
 	u16 i = 0;
@@ -584,7 +590,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 
 	rc = ena_com_cdesc_rx_pkt_get(io_cq, &cdesc_idx, &nb_hw_desc);
 	if (unlikely(rc != 0))
-		return -EFAULT;
+		return rc;
 
 	if (nb_hw_desc == 0) {
 		ena_rx_ctx->descs = nb_hw_desc;
@@ -606,8 +612,6 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	do {
 		ena_buf[i].len = cdesc->base.length;
 		ena_buf[i].req_id = cdesc->base.req_id;
-		if (unlikely(ena_buf[i].req_id >= q_depth))
-			return -EIO;
 
 		if (++i >= nb_hw_desc)
 			break;
