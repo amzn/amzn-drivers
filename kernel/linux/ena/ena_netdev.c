@@ -136,11 +136,12 @@ static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	jiffies_since_last_intr = jiffies - READ_ONCE(adapter->ena_napi[txqueue].last_intr_jiffies);
 
 	netdev_err(dev,
-		   "TX q %d is paused for too long (threshold %u). Time since last napi %u usec. napi scheduled: %d. msecs since last interrupt: %u\n",
+		   "TX q %d is paused for too long (threshold %u). usecs since napi %u. napi scheduled: %d. napi CPU: %d. msecs since interrupt: %u\n",
 		   txqueue,
 		   threshold,
 		   time_since_last_napi,
 		   napi_scheduled,
+		   !ENA_IS_XDP_INDEX(adapter, txqueue) ? adapter->rx_ring[txqueue].cpu : -1,
 		   jiffies_to_msecs(jiffies_since_last_intr));
 
 	if (threshold < time_since_last_napi && napi_scheduled) {
@@ -4764,14 +4765,18 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 	unsigned long miss_tx_comp_to_jiffies = adapter->missing_tx_completion_to_jiffies;
 	struct ena_napi *ena_napi = container_of(tx_ring->napi, struct ena_napi, napi);
 	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
+	unsigned long graceful_timeout, timeout, last_napi, highest_timeout = 0;
 	u32 missed_tx_thresh = adapter->missing_tx_completion_threshold;
 	unsigned long jiffies_since_last_napi, jiffies_since_last_intr;
+	int napi_scheduled, i, missed_tx, curr_napi_scheduled;
 	bool is_expired, missing_first_interrupt = false;
 	struct net_device *netdev = adapter->netdev;
-	int napi_scheduled, i, rc = 0, missed_tx;
-	unsigned long graceful_timeout, timeout;
+	int napi_sched_changes = 0, rc = 0;
 	struct ena_tx_buffer *tx_buf;
 	u32 new_missed_tx = 0;
+
+	/* Read the initial napi sched state and compare during the loop */
+	napi_scheduled = !!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED);
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
@@ -4800,12 +4805,12 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 		is_expired = time_is_before_jiffies(timeout);
 		if (unlikely(is_expired)) {
 			/* Checking if current TX ring got NAPI timeout */
-			unsigned long last_napi = READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
+			last_napi = READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
 
 			jiffies_since_last_napi = jiffies - last_napi;
 			jiffies_since_last_intr = jiffies - READ_ONCE(ena_napi->last_intr_jiffies);
-			napi_scheduled = !!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED);
-			if (jiffies_since_last_napi > miss_tx_comp_to_jiffies && napi_scheduled) {
+			curr_napi_scheduled = !!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED);
+			if (jiffies_since_last_napi > miss_tx_comp_to_jiffies && curr_napi_scheduled) {
 				/* We suspect napi isn't called because the bottom half is not run.
 				 * Require a bigger timeout for these cases.
 				 */
@@ -4821,13 +4826,50 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 			/* Add new TX completions which are missed */
 			new_missed_tx++;
 
-			netif_notice(adapter, tx_err, netdev,
-				     "TX hasn't completed, qid %d, index %d. %u msecs since last interrupt, %u msecs since last napi execution, napi scheduled: %d\n",
-				     tx_ring->qid, i, jiffies_to_msecs(jiffies_since_last_intr),
-				     jiffies_to_msecs(jiffies_since_last_napi), napi_scheduled);
+			netif_dbg(adapter, tx_err, netdev,
+				  "TX hasn't completed, qid: %d, index: %d, %u msecs since interrupt, %u msecs since napi, napi scheduled: %d\n",
+				  tx_ring->qid, i, jiffies_to_msecs(jiffies_since_last_intr),
+				  jiffies_to_msecs(jiffies_since_last_napi), curr_napi_scheduled);
 
 			tx_buf->timed_out = true;
+
+			timeout = jiffies - tx_buf->tx_sent_jiffies;
+			if (timeout > highest_timeout)
+				highest_timeout = timeout;
+
+			/* Checking if napi sched state changed */
+			if (napi_scheduled != curr_napi_scheduled) {
+				napi_scheduled = curr_napi_scheduled;
+				napi_sched_changes++;
+			}
 		}
+	}
+
+	if (new_missed_tx) {
+		curr_napi_scheduled =
+			!!(READ_ONCE(ena_napi->napi.state) & NAPIF_STATE_SCHED);
+		last_napi = READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
+		jiffies_since_last_napi = jiffies - last_napi;
+		jiffies_since_last_intr =
+			jiffies - READ_ONCE(ena_napi->last_intr_jiffies);
+
+		/* Checking if napi sched state changed */
+		if (napi_scheduled != curr_napi_scheduled)
+			napi_sched_changes++;
+
+		netif_notice(adapter, tx_err, netdev,
+			     "[1/2] %d new missed TX completions, qid: %d, %u msecs since interrupt, %u msecs since napi, napi scheduled: %d\n",
+			     new_missed_tx,
+			     tx_ring->qid,
+			     jiffies_to_msecs(jiffies_since_last_intr),
+			     jiffies_to_msecs(jiffies_since_last_napi),
+			     curr_napi_scheduled);
+		netif_notice(adapter, tx_err, netdev,
+			     "[2/2] qid: %d, highest TX completion pending time (msec): %u, napi sched changes: %d, napi CPU: %d\n",
+			     tx_ring->qid,
+			     jiffies_to_msecs(highest_timeout),
+			     napi_sched_changes,
+			     !(ENA_IS_XDP_INDEX(adapter, tx_ring->qid)) ? adapter->rx_ring[tx_ring->qid].cpu : -1);
 	}
 
 	atomic64_add(new_missed_tx, &tx_ring->tx_stats.pending_timedout_pkts);
@@ -4837,13 +4879,18 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter, struct en
 		jiffies_since_last_intr = jiffies - READ_ONCE(ena_napi->last_intr_jiffies);
 		jiffies_since_last_napi = jiffies - READ_ONCE(tx_ring->tx_stats.last_napi_jiffies);
 		netif_err(adapter, tx_err, netdev,
-			  "Lost TX completions are above the threshold (%d > %d). Completion transmission timeout: %u (msec). %u msecs since last interrupt, %u msecs since last napi execution. qid %d.\n",
+			  "[1/2] Lost TX completions are above threshold (%d > %d), completion timeout: %u (msec), %u msecs since interrupt, %u msecs since napi, qid: %d\n",
 			  missed_tx,
 			  missed_tx_thresh,
 			  jiffies_to_msecs(miss_tx_comp_to_jiffies),
 			  jiffies_to_msecs(jiffies_since_last_intr),
 			  jiffies_to_msecs(jiffies_since_last_napi),
 			  tx_ring->qid);
+		netif_err(adapter, tx_err, netdev,
+			  "[2/2] qid: %d, napi CPU: %d\n",
+			  !(ENA_IS_XDP_INDEX(adapter, tx_ring->qid)) ? adapter->rx_ring[tx_ring->qid].cpu : -1,
+			  tx_ring->qid);
+
 		if (unlikely(READ_ONCE(ena_napi->last_intr_jiffies) == 0))
 			missing_first_interrupt = true;
 
