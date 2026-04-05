@@ -1912,11 +1912,12 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 		napi_complete_done(napi, 0);
 		return 0;
 	}
+
 #ifdef ENA_BUSY_POLL_SUPPORT
 	if (!ena_bp_lock_napi(rx_ring))
 		return budget;
-#endif
 
+#endif /* ENA_BUSY_POLL_SUPPORT */
 	tx_work_done = ena_clean_tx_irq(tx_ring, tx_budget);
 	/* On netpoll the budget is zero and the handler should only clean the
 	 * tx completions.
