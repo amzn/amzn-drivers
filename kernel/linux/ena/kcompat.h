@@ -670,6 +670,11 @@ static inline void page_ref_inc(struct page *page)
 {
 	atomic_inc(&page->_count);
 }
+
+static inline void page_ref_dec(struct page *page)
+{
+	atomic_dec(&page->_count);
+}
 #endif
 
 #if ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)) && \

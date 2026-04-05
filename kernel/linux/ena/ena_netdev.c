@@ -1228,6 +1228,18 @@ static bool ena_try_rx_buf_page_reuse(struct ena_rx_buffer *rx_info, u16 buf_len
 	return false;
 }
 
+static void ena_restore_rx_buf_state(struct ena_rx_buffer *rx_info, u16 buf_len)
+{
+#ifdef ENA_PAGE_POOL_SUPPORT
+	rx_info->pagecnt_bias++;
+#else
+	page_ref_dec(rx_info->page);
+#endif /* ENA_PAGE_POOL_SUPPORT */
+	rx_info->page_offset -= buf_len;
+	rx_info->ena_buf.paddr -= buf_len;
+	rx_info->ena_buf.len += buf_len;
+}
+
 #ifdef ENA_XDP_MB_SUPPORT
 static void ena_xdp_add_rx_frag(struct skb_shared_info *sh_info,
 				struct xdp_buff *xdp,
@@ -1429,8 +1441,14 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 	}
 
 	skb = ena_alloc_skb(rx_ring, buf_addr, buf_len);
-	if (unlikely(!skb))
+	if (unlikely(!skb)) {
+		if (reuse_rx_buf_page)
+			/* Restore the values from before the changes in
+			 * ena_try_rx_buf_page_reuse()
+			 */
+			ena_restore_rx_buf_state(rx_info, buf_len);
 		return NULL;
+	}
 
 	/* Populate skb's linear part */
 	skb_reserve(skb, buf_offset);
