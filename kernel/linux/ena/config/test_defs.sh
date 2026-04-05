@@ -298,3 +298,12 @@ try_compile_async "#include <linux/ethtool.h>"          \
                   "ENA_HAVE_ETHTOOL_RXFH_FIELDS"        \
                   ""                                    \
                   "6.17.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp.h>"                              \
+                  "{
+                    xdp_update_skb_frags_info(NULL, 0, 0, 0, 0);
+                    xdp_buff_get_skb_flags(NULL);
+                  }"                                                  \
+                  "ENA_HAVE_XDP_FRAGS_INFO_AND_FLAGS"                 \
+                  ""                                                  \
+                  "6.18.0 <= LINUX_VERSION_CODE"

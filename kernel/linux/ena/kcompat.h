@@ -1090,6 +1090,11 @@ static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len) {}
 #define ENA_XDP_MEM_TYPE MEM_TYPE_PAGE_SHARED
 #endif /* ENA_PAGE_POOL_SUPPORT */
 
+#ifndef ENA_HAVE_XDP_FRAGS_INFO_AND_FLAGS
+#define xdp_buff_get_skb_flags xdp_buff_is_frag_pfmemalloc
+#define xdp_update_skb_frags_info xdp_update_skb_shared_info
+#endif /* ENA_HAVE_XDP_FRAGS_INFO_AND_FLAGS */
+
 #ifndef DEFINE_SHOW_ATTRIBUTE
 #define DEFINE_SHOW_ATTRIBUTE(__name)					\
 static int __name ## _open(struct inode *inode, struct file *file)	\

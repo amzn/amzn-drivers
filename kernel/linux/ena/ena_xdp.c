@@ -1232,10 +1232,10 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 	if (nr_frags) {
 		struct skb_shared_info *sh_info = xdp_get_shared_info_from_buff(xdp);
 
-		xdp_update_skb_shared_info(skb, nr_frags,
-					   sh_info->xdp_frags_size,
-					   nr_frags * buf_len,
-					   xdp_buff_is_frag_pfmemalloc(xdp));
+		xdp_update_skb_frags_info(skb, nr_frags,
+					  sh_info->xdp_frags_size,
+					  nr_frags * buf_len,
+					  xdp_buff_get_skb_flags(xdp));
 	}
 
 #endif /* ENA_XDP_MB_SUPPORT */
