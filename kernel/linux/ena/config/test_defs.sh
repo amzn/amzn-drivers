@@ -355,3 +355,9 @@ try_compile_async "#include <linux/ethtool.h>"          \
                   "ENA_HAVE_GET_RX_RING_COUNT"          \
                   ""                                    \
                   "7.0.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"          \
+                  "int state = NAPIF_STATE_IN_BUSY_POLL;" \
+                  "ENA_HAVE_NAPI_STATE_BUSY_POLL"         \
+                  ""                                      \
+                  "4.10.0 <= LINUX_VERSION_CODE"

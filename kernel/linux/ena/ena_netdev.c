@@ -1918,6 +1918,12 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 		return budget;
 
 #endif /* ENA_BUSY_POLL_SUPPORT */
+#ifdef ENA_HAVE_NAPI_STATE_BUSY_POLL
+	if (napi->state & NAPIF_STATE_IN_BUSY_POLL)
+		ena_increase_stat(&rx_ring->rx_stats.bp_invocations_cnt,
+				  1, &rx_ring->syncp);
+
+#endif /* ENA_HAVE_NAPI_STATE_BUSY_POLL */
 	tx_work_done = ena_clean_tx_irq(tx_ring, tx_budget);
 	/* On netpoll the budget is zero and the handler should only clean the
 	 * tx completions.
@@ -3737,6 +3743,9 @@ static int ena_busy_poll(struct napi_struct *napi)
 
 	if (!ena_bp_lock_poll(rx_ring))
 		return LL_FLUSH_BUSY;
+
+	ena_increase_stat(&rx_ring->rx_stats.bp_invocations_cnt, 1,
+			  &rx_ring->syncp);
 
 	done = ena_clean_rx_irq(rx_ring, napi, ENA_BP_NAPI_BUDGET);
 	if (likely(done))

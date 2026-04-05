@@ -291,6 +291,9 @@ struct ena_stats_rx {
 	u64 bp_missed;
 	u64 bp_cleaned;
 #endif
+#if defined(ENA_BUSY_POLL_SUPPORT) || defined(ENA_HAVE_NAPI_STATE_BUSY_POLL)
+	u64 bp_invocations_cnt;
+#endif /* ENA_BUSY_POLL_SUPPORT || ENA_HAVE_NAPI_STATE_BUSY_POLL */
 	u64 bad_req_id;
 	u64 empty_rx_ring;
 	u64 csum_unchecked;

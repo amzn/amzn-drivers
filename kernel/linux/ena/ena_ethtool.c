@@ -185,6 +185,9 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(bp_missed),
 	ENA_STAT_RX_ENTRY(bp_cleaned),
 #endif
+#if defined(ENA_BUSY_POLL_SUPPORT) || defined(ENA_HAVE_NAPI_STATE_BUSY_POLL)
+	ENA_STAT_RX_ENTRY(bp_invocations_cnt),
+#endif /* ENA_BUSY_POLL_SUPPORT || ENA_HAVE_NAPI_STATE_BUSY_POLL */
 	ENA_STAT_RX_ENTRY(bad_req_id),
 	ENA_STAT_RX_ENTRY(empty_rx_ring),
 	ENA_STAT_RX_ENTRY(csum_unchecked),
