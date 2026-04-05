@@ -39,8 +39,8 @@
 #include "ena_debug.h"
 
 #define DRV_MODULE_GEN_MAJOR	2
-#define DRV_MODULE_GEN_MINOR	16
-#define DRV_MODULE_GEN_SUBMINOR	1
+#define DRV_MODULE_GEN_MINOR	17
+#define DRV_MODULE_GEN_SUBMINOR	0
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_GENERATION

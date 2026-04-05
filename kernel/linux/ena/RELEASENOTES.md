@@ -31,6 +31,34 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.17.0 release notes
+**New Features**
+* XDP hints and AF_XDP metadata support
+* Full queues utilization in XDP
+* Debug area support
+* Re-introduction of napi_build_skb() and napi_consume_skb()
+
+**Bug Fixes**
+* Proper refcount handling in ena_alloc_skb failures
+* Fix contention in dim interval using READ/WRITE_ONCE
+* Include ethernet header in rx_bytes statistics
+* Call txq_trans_cond_update for ena_xdp_xmit_irq_zc
+* Properly account BQL for AF_XDP case
+* Report rx delay interval for AF_XDP queues
+* Support skb HW timestamp on AF_XDP queues
+* Ring doorbell after XDP_TX from AF_XDP queues
+* Check return code before setting PHC timestamp output
+* Fix max_entries_in_tx_burst calculation
+
+**Minor Changes**
+* Clean-up older kernels support
+* Missing TX completions and TX timeout print updates
+* Various cosmetic changes
+* XDP support documentation
+* Community backports
+* Counter for busy poll invocations
+* Driver stats memory allocation optimization
+
 ## r2.16.1 release notes
 **Bug Fixes**
 * Fix compilation issue with `ENA_PHC_INCLUDE=1` for kernels earlier than 4.16
