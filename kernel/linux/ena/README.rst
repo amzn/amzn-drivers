@@ -1007,33 +1007,6 @@ networking applications and observability tools.
 Requirements
 ------------
 
-**Number of Channels**
-
-Before loading any XDP program, the number of channels (TX-RX pairs)
-must be set to at most half of the maximum allowed.
-
-Use :code:`ethtool -l` to check maximum channels and :code:`ethtool -L`
-to configure.
-
-Example: If an instance supports a maximum of 32 channels, configure
-16 or fewer channels before loading an XDP program.
-
-After an XDP program is loaded, special XDP TX rings will be created.
-If there are N channels before loading the XDP program, there will be
-N new TX rings starting from TX ring number N. These TX rings are used
-for TX XDP traffic (in case of XDP_TX or XDP_REDIRECT verdicts).
-You can see the statistics for these rings when running :code:`ethtool -S`.
-They will look like the regular TX ring stats, but will have the
-"xdp\_" prefix added to them.
-Example: :code:`queue_1_tx_bytes` will become :code:`queue_1_xdp_tx_bytes`.
-
-**XDP_REDIRECT requires XDP program on target ENA device**
-
-When redirecting packets to an ENA device using XDP_REDIRECT, the
-target ENA device must have an XDP program loaded to create the
-necessary XDP TX queues. A simple program returning XDP_PASS is
-sufficient.
-
 **MTU Size**
 
 When multi buffer support is not used, the maximum allowed MTU is
@@ -1092,8 +1065,7 @@ For more information see `AF_XDP linux documentation`_
 The ENA driver provides native AF_XDP support with zero-copy.
 
 **Note:** AF_XDP requires an XDP program to be loaded. See `XDP Requirements`_
-for channel and MTU configuration requirements that apply to both XDP and
-AF_XDP.
+for MTU configuration requirements that apply to both XDP and AF_XDP.
 
 **AF_XDP UMEM Pool Extra Headroom Support**
 

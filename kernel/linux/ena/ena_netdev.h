@@ -168,15 +168,11 @@ struct ena_xdp_buff {
 
 #endif /* ENA_XDP_SUPPORT */
 struct ena_tx_buffer {
-	union {
-		struct sk_buff *skb;
+	struct sk_buff *skb;
 #ifdef ENA_XDP_SUPPORT
-		/* XDP buffer structure which is used for sending packets in
-		 * the xdp queues
-		 */
-		struct xdp_frame *xdpf;
+	/* XDP buffer structure which is used for sending packets */
+	struct xdp_frame *xdpf;
 #endif /* ENA_XDP_SUPPORT */
-	};
 	/* num of ena desc for this specific skb
 	 * (includes data desc and metadata desc)
 	 */
@@ -367,11 +363,6 @@ struct ena_ring {
 	bool last_checked_is_cq_empty;
 #ifdef ENA_XDP_SUPPORT
 	struct xdp_rxq_info xdp_rxq;
-	spinlock_t xdp_tx_lock;	/* synchronize XDP TX/Redirect traffic */
-	/* Used for rx queues only to point to the xdp tx ring, to
-	 * which traffic should be redirected from this rx ring.
-	 */
-	struct ena_ring *xdp_ring;
 #ifdef ENA_AF_XDP_SUPPORT
 	struct xsk_buff_pool *xsk_pool;
 #endif /* ENA_AF_XDP_SUPPORT */
@@ -580,8 +571,6 @@ struct ena_adapter {
 #ifdef ENA_XDP_SUPPORT
 	struct bpf_prog *xdp_bpf_prog;
 #endif
-	u32 xdp_first_ring;
-	u32 xdp_num_queues;
 
 	struct hw_timestamp_state hw_ts_state;
 	struct ena_keep_alive_stats persistent_ka_stats;
@@ -836,8 +825,7 @@ int ena_xmit_common(struct ena_adapter *adapter,
 		    u32 bytes);
 void ena_unmap_tx_buff(struct ena_ring *tx_ring,
 		       struct ena_tx_buffer *tx_info);
-void ena_init_io_rings(struct ena_adapter *adapter,
-		       int first_index, int count);
+void ena_init_io_rings(struct ena_adapter *adapter, int count);
 void ena_down(struct ena_adapter *adapter);
 int ena_up(struct ena_adapter *adapter);
 void ena_unmask_interrupt(struct ena_ring *tx_ring,
@@ -957,6 +945,17 @@ static inline bool ena_is_rx_hash_valid(struct ena_com_rx_ctx *ena_rx_ctx)
 
 	return likely((ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_TCP) ||
 		      (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP));
+}
+
+static inline void ena_ring_tx_doorbell_locked(struct ena_adapter *adapter,
+					       u16 qid)
+{
+	struct netdev_queue *txq;
+
+	txq = netdev_get_tx_queue(adapter->netdev, qid);
+	__netif_tx_lock(txq, smp_processor_id());
+	ena_ring_tx_doorbell(&adapter->tx_ring[qid]);
+	__netif_tx_unlock(txq);
 }
 
 #endif /* !(ENA_H) */

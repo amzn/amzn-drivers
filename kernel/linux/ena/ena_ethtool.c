@@ -252,8 +252,8 @@ static const struct ena_stats ena_stats_ena_com_phc_strings[] = {
 #define ENA_STATS_ARRAY_ENA_SRD		ARRAY_SIZE(ena_srd_info_strings)
 #define ENA_METRICS_ARRAY_ENI		ARRAY_SIZE(ena_hw_stats_strings)
 
-/* Used to report number of active and XDP TX queues */
-#define ENA_QUEUE_SIZE_STATS_NUM	2
+/* Used to report number of active queues */
+#define ENA_QUEUE_SIZE_STATS_NUM	1
 
 #ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
 static const char ena_priv_flags_strings[][ETH_GSTRING_LEN] = {
@@ -443,9 +443,8 @@ static void ena_get_queue_stats(struct ena_adapter *adapter, u64 *data,
 	struct ena_ring *ring;
 	int i;
 
-	/* Report number of active and XDP TX queues */
+	/* Report number of active queues */
 	*data++ = adapter->num_io_queues;
-	*data++ = adapter->xdp_num_queues;
 
 #ifdef ENA_PAGE_POOL_SUPPORT
 	ena_fetch_page_pool_stats(adapter);
@@ -608,7 +607,7 @@ static int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
 	if (count_accumulated_stats)
 		count += ENA_STATS_ARRAY_RX + ENA_ACCUM_STATS_ARRAY_TX;
 
-	/* Add entries to report number of active queues + XDP TX queues */
+	/* Add entries to report number of active queues */
 	count += ENA_QUEUE_SIZE_STATS_NUM;
 
 	return count;
@@ -690,11 +689,9 @@ static void ena_get_queue_strings(struct ena_adapter *adapter, u8 *data,
 				  bool print_accumulated_queue_stats)
 {
 	const struct ena_stats *ena_stats;
-	bool is_xdp;
 	int i, j;
 
 	ethtool_puts(&data, "num_of_active_io_queues");
-	ethtool_puts(&data, "num_of_xdp_tx_queues");
 
 	if (print_accumulated_queue_stats) {
 		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX; i++) {
@@ -711,21 +708,18 @@ static void ena_get_queue_strings(struct ena_adapter *adapter, u8 *data,
 	}
 
 	for (i = 0; i < adapter->max_num_io_queues; i++) {
-		is_xdp = ENA_IS_XDP_INDEX(adapter, i);
 		/* Tx stats */
 		for (j = 0; j < ENA_PER_Q_STATS_ARRAY_TX; j++) {
 			ena_stats = &ena_per_q_stats_tx_strings[j];
 
-			ethtool_sprintf(&data, "queue_%u_%s_%s", i,
-					is_xdp ? "xdp_tx" : "tx",
+			ethtool_sprintf(&data, "queue_%u_tx_%s", i,
 					ena_stats->name);
 		}
 
 		for (j = 0; j < ENA_ACCUM_STATS_ARRAY_TX; j++) {
 			ena_stats = &ena_accum_stats_tx_strings[j];
 
-			ethtool_sprintf(&data, "queue_%u_%s_%s", i,
-					is_xdp ? "xdp_tx" : "tx",
+			ethtool_sprintf(&data, "queue_%u_tx_%s", i,
 					ena_stats->name);
 		}
 
@@ -906,7 +900,7 @@ static void ena_update_tx_rings_nonadaptive_intr_moderation(struct ena_adapter *
 
 	val = ena_com_get_nonadaptive_moderation_interval_tx(adapter->ena_dev);
 
-	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
+	for (i = 0; i < adapter->num_io_queues; i++) {
 		WRITE_ONCE(adapter->tx_ring[i].interrupt_interval, val);
 	}
 }
@@ -918,7 +912,7 @@ static void ena_update_rx_rings_nonadaptive_intr_moderation(struct ena_adapter *
 
 	val = ena_com_get_nonadaptive_moderation_interval_rx(adapter->ena_dev);
 
-	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
+	for (i = 0; i < adapter->num_io_queues; i++) {
 		WRITE_ONCE(adapter->rx_ring[i].interrupt_interval, val);
 	}
 }
@@ -1866,15 +1860,6 @@ static int ena_set_channels(struct net_device *netdev,
 	if (count < ENA_MIN_NUM_IO_QUEUES)
 		return -EINVAL;
 
-	if (!ena_xdp_legal_queue_count(adapter, count)) {
-		if (ena_xdp_present(adapter))
-			return -EINVAL;
-
-		xdp_clear_features_flag(netdev);
-	} else {
-		xdp_set_features_flag(netdev, ENA_XDP_FEATURES);
-	}
-
 	if (count > adapter->max_num_io_queues)
 		return -EINVAL;
 
@@ -2089,9 +2074,7 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 				  base_strings_buf + i * ETH_GSTRING_LEN,
 				  base_data_buf[i]);
 
-		/* Print number of active and XDP TX queues and accumulated
-		 * queue stats
-		 */
+		/* Print number of active queues and accumulated queue stats */
 		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX +
 				ENA_QUEUE_SIZE_STATS_NUM; i++)
 			netif_err(adapter, drv, netdev, "%s: %llu\n",

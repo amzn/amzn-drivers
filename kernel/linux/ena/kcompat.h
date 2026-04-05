@@ -975,16 +975,6 @@ static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumas
 #define RX_CLS_FLOW_WAKE	0xfffffffffffffffeULL
 #endif /* RX_CLS_FLOW_WAKE */
 
-#ifndef ENA_HAVE_XDP_FEATURES_SET_REDIRECT_TARGET
-#define xdp_features_set_redirect_target(netdev, xdp_xmit_supported)
-#define xdp_features_clear_redirect_target(netdev)
-#endif /* ENA_HAVE_XDP_FEATURES_SET_REDIRECT_TARGET */
-
-#ifndef ENA_HAVE_XDP_SET_FEATURES_FLAG
-#define xdp_clear_features_flag(netdev)
-#define xdp_set_features_flag(netdev, features)
-#endif /* ENA_HAVE_XDP_SET_FEATURES_FLAG */
-
 #if defined(ENA_XDP_SUPPORT) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
 #ifdef ENA_AF_XDP_SUPPORT
 #include <net/xdp_sock_drv.h>
@@ -1134,5 +1124,15 @@ static const struct file_operations __name ## _fops = {			\
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
 #define ENA_SUPPORT_BUILD_AND_CONSUME_SKB
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
+
+#ifndef ENA_HAVE_TXQ_TRANS_UPDATE
+static inline void txq_trans_cond_update(struct netdev_queue *txq)
+{
+	unsigned long now = jiffies;
+
+	if (READ_ONCE(txq->trans_start) != now)
+		WRITE_ONCE(txq->trans_start, now);
+}
+#endif /* ENA_HAVE_TXQ_TRANS_UPDATE */
 
 #endif /* _KCOMPAT_H_ */
