@@ -1833,9 +1833,7 @@ void ena_unmask_interrupt(struct ena_ring *tx_ring,
 	 * accompanying rx_ring pair.
 	 */
 	if (rx_ring) {
-		rx_interval = ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev) ?
-			READ_ONCE(rx_ring->interrupt_interval) :
-			ena_com_get_nonadaptive_moderation_interval_rx(rx_ring->ena_dev);
+		rx_interval = READ_ONCE(rx_ring->interrupt_interval);
 
 		rx_interval_changed = READ_ONCE(rx_ring->prev_interrupt_interval) != rx_interval;
 
