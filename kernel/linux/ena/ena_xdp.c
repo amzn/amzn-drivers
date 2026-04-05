@@ -767,6 +767,9 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 	txq = netdev_get_tx_queue(tx_ring->netdev, tx_ring->qid);
 	__netif_tx_lock(txq, smp_processor_id());
 
+	/* Avoid TX time out as we are sharing the queues */
+	txq_trans_cond_update(txq);
+
 	while (likely(work_done < budget)) {
 		struct ena_com_tx_ctx ena_tx_ctx = {};
 
