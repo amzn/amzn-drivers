@@ -1764,6 +1764,11 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
 	ena_dev->admin_queue.polling = polling;
 }
 
+u32 ena_com_get_admin_intr_mask(struct ena_com_dev *ena_dev)
+{
+	return ena_com_reg_bar_read32(ena_dev, ENA_REGS_INTR_MASK_OFF);
+}
+
 bool ena_com_get_admin_polling_mode(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->admin_queue.polling;
@@ -3794,4 +3799,22 @@ int ena_com_set_frag_bypass(struct ena_com_dev *ena_dev, bool enable)
 		netdev_err(ena_dev->net_device, "Failed to enable frag bypass. error: %d\n", ret);
 
 	return ret;
+}
+
+void ena_com_write_debug_area_header(u32 version, u8 os, u8 *debug_area)
+{
+	struct ena_com_debug_area_header header = {};
+	u32 length;
+
+	/* Debug area header length val does not include name and length fields */
+	length = sizeof(struct ena_com_debug_area_header) -
+		ENA_DEBUG_AREA_HEADER_NAME_SIZE - sizeof(u32);
+
+	snprintf(header.name, ENA_DEBUG_AREA_HEADER_NAME_SIZE, "%s",
+		 ENA_DEBUG_AREA_HEADER_NAME);
+	header.length = length;
+	header.version = version;
+	header.os = os;
+
+	memcpy(debug_area, &header, sizeof(struct ena_com_debug_area_header));
 }

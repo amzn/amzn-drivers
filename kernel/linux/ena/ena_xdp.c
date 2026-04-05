@@ -4,6 +4,7 @@
  */
 
 #include "ena_xdp.h"
+#include "ena_debug.h"
 #ifdef ENA_XDP_SUPPORT
 
 static int ena_xdp_tx_map_frame(struct ena_ring *tx_ring,
@@ -1056,10 +1057,13 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 		} else if (rc == -EIO) {
 			ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1, &rx_ring->syncp);
 			ena_get_and_dump_head_rx_cdesc(rx_ring->ena_com_io_cq);
-			ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
+			ena_reset_device_record_qid(adapter, ENA_REGS_RESET_INV_RX_REQ_ID,
+						    rx_ring->qid);
 		} else if (rc == -EFAULT) {
 			ena_get_and_dump_head_rx_cdesc(rx_ring->ena_com_io_cq);
-			ena_reset_device(adapter, ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
+			ena_reset_device_record_qid(adapter,
+						    ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED,
+						    rx_ring->qid);
 		}
 
 		return 0;
@@ -1239,7 +1243,8 @@ int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 			  "XDP: Page is NULL. qid %u req_id %u\n",
 			  rx_ring->qid, req_id);
 		ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1, &rx_ring->syncp);
-		ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
+		ena_reset_device_record_qid(adapter, ENA_REGS_RESET_INV_RX_REQ_ID,
+					    rx_ring->qid);
 		return ENA_XDP_DROP;
 	}
 

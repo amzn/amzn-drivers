@@ -36,6 +36,7 @@
 
 #include "ena_com.h"
 #include "ena_eth_com.h"
+#include "ena_debug.h"
 
 #define DRV_MODULE_GEN_MAJOR	2
 #define DRV_MODULE_GEN_MINOR	16
@@ -478,6 +479,11 @@ struct hw_timestamp_state {
 	u8 hw_rx_supported;
 };
 
+struct ena_debug_area_info {
+	struct ena_reset_reason_debug_info *reset_info;
+	u16 offending_qid;
+};
+
 /* adapter specific private data structure */
 struct ena_adapter {
 	struct ena_com_dev *ena_dev;
@@ -583,31 +589,43 @@ struct ena_adapter {
 
 	struct dentry *debugfs_base;
 #endif /* CONFIG_DEBUG_FS */
+
+	struct ena_debug_area_info debug_area_info;
 };
 
-#define ENA_RESET_STATS_ENTRY(reset_reason, stat) \
+#define ENA_RESET_STATS_ENTRY(reset_reason, stat, ...) \
 	[reset_reason] = { \
 	.stat_offset = offsetof(struct ena_stats_dev, stat) / sizeof(u64), \
-	.has_counter = true \
+	.has_counter = true, \
+	__VA_ARGS__ \
 }
+
+typedef void (*ena_reset_reason_info_handler)(struct ena_adapter *adapter);
 
 struct ena_reset_stats_offset {
 	int stat_offset;
 	bool has_counter;
+	ena_reset_reason_info_handler reason_info_handler;
 };
 
 static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_RESET_LAST] = {
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_KEEP_ALIVE_TO, wd_expired),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_to),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_to,
+			      .reason_info_handler = ena_update_reset_info_admin_to),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_TX_CMPL, missing_tx_cmpl),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_TX_REQ_ID, bad_tx_req_id),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id,
+			      .reason_info_handler = ena_update_reset_info_inv_rx),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_TX_REQ_ID, bad_tx_req_id,
+			      .reason_info_handler = ena_update_reset_info_inv_tx_req_id),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TOO_MANY_RX_DESCS, bad_rx_desc_num),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_OS_NETDEV_WD, os_netdev_wd),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state,
+			      .reason_info_handler = ena_update_reset_info_invalid_state),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_OS_NETDEV_WD, os_netdev_wd,
+			      .reason_info_handler = ena_update_reset_info_netdev_wd),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_INTERRUPT, missing_intr),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_SUSPECTED_POLL_STARVATION, suspected_poll_starvation),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed,
+			      .reason_info_handler = ena_update_reset_info_inv_rx),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT, missing_admin_interrupt),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DEVICE_REQUEST, device_request_reset),
@@ -616,9 +634,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 
 void ena_set_ethtool_ops(struct net_device *netdev);
 
-void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
-
-void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
+void ena_dump_stats_to_log(struct ena_adapter *adapter);
 
 struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag, u16 len);
 
@@ -735,16 +751,21 @@ static inline void ena_set_reset_reason(struct ena_adapter *adapter,
 	atomic_set(&adapter->reset_reason, reset_reason);
 }
 
-static inline void ena_reset_device(struct ena_adapter *adapter,
-				    enum ena_regs_reset_reason_types reset_reason)
+static inline bool ena_reset_device_try_lock(struct ena_adapter *adapter,
+					     enum ena_regs_reset_reason_types reset_reason)
+{
+	return atomic_cmpxchg(&adapter->reset_reason, ENA_REGS_RESET_NORMAL,
+			      reset_reason) == ENA_REGS_RESET_NORMAL;
+}
+
+static inline void __ena_reset_device(struct ena_adapter *adapter,
+				      enum ena_regs_reset_reason_types reset_reason)
 {
 	const struct ena_reset_stats_offset *ena_reset_stats_offset =
 		&resets_to_stats_offset_map[reset_reason];
 
-	if (atomic_cmpxchg(&adapter->reset_reason, ENA_REGS_RESET_NORMAL, reset_reason) !=
-	    ENA_REGS_RESET_NORMAL)
-		/* Reset already in progress */
-		return;
+	if (ena_reset_stats_offset->reason_info_handler)
+		ena_reset_stats_offset->reason_info_handler(adapter);
 
 	if (ena_reset_stats_offset->has_counter) {
 		u64 *stat_ptr = (u64 *)&adapter->dev_stats + ena_reset_stats_offset->stat_offset;
@@ -754,6 +775,26 @@ static inline void ena_reset_device(struct ena_adapter *adapter,
 
 	ena_increase_stat(&adapter->dev_stats.total_resets, 1, &adapter->syncp);
 	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+}
+
+static inline void ena_reset_device(struct ena_adapter *adapter,
+				    enum ena_regs_reset_reason_types reset_reason)
+{
+	if (!ena_reset_device_try_lock(adapter, reset_reason))
+		return;
+
+	__ena_reset_device(adapter, reset_reason);
+}
+
+static inline void ena_reset_device_record_qid(struct ena_adapter *adapter,
+					       enum ena_regs_reset_reason_types reset_reason,
+					       u16 qid)
+{
+	if (!ena_reset_device_try_lock(adapter, reset_reason))
+		return;
+
+	adapter->debug_area_info.offending_qid = qid;
+	__ena_reset_device(adapter, reset_reason);
 }
 
 static inline int ena_tx_map_frags(struct skb_shared_info *sh_info,

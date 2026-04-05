@@ -43,6 +43,8 @@
 
 #include "ena_debugfs.h"
 
+#include "ena_debug.h"
+
 static char driver_info[] = DEVICE_NAME " v" DRV_MODULE_GENERATION "\n";
 
 MODULE_AUTHOR("Amazon.com, Inc. or its affiliates");
@@ -151,7 +153,7 @@ static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	}
 
 schedule_reset:
-	ena_reset_device(adapter, reset_reason);
+	ena_reset_device_record_qid(adapter, reset_reason, txqueue);
 	ena_increase_stat(&adapter->dev_stats.tx_timeout, 1, &adapter->syncp);
 }
 
@@ -181,7 +183,8 @@ static void ena_find_and_timeout_queue(struct net_device *dev)
 
 	netdev_warn(dev, "timeout was called, but no offending queue was found\n");
 
-	ena_reset_device(adapter, ENA_REGS_RESET_OS_NETDEV_WD);
+	ena_reset_device_record_qid(adapter, ENA_REGS_RESET_OS_NETDEV_WD,
+				    ENA_MAX_NUM_IO_QUEUES);
 	ena_increase_stat(&adapter->dev_stats.tx_timeout, 1, &adapter->syncp);
 }
 
@@ -1059,7 +1062,8 @@ int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
 
 	ena_get_and_dump_head_tx_cdesc(ring->ena_com_io_cq);
 	ena_increase_stat(&ring->tx_stats.bad_req_id, 1, &ring->syncp);
-	ena_reset_device(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
+	ena_reset_device_record_qid(adapter, ENA_REGS_RESET_INV_TX_REQ_ID,
+				    ring->qid);
 
 	return -EFAULT;
 }
@@ -1420,7 +1424,8 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 			  "SKB: Page is NULL. qid %u req_id %u\n",
 			  rx_ring->qid, req_id);
 		ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1, &rx_ring->syncp);
-		ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
+		ena_reset_device_record_qid(adapter, ENA_REGS_RESET_INV_RX_REQ_ID,
+					    rx_ring->qid);
 		return NULL;
 	}
 
@@ -1768,12 +1773,16 @@ error:
 		ena_reset_device(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
 	} else if (rc == -EFAULT) {
 		ena_get_and_dump_head_rx_cdesc(rx_ring->ena_com_io_cq);
-		ena_reset_device(adapter, ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
+		ena_reset_device_record_qid(adapter,
+					    ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED,
+					    rx_ring->qid);
 	} else {
 		ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1,
 				  &rx_ring->syncp);
 		ena_get_and_dump_head_rx_cdesc(rx_ring->ena_com_io_cq);
-		ena_reset_device(adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
+		ena_reset_device_record_qid(adapter,
+					    ENA_REGS_RESET_INV_RX_REQ_ID,
+					    rx_ring->qid);
 	}
 	return 0;
 }
@@ -2905,6 +2914,7 @@ void ena_down(struct ena_adapter *adapter)
 		smp_rmb();
 
 		ena_save_persistent_stats(adapter);
+		ena_write_to_debug_area(adapter);
 		rc = ena_com_dev_reset(ena_dev, ena_get_reset_reason(adapter));
 		if (rc)
 			netif_err(adapter, ifdown, adapter->netdev,
@@ -2986,7 +2996,6 @@ static int ena_open(struct net_device *netdev)
 static int ena_close(struct net_device *netdev)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
-	u8 *debug_area;
 	int rc;
 
 	netif_dbg(adapter, ifdown, netdev, "%s\n", __func__);
@@ -3003,9 +3012,7 @@ static int ena_close(struct net_device *netdev)
 		netif_err(adapter, ifdown, adapter->netdev,
 			  "Destroy failure, restarting device\n");
 
-		debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
-		ena_dump_stats_to_buf(adapter, debug_area);
-		ena_dump_stats_to_dmesg(adapter);
+		ena_dump_stats_to_log(adapter);
 		/* rtnl lock already obtained in dev_ioctl() layer */
 		rc = ena_destroy_device(adapter, false);
 		rc |= ena_restore_device(adapter);
@@ -3525,7 +3532,8 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 		ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK |
 		ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK |
 		ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK |
-		ENA_ADMIN_HOST_INFO_PHC_MASK;
+		ENA_ADMIN_HOST_INFO_PHC_MASK |
+		ENA_ADMIN_HOST_INFO_DEBUG_AREA_EXT_MASK;
 
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (unlikely(rc)) {
@@ -3546,23 +3554,22 @@ err:
 static void ena_config_debug_area(struct ena_adapter *adapter)
 {
 	u32 debug_area_size;
-	int rc, ss_count;
+	int rc;
 
-	ss_count = ena_get_sset_count(adapter->netdev, ETH_SS_STATS);
-	if (ss_count <= 0) {
-		netif_err(adapter, drv, adapter->netdev,
-			  "SS count is negative\n");
-		return;
-	}
-
-	/* allocate 32 bytes for each string and 64bit for the value */
-	debug_area_size = ss_count * ETH_GSTRING_LEN + sizeof(u64) * ss_count;
+	debug_area_size = ena_get_debug_area_size(adapter);
 
 	rc = ena_com_allocate_debug_area(adapter->ena_dev, debug_area_size);
 	if (unlikely(rc)) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Cannot allocate debug area\n");
 		return;
+	}
+
+	rc = ena_reset_reason_info_alloc(adapter);
+	if (unlikely(rc)) {
+		netif_err(adapter, drv, adapter->netdev,
+			  "Failed to alloc reset reason info\n");
+		goto err;
 	}
 
 	rc = ena_com_set_host_attributes(adapter->ena_dev);
@@ -3577,6 +3584,7 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
 
 	return;
 err:
+	ena_reset_reason_info_free(adapter);
 	ena_com_delete_debug_area(adapter->ena_dev);
 }
 
@@ -4618,6 +4626,9 @@ err_device_destroy:
 	ena_com_abort_admin_commands(ena_dev);
 	ena_com_wait_for_abort_completion(ena_dev);
 	ena_com_admin_destroy(ena_dev);
+	ena_set_reset_reason(adapter, ENA_REGS_RESET_DRIVER_INVALID_STATE);
+	ena_update_reset_info_invalid_state(adapter);
+	ena_write_to_debug_area(adapter);
 	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_DRIVER_INVALID_STATE);
 	ena_phc_destroy(adapter);
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
@@ -4648,7 +4659,7 @@ static void ena_fw_reset_device(struct work_struct *work)
 		smp_rmb();
 
 		if (ena_get_reset_reason(adapter) != ENA_REGS_RESET_NORMAL)
-			ena_dump_stats_to_dmesg(adapter);
+			ena_dump_stats_to_log(adapter);
 
 		rc |= ena_destroy_device(adapter, false);
 		rc |= ena_restore_device(adapter);
@@ -5208,7 +5219,6 @@ static void ena_timer_service(unsigned long data)
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)data;
 #endif
-	u8 *debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
 	struct ena_admin_host_info *host_info =
 		adapter->ena_dev->host_attr.host_info;
 
@@ -5221,8 +5231,6 @@ static void ena_timer_service(unsigned long data)
 	check_for_missing_completions(adapter);
 
 	check_for_empty_rx_ring(adapter);
-
-	ena_dump_stats_to_buf(adapter, debug_area);
 
 	if (host_info)
 		ena_update_host_info(host_info, adapter->netdev);
@@ -5653,8 +5661,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_terminate_sysfs;
 	}
 
-	ena_config_debug_area(adapter);
-
 	rc = ena_com_flow_steering_init(ena_dev, get_feat_ctx.dev_attr.flow_steering_max_entries);
 	if (rc && (rc != -EOPNOTSUPP)) {
 		dev_err(&pdev->dev, "Cannot init Flow steering rules rc: %d\n", rc);
@@ -5678,6 +5684,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Cannot register net device\n");
 		goto err_flow_steering;
 	}
+
+	ena_config_debug_area(adapter);
 
 	ena_debugfs_init(netdev);
 
@@ -5718,7 +5726,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 err_flow_steering:
 	ena_com_flow_steering_destroy(ena_dev);
 err_rss:
-	ena_com_delete_debug_area(ena_dev);
 	ena_com_rss_destroy(ena_dev);
 err_terminate_sysfs:
 	ena_sysfs_terminate(&pdev->dev);
@@ -5817,6 +5824,8 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	ena_com_rss_destroy(ena_dev);
 
 	ena_com_flow_steering_destroy(ena_dev);
+
+	ena_reset_reason_info_free(adapter);
 
 	ena_com_delete_debug_area(ena_dev);
 

@@ -12,6 +12,7 @@ $(DRIVER_NAME)-srcs := ena_netdev.c \
 		dim.c \
 		net_dim.c \
 		ena_devlink.c \
+		ena_debug.c \
 		$(ENA_COM_PATH)/ena_com.c \
 		$(ENA_COM_PATH)/ena_eth_com.c
 
