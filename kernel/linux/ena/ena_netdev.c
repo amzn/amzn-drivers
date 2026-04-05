@@ -1383,7 +1383,6 @@ struct sk_buff *ena_rx_skb_copybreak(struct ena_ring *rx_ring,
 #ifdef ENA_BUSY_POLL_SUPPORT
 	skb_mark_napi_id(skb, rx_ring->napi);
 #endif
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 	/* Don't reuse the RX page if we're on the wrong NUMA */
 	if (page_to_nid(rx_info->page) != numa_mem_id())
@@ -1466,7 +1465,6 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 	/* Populate skb's linear part */
 	skb_reserve(skb, buf_offset);
 	skb_put(skb, len);
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 		  "RX skb created. len %d.\n",
@@ -1692,6 +1690,10 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		if (unlikely(!skb))
 			break;
 
+		total_len += skb->len;
+
+		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+
 		ena_rx_checksum(rx_ring, &ena_rx_ctx, skb);
 
 		ena_set_rx_hash(rx_ring, &ena_rx_ctx, skb);
@@ -1704,8 +1706,6 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		if ((rx_ring->ena_bufs[0].len <= rx_ring->rx_copybreak) &&
 		    likely(ena_rx_ctx.descs == 1))
 			rx_copybreak_pkt++;
-
-		total_len += skb->len;
 
 #ifdef ENA_BUSY_POLL_SUPPORT
 		if (ena_bp_busy_polling(rx_ring))

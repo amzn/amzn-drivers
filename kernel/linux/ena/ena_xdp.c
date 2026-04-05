@@ -1000,8 +1000,6 @@ static struct sk_buff *ena_xdp_rx_skb_zc(struct ena_ring *rx_ring, struct xdp_bu
 	skb_reserve(skb, headroom);
 	memcpy(__skb_put(skb, data_len), data_addr, data_len);
 
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
-
 	return skb;
 }
 
@@ -1108,6 +1106,7 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 		pkt_copy++;
 		work_done++;
 		total_len += skb->len;
+		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 		ena_rx_checksum(rx_ring, &ena_rx_ctx, skb);
 		ena_set_rx_hash(rx_ring, &ena_rx_ctx, skb);
 		skb_record_rx_queue(skb, rx_ring->qid);
@@ -1295,8 +1294,6 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 
 	skb_reserve(skb, buf_offset);
 	skb_put(skb, len);
-
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 #ifdef ENA_XDP_MB_SUPPORT
 	if (nr_frags) {
