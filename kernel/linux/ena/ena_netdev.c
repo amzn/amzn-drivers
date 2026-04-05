@@ -1093,16 +1093,6 @@ int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
 	return handle_invalid_req_id(tx_ring, req_id, tx_info);
 }
 
-static inline bool ena_hw_tx_timestamp_requested(struct ena_adapter *adapter)
-{
-	return adapter->hw_ts_state.ts_cfg.tx_type == HWTSTAMP_TX_ON;
-}
-
-static inline bool ena_hw_rx_timestamp_requested(struct ena_adapter *adapter)
-{
-	return adapter->hw_ts_state.ts_cfg.rx_filter == HWTSTAMP_FILTER_ALL;
-}
-
 static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 {
 	struct skb_shared_hwtstamps tx_hw_timestamp = {};
@@ -1558,14 +1548,9 @@ void ena_set_rx_hash(struct ena_ring *rx_ring,
 {
 	enum pkt_hash_types hash_type;
 
-	if (likely(ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_TCP ||
-		   ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP))
+	if (ena_is_rx_hash_valid(ena_rx_ctx))
 		hash_type = PKT_HASH_TYPE_L4;
 	else
-		hash_type = PKT_HASH_TYPE_NONE;
-
-	/* Override hash type if the packet is fragmented */
-	if (ena_rx_ctx->frag)
 		hash_type = PKT_HASH_TYPE_NONE;
 
 	skb_set_hash(skb, ena_rx_ctx->hash, hash_type);
@@ -1582,25 +1567,33 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 			    u32 budget)
 {
 	int refill_threshold, refill_required, rx_copybreak_pkt = 0;
+	struct ena_adapter *adapter = rx_ring->adapter;
 	u16 next_to_clean = rx_ring->next_to_clean;
 	struct ena_com_rx_ctx ena_rx_ctx;
 	struct ena_rx_buffer *rx_info;
 	int i, rc = 0, total_len = 0;
-	struct ena_adapter *adapter;
+#ifdef ENA_XDP_SUPPORT
+	struct ena_xdp_buff ena_xdp;
+#endif /* ENA_XDP_SUPPORT */
 	u32 res_budget, work_done;
+#ifdef ENA_XDP_SUPPORT
+	struct xdp_buff *xdp;
+#endif /* ENA_XDP_SUPPORT */
 	struct sk_buff *skb;
 #ifdef ENA_XDP_SUPPORT
-	struct xdp_buff xdp;
 	int xdp_flags = 0;
 	int xdp_verdict;
 #endif /* ENA_XDP_SUPPORT */
 	u8 pkt_offset;
 
-	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
+	netif_dbg(adapter, rx_status, rx_ring->netdev,
 		  "%s qid %d\n", __func__, rx_ring->qid);
 	res_budget = budget;
 #ifdef ENA_XDP_SUPPORT
-	xdp_init_buff(&xdp, ENA_PAGE_SIZE, &rx_ring->xdp_rxq);
+	ena_xdp.adapter = adapter;
+	xdp = &ena_xdp.xdp_buff;
+	xdp_init_buff(xdp, ENA_PAGE_SIZE, &rx_ring->xdp_rxq);
+	ena_xdp_buff_fill(xdp, &ena_rx_ctx);
 #endif /* ENA_XDP_SUPPORT */
 
 	do {
@@ -1634,7 +1627,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		pkt_offset = ena_rx_ctx.pkt_offset;
 		rx_info->buf_offset += pkt_offset;
 
-		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
+		netif_dbg(adapter, rx_status, rx_ring->netdev,
 			  "rx_poll: q %d got packet from ena. descs #: %d l3 proto %d l4 proto %d hash: %x\n",
 			  rx_ring->qid, ena_rx_ctx.descs, ena_rx_ctx.l3_proto,
 			  ena_rx_ctx.l4_proto, ena_rx_ctx.hash);
@@ -1648,14 +1641,14 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 			int xdp_len = 0;
 			u8 nr_frags;
 
-			xdp_verdict = ena_rx_xdp(rx_ring, &xdp,
+			xdp_verdict = ena_rx_xdp(rx_ring, xdp,
 						 ena_rx_ctx.descs,
 						 &xdp_len,
 						 &nr_frags);
 
 			if (xdp_verdict == ENA_XDP_PASS) {
 				skb = ena_rx_skb_after_xdp_pass(rx_ring, rx_info,
-								&ena_rx_ctx, &xdp,
+								&ena_rx_ctx, xdp,
 								nr_frags, xdp_len);
 			} else {
 				/* Packets were passed for transmission, unmap them
@@ -1685,7 +1678,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 		skb_record_rx_queue(skb, rx_ring->qid);
 
-		if (unlikely(ena_hw_rx_timestamp_requested(rx_ring->adapter)))
+		if (unlikely(ena_hw_rx_timestamp_requested(adapter)))
 			skb_hwtstamps(skb)->hwtstamp = ns_to_ktime(ena_rx_ctx.timestamp);
 
 		if ((rx_ring->ena_bufs[0].len <= rx_ring->rx_copybreak) &&
@@ -1748,8 +1741,6 @@ error:
 		ena_ring_tx_doorbell(rx_ring->xdp_ring);
 
 #endif
-	adapter = rx_ring->adapter;
-
 	if (rc == -ENOSPC) {
 		ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1, &rx_ring->syncp);
 		ena_reset_device(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
@@ -5606,6 +5597,13 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef IFF_UNICAST_FLT
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 #endif /* IFF_UNICAST_FLT */
+
+#ifdef ENA_HAVE_XDP_HINTS_DEPS
+	netdev->xdp_metadata_ops = &ena_xdp_md_ops;
+#endif /* ENA_HAVE_XDP_HINTS_DEPS */
+#if defined(ENA_AF_XDP_SUPPORT) && defined(ENA_HAVE_XSK_TX_METADATA)
+	netdev->xsk_tx_metadata_ops = &ena_xsk_tx_metadata_ops;
+#endif /* defined(ENA_AF_XDP_SUPPORT) && defined(ENA_HAVE_XSK_TX_METADATA) */
 
 	u64_stats_init(&adapter->syncp);
 

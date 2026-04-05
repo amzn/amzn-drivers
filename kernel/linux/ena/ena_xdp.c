@@ -229,6 +229,22 @@ static void ena_init_all_xdp_queues(struct ena_adapter *adapter)
 			  adapter->xdp_num_queues);
 }
 
+#ifdef ENA_AF_XDP_SUPPORT
+static void ena_xsk_pool_fill_cb(struct ena_ring *rx_ring)
+{
+#ifdef ENA_HAVE_XDP_HINTS_DEPS
+	void *adapter_ptr = &rx_ring->adapter;
+	struct xsk_cb_desc desc = {};
+
+	XSK_CHECK_PRIV_TYPE(struct ena_xdp_buff);
+	desc.src = adapter_ptr;
+	desc.off = offsetof(struct ena_xdp_buff, adapter) - sizeof(struct xdp_buff);
+	desc.bytes = sizeof(adapter_ptr);
+	xsk_pool_fill_cb(rx_ring->xsk_pool, &desc);
+#endif /* ENA_HAVE_XDP_HINTS_DEPS */
+}
+
+#endif /* ENA_AF_XDP_SUPPORT */
 /* Provides a way for both kernel and bpf-prog to know
  * more about the RX-queue a given XDP frame arrived on.
  */
@@ -258,6 +274,7 @@ int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 	if (ENA_IS_XSK_RING(rx_ring)) {
 		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, MEM_TYPE_XSK_BUFF_POOL, NULL);
 		xsk_pool_set_rxq_info(rx_ring->xsk_pool, &rx_ring->xdp_rxq);
+		ena_xsk_pool_fill_cb(rx_ring);
 	} else {
 		rc = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq, ENA_XDP_MEM_TYPE, allocator);
 	}
@@ -714,6 +731,17 @@ static int ena_clean_xdp_irq(struct ena_ring *tx_ring, u32 budget)
 }
 
 #ifdef ENA_AF_XDP_SUPPORT
+#ifdef ENA_HAVE_XSK_TX_METADATA
+static u64 ena_xsk_fill_timestamp(void *priv)
+{
+	return *((u64 *)priv);
+}
+
+const struct xsk_tx_metadata_ops ena_xsk_tx_metadata_ops = {
+	.tmo_fill_timestamp		= ena_xsk_fill_timestamp,
+};
+#endif /* ENA_HAVE_XSK_TX_METADATA */
+
 /* Poll TX completions. Completions can be either for TX packets sent by
  * an AF XDP application or the network stack (through .ndo_start_xmit)
  */
@@ -722,11 +750,21 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 	int rc, cleaned_pkts, zc_pkts, acked_pkts, missed_tx = 0;
 	struct xsk_buff_pool *xsk_pool = tx_ring->xsk_pool;
 	struct ena_tx_buffer *tx_info;
-	u64 hw_timestamp;
+#ifdef ENA_HAVE_XSK_TX_METADATA
+	bool is_tx_metadata_enabled;
+#endif /* ENA_HAVE_XSK_TX_METADATA */
+	/* Cleared for two reasons:
+	 * 1. To avoid leaking kernel memory to userspace.
+	 * 2. As an indication that TX timestamping wasn't enabled.
+	 */
+	u64 hw_timestamp = 0;
 	u32 total_done;
 	u16 req_id;
 
 	acked_pkts = 0;
+#ifdef ENA_HAVE_XSK_TX_METADATA
+	is_tx_metadata_enabled = xp_tx_metadata_enabled(xsk_pool);
+#endif /* ENA_HAVE_XSK_TX_METADATA */
 
 	while (acked_pkts < budget) {
 		rc = ena_com_tx_comp_metadata_get(tx_ring->ena_com_io_cq,
@@ -751,6 +789,13 @@ static bool ena_xdp_clean_tx_zc(struct ena_ring *tx_ring, u32 budget)
 		 */
 		if (unlikely(tx_info->timed_out))
 			missed_tx++;
+
+#ifdef ENA_HAVE_XSK_TX_METADATA
+		if (unlikely(is_tx_metadata_enabled))
+			xsk_tx_metadata_complete(&tx_info->xsk_meta_compl,
+						 &ena_xsk_tx_metadata_ops,
+						 &hw_timestamp);
+#endif /* ENA_HAVE_XSK_TX_METADATA */
 
 		tx_info->tx_sent_jiffies = 0;
 
@@ -823,11 +868,17 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 	struct ena_tx_buffer *tx_info;
 	struct ena_com_buf *ena_buf;
 	u64 total_pkts, total_bytes;
+#ifdef ENA_HAVE_XSK_TX_METADATA
+	bool is_tx_metadata_enabled;
+#endif /* ENA_HAVE_XSK_TX_METADATA */
 	u16 next_to_use, req_id;
 	struct xdp_desc desc;
 	dma_addr_t dma;
 
 	total_pkts = total_bytes = 0;
+#ifdef ENA_HAVE_XSK_TX_METADATA
+	is_tx_metadata_enabled = xp_tx_metadata_enabled(xsk_pool);
+#endif /* ENA_HAVE_XSK_TX_METADATA */
 
 	spin_lock(&tx_ring->xdp_tx_lock);
 
@@ -871,6 +922,19 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 			ena_tx_ctx.ena_bufs = ena_buf;
 			ena_tx_ctx.num_bufs = 1;
 		}
+
+#ifdef ENA_HAVE_XSK_TX_METADATA
+		if (unlikely(is_tx_metadata_enabled)) {
+			struct xsk_tx_metadata *meta =
+				xsk_buff_get_metadata(xsk_pool, desc.addr);
+
+			/* Save a pointer to completion metadata to fill it
+			 * later upon completion
+			 */
+			xsk_tx_metadata_to_compl(meta,
+						 &tx_info->xsk_meta_compl);
+		}
+#endif /* ENA_HAVE_XSK_TX_METADATA */
 
 		ena_tx_ctx.req_id = req_id;
 
@@ -944,7 +1008,7 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 	int i, refill_required, work_done, refill_threshold, pkt_copy;
 	u16 next_to_clean = rx_ring->next_to_clean;
 	int xdp_verdict, req_id, rc, total_len;
-	struct ena_com_rx_ctx ena_rx_ctx;
+	struct ena_com_rx_ctx ena_rx_ctx = {};
 	struct ena_rx_buffer *rx_info;
 	bool xdp_prog_present;
 	struct xdp_buff *xdp;
@@ -1000,6 +1064,9 @@ static bool ena_xdp_clean_rx_irq_zc(struct ena_ring *rx_ring,
 			ena_increase_stat(&rx_ring->rx_stats.xdp_drop, 1, &rx_ring->syncp);
 			xdp_verdict = ENA_XDP_RECYCLE;
 		} else if (likely(xdp_prog_present)) {
+#ifdef ENA_HAVE_XDP_HINTS_DEPS
+			ena_xdp_buff_fill(xdp, &ena_rx_ctx);
+#endif /* ENA_HAVE_XDP_HINTS_DEPS */
 			xdp_verdict = ena_xdp_execute(rx_ring, xdp);
 		}
 
@@ -1337,4 +1404,44 @@ int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
 
 	return ret;
 }
+
+#ifdef ENA_HAVE_XDP_HINTS_DEPS
+static int ena_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash,
+			   enum xdp_rss_hash_type *rss_type)
+{
+	const struct ena_xdp_buff *ena_xdp = (void *)ctx;
+	struct ena_com_rx_ctx *ena_rx_ctx;
+
+	ena_rx_ctx = ena_xdp->ena_rx_ctx;
+
+	if (!ena_is_rx_hash_valid(ena_rx_ctx))
+		return -ENODATA;
+
+	*rss_type = XDP_RSS_TYPE_L4_ANY;
+	*hash = ena_rx_ctx->hash;
+
+	return 0;
+}
+
+static int ena_xdp_rx_hw_timestamp(const struct xdp_md *ctx, u64 *timestamp)
+{
+	const struct ena_xdp_buff *ena_xdp = (void *)ctx;
+	struct ena_adapter *adapter = ena_xdp->adapter;
+	struct ena_com_rx_ctx *ena_rx_ctx;
+
+	if (!likely(ena_hw_rx_timestamp_requested(adapter)))
+		return -ENODATA;
+
+	ena_rx_ctx = ena_xdp->ena_rx_ctx;
+
+	*timestamp = ena_rx_ctx->timestamp;
+
+	return 0;
+}
+
+const struct xdp_metadata_ops ena_xdp_md_ops = {
+	.xmo_rx_hash			= ena_xdp_rx_hash,
+	.xmo_rx_timestamp		= ena_xdp_rx_hw_timestamp,
+};
+#endif /* ENA_HAVE_XDP_HINTS_DEPS */
 #endif /* ENA_XDP_SUPPORT */

@@ -44,6 +44,13 @@ enum ENA_XDP_ACTIONS {
 
 #define ENA_XDP_FORWARDED (ENA_XDP_TX | ENA_XDP_REDIRECT)
 
+#ifdef ENA_HAVE_XDP_HINTS_DEPS
+extern const struct xdp_metadata_ops ena_xdp_md_ops;
+#endif /* ENA_HAVE_XDP_HINTS_DEPS */
+#if defined(ENA_AF_XDP_SUPPORT) && defined(ENA_HAVE_XSK_TX_METADATA)
+extern const struct xsk_tx_metadata_ops ena_xsk_tx_metadata_ops;
+#endif /* defined(ENA_AF_XDP_SUPPORT) && defined(ENA_HAVE_XSK_TX_METADATA) */
+
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
 					  int first, int last);
@@ -203,6 +210,16 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 
 	return verdict;
 }
+
+static inline void ena_xdp_buff_fill(struct xdp_buff *xdp,
+				     struct ena_com_rx_ctx *ena_rx_ctx)
+{
+	struct ena_xdp_buff *ena_xdp = container_of(xdp, struct ena_xdp_buff,
+						    xdp_buff);
+
+	ena_xdp->ena_rx_ctx = ena_rx_ctx;
+}
+
 #else /* ENA_XDP_SUPPORT */
 
 #define ENA_IS_XDP_INDEX(adapter, index) (false)

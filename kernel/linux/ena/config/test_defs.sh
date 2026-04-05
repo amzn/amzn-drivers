@@ -299,6 +299,27 @@ try_compile_async "#include <linux/ethtool.h>"          \
                   ""                                    \
                   "6.17.0 <= LINUX_VERSION_CODE"
 
+# struct xdp_metadata_ops first appears in kernel 6.3 in linux/netdevice.h
+# and then in kernel 6.6 it is moved to net/xdp.h
+try_compile_async "#include <net/xdp.h>
+                   #include <linux/netdevice.h>
+                   #include <net/xsk_buff_pool.h>" \
+                  "{
+                    struct xdp_metadata_ops ops;
+                    struct xdp_buff_xsk xsk_buf;
+
+                    xsk_buf.cb[0] = 0;
+                   }"                              \
+                  "ENA_HAVE_XDP_HINTS_DEPS"        \
+                  ""                               \
+                  "6.3.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp_sock_drv.h>"  \
+                  "xsk_pool_fill_cb(NULL, NULL);"  \
+                  "ENA_HAVE_XSK_POOL_FILL_CB"      \
+                  ""                               \
+                  "6.8.0 <= LINUX_VERSION_CODE"
+
 try_compile_async "#include <net/xdp.h>"                              \
                   "{
                     xdp_update_skb_frags_info(NULL, 0, 0, 0, 0);
@@ -307,3 +328,21 @@ try_compile_async "#include <net/xdp.h>"                              \
                   "ENA_HAVE_XDP_FRAGS_INFO_AND_FLAGS"                 \
                   ""                                                  \
                   "6.18.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/skbuff.h>
+                   #include <net/xdp_sock.h>
+                   #include <net/xsk_buff_pool.h>
+                   #include <net/xdp_sock_drv.h>"                 \
+                  "{
+                     struct xsk_tx_metadata_compl compl;
+                     struct xsk_tx_metadata meta;
+                     struct xsk_tx_metadata_ops ops;
+
+                     xsk_tx_metadata_complete(NULL, NULL, NULL);
+                     xp_tx_metadata_enabled(NULL);
+                     xsk_buff_get_metadata(NULL, 0);
+                     xsk_tx_metadata_to_compl(NULL, NULL);
+                   }"                                             \
+                  "ENA_HAVE_XSK_TX_METADATA"                      \
+                  ""                                              \
+                  "6.8.0 <= LINUX_VERSION_CODE"

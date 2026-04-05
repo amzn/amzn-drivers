@@ -1090,6 +1090,28 @@ static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len) {}
 #define ENA_XDP_MEM_TYPE MEM_TYPE_PAGE_SHARED
 #endif /* ENA_PAGE_POOL_SUPPORT */
 
+#if defined(ENA_HAVE_XDP_HINTS_DEPS) && !defined(ENA_HAVE_XSK_POOL_FILL_CB)
+#include <net/xsk_buff_pool.h>
+
+struct xsk_cb_desc {
+	void *src;
+	u8 off;
+	u8 bytes;
+};
+
+static inline void xsk_pool_fill_cb(struct xsk_buff_pool *pool,
+				    struct xsk_cb_desc *desc)
+{
+	u32 i;
+
+	for (i = 0; i < pool->heads_cnt; i++) {
+		struct xdp_buff_xsk *xskb = &pool->heads[i];
+
+		memcpy(xskb->cb + desc->off, desc->src, desc->bytes);
+	}
+}
+#endif /* defined(ENA_HAVE_XDP_HINTS_DEPS) && !defined(ENA_HAVE_XSK_POOL_FILL_CB) */
+
 #ifndef ENA_HAVE_XDP_FRAGS_INFO_AND_FLAGS
 #define xdp_buff_get_skb_flags xdp_buff_is_frag_pfmemalloc
 #define xdp_update_skb_frags_info xdp_update_skb_shared_info

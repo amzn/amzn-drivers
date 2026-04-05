@@ -159,6 +159,14 @@ struct ena_napi {
 	struct dim dim;
 };
 
+#ifdef ENA_XDP_SUPPORT
+struct ena_xdp_buff {
+	struct xdp_buff xdp_buff;
+	struct ena_com_rx_ctx *ena_rx_ctx;
+	struct ena_adapter *adapter;
+};
+
+#endif /* ENA_XDP_SUPPORT */
 struct ena_tx_buffer {
 	union {
 		struct sk_buff *skb;
@@ -188,7 +196,11 @@ struct ena_tx_buffer {
 
 	/* used for ordering TX completions when needed (e.g. AF_XDP) */
 	u8 acked;
+#ifdef ENA_HAVE_XSK_TX_METADATA
 
+	/* Contains pointer to xsk completion metadata, filled at completion */
+	struct xsk_tx_metadata_compl xsk_meta_compl;
+#endif /* ENA_HAVE_XSK_TX_METADATA */
 #endif
 	/* Save the last jiffies to detect missing tx packets
 	 *
@@ -904,6 +916,26 @@ static inline bool ena_too_many_tx_frags(u8 nr_frags, u16 sgl_size,
 	}
 
 	return true;
+}
+
+static inline bool ena_hw_tx_timestamp_requested(struct ena_adapter *adapter)
+{
+	return adapter->hw_ts_state.ts_cfg.tx_type == HWTSTAMP_TX_ON;
+}
+
+static inline bool ena_hw_rx_timestamp_requested(struct ena_adapter *adapter)
+{
+	return adapter->hw_ts_state.ts_cfg.rx_filter == HWTSTAMP_FILTER_ALL;
+}
+
+static inline bool ena_is_rx_hash_valid(struct ena_com_rx_ctx *ena_rx_ctx)
+{
+	/* No hash if the packet is fragmented */
+	if (ena_rx_ctx->frag)
+		return false;
+
+	return likely((ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_TCP) ||
+		      (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP));
 }
 
 #endif /* !(ENA_H) */
