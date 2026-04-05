@@ -237,10 +237,11 @@ int ena_xmit_common(struct ena_adapter *adapter,
 		    u16 next_to_use,
 		    u32 bytes)
 {
+	struct ena_com_io_sq *ena_com_io_sq = ring->ena_com_io_sq;
+	u16 ring_size = ring->ring_size;
 	int rc, nb_hw_desc;
 
-	if (unlikely(ena_com_is_doorbell_needed(ring->ena_com_io_sq,
-						ena_tx_ctx))) {
+	if (unlikely(ena_com_is_doorbell_needed(ena_com_io_sq, ena_tx_ctx))) {
 		netif_dbg(adapter, tx_queued, adapter->netdev,
 			  "llq tx max burst size of queue %d achieved, writing doorbell to send burst\n",
 			  ring->qid);
@@ -248,8 +249,7 @@ int ena_xmit_common(struct ena_adapter *adapter,
 	}
 
 	/* prepare the packet's descriptors to dma engine */
-	rc = ena_com_prepare_tx(ring->ena_com_io_sq, ena_tx_ctx,
-				&nb_hw_desc);
+	rc = ena_com_prepare_tx(ena_com_io_sq, ena_tx_ctx, &nb_hw_desc);
 
 	/* In case there isn't enough space in the queue for the packet,
 	 * we simply drop it. All other failure reasons of
@@ -269,8 +269,7 @@ int ena_xmit_common(struct ena_adapter *adapter,
 	tx_info->tx_sent_jiffies = jiffies;
 	tx_info->timed_out = false;
 
-	ring->next_to_use = ENA_TX_RING_IDX_NEXT(next_to_use,
-						 ring->ring_size);
+	ring->next_to_use = ENA_TX_RING_IDX_NEXT(next_to_use, ring_size);
 	return 0;
 }
 
