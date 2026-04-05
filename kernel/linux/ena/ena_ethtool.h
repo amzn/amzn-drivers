@@ -23,5 +23,7 @@ int ena_get_accum_stats_array_tx_size(void);
 int ena_get_per_q_stats_array_tx_size(void);
 int ena_get_stats_array_rx_size(void);
 int ena_get_stats_array_ena_com_phc_size(void);
-
+int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
+				 bool print_accumulated_stats);
+int ena_get_base_sw_stats_count(struct ena_adapter *adapter, bool max_stats);
 #endif /* ENA_ETHTOOL_H */

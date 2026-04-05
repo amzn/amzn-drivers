@@ -8,6 +8,7 @@
 #include <linux/net_tstamp.h>
 
 #include "ena_ethtool.h"
+#include "ena_netdev.h"
 #include "ena_xdp.h"
 #include "ena_phc.h"
 
@@ -654,8 +655,8 @@ static int ena_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
-static int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
-					bool count_accumulated_stats)
+int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
+				 bool count_accumulated_stats)
 {
 	int count = adapter->max_num_io_queues * (ENA_ACCUM_STATS_ARRAY_TX +
 		    ENA_PER_Q_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX);
@@ -669,9 +670,9 @@ static int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
 	return count;
 }
 
-static int ena_get_base_sw_stats_count(struct ena_adapter *adapter)
+int ena_get_base_sw_stats_count(struct ena_adapter *adapter, bool include_phc)
 {
-	if (ena_phc_is_active(adapter))
+	if (include_phc)
 		return ENA_STATS_ARRAY_GLOBAL +
 		       ENA_STATS_ARRAY_ENA_COM_ADMIN +
 		       ENA_STATS_ARRAY_ENA_COM_PHC;
@@ -700,7 +701,8 @@ int ena_get_sset_count(struct net_device *netdev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ena_get_base_sw_stats_count(adapter) +
+		return ena_get_base_sw_stats_count(adapter,
+						   ena_phc_is_active(adapter)) +
 		       ena_get_queue_sw_stats_count(adapter, false) +
 		       ena_get_hw_stats_count(adapter);
 #ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
@@ -2060,82 +2062,55 @@ void ena_set_ethtool_ops(struct net_device *netdev)
 
 void ena_dump_stats_to_log(struct ena_adapter *adapter)
 {
-	u8 *base_strings_buf = NULL, *queue_strings_buf = NULL;
-	u64 *base_data_buf = NULL, *queue_data_buf = NULL;
-	int base_strings_num, queue_strings_num, i, j, k;
+	struct ena_stats_buffers *s_buf = &adapter->stats_buffers;
+	bool include_phc = ena_phc_is_active(adapter);
+	int base_stats_num, queue_stats_num, i, j, k;
 	struct net_device *netdev = adapter->netdev;
 
-	base_strings_num = ena_get_base_sw_stats_count(adapter);
-	queue_strings_num = ena_get_queue_sw_stats_count(adapter,
-							 true);
-
-	base_strings_buf = kcalloc(base_strings_num, ETH_GSTRING_LEN, GFP_ATOMIC);
-	if (!base_strings_buf) {
-		netif_err(adapter, drv, netdev,
-			"Failed to allocate base_strings_buf\n");
+	if (!s_buf->base_strings_buf || !s_buf->queue_strings_buf ||
+	    !s_buf->base_data_buf || !s_buf->queue_data_buf)
 		return;
-	}
 
-	queue_strings_buf = kcalloc(queue_strings_num, ETH_GSTRING_LEN, GFP_ATOMIC);
-	if (!queue_strings_buf) {
-		netif_err(adapter, drv, netdev,
-			"Failed to allocate queue_strings_buf\n");
-		goto free_resources;
-	}
+	base_stats_num = ena_get_base_sw_stats_count(adapter,
+						     include_phc);
+	queue_stats_num = ena_get_queue_sw_stats_count(adapter, true);
 
-	base_data_buf = kcalloc(base_strings_num, sizeof(u64), GFP_ATOMIC);
-	if (!base_data_buf) {
-		netif_err(adapter, drv, netdev,
-			"Failed to allocate base_data_buf\n");
-		goto free_resources;
-	}
+	ena_get_base_strings(adapter, s_buf->base_strings_buf, false);
+	ena_get_queue_strings(adapter, s_buf->queue_strings_buf, true);
 
-	queue_data_buf = kcalloc(queue_strings_num, sizeof(u64), GFP_ATOMIC);
-	if (!queue_data_buf) {
-		netif_err(adapter, drv, netdev,
-			"Failed to allocate queue_data_buf\n");
-		goto free_resources;
-	}
+	ena_get_base_stats(adapter, s_buf->base_data_buf, false);
+	ena_get_queue_stats(adapter, s_buf->queue_data_buf, true);
 
-	ena_get_base_strings(adapter, base_strings_buf, false);
-	ena_get_queue_strings(adapter, queue_strings_buf, true);
-
-	ena_get_base_stats(adapter, base_data_buf, false);
-	ena_get_queue_stats(adapter, queue_data_buf, true);
-
-	for (i = 0; i < base_strings_num; i++)
+	for (i = 0; i < base_stats_num; i++)
 		netif_err(adapter, drv, netdev, "%s: %llu\n",
-			  base_strings_buf + i * ETH_GSTRING_LEN,
-			  base_data_buf[i]);
+			  s_buf->base_strings_buf + i * ETH_GSTRING_LEN,
+			  s_buf->base_data_buf[i]);
 
 	/* Print number of active queues and accumulated queue stats */
 	for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX +
 			ENA_QUEUE_SIZE_STATS_NUM; i++)
 		netif_err(adapter, drv, netdev, "%s: %llu\n",
-			  queue_strings_buf + i * ETH_GSTRING_LEN,
-			  queue_data_buf[i]);
-
+			  s_buf->queue_strings_buf +
+			  i * ETH_GSTRING_LEN,
+			  s_buf->queue_data_buf[i]);
 	/* Print per queue stats */
 	for (j = 0; j < adapter->max_num_io_queues; j++) {
 		for (k = 0; k < ENA_PER_Q_STATS_ARRAY_TX; k++, i++)
 			netif_err(adapter, drv, netdev, "%s: %llu\n",
-				  queue_strings_buf + i * ETH_GSTRING_LEN,
-				  queue_data_buf[i]);
+				  s_buf->queue_strings_buf +
+				  i * ETH_GSTRING_LEN,
+				  s_buf->queue_data_buf[i]);
 
 		for (k = 0; k < ENA_ACCUM_STATS_ARRAY_TX; k++, i++)
 			netif_dbg(adapter, drv, netdev, "%s: %llu\n",
-				  queue_strings_buf + i * ETH_GSTRING_LEN,
-				  queue_data_buf[i]);
+				  s_buf->queue_strings_buf +
+				  i * ETH_GSTRING_LEN,
+				  s_buf->queue_data_buf[i]);
 
 		for (k = 0; k < ENA_STATS_ARRAY_RX; k++, i++)
 			netif_dbg(adapter, drv, netdev, "%s: %llu\n",
-				  queue_strings_buf + i * ETH_GSTRING_LEN,
-				  queue_data_buf[i]);
+				  s_buf->queue_strings_buf +
+				  i * ETH_GSTRING_LEN,
+				  s_buf->queue_data_buf[i]);
 	}
-
-free_resources:
-	kfree(base_strings_buf);
-	kfree(queue_strings_buf);
-	kfree(base_data_buf);
-	kfree(queue_data_buf);
 }

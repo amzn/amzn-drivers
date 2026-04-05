@@ -25,6 +25,7 @@
 #include <net/ip.h>
 
 #include "ena_netdev.h"
+#include "ena_ethtool.h"
 #include "ena_pci_id_tbl.h"
 #include "ena_sysfs.h"
 #include "ena_xdp.h"
@@ -5417,6 +5418,50 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 	pci_release_selected_regions(pdev, release_bars);
 }
 
+static void ena_free_stats_buffers(struct ena_adapter *adapter)
+{
+	struct ena_stats_buffers *s_buf = &adapter->stats_buffers;
+
+	vfree(s_buf->queue_data_buf);
+	s_buf->queue_data_buf = NULL;
+	vfree(s_buf->base_data_buf);
+	s_buf->base_data_buf = NULL;
+	vfree(s_buf->queue_strings_buf);
+	s_buf->queue_strings_buf = NULL;
+	vfree(s_buf->base_strings_buf);
+	s_buf->base_strings_buf = NULL;
+}
+
+static void ena_alloc_stats_buffers(struct ena_adapter *adapter)
+{
+	struct ena_stats_buffers *s_buf = &adapter->stats_buffers;
+	int base_stats_num, queue_stats_num;
+
+	base_stats_num = ena_get_base_sw_stats_count(adapter, true);
+	queue_stats_num = ena_get_queue_sw_stats_count(adapter, true);
+
+	s_buf->base_strings_buf = vzalloc(base_stats_num * ETH_GSTRING_LEN);
+	if (!s_buf->base_strings_buf)
+		goto err_allocation;
+
+	s_buf->queue_strings_buf = vzalloc(queue_stats_num * ETH_GSTRING_LEN);
+	if (!s_buf->queue_strings_buf)
+		goto err_allocation;
+
+	s_buf->base_data_buf = vzalloc(base_stats_num * sizeof(u64));
+	if (!s_buf->base_data_buf)
+		goto err_allocation;
+
+	s_buf->queue_data_buf = vzalloc(queue_stats_num * sizeof(u64));
+	if (!s_buf->queue_data_buf)
+		goto err_allocation;
+
+	return;
+err_allocation:
+	ena_free_stats_buffers(adapter);
+	netdev_err(adapter->netdev, "Cannot allocate stats buffers\n");
+}
+
 /* ena_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in ena_pci_tbl
@@ -5687,6 +5732,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ena_config_debug_area(adapter);
 
+	ena_alloc_stats_buffers(adapter);
+
 	ena_debugfs_init(netdev);
 
 	INIT_WORK(&adapter->reset_task, ena_fw_reset_device);
@@ -5828,6 +5875,8 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	ena_reset_reason_info_free(adapter);
 
 	ena_com_delete_debug_area(ena_dev);
+
+	ena_free_stats_buffers(adapter);
 
 	ena_com_delete_host_info(ena_dev);
 

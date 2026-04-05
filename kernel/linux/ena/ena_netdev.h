@@ -484,6 +484,13 @@ struct ena_debug_area_info {
 	u16 offending_qid;
 };
 
+struct ena_stats_buffers {
+	u8 *base_strings_buf;
+	u8 *queue_strings_buf;
+	u64 *base_data_buf;
+	u64 *queue_data_buf;
+};
+
 /* adapter specific private data structure */
 struct ena_adapter {
 	struct ena_com_dev *ena_dev;
@@ -545,6 +552,9 @@ struct ena_adapter {
 #endif
 
 	unsigned long flags;
+
+	struct ena_stats_buffers stats_buffers;
+
 	/* TX */
 	struct ena_ring tx_ring[ENA_MAX_NUM_IO_QUEUES]
 		____cacheline_aligned_in_smp;
