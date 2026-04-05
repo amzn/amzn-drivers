@@ -98,7 +98,7 @@ struct ena_eth_io_tx_desc {
 };
 
 struct ena_eth_io_tx_meta_desc {
-	/* 9:0 : req_id_lo - Request ID[9:0]
+	/* 9:0 : reserved0 - MBZ
 	 * 11:10 : reserved10 - MBZ
 	 * 12 : reserved12 - MBZ
 	 * 13 : reserved13 - MBZ
@@ -127,9 +127,7 @@ struct ena_eth_io_tx_meta_desc {
 	 */
 	u32 len_ctrl;
 
-	/* 5:0 : req_id_hi
-	 * 31:6 : reserved6 - MBZ
-	 */
+	/* 31:0 : reserved0 - MBZ */
 	u32 word1;
 
 	/* 7:0 : l3_hdr_len
@@ -322,7 +320,6 @@ struct ena_eth_io_numa_node_cfg_reg {
 #define ENA_ETH_IO_TX_DESC_HEADER_LENGTH_MASK               GENMASK(31, 24)
 
 /* tx_meta_desc */
-#define ENA_ETH_IO_TX_META_DESC_REQ_ID_LO_MASK              GENMASK(9, 0)
 #define ENA_ETH_IO_TX_META_DESC_EXT_VALID_SHIFT             14
 #define ENA_ETH_IO_TX_META_DESC_EXT_VALID_MASK              BIT(14)
 #define ENA_ETH_IO_TX_META_DESC_MSS_HI_SHIFT                16
@@ -341,7 +338,6 @@ struct ena_eth_io_numa_node_cfg_reg {
 #define ENA_ETH_IO_TX_META_DESC_LAST_MASK                   BIT(27)
 #define ENA_ETH_IO_TX_META_DESC_COMP_REQ_SHIFT              28
 #define ENA_ETH_IO_TX_META_DESC_COMP_REQ_MASK               BIT(28)
-#define ENA_ETH_IO_TX_META_DESC_REQ_ID_HI_MASK              GENMASK(5, 0)
 #define ENA_ETH_IO_TX_META_DESC_L3_HDR_LEN_MASK             GENMASK(7, 0)
 #define ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_SHIFT            8
 #define ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_MASK             GENMASK(15, 8)
