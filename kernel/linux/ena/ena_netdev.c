@@ -3015,6 +3015,7 @@ static int ena_close(struct net_device *netdev)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	u8 *debug_area;
+	int rc;
 
 	netif_dbg(adapter, ifdown, netdev, "%s\n", __func__);
 
@@ -3034,8 +3035,11 @@ static int ena_close(struct net_device *netdev)
 		ena_dump_stats_to_buf(adapter, debug_area);
 		ena_dump_stats_to_dmesg(adapter);
 		/* rtnl lock already obtained in dev_ioctl() layer */
-		ena_destroy_device(adapter, false);
-		ena_restore_device(adapter);
+		rc = ena_destroy_device(adapter, false);
+		rc |= ena_restore_device(adapter);
+		if (rc)
+			netif_err(adapter, ifdown, adapter->netdev,
+				  "Reset attempt failed. Can not reset the device\n");
 	}
 
 	return 0;
@@ -3109,8 +3113,11 @@ int ena_update_queue_params(struct ena_adapter *adapter,
 					ENA_LLQ_HEADER_SIZE_POLICY_LARGE :
 					ENA_LLQ_HEADER_SIZE_POLICY_NORMAL;
 
-		ena_destroy_device(adapter, false);
-		rc = ena_restore_device(adapter);
+		rc = ena_destroy_device(adapter, false);
+		rc |= ena_restore_device(adapter);
+		if (rc)
+			netif_err(adapter, ifdown, adapter->netdev,
+				  "Reset attempt failed. Can not reset the device\n");
 	}
 
 	return dev_was_up && !rc ? ena_up(adapter) : rc;

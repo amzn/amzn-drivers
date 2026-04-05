@@ -99,8 +99,11 @@ static ssize_t ena_large_llq_set(struct device *dev,
 
 	adapter->llq_policy = new_llq_policy;
 
-	ena_destroy_device(adapter, false);
-	rc = ena_restore_device(adapter);
+	rc = ena_destroy_device(adapter, false);
+	rc |= ena_restore_device(adapter);
+	if (rc)
+		netif_err(adapter, ifdown, adapter->netdev,
+			  "Reset attempt failed. Can not reset the device\n");
 unlock:
 	rtnl_unlock();
 
