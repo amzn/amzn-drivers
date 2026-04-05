@@ -148,13 +148,8 @@ static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 			   "napi handler hasn't been called for a long time but is scheduled\n");
 		reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
 	}
-schedule_reset:
-	/* Change the state of the device to trigger reset
-	 * Check that we are not in the middle or a trigger already
-	 */
-	if (test_and_set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
-		return;
 
+schedule_reset:
 	ena_reset_device(adapter, reset_reason);
 	ena_increase_stat(&adapter->dev_stats.tx_timeout, 1, &adapter->syncp);
 }
@@ -184,12 +179,6 @@ static void ena_find_and_timeout_queue(struct net_device *dev)
 	}
 
 	netdev_warn(dev, "timeout was called, but no offending queue was found\n");
-
-	/* Change the state of the device to trigger reset
-	 * Check that we are not in the middle or a trigger already
-	 */
-	if (test_and_set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
-		return;
 
 	ena_reset_device(adapter, ENA_REGS_RESET_OS_NETDEV_WD);
 	ena_increase_stat(&adapter->dev_stats.tx_timeout, 1, &adapter->syncp);
