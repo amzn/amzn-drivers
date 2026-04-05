@@ -346,3 +346,12 @@ try_compile_async "#include <linux/skbuff.h>
                   "ENA_HAVE_XSK_TX_METADATA"                      \
                   ""                                              \
                   "6.8.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h>"          \
+                  "{
+                    struct ethtool_ops ops;
+                    ops.get_rx_ring_count = NULL;
+                  }"                                    \
+                  "ENA_HAVE_GET_RX_RING_COUNT"          \
+                  ""                                    \
+                  "7.0.0 <= LINUX_VERSION_CODE"

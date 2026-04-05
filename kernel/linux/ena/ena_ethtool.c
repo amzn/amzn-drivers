@@ -1554,6 +1554,15 @@ static int ena_get_all_steering_rules(struct ena_com_dev *ena_dev, struct ethtoo
 	return 0;
 }
 
+#ifdef ENA_HAVE_GET_RX_RING_COUNT
+static u32 ena_get_rx_ring_count(struct net_device *netdev)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->num_io_queues;
+}
+#endif /* ENA_HAVE_GET_RX_RING_COUNT */
+
 static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 			 u32 *rules)
 {
@@ -1561,10 +1570,12 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 	int rc = 0;
 
 	switch (info->cmd) {
+#ifndef ENA_HAVE_GET_RX_RING_COUNT
 	case ETHTOOL_GRXRINGS:
 		info->data = adapter->num_io_queues;
 		rc = 0;
 		break;
+#endif /* ENA_HAVE_GET_RX_RING_COUNT */
 #ifndef ENA_HAVE_ETHTOOL_RXFH_FIELDS
 	case ETHTOOL_GRXFH:
 		rc = ena_get_rss_hash(adapter->ena_dev, info);
@@ -1963,6 +1974,9 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_sset_count         = ena_get_sset_count,
 	.get_strings		= ena_get_ethtool_strings,
 	.get_ethtool_stats      = ena_get_ethtool_stats,
+#ifdef ENA_HAVE_GET_RX_RING_COUNT
+	.get_rx_ring_count	= ena_get_rx_ring_count,
+#endif /* ENA_HAVE_GET_RX_RING_COUNT */
 #ifdef ETHTOOL_GRXRINGS
 	.get_rxnfc		= ena_get_rxnfc,
 	.set_rxnfc		= ena_set_rxnfc,
