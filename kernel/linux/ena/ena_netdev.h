@@ -576,7 +576,7 @@ struct ena_adapter {
 	/* last queue index that was checked for missing completions / interrupts */
 	u32 last_monitored_qid;
 
-	enum ena_regs_reset_reason_types reset_reason;
+	atomic_t reset_reason;
 
 #ifdef ENA_XDP_SUPPORT
 	struct bpf_prog *xdp_bpf_prog;
@@ -727,11 +727,27 @@ static inline bool ena_bp_disable(struct ena_ring *rx_ring)
 }
 #endif /* ENA_BUSY_POLL_SUPPORT */
 
+static inline enum ena_regs_reset_reason_types ena_get_reset_reason(struct ena_adapter *adapter)
+{
+	return (enum ena_regs_reset_reason_types)atomic_read(&adapter->reset_reason);
+}
+
+static inline void ena_set_reset_reason(struct ena_adapter *adapter,
+					enum ena_regs_reset_reason_types reset_reason)
+{
+	atomic_set(&adapter->reset_reason, reset_reason);
+}
+
 static inline void ena_reset_device(struct ena_adapter *adapter,
 				    enum ena_regs_reset_reason_types reset_reason)
 {
 	const struct ena_reset_stats_offset *ena_reset_stats_offset =
 		&resets_to_stats_offset_map[reset_reason];
+
+	if (atomic_cmpxchg(&adapter->reset_reason, ENA_REGS_RESET_NORMAL, reset_reason) !=
+	    ENA_REGS_RESET_NORMAL)
+		/* Reset already in progress */
+		return;
 
 	if (ena_reset_stats_offset->has_counter) {
 		u64 *stat_ptr = (u64 *)&adapter->dev_stats + ena_reset_stats_offset->stat_offset;
@@ -740,9 +756,6 @@ static inline void ena_reset_device(struct ena_adapter *adapter,
 	}
 
 	ena_increase_stat(&adapter->dev_stats.total_resets, 1, &adapter->syncp);
-	adapter->reset_reason = reset_reason;
-	/* Make sure reset reason is set before triggering the reset */
-	smp_mb__before_atomic();
 	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 }
 

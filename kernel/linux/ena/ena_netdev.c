@@ -2894,15 +2894,16 @@ void ena_down(struct ena_adapter *adapter)
 	ena_napi_disable(adapter, io_queue_count);
 
 	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags)) {
+		struct ena_com_dev *ena_dev = adapter->ena_dev;
 		int rc;
 
 		ena_save_persistent_stats(adapter);
-		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
+		rc = ena_com_dev_reset(ena_dev, ena_get_reset_reason(adapter));
 		if (rc)
 			netif_err(adapter, ifdown, adapter->netdev,
 				  "Device reset failed\n");
 		/* stop submitting admin commands on a device that was reset */
-		ena_com_set_admin_running_state(adapter->ena_dev, false);
+		ena_com_set_admin_running_state(ena_dev, false);
 	}
 
 	ena_destroy_all_io_queues(adapter);
@@ -4528,7 +4529,7 @@ int ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 	 */
 	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up)) {
 		ena_save_persistent_stats(adapter);
-		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
+		rc = ena_com_dev_reset(ena_dev, ena_get_reset_reason(adapter));
 	}
 
 	ena_free_mgmnt_irq(adapter);
@@ -4546,7 +4547,7 @@ int ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 
 	/* return reset reason to default value */
-	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
+	ena_set_reset_reason(adapter, ENA_REGS_RESET_NORMAL);
 
 	clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
@@ -4653,7 +4654,7 @@ static void ena_fw_reset_device(struct work_struct *work)
 	if (likely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
 		netif_err(adapter, drv, adapter->netdev, "Trigger reset is on\n");
 
-		if (adapter->reset_reason != ENA_REGS_RESET_NORMAL)
+		if (ena_get_reset_reason(adapter) != ENA_REGS_RESET_NORMAL)
 			ena_dump_stats_to_dmesg(adapter);
 
 		rc |= ena_destroy_device(adapter, false);
@@ -5531,7 +5532,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ena_set_conf_feat_params(adapter, &get_feat_ctx);
 
-	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
+	ena_set_reset_reason(adapter, ENA_REGS_RESET_NORMAL);
 
 	adapter->num_io_queues = clamp_val(num_io_queues, ENA_MIN_NUM_IO_QUEUES,
 					   max_num_io_queues);
@@ -5768,7 +5769,7 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	cancel_work_sync(&adapter->reset_task);
 
 	rtnl_lock(); /* lock released inside the below if-else block */
-	adapter->reset_reason = ENA_REGS_RESET_SHUTDOWN;
+	ena_set_reset_reason(adapter, ENA_REGS_RESET_SHUTDOWN);
 	ena_destroy_device(adapter, true);
 
 	ena_phc_free(adapter);
