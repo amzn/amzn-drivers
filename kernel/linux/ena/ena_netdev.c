@@ -2886,6 +2886,12 @@ void ena_down(struct ena_adapter *adapter)
 		struct ena_com_dev *ena_dev = adapter->ena_dev;
 		int rc;
 
+		/* This memory barrier ensures reset_reason is read after reset flag,
+		 * to comply with write order of these two in ena_reset_device()
+		 * and make sure up to date value of reset_reason is read
+		 */
+		smp_rmb();
+
 		ena_save_persistent_stats(adapter);
 		rc = ena_com_dev_reset(ena_dev, ena_get_reset_reason(adapter));
 		if (rc)
@@ -4642,6 +4648,12 @@ static void ena_fw_reset_device(struct work_struct *work)
 
 	if (likely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
 		netif_err(adapter, drv, adapter->netdev, "Trigger reset is on\n");
+
+		/* This memory barrier ensures reset_reason is read after reset flag,
+		 * to comply with write order of these two in ena_reset_device()
+		 * and make sure up to date value of reset_reason is read
+		 */
+		smp_rmb();
 
 		if (ena_get_reset_reason(adapter) != ENA_REGS_RESET_NORMAL)
 			ena_dump_stats_to_dmesg(adapter);
