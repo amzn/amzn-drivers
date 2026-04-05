@@ -96,8 +96,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #endif
 
 #if defined(CONFIG_NET_RX_BUSY_POLL) && \
-	LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0) && \
-	LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+	LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
 #define ENA_BUSY_POLL_SUPPORT
 #endif
 
@@ -256,8 +255,7 @@ static inline void napi_hash_add(struct napi_struct *napi)
 #endif
 
 #if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) && \
-    !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))) && \
-    !defined(UEK3_RELEASE)
+    !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0)))
 static inline void reinit_completion(struct completion *x)
 {
          x->done = 0;
@@ -268,8 +266,7 @@ static inline void reinit_completion(struct completion *x)
 
 #if  (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) ) && \
      (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0)) \
-     && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))&& \
-     !defined(UEK3_RELEASE))) || \
+     && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)))) || \
      (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 					struct msix_entry *entries,
@@ -582,7 +579,7 @@ do {									\
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) && \
     !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1))) && \
     !defined(UBUNTU_VERSION_CODE) && \
-    !defined(UEK3_RELEASE) && (!defined(DEBIAN_VERSION) || DEBIAN_VERSION != 8)
+    (!defined(DEBIAN_VERSION) || DEBIAN_VERSION != 8)
 
 #define DO_ONCE(func, ...)						     \
 	({								     \
@@ -795,10 +792,6 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 #endif
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
-
-#if defined(ENA_PHC_INCLUDE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
-#define ENA_PHC_SUPPORT
-#endif /* ENA_PHC_SUPPORT */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) || \
 	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2))
