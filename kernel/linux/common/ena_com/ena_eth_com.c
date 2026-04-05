@@ -47,7 +47,7 @@ void ena_com_dump_single_rx_cdesc(struct ena_com_io_cq *io_cq,
 			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ17_MASK, desc->base.status));
 		if (unlikely(ena_com_is_extended_rx_cdesc(io_cq)))
 			netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
-				   "RX descriptor timestamp %llu",
+				   "RX descriptor timestamp %llu(nsec)",
 				   (u64)desc->timestamp_low | (u64)desc->timestamp_high << 32);
 	}
 }
@@ -65,7 +65,7 @@ void ena_com_dump_single_tx_cdesc(struct ena_com_io_cq *io_cq,
 			   FIELD_GET((u32)ENA_ETH_IO_TX_CDESC_MBZ6_MASK, desc->base.flags));
 		if (unlikely(ena_com_is_extended_tx_cdesc(io_cq)))
 			netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
-				   "TX descriptor timestamp %llu",
+				   "TX descriptor timestamp %llu(nsec)",
 				   (u64)desc->timestamp_low | (u64)desc->timestamp_high << 32);
 	}
 }
