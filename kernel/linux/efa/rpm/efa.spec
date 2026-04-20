@@ -71,9 +71,8 @@ install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 install -m 644 config/Makefile		%{buildroot}%{install_path}/config
 install -m 644 config/main.c.in		%{buildroot}%{install_path}/config
 install -m 744 config/compile_conftest.sh	%{buildroot}%{install_path}/config
+install -m 744 config/run_parallel.sh	%{buildroot}%{install_path}/config
 install -m 644 config/efa.cmake		%{buildroot}%{install_path}/config
-install -m 744 config/runbg.sh		%{buildroot}%{install_path}/config
-install -m 744 config/wait_for_pid.sh	%{buildroot}%{install_path}/config
 cd src
 install -m 644 efa_com.c		%{buildroot}%{install_path}/src
 install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}/src

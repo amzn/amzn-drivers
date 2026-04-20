@@ -69,6 +69,5 @@ override_dh_auto_install:
 	install -m 644 config/Makefile		${DESTDIR}/${INSTALL_PATH}/config
 	install -m 644 config/main.c.in		${DESTDIR}/${INSTALL_PATH}/config
 	install -m 744 config/compile_conftest.sh	${DESTDIR}/${INSTALL_PATH}/config
-	install -m 744 config/wait_for_pid.sh	${DESTDIR}/${INSTALL_PATH}/config
+	install -m 744 config/run_parallel.sh	${DESTDIR}/${INSTALL_PATH}/config
 	install -m 644 config/efa.cmake		${DESTDIR}/${INSTALL_PATH}/config
-	install -m 744 config/runbg.sh		${DESTDIR}/${INSTALL_PATH}/config
