@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2020-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 DRIVER_NAME = conftest
-KBUILD_CPPFLAGS += -Werror -Wno-unused-variable -Wno-uninitialized -Wno-maybe-uninitialized
+ccflags-y += -Werror -Wno-unused-variable -Wno-uninitialized -Wno-maybe-uninitialized
 
 obj-m += $(DRIVER_NAME).o
 $(DRIVER_NAME)-objs := main.o
