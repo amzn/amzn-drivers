@@ -60,7 +60,20 @@ struct ena_com_rx_ctx {
 	u16 descs;
 	u16 max_bufs;
 	u8 pkt_offset;
+	u64 timestamp;
 };
+
+static inline bool ena_com_is_extended_rx_cdesc(struct ena_com_io_cq *io_cq)
+{
+	return io_cq->cdesc_entry_size_in_bytes ==
+		sizeof(struct ena_eth_io_rx_cdesc_ext);
+}
+
+static inline bool ena_com_is_extended_tx_cdesc(struct ena_com_io_cq *io_cq)
+{
+	return io_cq->cdesc_entry_size_in_bytes ==
+		sizeof(struct ena_eth_io_tx_cdesc_ext);
+}
 
 int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 		       struct ena_com_tx_ctx *ena_tx_ctx,
