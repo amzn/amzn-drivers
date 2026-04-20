@@ -2,7 +2,10 @@
 # Copyright 2020-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 DRIVER_NAME = conftest
-ccflags-y += -Werror -Wno-unused-variable -Wno-uninitialized -Wno-maybe-uninitialized
+ccflags-y += -Werror -Wno-unused-variable -Wno-uninitialized
+ifdef CONFIG_CC_IS_GCC
+ccflags-y += -Wno-maybe-uninitialized
+endif
 
 obj-m += $(DRIVER_NAME).o
 $(DRIVER_NAME)-objs := main.o
