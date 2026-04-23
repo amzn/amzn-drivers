@@ -60,6 +60,7 @@ struct ena_com_rx_ctx {
 	u16 descs;
 	u16 max_bufs;
 	u8 pkt_offset;
+	bool has_timestamp;
 	u64 timestamp;
 };
 

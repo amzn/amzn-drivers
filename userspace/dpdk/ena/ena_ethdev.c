@@ -220,6 +220,16 @@ static const struct rte_pci_id pci_id_ena_map[] = {
 	{ .device_id = 0 },
 };
 
+static const struct rte_mbuf_dynfield ena_timestamp_dynfield_desc = {
+	.name = RTE_MBUF_DYNFIELD_TIMESTAMP_NAME,
+	.size = sizeof(uint64_t),
+	.align = __alignof__(uint64_t),
+};
+
+static const struct rte_mbuf_dynflag ena_timestamp_dynflag_desc = {
+	.name = RTE_MBUF_DYNFLAG_RX_TIMESTAMP_NAME,
+};
+
 static struct ena_aenq_handlers aenq_handlers;
 
 static int ena_device_init(struct ena_adapter *adapter,
@@ -708,11 +718,11 @@ static inline void ena_rx_mbuf_prepare(struct ena_ring *rx_ring,
 		ol_flags |= RTE_MBUF_F_RX_L4_CKSUM_UNKNOWN;
 	}
 
-	if (ena_rx_ctx->timestamp && rx_ring->adapter->hw_ts_enabled) {
+	if (rx_ring->hw_ts_enabled && ena_rx_ctx->has_timestamp) {
 		*RTE_MBUF_DYNFIELD(mbuf,
-			rx_ring->adapter->timestamp_dynfield_offset,
+			rx_ring->timestamp_dynfield_offset,
 			uint64_t *) = ena_rx_ctx->timestamp;
-		ol_flags |= rx_ring->adapter->timestamp_rx_dynflag;
+		ol_flags |= rx_ring->timestamp_rx_dynflag;
 	}
 
 	mbuf->ol_flags = ol_flags;
@@ -916,9 +926,15 @@ static int ena_close(struct rte_eth_dev *dev)
 		ret = ena_stop(dev);
 
 	if (adapter->hw_ts_enabled) {
+		size_t i;
+
 		ena_com_set_hw_timestamping_configuration(ena_dev, 0, 0);
 		ena_dev->use_extended_rx_cdesc = false;
 		adapter->hw_ts_enabled = false;
+		adapter->timestamp_dynfield_offset = -1;
+		adapter->timestamp_rx_dynflag = 0;
+		for (i = 0; i < adapter->max_num_io_queues; i++)
+			adapter->rx_ring[i].hw_ts_enabled = false;
 	}
 
 	adapter->state = ENA_ADAPTER_STATE_CLOSED;
@@ -2544,9 +2560,20 @@ static int ena_dev_configure(struct rte_eth_dev *dev)
 	 */
 	adapter->tx_cleanup_stall_delay = adapter->missing_tx_completion_to / 2;
 
+	/* TX HW timestamping is not implemented: reject the offload instead of
+	 * silently ignoring it so applications get a clear failure.
+	 */
+	if (dev->data->dev_conf.txmode.offloads & RTE_ETH_TX_OFFLOAD_TIMESTAMP) {
+		PMD_DRV_LOG_LINE(ERR,
+			"TX HW timestamp offload is not supported");
+		return -ENOTSUP;
+	}
+
 	if (adapter->hw_ts_rx_supported &&
 	    (dev->data->dev_conf.rxmode.offloads & RTE_ETH_RX_OFFLOAD_TIMESTAMP)) {
 		struct ena_com_dev *ena_dev = &adapter->ena_dev;
+		int dynflag_bitnum;
+		size_t i;
 
 		rc = ena_com_set_hw_timestamping_configuration(ena_dev, 0, 1);
 		if (rc) {
@@ -2556,36 +2583,58 @@ static int ena_dev_configure(struct rte_eth_dev *dev)
 		ena_dev->use_extended_rx_cdesc = true;
 		adapter->hw_ts_enabled = true;
 
-		static const struct rte_mbuf_dynfield ts_dynfield_desc = {
-			.name = RTE_MBUF_DYNFIELD_TIMESTAMP_NAME,
-			.size = sizeof(uint64_t),
-			.align = __alignof__(uint64_t),
-		};
-		static const struct rte_mbuf_dynflag ts_dynflag_desc = {
-			.name = RTE_MBUF_DYNFLAG_RX_TIMESTAMP_NAME,
-		};
-
 		adapter->timestamp_dynfield_offset =
-			rte_mbuf_dynfield_register(&ts_dynfield_desc);
+			rte_mbuf_dynfield_register(&ena_timestamp_dynfield_desc);
 		if (adapter->timestamp_dynfield_offset < 0) {
 			PMD_DRV_LOG_LINE(ERR, "Failed to register timestamp dynfield");
-			return -rte_errno;
+			rc = -rte_errno;
+			goto err_disable_hw_ts;
 		}
 
-		int dynflag_bitnum = rte_mbuf_dynflag_register(&ts_dynflag_desc);
+		dynflag_bitnum = rte_mbuf_dynflag_register(&ena_timestamp_dynflag_desc);
 		if (dynflag_bitnum < 0) {
 			PMD_DRV_LOG_LINE(ERR, "Failed to register timestamp dynflag");
-			return -rte_errno;
+			rc = -rte_errno;
+			goto err_disable_hw_ts;
 		}
 		adapter->timestamp_rx_dynflag = RTE_BIT64(dynflag_bitnum);
 
+		/* Cache per-ring copies so the RX fast path avoids an
+		 * adapter pointer-chase and cold-cacheline load.
+		 */
+		for (i = 0; i < adapter->max_num_io_queues; i++) {
+			struct ena_ring *ring = &adapter->rx_ring[i];
+			ring->hw_ts_enabled = true;
+			ring->timestamp_dynfield_offset =
+				adapter->timestamp_dynfield_offset;
+			ring->timestamp_rx_dynflag = adapter->timestamp_rx_dynflag;
+		}
+
 		PMD_DRV_LOG_LINE(INFO, "HW RX timestamping enabled");
 	} else {
+		size_t i;
+
+		/* If HW timestamping was previously enabled, disable on the
+		 * device so descriptor sizes match across reconfigure.
+		 */
+		if (adapter->hw_ts_enabled) {
+			ena_com_set_hw_timestamping_configuration(&adapter->ena_dev, 0, 0);
+			adapter->ena_dev.use_extended_rx_cdesc = false;
+		}
 		adapter->hw_ts_enabled = false;
+		for (i = 0; i < adapter->max_num_io_queues; i++)
+			adapter->rx_ring[i].hw_ts_enabled = false;
 	}
 
 	rc = ena_configure_aenq(adapter);
+	return rc;
 
+err_disable_hw_ts:
+	ena_com_set_hw_timestamping_configuration(&adapter->ena_dev, 0, 0);
+	adapter->ena_dev.use_extended_rx_cdesc = false;
+	adapter->hw_ts_enabled = false;
+	adapter->timestamp_dynfield_offset = -1;
+	adapter->timestamp_rx_dynflag = 0;
 	return rc;
 }
 
@@ -2882,6 +2931,8 @@ static uint16_t eth_ena_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
 		ena_rx_ctx.ena_bufs = rx_ring->ena_bufs;
 		ena_rx_ctx.descs = 0;
 		ena_rx_ctx.pkt_offset = 0;
+		ena_rx_ctx.has_timestamp = false;
+		ena_rx_ctx.timestamp = 0;
 		/* receive packet context */
 		rc = ena_com_rx_pkt(rx_ring->ena_com_io_cq,
 				    rx_ring->ena_com_io_sq,

@@ -680,11 +680,12 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	/* Get rx flags from the last pkt */
 	ena_com_rx_set_flags(ena_rx_ctx, cdesc);
 
-	if (unlikely(ena_com_is_extended_rx_cdesc(io_cq))) {
+	if (ena_com_is_extended_rx_cdesc(io_cq)) {
 		struct ena_eth_io_rx_cdesc_ext *ext =
 			(struct ena_eth_io_rx_cdesc_ext *)cdesc;
 		ena_rx_ctx->timestamp = (u64)ext->timestamp_low |
 					((u64)ext->timestamp_high << 32);
+		ena_rx_ctx->has_timestamp = true;
 	}
 
 	ena_trc_dbg(ena_com_io_cq_to_ena_dev(io_cq),

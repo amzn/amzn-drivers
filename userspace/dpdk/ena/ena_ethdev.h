@@ -194,6 +194,11 @@ struct __rte_cache_aligned ena_ring {
 
 	bool disable_meta_caching;
 
+	/* HW RX timestamp (cached per-ring to avoid adapter pointer chase) */
+	bool hw_ts_enabled;
+	int timestamp_dynfield_offset;
+	uint64_t timestamp_rx_dynflag;
+
 	union {
 		struct ena_stats_rx rx_stats;
 		struct ena_stats_tx tx_stats;
