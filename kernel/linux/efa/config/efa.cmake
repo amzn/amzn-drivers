@@ -123,20 +123,6 @@ add_dev_op_compile_conftest(create_ah ""
   "struct ib_ah *efa_kzalloc_ah(struct ib_pd *ibpd, struct rdma_ah_attr *ah_attr, u32 flags, struct ib_udata *udata) { return NULL; }"
   HAVE_CREATE_DESTROY_AH_FLAGS "")
 
-add_compile_conftest(
-  "
-#include <linux/scatterlist.h>
-#include <rdma/ib_umem.h>
-  "
-  "
-int i;
-struct ib_umem *umem;
-struct sg_dma_page_iter *sg_iter;
-for_each_sg_dma_page(umem->sg_head.sgl, sg_iter, umem->nmap, 0)
-	i++;
-  "
-  HAVE_SG_DMA_PAGE_ITER "")
-
 add_compile_conftest(""
   "
 struct ib_device_ops ops = {
@@ -361,6 +347,20 @@ rdma_umem_for_each_dma_block(umem, &biter, 0)
   "
   HAVE_RDMA_UMEM_FOR_EACH_DMA_BLOCK "")
 
+add_compile_conftest(
+  "
+#include <rdma/iter.h>
+  "
+  "
+struct ib_block_iter biter;
+struct ib_umem *umem;
+int i;
+
+rdma_umem_for_each_dma_block(umem, &biter, 0)
+  i++;
+  "
+  HAVE_RDMA_UMEM_FOR_EACH_DMA_BLOCK "")
+
 add_compile_conftest("#include <rdma/ib_umem.h>"
   "
 struct ib_umem *umem;
@@ -440,6 +440,15 @@ add_dev_op_compile_conftest(create_cq ""
 add_dev_op_compile_conftest(create_cq_umem ""
 "int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr, struct ib_umem *umem, struct uverbs_attr_bundle *attrs) { return 0; }"
   HAVE_CREATE_CQ_UMEM "")
+
+add_compile_conftest(
+  "
+#include <rdma/iter.h>
+  "
+  "
+struct ib_block_iter biter;
+  "
+  HAVE_RDMA_ITER_H "")
 
 add_compile_conftest("" "fallthrough;" HAVE_FALLTHROUGH "")
 

@@ -12,7 +12,11 @@
 #include <linux/log2.h>
 
 #include <rdma/ib_addr.h>
+#ifdef HAVE_RDMA_ITER_H
+#include <rdma/iter.h>
+#else
 #include <rdma/ib_umem.h>
+#endif
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_verbs.h>
 #ifdef HAVE_IB_DEVICE_DRIVER_DEF
