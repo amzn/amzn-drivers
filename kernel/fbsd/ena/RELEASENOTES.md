@@ -20,6 +20,27 @@ The driver was verified on the following distributions:
 | HEAD      | 8020c05683f |
 +-----------+-------------+
 
+## r2.8.3 release notes
+**Features**
+* Report RX overrun errors via sysctl hw stats
+
+**Bug Fixes**
+* Budget rx descriptors, not packets, to fix jumbo frame throughput
+
+**Minor Changes**
+* pmap_change_attr void * API change for FreeBSD 16.0+
+* Adjust ena_[rt]x_cleanup to return bool
+
+## r2.8.2 release notes
+**Bug Fixes**
+* Verify that an ENA ring is in netmap only in native mode
+
+**Minor Changes**
+* Introduce kcompat.h for kernel version compatibility
+* Use newly exposed RSS hash key API for symmetric hashing (FreeBSD 16.0+)
+* Fix IRQ affinity table rendering in README
+* Move parenthesis to correct place in switch
+
 ## r2.8.1 release notes
 **Bug Fixes**
 * Fix LLQ normal width misconfiguration
