@@ -586,7 +586,8 @@ static int ena_get_ts_info(struct net_device *netdev,
 
 		if (adapter->hw_ts_state.hw_rx_supported !=
 		    ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_NONE) {
-			info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE;
+			info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE |
+						 SOF_TIMESTAMPING_RAW_HARDWARE;
 
 			info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
 					   BIT(HWTSTAMP_FILTER_ALL);
