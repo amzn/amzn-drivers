@@ -45,4 +45,13 @@
 #define ENA_RSS_KEY_API
 #endif
 
+/*
+ * pmap_change_attr() first argument changed from vm_offset_t to void *
+ * as part of the CHERI upstreaming effort (FreeBSD commit dfb804eb57f1).
+ * This is a main-only change and will not be MFC'd to stable branches.
+ */
+#if __FreeBSD_version >= 1600016
+#define ENA_PMAP_CHANGE_ATTR_VOID_PTR
+#endif
+
 #endif /* ENA_KCOMPAT_H */

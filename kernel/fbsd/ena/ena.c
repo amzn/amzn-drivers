@@ -2688,11 +2688,19 @@ ena_enable_wc(device_t pdev, struct resource *res)
 {
 #if defined(__i386) || defined(__amd64) || defined(__aarch64__)
 #if __FreeBSD_version > 1300039
+#ifdef ENA_PMAP_CHANGE_ATTR_VOID_PTR
+	void *va;
+#else
 	vm_offset_t va;
+#endif /* ENA_PMAP_CHANGE_ATTR_VOID_PTR */
 	vm_size_t len;
 	int rc;
 
+#ifdef ENA_PMAP_CHANGE_ATTR_VOID_PTR
+	va = rman_get_virtual(res);
+#else
 	va = (vm_offset_t)rman_get_virtual(res);
+#endif /* ENA_PMAP_CHANGE_ATTR_VOID_PTR */
 	len = rman_get_size(res);
 	/* Enable write combining */
 	rc = pmap_change_attr(va, len, VM_MEMATTR_WRITE_COMBINING);
