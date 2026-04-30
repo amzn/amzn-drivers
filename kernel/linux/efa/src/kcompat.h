@@ -419,7 +419,7 @@ rdma_udata_to_uverbs_attr_bundle(struct ib_udata *udata)
 }
 #endif
 
-#ifndef HAVE_CREATE_CQ_UMEM
+#if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 enum efa_uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_BUFFER_VA = 8,
 	UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH,

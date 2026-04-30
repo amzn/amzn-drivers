@@ -1689,7 +1689,8 @@ int efa_destroy_cq(struct ib_cq *ibcq)
 		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
 
 	efa_destroy_cq_idx(dev, cq->cq_idx);
-	efa_cq_user_mmap_entries_remove(cq);
+	if (cq->cpu_addr)
+		efa_cq_user_mmap_entries_remove(cq);
 	if (cq->eq) {
 #ifdef HAVE_XARRAY
 		xa_erase(&dev->cqs_xa, cq->cq_idx);
@@ -1699,10 +1700,12 @@ int efa_destroy_cq(struct ib_cq *ibcq)
 		synchronize_irq(cq->eq->irq.irqn);
 	}
 
-	if (cq->umem)
-		ib_umem_release(cq->umem);
-	else
+	if (cq->cpu_addr)
 		efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size, DMA_FROM_DEVICE);
+#ifndef HAVE_CREATE_USER_CQ
+	else
+		ib_umem_release(cq->umem);
+#endif
 #ifdef HAVE_EFA_KVERBS
 	kfree(cq->sub_cq_arr);
 #endif
@@ -1878,14 +1881,20 @@ err_out:
 	return err;
 }
 #endif
-int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-#ifndef HAVE_CREATE_CQ_BUNDLE
-		       struct ib_umem *umem, struct ib_udata *udata)
+#ifdef HAVE_CREATE_USER_CQ
+int efa_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		       struct uverbs_attr_bundle *attrs)
 {
-#else
+	struct ib_udata *udata = &attrs->driver_udata;
+#elif defined(HAVE_CREATE_CQ_BUNDLE)
+int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		       struct ib_umem *umem, struct uverbs_attr_bundle *attrs)
 {
 	struct ib_udata *udata = &attrs->driver_udata;
+#else
+int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		       struct ib_umem *umem, struct ib_udata *udata)
+{
 #endif
 #ifdef HAVE_UDATA_TO_DRV_CONTEXT
 	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
@@ -1909,9 +1918,16 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	if (attr->flags)
 		return -EOPNOTSUPP;
 
-	if (entries < 1 || entries > dev->dev_attr.max_cq_depth) {
+#ifndef HAVE_CREATE_USER_CQ
+	if (entries < 1) {
+		err = -EINVAL;
+		goto err_out;
+	}
+#endif
+
+	if (entries > dev->dev_attr.max_cq_depth) {
 		ibdev_dbg(ibdev,
-			  "cq: requested entries[%u] non-positive or greater than max[%u]\n",
+			  "cq: requested entries[%u] greater than max[%u]\n",
 			  entries, dev->dev_attr.max_cq_depth);
 		err = -EINVAL;
 		goto err_out;
@@ -1967,22 +1983,34 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	cq->ucontext = ucontext;
 	cq->size = PAGE_ALIGN(cmd.cq_entry_size * entries * cmd.num_sub_cqs);
 
+#ifdef HAVE_CREATE_USER_CQ
+	if (ibcq->umem) {
+		if (ibcq->umem->length < cq->size) {
+#else
 	if (umem) {
 		if (umem->length < cq->size) {
+#endif
 			ibdev_dbg(&dev->ibdev, "External memory too small\n");
 			err = -EINVAL;
 			goto err_out;
 		}
 
+#ifdef HAVE_CREATE_USER_CQ
+		if (!ib_umem_is_contiguous(ibcq->umem)) {
+#else
 		if (!ib_umem_is_contiguous(umem)) {
+#endif
 			ibdev_dbg(&dev->ibdev, "Non contiguous CQ unsupported\n");
 			err = -EINVAL;
 			goto err_out;
 		}
 
-		cq->cpu_addr = NULL;
+#ifdef HAVE_CREATE_USER_CQ
+		cq->dma_addr = ib_umem_start_dma_addr(ibcq->umem);
+#else
 		cq->dma_addr = ib_umem_start_dma_addr(umem);
 		cq->umem = umem;
+#endif
 	} else {
 		cq->cpu_addr = efa_zalloc_mapped(dev, &cq->dma_addr, cq->size,
 						 DMA_FROM_DEVICE);
@@ -2014,7 +2042,7 @@ int efa_create_cq_umem(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	cq->ibcq.cqe = result.actual_depth;
 	WARN_ON_ONCE(entries != result.actual_depth);
 
-	if (!umem)
+	if (cq->cpu_addr)
 		err = cq_mmap_entries_setup(dev, cq, &resp, result.db_valid);
 
 	if (err) {
@@ -2059,11 +2087,12 @@ err_xa_erase:
 		dev->cqs_arr[cq->cq_idx] = NULL;
 #endif
 err_remove_mmap:
-	efa_cq_user_mmap_entries_remove(cq);
+	if (cq->cpu_addr)
+		efa_cq_user_mmap_entries_remove(cq);
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 err_free_mapped:
-	if (!umem)
+	if (cq->cpu_addr)
 		efa_free_mapped(dev, cq->cpu_addr, cq->dma_addr, cq->size,
 				DMA_FROM_DEVICE);
 
@@ -2072,7 +2101,7 @@ err_out:
 	return err;
 }
 
-#if !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
+#if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 static int efa_create_cq_umem_backport(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 #ifdef HAVE_CREATE_CQ_BUNDLE
 					struct uverbs_attr_bundle *attrs)
@@ -2148,7 +2177,16 @@ static int efa_create_cq_umem_backport(struct ib_cq *ibcq, const struct ib_cq_in
 }
 #endif
 
-#ifdef HAVE_CREATE_CQ_BUNDLE
+#if defined(HAVE_CREATE_USER_CQ) && defined(HAVE_EFA_KVERBS)
+int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		  struct uverbs_attr_bundle *attrs)
+{
+	if (attrs)
+		return -EINVAL;
+
+	return efa_create_cq_kernel(ibcq, attr);
+}
+#elif !defined(HAVE_CREATE_USER_CQ) && defined(HAVE_CREATE_CQ_BUNDLE)
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct uverbs_attr_bundle *attrs)
 {
@@ -2162,7 +2200,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	return efa_create_cq_umem(ibcq, attr, NULL, attrs);
 #endif
 }
-#else
+#elif !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_BUNDLE)
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata)
 {
@@ -3750,7 +3788,7 @@ ADD_UVERBS_METHODS(efa_mr,
 		   UVERBS_OBJECT_MR,
 		   &UVERBS_METHOD(EFA_IB_METHOD_MR_QUERY));
 
-#if !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
+#if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 ADD_UVERBS_ATTRIBUTES_SIMPLE(efa_cq_create,
 			     UVERBS_OBJECT_CQ,
 			     UVERBS_METHOD_CQ_CREATE,
@@ -3770,7 +3808,7 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(efa_cq_create,
 const struct uapi_definition efa_uapi_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_MR,
 				&efa_mr),
-#if !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
+#if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_CQ, &efa_cq_create),
 #endif
 	{},

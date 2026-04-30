@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "kcompat.h"
@@ -485,12 +485,16 @@ static const struct ib_device_ops efa_dev_ops = {
 	.create_ah = efa_kzalloc_ah,
 #endif
 #endif
-#ifdef HAVE_CQ_CORE_ALLOCATION
+#if !defined(HAVE_CREATE_USER_CQ) || defined(HAVE_EFA_KVERBS)
+#if defined(HAVE_CQ_CORE_ALLOCATION)
 	.create_cq = efa_create_cq,
 #else
 	.create_cq = efa_kzalloc_cq,
 #endif
-#ifdef HAVE_CREATE_CQ_UMEM
+#endif
+#ifdef HAVE_CREATE_USER_CQ
+	.create_user_cq = efa_create_user_cq,
+#elif defined(HAVE_CREATE_CQ_UMEM)
 	.create_cq_umem = efa_create_cq_umem,
 #endif
 #ifdef HAVE_QP_CORE_ALLOCATION

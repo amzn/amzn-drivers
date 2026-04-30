@@ -441,6 +441,10 @@ add_dev_op_compile_conftest(create_cq_umem ""
 "int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr, struct ib_umem *umem, struct uverbs_attr_bundle *attrs) { return 0; }"
   HAVE_CREATE_CQ_UMEM "")
 
+add_dev_op_compile_conftest(create_user_cq ""
+"int efa_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr, struct uverbs_attr_bundle *attrs) { return 0; }"
+  HAVE_CREATE_USER_CQ "")
+
 add_compile_conftest(
   "
 #include <rdma/iter.h>
