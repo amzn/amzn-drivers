@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/net_tstamp.h>
 
+#include "ena_ethtool.h"
 #include "ena_netdev.h"
 #include "ena_xdp.h"
 #include "ena_phc.h"
@@ -185,6 +186,9 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(bp_missed),
 	ENA_STAT_RX_ENTRY(bp_cleaned),
 #endif
+#if defined(ENA_BUSY_POLL_SUPPORT) || defined(ENA_HAVE_NAPI_STATE_BUSY_POLL)
+	ENA_STAT_RX_ENTRY(bp_invocations_cnt),
+#endif /* ENA_BUSY_POLL_SUPPORT || ENA_HAVE_NAPI_STATE_BUSY_POLL */
 	ENA_STAT_RX_ENTRY(bad_req_id),
 	ENA_STAT_RX_ENTRY(empty_rx_ring),
 	ENA_STAT_RX_ENTRY(csum_unchecked),
@@ -249,8 +253,33 @@ static const struct ena_stats ena_stats_ena_com_phc_strings[] = {
 #define ENA_STATS_ARRAY_ENA_SRD		ARRAY_SIZE(ena_srd_info_strings)
 #define ENA_METRICS_ARRAY_ENI		ARRAY_SIZE(ena_hw_stats_strings)
 
-/* Used to report number of active and XDP TX queues */
-#define ENA_QUEUE_SIZE_STATS_NUM	2
+int ena_get_stats_array_global_size(void)
+{
+	return ENA_STATS_ARRAY_GLOBAL;
+}
+
+int ena_get_accum_stats_array_tx_size(void)
+{
+	return ENA_ACCUM_STATS_ARRAY_TX;
+}
+
+int ena_get_per_q_stats_array_tx_size(void)
+{
+	return ENA_PER_Q_STATS_ARRAY_TX;
+}
+
+int ena_get_stats_array_rx_size(void)
+{
+	return ENA_STATS_ARRAY_RX;
+}
+
+int ena_get_stats_array_ena_com_phc_size(void)
+{
+	return ENA_STATS_ARRAY_ENA_COM_PHC;
+}
+
+/* Used to report number of active queues */
+#define ENA_QUEUE_SIZE_STATS_NUM	1
 
 #ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
 static const char ena_priv_flags_strings[][ETH_GSTRING_LEN] = {
@@ -341,7 +370,7 @@ static void ena_metrics_stats(struct ena_adapter *adapter, u64 **data)
 }
 
 #ifdef ENA_PAGE_POOL_SUPPORT
-static void ena_fetch_page_pool_stats(struct ena_adapter *adapter)
+void ena_fetch_page_pool_stats(struct ena_adapter *adapter)
 {
 #ifdef CONFIG_PAGE_POOL_STATS
 	struct page_pool_stats stats;
@@ -433,58 +462,83 @@ static void ena_accumulate_queues_for_stat(struct ena_adapter *adapter,
 			     &ring->syncp);
 }
 
+void ena_get_accumulated_tx_stats(struct ena_adapter *adapter, u64 **data)
+{
+	const struct ena_stats *ena_stats;
+	int i;
+
+	for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX; i++) {
+		ena_stats = &ena_accum_stats_tx_strings[i];
+
+		ena_accumulate_queues_for_stat(adapter, ena_stats,
+					       data, ENA_TX_STAT);
+	}
+}
+
+void ena_get_accumulated_rx_stats(struct ena_adapter *adapter, u64 **data)
+{
+	const struct ena_stats *ena_stats;
+	int i;
+
+	for (i = 0; i < ENA_STATS_ARRAY_RX; i++) {
+		ena_stats = &ena_stats_rx_strings[i];
+
+		ena_accumulate_queues_for_stat(adapter, ena_stats,
+					       data, ENA_RX_STAT);
+	}
+}
+
+void ena_get_per_queue_tx_stats(struct ena_ring *ring, u64 **data,
+				bool include_accum)
+{
+	ena_dump_stats_for_queue(ring,
+				 ENA_PER_Q_STATS_ARRAY_TX,
+				 data, ENA_TX_STAT,
+				 ena_per_q_stats_tx_strings);
+
+	if (include_accum)
+		ena_dump_stats_for_queue(ring,
+					 ENA_ACCUM_STATS_ARRAY_TX,
+					 data, ENA_TX_STAT,
+					 ena_accum_stats_tx_strings);
+}
+
+void ena_get_per_queue_rx_stats(struct ena_ring *ring, u64 **data)
+{
+	ena_dump_stats_for_queue(ring,
+				 ENA_STATS_ARRAY_RX,
+				 data, ENA_RX_STAT,
+				 ena_stats_rx_strings);
+}
+
 static void ena_get_queue_stats(struct ena_adapter *adapter, u64 *data,
 				bool print_accumulated_queue_stats)
 {
-	const struct ena_stats *ena_stats;
 	struct ena_ring *ring;
 	int i;
 
-	/* Report number of active and XDP TX queues */
+	/* Report number of active queues */
 	*data++ = adapter->num_io_queues;
-	*data++ = adapter->xdp_num_queues;
 
 #ifdef ENA_PAGE_POOL_SUPPORT
 	ena_fetch_page_pool_stats(adapter);
 
 #endif /* ENA_PAGE_POOL_SUPPORT */
 	if (print_accumulated_queue_stats) {
-		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX; i++) {
-			ena_stats = &ena_accum_stats_tx_strings[i];
-
-			ena_accumulate_queues_for_stat(adapter, ena_stats,
-						       &data, ENA_TX_STAT);
-		}
-
-		for (i = 0; i < ENA_STATS_ARRAY_RX; i++) {
-			ena_stats = &ena_stats_rx_strings[i];
-
-			ena_accumulate_queues_for_stat(adapter, ena_stats,
-						       &data, ENA_RX_STAT);
-		}
+		ena_get_accumulated_tx_stats(adapter, &data);
+		ena_get_accumulated_rx_stats(adapter, &data);
 	}
 
 	for (i = 0; i < adapter->max_num_io_queues; i++) {
 		/* Tx stats */
 		ring = &adapter->tx_ring[i];
 
-		ena_dump_stats_for_queue(ring,
-					 ENA_PER_Q_STATS_ARRAY_TX,
-					 &data, ENA_TX_STAT,
-					 ena_per_q_stats_tx_strings);
-
-		ena_dump_stats_for_queue(ring,
-					 ENA_ACCUM_STATS_ARRAY_TX,
-					 &data, ENA_TX_STAT,
-					 ena_accum_stats_tx_strings);
+		ena_get_per_queue_tx_stats(ring, &data, true);
 
 		/* Rx stats */
 		ring = &adapter->rx_ring[i];
 
-		ena_dump_stats_for_queue(ring,
-					 ENA_STATS_ARRAY_RX,
-					 &data, ENA_RX_STAT,
-					 ena_stats_rx_strings);
+		ena_get_per_queue_rx_stats(ring, &data);
 	}
 }
 
@@ -504,7 +558,7 @@ static void ena_get_admin_queue_stats(struct ena_adapter *adapter, u64 **data)
 	}
 }
 
-static void ena_get_phc_stats(struct ena_adapter *adapter, u64 **data)
+void ena_get_phc_stats(struct ena_adapter *adapter, u64 **data)
 {
 	const struct ena_stats *ena_stats;
 	u64 *ptr;
@@ -517,9 +571,7 @@ static void ena_get_phc_stats(struct ena_adapter *adapter, u64 **data)
 	}
 }
 
-static u64 *ena_get_base_stats(struct ena_adapter *adapter,
-			       u64 *data,
-			       bool hw_stats_needed)
+void ena_get_global_stats(struct ena_adapter *adapter, u64 **data)
 {
 	const struct ena_stats *ena_stats;
 	u64 *ptr;
@@ -530,8 +582,15 @@ static u64 *ena_get_base_stats(struct ena_adapter *adapter,
 
 		ptr = (u64 *)&adapter->dev_stats + ena_stats->stat_offset;
 
-		ena_safe_update_stat(ptr, data++, &adapter->syncp);
+		ena_safe_update_stat(ptr, (*data)++, &adapter->syncp);
 	}
+}
+
+static u64 *ena_get_base_stats(struct ena_adapter *adapter,
+			       u64 *data,
+			       bool hw_stats_needed)
+{
+	ena_get_global_stats(adapter, &data);
 
 	if (hw_stats_needed)
 		ena_metrics_stats(adapter, &data);
@@ -596,8 +655,8 @@ static int ena_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
-static int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
-					bool count_accumulated_stats)
+int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
+				 bool count_accumulated_stats)
 {
 	int count = adapter->max_num_io_queues * (ENA_ACCUM_STATS_ARRAY_TX +
 		    ENA_PER_Q_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX);
@@ -605,15 +664,15 @@ static int ena_get_queue_sw_stats_count(struct ena_adapter *adapter,
 	if (count_accumulated_stats)
 		count += ENA_STATS_ARRAY_RX + ENA_ACCUM_STATS_ARRAY_TX;
 
-	/* Add entries to report number of active queues + XDP TX queues */
+	/* Add entries to report number of active queues */
 	count += ENA_QUEUE_SIZE_STATS_NUM;
 
 	return count;
 }
 
-static int ena_get_base_sw_stats_count(struct ena_adapter *adapter)
+int ena_get_base_sw_stats_count(struct ena_adapter *adapter, bool include_phc)
 {
-	if (ena_phc_is_active(adapter))
+	if (include_phc)
 		return ENA_STATS_ARRAY_GLOBAL +
 		       ENA_STATS_ARRAY_ENA_COM_ADMIN +
 		       ENA_STATS_ARRAY_ENA_COM_PHC;
@@ -642,7 +701,8 @@ int ena_get_sset_count(struct net_device *netdev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ena_get_base_sw_stats_count(adapter) +
+		return ena_get_base_sw_stats_count(adapter,
+						   ena_phc_is_active(adapter)) +
 		       ena_get_queue_sw_stats_count(adapter, false) +
 		       ena_get_hw_stats_count(adapter);
 #ifdef ENA_LPC_SUPPORT /* LPC is the only supported priv-flag */
@@ -687,11 +747,9 @@ static void ena_get_queue_strings(struct ena_adapter *adapter, u8 *data,
 				  bool print_accumulated_queue_stats)
 {
 	const struct ena_stats *ena_stats;
-	bool is_xdp;
 	int i, j;
 
 	ethtool_puts(&data, "num_of_active_io_queues");
-	ethtool_puts(&data, "num_of_xdp_tx_queues");
 
 	if (print_accumulated_queue_stats) {
 		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX; i++) {
@@ -708,21 +766,18 @@ static void ena_get_queue_strings(struct ena_adapter *adapter, u8 *data,
 	}
 
 	for (i = 0; i < adapter->max_num_io_queues; i++) {
-		is_xdp = ENA_IS_XDP_INDEX(adapter, i);
 		/* Tx stats */
 		for (j = 0; j < ENA_PER_Q_STATS_ARRAY_TX; j++) {
 			ena_stats = &ena_per_q_stats_tx_strings[j];
 
-			ethtool_sprintf(&data, "queue_%u_%s_%s", i,
-					is_xdp ? "xdp_tx" : "tx",
+			ethtool_sprintf(&data, "queue_%u_tx_%s", i,
 					ena_stats->name);
 		}
 
 		for (j = 0; j < ENA_ACCUM_STATS_ARRAY_TX; j++) {
 			ena_stats = &ena_accum_stats_tx_strings[j];
 
-			ethtool_sprintf(&data, "queue_%u_%s_%s", i,
-					is_xdp ? "xdp_tx" : "tx",
+			ethtool_sprintf(&data, "queue_%u_tx_%s", i,
 					ena_stats->name);
 		}
 
@@ -903,10 +958,8 @@ static void ena_update_tx_rings_nonadaptive_intr_moderation(struct ena_adapter *
 
 	val = ena_com_get_nonadaptive_moderation_interval_tx(adapter->ena_dev);
 
-	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
-		adapter->tx_ring[i].interrupt_interval_changed |=
-			(adapter->tx_ring[i].interrupt_interval != val);
-		adapter->tx_ring[i].interrupt_interval = val;
+	for (i = 0; i < adapter->num_io_queues; i++) {
+		WRITE_ONCE(adapter->tx_ring[i].interrupt_interval, val);
 	}
 }
 
@@ -917,10 +970,8 @@ static void ena_update_rx_rings_nonadaptive_intr_moderation(struct ena_adapter *
 
 	val = ena_com_get_nonadaptive_moderation_interval_rx(adapter->ena_dev);
 
-	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
-		adapter->rx_ring[i].interrupt_interval_changed |=
-			(adapter->rx_ring[i].interrupt_interval != val);
-		adapter->rx_ring[i].interrupt_interval = val;
+	for (i = 0; i < adapter->num_io_queues; i++) {
+		WRITE_ONCE(adapter->rx_ring[i].interrupt_interval, val);
 	}
 }
 
@@ -1558,6 +1609,15 @@ static int ena_get_all_steering_rules(struct ena_com_dev *ena_dev, struct ethtoo
 	return 0;
 }
 
+#ifdef ENA_HAVE_GET_RX_RING_COUNT
+static u32 ena_get_rx_ring_count(struct net_device *netdev)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->num_io_queues;
+}
+#endif /* ENA_HAVE_GET_RX_RING_COUNT */
+
 static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 			 u32 *rules)
 {
@@ -1565,10 +1625,12 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 	int rc = 0;
 
 	switch (info->cmd) {
+#ifndef ENA_HAVE_GET_RX_RING_COUNT
 	case ETHTOOL_GRXRINGS:
 		info->data = adapter->num_io_queues;
 		rc = 0;
 		break;
+#endif /* ENA_HAVE_GET_RX_RING_COUNT */
 #ifndef ENA_HAVE_ETHTOOL_RXFH_FIELDS
 	case ETHTOOL_GRXFH:
 		rc = ena_get_rss_hash(adapter->ena_dev, info);
@@ -1603,7 +1665,10 @@ static u32 ena_get_rxfh_indir_size(struct net_device *netdev)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 static u32 ena_get_rxfh_key_size(struct net_device *netdev)
 {
-	return ENA_HASH_KEY_SIZE;
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_rss *rss = &adapter->ena_dev->rss;
+
+	return rss->hash_key ? ENA_HASH_KEY_SIZE : 0;
 }
 #endif
 
@@ -1853,15 +1918,6 @@ static int ena_set_channels(struct net_device *netdev,
 	if (count < ENA_MIN_NUM_IO_QUEUES)
 		return -EINVAL;
 
-	if (!ena_xdp_legal_queue_count(adapter, count)) {
-		if (ena_xdp_present(adapter))
-			return -EINVAL;
-
-		xdp_clear_features_flag(netdev);
-	} else {
-		xdp_set_features_flag(netdev, ENA_XDP_FEATURES);
-	}
-
 	if (count > adapter->max_num_io_queues)
 		return -EINVAL;
 
@@ -1964,6 +2020,9 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_sset_count         = ena_get_sset_count,
 	.get_strings		= ena_get_ethtool_strings,
 	.get_ethtool_stats      = ena_get_ethtool_stats,
+#ifdef ENA_HAVE_GET_RX_RING_COUNT
+	.get_rx_ring_count	= ena_get_rx_ring_count,
+#endif /* ENA_HAVE_GET_RX_RING_COUNT */
 #ifdef ETHTOOL_GRXRINGS
 	.get_rxnfc		= ena_get_rxnfc,
 	.set_rxnfc		= ena_set_rxnfc,
@@ -2001,122 +2060,57 @@ void ena_set_ethtool_ops(struct net_device *netdev)
 	netdev->ethtool_ops = &ena_ethtool_ops;
 }
 
-static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
+void ena_dump_stats_to_log(struct ena_adapter *adapter)
 {
-	u8 *base_strings_buf = NULL, *queue_strings_buf = NULL;
-	int base_strings_num, queue_strings_num, i, j, k, rc;
-	u64 *base_data_buf = NULL, *queue_data_buf = NULL;
+	struct ena_stats_buffers *s_buf = &adapter->stats_buffers;
+	bool include_phc = ena_phc_is_active(adapter);
+	int base_stats_num, queue_stats_num, i, j, k;
 	struct net_device *netdev = adapter->netdev;
-	bool print_accumulated_stats = false;
 
-	if (!buf)
-		print_accumulated_stats = true;
-
-	base_strings_num = ena_get_base_sw_stats_count(adapter);
-	queue_strings_num = ena_get_queue_sw_stats_count(adapter,
-							 print_accumulated_stats);
-
-	base_strings_buf = kcalloc(base_strings_num, ETH_GSTRING_LEN, GFP_ATOMIC);
-	if (!base_strings_buf) {
-		netif_err(adapter, drv, netdev,
-			"Failed to allocate base_strings_buf\n");
-		return;
-	}
-
-	queue_strings_buf = kcalloc(queue_strings_num, ETH_GSTRING_LEN, GFP_ATOMIC);
-	if (!queue_strings_buf) {
-		netif_err(adapter, drv, netdev,
-			"Failed to allocate queue_strings_buf\n");
-		goto free_resources;
-	}
-
-	base_data_buf = kcalloc(base_strings_num, sizeof(u64), GFP_ATOMIC);
-	if (!base_data_buf) {
-		netif_err(adapter, drv, netdev,
-			"Failed to allocate base_data_buf\n");
-		goto free_resources;
-	}
-
-	queue_data_buf = kcalloc(queue_strings_num, sizeof(u64), GFP_ATOMIC);
-	if (!queue_data_buf) {
-		netif_err(adapter, drv, netdev,
-			"Failed to allocate queue_data_buf\n");
-		goto free_resources;
-	}
-
-	ena_get_base_strings(adapter, base_strings_buf, false);
-	ena_get_queue_strings(adapter, queue_strings_buf, print_accumulated_stats);
-
-	ena_get_base_stats(adapter, base_data_buf, false);
-	ena_get_queue_stats(adapter, queue_data_buf, print_accumulated_stats);
-
-	/* If there is a buffer, dump stats, otherwise print them to dmesg */
-	if (buf) {
-		for (i = 0; i < base_strings_num; i++) {
-			rc = snprintf(buf, ETH_GSTRING_LEN + sizeof(u64),
-				      "%s %llu\n",
-				      base_strings_buf + i * ETH_GSTRING_LEN,
-				      base_data_buf[i]);
-			buf += rc;
-		}
-
-		for (i = 0; i < queue_strings_num; i++) {
-			rc = snprintf(buf, ETH_GSTRING_LEN + sizeof(u64),
-				      "%s %llu\n",
-				      queue_strings_buf + i * ETH_GSTRING_LEN,
-				      queue_data_buf[i]);
-			buf += rc;
-		}
-	} else {
-		for (i = 0; i < base_strings_num; i++)
-			netif_err(adapter, drv, netdev, "%s: %llu\n",
-				  base_strings_buf + i * ETH_GSTRING_LEN,
-				  base_data_buf[i]);
-
-		/* Print number of active and XDP TX queues and accumulated
-		 * queue stats
-		 */
-		for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX +
-				ENA_QUEUE_SIZE_STATS_NUM; i++)
-			netif_err(adapter, drv, netdev, "%s: %llu\n",
-				  queue_strings_buf + i * ETH_GSTRING_LEN,
-				  queue_data_buf[i]);
-
-		/* Print per queue stats */
-		for (j = 0; j < adapter->max_num_io_queues; j++) {
-			for (k = 0; k < ENA_PER_Q_STATS_ARRAY_TX; k++, i++)
-				netif_err(adapter, drv, netdev, "%s: %llu\n",
-					  queue_strings_buf + i * ETH_GSTRING_LEN,
-					  queue_data_buf[i]);
-
-			for (k = 0; k < ENA_ACCUM_STATS_ARRAY_TX; k++, i++)
-				netif_dbg(adapter, drv, netdev, "%s: %llu\n",
-					  queue_strings_buf + i * ETH_GSTRING_LEN,
-					  queue_data_buf[i]);
-
-			for (k = 0; k < ENA_STATS_ARRAY_RX; k++, i++)
-				netif_dbg(adapter, drv, netdev, "%s: %llu\n",
-					  queue_strings_buf + i * ETH_GSTRING_LEN,
-					  queue_data_buf[i]);
-		}
-	}
-
-free_resources:
-	kfree(base_strings_buf);
-	kfree(queue_strings_buf);
-	kfree(base_data_buf);
-	kfree(queue_data_buf);
-}
-
-void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf)
-{
-	if (!buf)
+	if (!s_buf->base_strings_buf || !s_buf->queue_strings_buf ||
+	    !s_buf->base_data_buf || !s_buf->queue_data_buf)
 		return;
 
-	ena_dump_stats_ex(adapter, buf);
-}
+	base_stats_num = ena_get_base_sw_stats_count(adapter,
+						     include_phc);
+	queue_stats_num = ena_get_queue_sw_stats_count(adapter, true);
 
-void ena_dump_stats_to_dmesg(struct ena_adapter *adapter)
-{
-	ena_dump_stats_ex(adapter, NULL);
+	ena_get_base_strings(adapter, s_buf->base_strings_buf, false);
+	ena_get_queue_strings(adapter, s_buf->queue_strings_buf, true);
+
+	ena_get_base_stats(adapter, s_buf->base_data_buf, false);
+	ena_get_queue_stats(adapter, s_buf->queue_data_buf, true);
+
+	for (i = 0; i < base_stats_num; i++)
+		netif_err(adapter, drv, netdev, "%s: %llu\n",
+			  s_buf->base_strings_buf + i * ETH_GSTRING_LEN,
+			  s_buf->base_data_buf[i]);
+
+	/* Print number of active queues and accumulated queue stats */
+	for (i = 0; i < ENA_ACCUM_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX +
+			ENA_QUEUE_SIZE_STATS_NUM; i++)
+		netif_err(adapter, drv, netdev, "%s: %llu\n",
+			  s_buf->queue_strings_buf +
+			  i * ETH_GSTRING_LEN,
+			  s_buf->queue_data_buf[i]);
+	/* Print per queue stats */
+	for (j = 0; j < adapter->max_num_io_queues; j++) {
+		for (k = 0; k < ENA_PER_Q_STATS_ARRAY_TX; k++, i++)
+			netif_err(adapter, drv, netdev, "%s: %llu\n",
+				  s_buf->queue_strings_buf +
+				  i * ETH_GSTRING_LEN,
+				  s_buf->queue_data_buf[i]);
+
+		for (k = 0; k < ENA_ACCUM_STATS_ARRAY_TX; k++, i++)
+			netif_dbg(adapter, drv, netdev, "%s: %llu\n",
+				  s_buf->queue_strings_buf +
+				  i * ETH_GSTRING_LEN,
+				  s_buf->queue_data_buf[i]);
+
+		for (k = 0; k < ENA_STATS_ARRAY_RX; k++, i++)
+			netif_dbg(adapter, drv, netdev, "%s: %llu\n",
+				  s_buf->queue_strings_buf +
+				  i * ETH_GSTRING_LEN,
+				  s_buf->queue_data_buf[i]);
+	}
 }

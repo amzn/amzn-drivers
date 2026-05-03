@@ -96,8 +96,7 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #endif
 
 #if defined(CONFIG_NET_RX_BUSY_POLL) && \
-	LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0) && \
-	LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+	LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
 #define ENA_BUSY_POLL_SUPPORT
 #endif
 
@@ -230,24 +229,6 @@ Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #endif
 
 /******************************************************************************/
-#ifndef CONFIG_NET_RX_BUSY_POLL
-static inline void skb_mark_napi_id(struct sk_buff *skb,
-				    struct napi_struct *napi)
-{
-
-}
-
-static inline void napi_hash_del(struct napi_struct *napi)
-{
-
-}
-
-static inline void napi_hash_add(struct napi_struct *napi)
-{
-
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
 # define u64_stats_init(syncp)  seqcount_init(syncp.seq)
@@ -256,8 +237,7 @@ static inline void napi_hash_add(struct napi_struct *napi)
 #endif
 
 #if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)) && \
-    !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0))) && \
-    !defined(UEK3_RELEASE)
+    !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0)))
 static inline void reinit_completion(struct completion *x)
 {
          x->done = 0;
@@ -268,8 +248,7 @@ static inline void reinit_completion(struct completion *x)
 
 #if  (( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) ) && \
      (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7,0)) \
-     && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0))&& \
-     !defined(UEK3_RELEASE))) || \
+     && !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,0,0)))) || \
      (defined(UBUNTU_VERSION_CODE) && UBUNTU_VERSION_CODE < UBUNTU_VERSION(3,13,0,30))
 static inline int pci_enable_msix_range(struct pci_dev *dev,
 					struct msix_entry *entries,
@@ -582,7 +561,7 @@ do {									\
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0) && \
     !(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE != RHEL_RELEASE_VERSION(7, 1))) && \
     !defined(UBUNTU_VERSION_CODE) && \
-    !defined(UEK3_RELEASE) && (!defined(DEBIAN_VERSION) || DEBIAN_VERSION != 8)
+    (!defined(DEBIAN_VERSION) || DEBIAN_VERSION != 8)
 
 #define DO_ONCE(func, ...)						     \
 	({								     \
@@ -672,6 +651,11 @@ static inline int page_ref_count(struct page *page)
 static inline void page_ref_inc(struct page *page)
 {
 	atomic_inc(&page->_count);
+}
+
+static inline void page_ref_dec(struct page *page)
+{
+	atomic_dec(&page->_count);
 }
 #endif
 
@@ -795,10 +779,6 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 #endif
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
-
-#if defined(ENA_PHC_INCLUDE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
-#define ENA_PHC_SUPPORT
-#endif /* ENA_PHC_SUPPORT */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) || \
 	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 2))
@@ -977,16 +957,6 @@ static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumas
 #define RX_CLS_FLOW_WAKE	0xfffffffffffffffeULL
 #endif /* RX_CLS_FLOW_WAKE */
 
-#ifndef ENA_HAVE_XDP_FEATURES_SET_REDIRECT_TARGET
-#define xdp_features_set_redirect_target(netdev, xdp_xmit_supported)
-#define xdp_features_clear_redirect_target(netdev)
-#endif /* ENA_HAVE_XDP_FEATURES_SET_REDIRECT_TARGET */
-
-#ifndef ENA_HAVE_XDP_SET_FEATURES_FLAG
-#define xdp_clear_features_flag(netdev)
-#define xdp_set_features_flag(netdev, features)
-#endif /* ENA_HAVE_XDP_SET_FEATURES_FLAG */
-
 #if defined(ENA_XDP_SUPPORT) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
 #ifdef ENA_AF_XDP_SUPPORT
 #include <net/xdp_sock_drv.h>
@@ -1090,6 +1060,33 @@ static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len) {}
 #define ENA_XDP_MEM_TYPE MEM_TYPE_PAGE_SHARED
 #endif /* ENA_PAGE_POOL_SUPPORT */
 
+#if defined(ENA_HAVE_XDP_HINTS_DEPS) && !defined(ENA_HAVE_XSK_POOL_FILL_CB)
+#include <net/xsk_buff_pool.h>
+
+struct xsk_cb_desc {
+	void *src;
+	u8 off;
+	u8 bytes;
+};
+
+static inline void xsk_pool_fill_cb(struct xsk_buff_pool *pool,
+				    struct xsk_cb_desc *desc)
+{
+	u32 i;
+
+	for (i = 0; i < pool->heads_cnt; i++) {
+		struct xdp_buff_xsk *xskb = &pool->heads[i];
+
+		memcpy(xskb->cb + desc->off, desc->src, desc->bytes);
+	}
+}
+#endif /* defined(ENA_HAVE_XDP_HINTS_DEPS) && !defined(ENA_HAVE_XSK_POOL_FILL_CB) */
+
+#ifndef ENA_HAVE_XDP_FRAGS_INFO_AND_FLAGS
+#define xdp_buff_get_skb_flags xdp_buff_is_frag_pfmemalloc
+#define xdp_update_skb_frags_info xdp_update_skb_shared_info
+#endif /* ENA_HAVE_XDP_FRAGS_INFO_AND_FLAGS */
+
 #ifndef DEFINE_SHOW_ATTRIBUTE
 #define DEFINE_SHOW_ATTRIBUTE(__name)					\
 static int __name ## _open(struct inode *inode, struct file *file)	\
@@ -1105,5 +1102,19 @@ static const struct file_operations __name ## _fops = {			\
 	.release	= single_release,				\
 }
 #endif /* DEFINE_SHOW_ATTRIBUTE */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#define ENA_SUPPORT_BUILD_AND_CONSUME_SKB
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
+
+#ifndef ENA_HAVE_TXQ_TRANS_UPDATE
+static inline void txq_trans_cond_update(struct netdev_queue *txq)
+{
+	unsigned long now = jiffies;
+
+	if (READ_ONCE(txq->trans_start) != now)
+		WRITE_ONCE(txq->trans_start, now);
+}
+#endif /* ENA_HAVE_TXQ_TRANS_UPDATE */
 
 #endif /* _KCOMPAT_H_ */

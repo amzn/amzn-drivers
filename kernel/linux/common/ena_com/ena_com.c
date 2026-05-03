@@ -516,14 +516,14 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 	atomic_set_release(&admin_queue->polling_for_completions, 0);
 }
 
-static int ena_com_comp_status_to_errno(struct ena_com_admin_queue *admin_queue,
-					u8 comp_status)
+static int ena_com_admin_status_to_errno(struct ena_com_admin_queue *admin_queue,
+					 struct ena_comp_ctx* comp_ctx)
 {
-	if (unlikely(comp_status != 0))
-		netdev_err(admin_queue->ena_dev->net_device, "Admin command failed[%u]\n",
-			   comp_status);
+	if (unlikely(comp_ctx->comp_status != 0))
+		netdev_err(admin_queue->ena_dev->net_device, "Admin command %u failed (%u)\n",
+			   comp_ctx->cmd_opcode, comp_ctx->comp_status);
 
-	switch (comp_status) {
+	switch (comp_ctx->comp_status) {
 	case ENA_ADMIN_SUCCESS:
 		return 0;
 	case ENA_ADMIN_RESOURCE_ALLOCATION_FAILURE:
@@ -594,7 +594,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 		goto err;
 	}
 
-	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
+	ret = ena_com_admin_status_to_errno(admin_queue, comp_ctx);
 err:
 	comp_ctxt_release(admin_queue, comp_ctx);
 	return ret;
@@ -762,7 +762,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 	if (llq_accel_mode_get.supported_flags & BIT(ENA_ADMIN_LIMIT_TX_BURST))
 		llq_info->max_entries_in_tx_burst =
 			llq_accel_mode_get.max_tx_burst_size /
-			llq_default_cfg->llq_ring_entry_size_value;
+			llq_info->desc_list_entry_size;
 
 	rc = ena_com_set_llq(ena_dev);
 	if (unlikely(rc))
@@ -823,7 +823,7 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		goto err;
 	}
 
-	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
+	ret = ena_com_admin_status_to_errno(admin_queue, comp_ctx);
 	comp_ctxt_release(admin_queue, comp_ctx);
 
 	return ret;
@@ -1762,6 +1762,11 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
 
 	writel(mask_value, ena_dev->reg_bar + ENA_REGS_INTR_MASK_OFF);
 	ena_dev->admin_queue.polling = polling;
+}
+
+u32 ena_com_get_admin_intr_mask(struct ena_com_dev *ena_dev)
+{
+	return ena_com_reg_bar_read32(ena_dev, ENA_REGS_INTR_MASK_OFF);
 }
 
 bool ena_com_get_admin_polling_mode(struct ena_com_dev *ena_dev)
@@ -3794,4 +3799,22 @@ int ena_com_set_frag_bypass(struct ena_com_dev *ena_dev, bool enable)
 		netdev_err(ena_dev->net_device, "Failed to enable frag bypass. error: %d\n", ret);
 
 	return ret;
+}
+
+void ena_com_write_debug_area_header(u32 version, u8 os, u8 *debug_area)
+{
+	struct ena_com_debug_area_header header = {};
+	u32 length;
+
+	/* Debug area header length val does not include name and length fields */
+	length = sizeof(struct ena_com_debug_area_header) -
+		ENA_DEBUG_AREA_HEADER_NAME_SIZE - sizeof(u32);
+
+	snprintf(header.name, ENA_DEBUG_AREA_HEADER_NAME_SIZE, "%s",
+		 ENA_DEBUG_AREA_HEADER_NAME);
+	header.length = length;
+	header.version = version;
+	header.os = os;
+
+	memcpy(debug_area, &header, sizeof(struct ena_com_debug_area_header));
 }

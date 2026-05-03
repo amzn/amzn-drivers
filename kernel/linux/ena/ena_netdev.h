@@ -36,10 +36,11 @@
 
 #include "ena_com.h"
 #include "ena_eth_com.h"
+#include "ena_debug.h"
 
 #define DRV_MODULE_GEN_MAJOR	2
-#define DRV_MODULE_GEN_MINOR	16
-#define DRV_MODULE_GEN_SUBMINOR	1
+#define DRV_MODULE_GEN_MINOR	17
+#define DRV_MODULE_GEN_SUBMINOR	0
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_GENERATION
@@ -159,16 +160,20 @@ struct ena_napi {
 	struct dim dim;
 };
 
-struct ena_tx_buffer {
-	union {
-		struct sk_buff *skb;
 #ifdef ENA_XDP_SUPPORT
-		/* XDP buffer structure which is used for sending packets in
-		 * the xdp queues
-		 */
-		struct xdp_frame *xdpf;
+struct ena_xdp_buff {
+	struct xdp_buff xdp_buff;
+	struct ena_com_rx_ctx *ena_rx_ctx;
+	struct ena_adapter *adapter;
+};
+
 #endif /* ENA_XDP_SUPPORT */
-	};
+struct ena_tx_buffer {
+	struct sk_buff *skb;
+#ifdef ENA_XDP_SUPPORT
+	/* XDP buffer structure which is used for sending packets */
+	struct xdp_frame *xdpf;
+#endif /* ENA_XDP_SUPPORT */
 	/* num of ena desc for this specific skb
 	 * (includes data desc and metadata desc)
 	 */
@@ -188,7 +193,11 @@ struct ena_tx_buffer {
 
 	/* used for ordering TX completions when needed (e.g. AF_XDP) */
 	u8 acked;
+#ifdef ENA_HAVE_XSK_TX_METADATA
 
+	/* Contains pointer to xsk completion metadata, filled at completion */
+	struct xsk_tx_metadata_compl xsk_meta_compl;
+#endif /* ENA_HAVE_XSK_TX_METADATA */
 #endif
 	/* Save the last jiffies to detect missing tx packets
 	 *
@@ -279,6 +288,9 @@ struct ena_stats_rx {
 	u64 bp_missed;
 	u64 bp_cleaned;
 #endif
+#if defined(ENA_BUSY_POLL_SUPPORT) || defined(ENA_HAVE_NAPI_STATE_BUSY_POLL)
+	u64 bp_invocations_cnt;
+#endif /* ENA_BUSY_POLL_SUPPORT || ENA_HAVE_NAPI_STATE_BUSY_POLL */
 	u64 bad_req_id;
 	u64 empty_rx_ring;
 	u64 csum_unchecked;
@@ -352,11 +364,6 @@ struct ena_ring {
 	bool last_checked_is_cq_empty;
 #ifdef ENA_XDP_SUPPORT
 	struct xdp_rxq_info xdp_rxq;
-	spinlock_t xdp_tx_lock;	/* synchronize XDP TX/Redirect traffic */
-	/* Used for rx queues only to point to the xdp tx ring, to
-	 * which traffic should be redirected from this rx ring.
-	 */
-	struct ena_ring *xdp_ring;
 #ifdef ENA_AF_XDP_SUPPORT
 	struct xsk_buff_pool *xsk_pool;
 #endif /* ENA_AF_XDP_SUPPORT */
@@ -387,12 +394,8 @@ struct ena_ring {
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
+	u32 prev_interrupt_interval;
 	u32 interrupt_interval;
-	/* Indicates whether interrupt interval has changed since previous set.
-	 * This flag will be kept up, until cleared by the routine which updates
-	 * the device with the modified interrupt interval value.
-	 */
-	bool interrupt_interval_changed;
 	u32 per_napi_packets;
 	u16 non_empty_napi_events;
 	struct u64_stats_sync syncp;
@@ -476,6 +479,18 @@ struct hw_timestamp_state {
 	u8 hw_rx_supported;
 };
 
+struct ena_debug_area_info {
+	struct ena_reset_reason_debug_info *reset_info;
+	u16 offending_qid;
+};
+
+struct ena_stats_buffers {
+	u8 *base_strings_buf;
+	u8 *queue_strings_buf;
+	u64 *base_data_buf;
+	u64 *queue_data_buf;
+};
+
 /* adapter specific private data structure */
 struct ena_adapter {
 	struct ena_com_dev *ena_dev;
@@ -537,6 +552,9 @@ struct ena_adapter {
 #endif
 
 	unsigned long flags;
+
+	struct ena_stats_buffers stats_buffers;
+
 	/* TX */
 	struct ena_ring tx_ring[ENA_MAX_NUM_IO_QUEUES]
 		____cacheline_aligned_in_smp;
@@ -564,13 +582,11 @@ struct ena_adapter {
 	/* last queue index that was checked for missing completions / interrupts */
 	u32 last_monitored_qid;
 
-	enum ena_regs_reset_reason_types reset_reason;
+	atomic_t reset_reason;
 
 #ifdef ENA_XDP_SUPPORT
 	struct bpf_prog *xdp_bpf_prog;
 #endif
-	u32 xdp_first_ring;
-	u32 xdp_num_queues;
 
 	struct hw_timestamp_state hw_ts_state;
 	struct ena_keep_alive_stats persistent_ka_stats;
@@ -583,31 +599,43 @@ struct ena_adapter {
 
 	struct dentry *debugfs_base;
 #endif /* CONFIG_DEBUG_FS */
+
+	struct ena_debug_area_info debug_area_info;
 };
 
-#define ENA_RESET_STATS_ENTRY(reset_reason, stat) \
+#define ENA_RESET_STATS_ENTRY(reset_reason, stat, ...) \
 	[reset_reason] = { \
 	.stat_offset = offsetof(struct ena_stats_dev, stat) / sizeof(u64), \
-	.has_counter = true \
+	.has_counter = true, \
+	__VA_ARGS__ \
 }
+
+typedef void (*ena_reset_reason_info_handler)(struct ena_adapter *adapter);
 
 struct ena_reset_stats_offset {
 	int stat_offset;
 	bool has_counter;
+	ena_reset_reason_info_handler reason_info_handler;
 };
 
 static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_RESET_LAST] = {
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_KEEP_ALIVE_TO, wd_expired),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_to),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_to,
+			      .reason_info_handler = ena_update_reset_info_admin_to),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_TX_CMPL, missing_tx_cmpl),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_TX_REQ_ID, bad_tx_req_id),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id,
+			      .reason_info_handler = ena_update_reset_info_inv_rx),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_TX_REQ_ID, bad_tx_req_id,
+			      .reason_info_handler = ena_update_reset_info_inv_tx_req_id),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TOO_MANY_RX_DESCS, bad_rx_desc_num),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_OS_NETDEV_WD, os_netdev_wd),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state,
+			      .reason_info_handler = ena_update_reset_info_invalid_state),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_OS_NETDEV_WD, os_netdev_wd,
+			      .reason_info_handler = ena_update_reset_info_netdev_wd),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_INTERRUPT, missing_intr),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_SUSPECTED_POLL_STARVATION, suspected_poll_starvation),
-	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed,
+			      .reason_info_handler = ena_update_reset_info_inv_rx),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT, missing_admin_interrupt),
 	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DEVICE_REQUEST, device_request_reset),
@@ -616,9 +644,7 @@ static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_R
 
 void ena_set_ethtool_ops(struct net_device *netdev);
 
-void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
-
-void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
+void ena_dump_stats_to_log(struct ena_adapter *adapter);
 
 struct sk_buff *ena_alloc_skb(struct ena_ring *rx_ring, void *first_frag, u16 len);
 
@@ -642,6 +668,15 @@ static inline void ena_increase_stat(u64 *statp, u64 cnt,
 	u64_stats_update_begin(syncp);
 	(*statp) += cnt;
 	u64_stats_update_end(syncp);
+}
+
+static inline void ena_update_tx_stats(struct ena_ring *tx_ring,
+				       u64 packets, u64 bytes)
+{
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->tx_stats.cnt += packets;
+	tx_ring->tx_stats.bytes += bytes;
+	u64_stats_update_end(&tx_ring->syncp);
 }
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
@@ -715,11 +750,32 @@ static inline bool ena_bp_disable(struct ena_ring *rx_ring)
 }
 #endif /* ENA_BUSY_POLL_SUPPORT */
 
-static inline void ena_reset_device(struct ena_adapter *adapter,
-				    enum ena_regs_reset_reason_types reset_reason)
+static inline enum ena_regs_reset_reason_types ena_get_reset_reason(struct ena_adapter *adapter)
+{
+	return (enum ena_regs_reset_reason_types)atomic_read(&adapter->reset_reason);
+}
+
+static inline void ena_set_reset_reason(struct ena_adapter *adapter,
+					enum ena_regs_reset_reason_types reset_reason)
+{
+	atomic_set(&adapter->reset_reason, reset_reason);
+}
+
+static inline bool ena_reset_device_try_lock(struct ena_adapter *adapter,
+					     enum ena_regs_reset_reason_types reset_reason)
+{
+	return atomic_cmpxchg(&adapter->reset_reason, ENA_REGS_RESET_NORMAL,
+			      reset_reason) == ENA_REGS_RESET_NORMAL;
+}
+
+static inline void __ena_reset_device(struct ena_adapter *adapter,
+				      enum ena_regs_reset_reason_types reset_reason)
 {
 	const struct ena_reset_stats_offset *ena_reset_stats_offset =
 		&resets_to_stats_offset_map[reset_reason];
+
+	if (ena_reset_stats_offset->reason_info_handler)
+		ena_reset_stats_offset->reason_info_handler(adapter);
 
 	if (ena_reset_stats_offset->has_counter) {
 		u64 *stat_ptr = (u64 *)&adapter->dev_stats + ena_reset_stats_offset->stat_offset;
@@ -728,10 +784,27 @@ static inline void ena_reset_device(struct ena_adapter *adapter,
 	}
 
 	ena_increase_stat(&adapter->dev_stats.total_resets, 1, &adapter->syncp);
-	adapter->reset_reason = reset_reason;
-	/* Make sure reset reason is set before triggering the reset */
-	smp_mb__before_atomic();
 	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+}
+
+static inline void ena_reset_device(struct ena_adapter *adapter,
+				    enum ena_regs_reset_reason_types reset_reason)
+{
+	if (!ena_reset_device_try_lock(adapter, reset_reason))
+		return;
+
+	__ena_reset_device(adapter, reset_reason);
+}
+
+static inline void ena_reset_device_record_qid(struct ena_adapter *adapter,
+					       enum ena_regs_reset_reason_types reset_reason,
+					       u16 qid)
+{
+	if (!ena_reset_device_try_lock(adapter, reset_reason))
+		return;
+
+	adapter->debug_area_info.offending_qid = qid;
+	__ena_reset_device(adapter, reset_reason);
 }
 
 static inline int ena_tx_map_frags(struct skb_shared_info *sh_info,
@@ -803,8 +876,7 @@ int ena_xmit_common(struct ena_adapter *adapter,
 		    u32 bytes);
 void ena_unmap_tx_buff(struct ena_ring *tx_ring,
 		       struct ena_tx_buffer *tx_info);
-void ena_init_io_rings(struct ena_adapter *adapter,
-		       int first_index, int count);
+void ena_init_io_rings(struct ena_adapter *adapter, int count);
 void ena_down(struct ena_adapter *adapter);
 int ena_up(struct ena_adapter *adapter);
 void ena_unmask_interrupt(struct ena_ring *tx_ring,
@@ -833,6 +905,7 @@ void ena_set_rx_hash(struct ena_ring *rx_ring,
 		     struct ena_com_rx_ctx *ena_rx_ctx,
 		     struct sk_buff *skb);
 int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num);
+void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi);
 
 static inline void handle_tx_comp_poll_error(struct ena_ring *tx_ring, u16 req_id, int rc)
 {
@@ -904,6 +977,37 @@ static inline bool ena_too_many_tx_frags(u8 nr_frags, u16 sgl_size,
 	}
 
 	return true;
+}
+
+static inline bool ena_hw_tx_timestamp_requested(struct ena_adapter *adapter)
+{
+	return adapter->hw_ts_state.ts_cfg.tx_type == HWTSTAMP_TX_ON;
+}
+
+static inline bool ena_hw_rx_timestamp_requested(struct ena_adapter *adapter)
+{
+	return adapter->hw_ts_state.ts_cfg.rx_filter == HWTSTAMP_FILTER_ALL;
+}
+
+static inline bool ena_is_rx_hash_valid(struct ena_com_rx_ctx *ena_rx_ctx)
+{
+	/* No hash if the packet is fragmented */
+	if (ena_rx_ctx->frag)
+		return false;
+
+	return likely((ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_TCP) ||
+		      (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP));
+}
+
+static inline void ena_ring_tx_doorbell_locked(struct ena_adapter *adapter,
+					       u16 qid)
+{
+	struct netdev_queue *txq;
+
+	txq = netdev_get_tx_queue(adapter->netdev, qid);
+	__netif_tx_lock(txq, smp_processor_id());
+	ena_ring_tx_doorbell(&adapter->tx_ring[qid]);
+	__netif_tx_unlock(txq);
 }
 
 #endif /* !(ENA_H) */

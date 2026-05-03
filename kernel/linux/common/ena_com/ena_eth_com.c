@@ -40,14 +40,14 @@ void ena_com_dump_single_rx_cdesc(struct ena_com_io_cq *io_cq,
 		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
 			   "RX descriptor value[0x%08x 0x%08x 0x%08x 0x%08x] phase[%u] first[%u] last[%u] MBZ7[%u] MBZ17[%u]\n",
 			   desc_arr[0], desc_arr[1], desc_arr[2], desc_arr[3],
-			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_PHASE_MASK, desc->base.status),
-			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_FIRST_MASK, desc->base.status),
-			   FIELD_GET((u32)ENA_ETH_IO_RX_DESC_LAST_MASK, desc->base.status),
+			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK, desc->base.status),
+			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK, desc->base.status),
+			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK, desc->base.status),
 			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ7_MASK, desc->base.status),
 			   FIELD_GET((u32)ENA_ETH_IO_RX_CDESC_BASE_MBZ17_MASK, desc->base.status));
 		if (unlikely(ena_com_is_extended_rx_cdesc(io_cq)))
 			netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
-				   "RX descriptor timestamp %llu",
+				   "RX descriptor timestamp %llu(nsec)",
 				   (u64)desc->timestamp_low | (u64)desc->timestamp_high << 32);
 	}
 }
@@ -65,7 +65,7 @@ void ena_com_dump_single_tx_cdesc(struct ena_com_io_cq *io_cq,
 			   FIELD_GET((u32)ENA_ETH_IO_TX_CDESC_MBZ6_MASK, desc->base.flags));
 		if (unlikely(ena_com_is_extended_tx_cdesc(io_cq)))
 			netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
-				   "TX descriptor timestamp %llu",
+				   "TX descriptor timestamp %llu(nsec)",
 				   (u64)desc->timestamp_low | (u64)desc->timestamp_high << 32);
 	}
 }
@@ -317,6 +317,13 @@ static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 				   "Corrupted RX descriptor #%u on q_id: %u, req_id: %u\n", count,
 				   io_cq->qid, cdesc->base.req_id);
 			return -EFAULT;
+		}
+
+		if (unlikely(cdesc->base.req_id >= io_cq->q_depth)) {
+			netdev_err(dev->net_device,
+				   "Bad req_id in descriptor #%u on q_id: %u, req_id: %u\n", count,
+				   io_cq->qid, cdesc->base.req_id);
+			return -EIO;
 		}
 
 		ena_com_cq_inc_head(io_cq);
@@ -574,7 +581,6 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 {
 	struct ena_com_rx_buf_info *ena_buf = &ena_rx_ctx->ena_bufs[0];
 	struct ena_eth_io_rx_cdesc_ext *cdesc = NULL;
-	u16 q_depth = io_cq->q_depth;
 	u16 cdesc_idx = 0;
 	u16 nb_hw_desc;
 	u16 i = 0;
@@ -584,7 +590,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 
 	rc = ena_com_cdesc_rx_pkt_get(io_cq, &cdesc_idx, &nb_hw_desc);
 	if (unlikely(rc != 0))
-		return -EFAULT;
+		return rc;
 
 	if (nb_hw_desc == 0) {
 		ena_rx_ctx->descs = nb_hw_desc;
@@ -606,8 +612,6 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	do {
 		ena_buf[i].len = cdesc->base.length;
 		ena_buf[i].req_id = cdesc->base.req_id;
-		if (unlikely(ena_buf[i].req_id >= q_depth))
-			return -EIO;
 
 		if (++i >= nb_hw_desc)
 			break;

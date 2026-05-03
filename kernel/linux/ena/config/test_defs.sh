@@ -101,18 +101,6 @@ try_compile_async "#include <linux/ethtool.h>"           \
                   ""                                     \
                   "6.11.0 <= LINUX_VERSION_CODE"
 
-try_compile_async "#include <net/xdp.h>"                                   \
-                  "xdp_features_set_redirect_target(NULL, false);"         \
-                  "ENA_HAVE_XDP_FEATURES_SET_REDIRECT_TARGET"              \
-                  ""                                                       \
-                  "6.3.0 <= LINUX_VERSION_CODE"
-
-try_compile_async "#include <net/xdp.h>"                 \
-                  "xdp_set_features_flag(NULL, 0);"      \
-                  "ENA_HAVE_XDP_SET_FEATURES_FLAG"       \
-                  ""                                     \
-                  "6.3.0 <= LINUX_VERSION_CODE"
-
 try_compile_async "#include <linux/netdevice.h>"         \
                   "{
                     struct net_device dev;
@@ -147,7 +135,7 @@ try_compile_async "#include <linux/ptp_clock_kernel.h>"  \
                   }"                                     \
                   "ENA_PHC_SUPPORT_ADJFREQ"              \
                   ""                                     \
-                  "3.0.0 <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < 6.2.0"
+                  "LINUX_VERSION_CODE < 6.2.0"
 
 try_compile_async "#include <linux/dim.h>"               \
                   "{
@@ -298,3 +286,72 @@ try_compile_async "#include <linux/ethtool.h>"          \
                   "ENA_HAVE_ETHTOOL_RXFH_FIELDS"        \
                   ""                                    \
                   "6.17.0 <= LINUX_VERSION_CODE"
+
+# struct xdp_metadata_ops first appears in kernel 6.3 in linux/netdevice.h
+# and then in kernel 6.6 it is moved to net/xdp.h
+try_compile_async "#include <net/xdp.h>
+                   #include <linux/netdevice.h>
+                   #include <net/xsk_buff_pool.h>" \
+                  "{
+                    struct xdp_metadata_ops ops;
+                    struct xdp_buff_xsk xsk_buf;
+
+                    xsk_buf.cb[0] = 0;
+                   }"                              \
+                  "ENA_HAVE_XDP_HINTS_DEPS"        \
+                  ""                               \
+                  "6.3.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp_sock_drv.h>"  \
+                  "xsk_pool_fill_cb(NULL, NULL);"  \
+                  "ENA_HAVE_XSK_POOL_FILL_CB"      \
+                  ""                               \
+                  "6.8.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/xdp.h>"                              \
+                  "{
+                    xdp_update_skb_frags_info(NULL, 0, 0, 0, 0);
+                    xdp_buff_get_skb_flags(NULL);
+                  }"                                                  \
+                  "ENA_HAVE_XDP_FRAGS_INFO_AND_FLAGS"                 \
+                  ""                                                  \
+                  "6.18.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/skbuff.h>
+                   #include <net/xdp_sock.h>
+                   #include <net/xsk_buff_pool.h>
+                   #include <net/xdp_sock_drv.h>"                 \
+                  "{
+                     struct xsk_tx_metadata_compl compl;
+                     struct xsk_tx_metadata meta;
+                     struct xsk_tx_metadata_ops ops;
+
+                     xsk_tx_metadata_complete(NULL, NULL, NULL);
+                     xp_tx_metadata_enabled(NULL);
+                     xsk_buff_get_metadata(NULL, 0);
+                     xsk_tx_metadata_to_compl(NULL, NULL);
+                   }"                                             \
+                  "ENA_HAVE_XSK_TX_METADATA"                      \
+                  ""                                              \
+                  "6.8.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/ethtool.h>"          \
+                  "{
+                    struct ethtool_ops ops;
+                    ops.get_rx_ring_count = NULL;
+                  }"                                    \
+                  "ENA_HAVE_GET_RX_RING_COUNT"          \
+                  ""                                    \
+                  "7.0.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"          \
+                  "int state = NAPIF_STATE_IN_BUSY_POLL;" \
+                  "ENA_HAVE_NAPI_STATE_BUSY_POLL"         \
+                  ""                                      \
+                  "4.10.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <linux/netdevice.h>"                  \
+                  "txq_trans_cond_update(NULL);"                  \
+                  "ENA_HAVE_TXQ_TRANS_UPDATE"                     \
+                  ""                                              \
+                  "5.17.0 <= LINUX_VERSION_CODE"

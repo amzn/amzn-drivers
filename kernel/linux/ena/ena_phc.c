@@ -58,9 +58,12 @@ static int ena_phc_gettimex64(struct ptp_clock_info *clock_info,
 
 	spin_unlock_irqrestore(&phc_info->lock, flags);
 
+	if (rc)
+		return rc;
+
 	*ts = ns_to_timespec64(timestamp_nsec);
 
-	return rc;
+	return 0;
 }
 
 #else /* ENA_PHC_SUPPORT_GETTIME64_EXTENDED */
@@ -79,9 +82,12 @@ static int ena_phc_gettime64(struct ptp_clock_info *clock_info, struct timespec6
 
 	spin_unlock_irqrestore(&phc_info->lock, flags);
 
+	if (rc)
+		return rc;
+
 	*ts = ns_to_timespec64(timestamp_nsec);
 
-	return rc;
+	return 0;
 }
 
 #endif /* ENA_PHC_SUPPORT_GETTIME64_EXTENDED */
@@ -108,10 +114,13 @@ static int ena_phc_gettime(struct ptp_clock_info *clock_info, struct timespec *t
 
 	spin_unlock_irqrestore(&phc_info->lock, flags);
 
+	if (rc)
+		return rc;
+
 	ts->tv_sec = div_u64_rem(timestamp_nsec, NSEC_PER_SEC, &remainder);
 	ts->tv_nsec = remainder;
 
-	return rc;
+	return 0;
 }
 
 static int ena_phc_settime(struct ptp_clock_info *clock_info, const struct timespec *ts)

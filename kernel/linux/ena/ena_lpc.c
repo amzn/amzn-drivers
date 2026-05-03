@@ -138,14 +138,13 @@ bool ena_is_lpc_supported(struct ena_adapter *adapter,
 #else
 	int (*print_log)(const struct net_device *dev, const char *format, ...);
 #endif
-	int channels_nr = adapter->num_io_queues + adapter->xdp_num_queues;
 
 	print_log = (error_print) ? netdev_err : netdev_info;
 
 	/* By default, LPC is disabled below a minimal number of channels,
 	 * unless explicitly enabled.
 	 */
-	if (channels_nr < ENA_LPC_MIN_NUM_OF_CHANNELS &&
+	if (adapter->num_io_queues < ENA_LPC_MIN_NUM_OF_CHANNELS &&
 	    adapter->configured_lpc_size == ENA_LPC_MULTIPLIER_NOT_CONFIGURED) {
 		print_log(adapter->netdev,
 			 "Local page cache is disabled for less than %d channels\n",

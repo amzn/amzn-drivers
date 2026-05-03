@@ -54,6 +54,9 @@
 
 #define ENA_CUSTOMER_METRICS_BUFFER_SIZE 512
 
+#define ENA_DEBUG_AREA_HEADER_NAME		"debug-area-header"
+#define ENA_DEBUG_AREA_HEADER_NAME_SIZE		32
+
 /*****************************************************************************/
 /*****************************************************************************/
 /* ENA adaptive interrupt moderation settings */
@@ -370,6 +373,14 @@ struct ena_host_attribute {
 	dma_addr_t host_info_dma_addr;
 };
 
+struct ena_com_debug_area_header {
+	char name[ENA_DEBUG_AREA_HEADER_NAME_SIZE];
+	u32 length;
+	u32 version;
+	u8 os;
+	u8 reserved[3];
+};
+
 struct ena_com_flow_steering_rule_params {
 	struct ena_admin_flow_steering_rule_params flow_params;
 	u16 qid;
@@ -631,6 +642,16 @@ bool ena_com_get_admin_running_state(struct ena_com_dev *ena_dev);
  * Set the admin completion mode.
  */
 void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling);
+
+/* ena_com_get_admin_intr_state - Get admin interrupt mask from register bar
+ * @ena_dev: ENA communication layer struct
+ *
+ * Get the admin queue interrupt mask from ENA_REGS_INTR_MASK_OFF offset
+ * in the register bar
+ *
+ * @return - the content of admin interrupt mask off register
+ */
+u32 ena_com_get_admin_intr_mask(struct ena_com_dev *ena_dev);
 
 /* ena_com_get_admin_polling_mode - Get the admin completion queue polling mode
  * @ena_dev: ENA communication layer struct
@@ -1203,6 +1224,14 @@ int ena_com_flow_steering_restore_device_rules(struct ena_com_dev *ena_dev);
  * @return - 0 on success, negative value on failure.
  */
 int ena_com_set_frag_bypass(struct ena_com_dev *ena_dev, bool enable);
+
+/* ena_com_write_debug_area_header - write debug area header to debug_area
+ * buffer.
+ * @version: debug area version
+ * @os: OS type
+ * @debug_area: debug area buffer
+ */
+void ena_com_write_debug_area_header(u32 version, u8 os, u8 *debug_area);
 
 /* ena_com_io_sq_to_ena_dev - Extract ena_com_dev using contained field io_sq.
  * @io_sq: IO submit queue struct

@@ -1115,7 +1115,8 @@ struct ena_admin_host_info {
 	 * 6 : rx_page_reuse
 	 * 7 : tx_ipv6_csum_offload
 	 * 8 : phc
-	 * 31:9 : reserved
+	 * 9 : debug_area_ext
+	 * 31:10 : reserved
 	 */
 	u32 driver_supported_features;
 };
@@ -1152,7 +1153,7 @@ struct ena_admin_feature_rss_ind_table {
 	struct ena_admin_rss_ind_table_entry inline_entry;
 };
 
-/* When hint value is 0, driver should use it's own predefined value */
+/* When hint value is 0, driver should use its own predefined value */
 struct ena_admin_ena_hw_hints {
 	/* value in ms */
 	u16 mmio_read_timeout;
@@ -1535,6 +1536,8 @@ struct ena_admin_phc_resp {
 #define ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK       BIT(7)
 #define ENA_ADMIN_HOST_INFO_PHC_SHIFT                       8
 #define ENA_ADMIN_HOST_INFO_PHC_MASK                        BIT(8)
+#define ENA_ADMIN_HOST_INFO_DEBUG_AREA_EXT_SHIFT            9
+#define ENA_ADMIN_HOST_INFO_DEBUG_AREA_EXT_MASK             BIT(9)
 
 /* feature_rss_ind_table */
 #define ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK BIT(0)

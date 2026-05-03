@@ -689,7 +689,7 @@ can be loaded in the following way:
   sudo devlink dev param set pci/0000:00:06.0 name enable_phc value true cmode driverinit
   sudo devlink dev reload pci/0000:00:06.0
 
-This functionality is supported from Linux Kernel v6.16 and on.
+This functionality is supported from Linux Kernel v6.17 and on.
 
 All available PTP clock sources can be tracked here:
 
@@ -990,19 +990,91 @@ Viewing the list of configured rules:
   Dest port: 5001 mask: 0x0
   Action: Direct to queue 1
 
-AF XDP Native Support (zero copy)
-=================================
+XDP Support
+===========
+.. _`Introduction to XDP`: https://www.iovisor.org/technology/xdp
+.. _`XDP RX Metadata linux documentation`: https://docs.kernel.org/networking/xdp-rx-metadata.html
 
-ENA driver supports native AF XDP (zero copy). To make a channel (TX/RX queue
-pair) zero copy, its index should meet the following criteria:
+The eXpress Data Path (XDP) is a high-performance packet processing
+framework in the Linux kernel that allows programs to run directly at
+the network driver level, before packets enter the kernel networking
+stack. It enables extremely low-latency packet filtering, forwarding,
+load balancing, and traffic monitoring by using eBPF programs attached
+to network interfaces. XDP is widely used for building high-performance
+networking applications and observability tools.
 
-- It has to be within the bounds of the configured channels.
-- It has to be smaller than *half* of the maximum channel number. E.g.
-  if an instance supports a maximum of 32 channels, zero-copy channels can be
-  configured on channels 0 through 15.
+.. _`XDP Requirements`:
+Requirements
+------------
 
-Both the currently configured channels and the maximum available for the instance can be queried
-using :code:`ethtool -l`.
+**MTU Size**
+
+When multi buffer support is not used, the maximum allowed MTU is
+defined in ena_xdp.h as ENA_XDP_MAX_SINGLE_FRAME_SIZE. As of kernel
+6.17, with 4KB page size this translates to 3502.
+
+Supported XDP features
+----------------------
+
+The ENA Linux driver supports the following XDP features:
+
+**Core XDP Actions**
+
+- XDP_PASS
+- XDP_DROP
+- XDP_TX
+- XDP_REDIRECT
+- XDP_ABORTED
+
+**XDP Multi-buffer**
+
+Handles packets larger than a single buffer.
+
+Requires the BPF_F_XDP_HAS_FRAGS flag to be set for the XDP program.
+Using this mode removes the MTU size requirement.
+
+**XDP Metadata**
+
+Allows adding metadata to the xdp_buff.
+
+**XDP RX Metadata (Hints)**
+
+Exposes hardware-specific packet information
+
+Currently supported hints:
+
+- RX RSS hash
+- RX timestamp
+
+For more information see `XDP RX Metadata linux documentation`_
+
+AF_XDP Support
+==============
+.. _`AF_XDP linux documentation` : http://docs.kernel.org/networking/af_xdp.html
+
+AF_XDP (Address Family XDP) is a Linux socket interface designed for
+high-performance packet processing in user space. It builds on the
+eXpress Data Path (XDP) framework by allowing packets, redirected from
+XDP programs, to be received and transmitted directly through
+memory-mapped ring buffers shared between the kernel and user space.
+This design enables near–zero-copy packet I/O while maintaining
+flexibility for complex user-space networking applications.
+
+For more information see `AF_XDP linux documentation`_
+
+The ENA driver provides native AF_XDP support with zero-copy.
+
+**Note:** AF_XDP requires an XDP program to be loaded. See `XDP Requirements`_
+for MTU configuration requirements that apply to both XDP and AF_XDP.
+
+**AF_XDP UMEM Pool Extra Headroom Support**
+
+Configurable extra headroom in UMEM buffers.
+
+The maximum allowed extra UMEM headroom in the ENA driver is 1792 because:
+1. The ENA driver supports only 4K buffers for AF_XDP.
+2. The minimum allowed buffer size in the ENA driver is ENA_MIN_RX_BUF_SIZE = 2K.
+3. There is a mandatory headroom of XDP_PACKET_HEADROOM = 256 for XDP buffers.
 
 Hardware Packet Timestamping
 ============================

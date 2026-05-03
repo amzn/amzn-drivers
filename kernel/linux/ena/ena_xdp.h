@@ -25,9 +25,6 @@
 				       XDP_PACKET_HEADROOM -                  \
 				       SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
-#define ENA_IS_XDP_INDEX(adapter, index) (((index) >= (adapter)->xdp_first_ring) && \
-	((index) < (adapter)->xdp_first_ring + (adapter)->xdp_num_queues))
-
 enum ENA_XDP_ACTIONS {
 	ENA_XDP_PASS		= 0,
 	ENA_XDP_TX		= BIT(0),
@@ -40,14 +37,22 @@ enum ENA_XDP_ACTIONS {
 			  NETDEV_XDP_ACT_REDIRECT |     \
 			  NETDEV_XDP_ACT_XSK_ZEROCOPY | \
 			  NETDEV_XDP_ACT_RX_SG |        \
+			  NETDEV_XDP_ACT_NDO_XMIT |	\
 			  NETDEV_XDP_ACT_NDO_XMIT_SG)
 
 #define ENA_XDP_FORWARDED (ENA_XDP_TX | ENA_XDP_REDIRECT)
 
+#ifdef ENA_HAVE_XDP_HINTS_DEPS
+extern const struct xdp_metadata_ops ena_xdp_md_ops;
+#endif /* ENA_HAVE_XDP_HINTS_DEPS */
+#if defined(ENA_AF_XDP_SUPPORT) && defined(ENA_HAVE_XSK_TX_METADATA)
+extern const struct xsk_tx_metadata_ops ena_xsk_tx_metadata_ops;
+#endif /* defined(ENA_AF_XDP_SUPPORT) && defined(ENA_HAVE_XSK_TX_METADATA) */
+
 void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
 					  int first, int last);
-int ena_xdp_io_poll(struct napi_struct *napi, int budget);
+int ena_af_xdp_io_poll(struct napi_struct *napi, int budget);
 int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 		       struct ena_adapter *adapter,
 		       struct xdp_frame *xdpf);
@@ -63,18 +68,11 @@ struct sk_buff *ena_rx_skb_after_xdp_pass(struct ena_ring *rx_ring,
 					  u8 nr_frags,
 					  int xdp_len);
 int ena_rx_xdp(struct ena_ring *rx_ring, struct xdp_buff *xdp, u16 descs,
-	       int *xdp_len, u8 *nr_frags);
+	       int *xdp_len, u8 *nr_frags, struct bpf_prog *xdp_prog);
 #ifdef ENA_AF_XDP_SUPPORT
-void ena_xdp_free_tx_bufs_zc(struct ena_ring *tx_ring);
 void ena_xdp_free_rx_bufs_zc(struct ena_ring *rx_ring);
 int ena_xdp_xsk_wakeup(struct net_device *netdev, u32 qid, u32 flags);
 #endif /* ENA_AF_XDP_SUPPORT */
-
-enum ena_xdp_errors_t {
-	ENA_XDP_ALLOWED = 0,
-	ENA_XDP_CURRENT_MTU_TOO_LARGE,
-	ENA_XDP_NO_ENOUGH_QUEUES,
-};
 
 static inline bool ena_xdp_present(struct ena_adapter *adapter)
 {
@@ -86,12 +84,6 @@ static inline bool ena_xdp_present_ring(struct ena_ring *ring)
 	return !!ring->xdp_bpf_prog;
 }
 
-static inline bool ena_xdp_legal_queue_count(struct ena_adapter *adapter,
-					     u32 queues)
-{
-	return 2 * queues <= adapter->max_num_io_queues;
-}
-
 static inline bool ena_xdp_is_mtu_legal(unsigned int mtu, struct bpf_prog *prog)
 {
 #ifndef ENA_XDP_MB_SUPPORT
@@ -99,19 +91,6 @@ static inline bool ena_xdp_is_mtu_legal(unsigned int mtu, struct bpf_prog *prog)
 #else
 	return !prog || prog->aux->xdp_has_frags || mtu <= ENA_XDP_MAX_SINGLE_FRAME_SIZE;
 #endif
-}
-
-static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter,
-						    struct bpf_prog *prog)
-{
-	enum ena_xdp_errors_t rc = ENA_XDP_ALLOWED;
-
-	if (!ena_xdp_is_mtu_legal(adapter->netdev->mtu, prog))
-		rc = ENA_XDP_CURRENT_MTU_TOO_LARGE;
-	else if (!ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
-		rc = ENA_XDP_NO_ENOUGH_QUEUES;
-
-	return rc;
 }
 
 #ifdef ENA_AF_XDP_SUPPORT
@@ -127,15 +106,17 @@ static inline bool ena_is_zc_q_exist(struct ena_adapter *adapter)
 }
 
 #endif /* ENA_AF_XDP_SUPPORT */
-static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
+static inline int ena_xdp_execute(struct ena_ring *rx_ring,
+				  struct xdp_buff *xdp,
+				  struct bpf_prog *xdp_prog)
 {
+	struct net_device *netdev = rx_ring->netdev;
 	u32 verdict = ENA_XDP_PASS;
-	struct bpf_prog *xdp_prog;
 	struct ena_ring *xdp_ring;
+	struct netdev_queue *txq;
+	u16 qid = rx_ring->qid;
 	struct xdp_frame *xdpf;
 	u64 *xdp_stat;
-
-	xdp_prog = READ_ONCE(rx_ring->xdp_bpf_prog);
 
 	verdict = bpf_prog_run_xdp(xdp_prog, xdp);
 
@@ -147,32 +128,37 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 		xdpf = convert_to_xdp_frame(xdp);
 #endif
 		if (unlikely(!xdpf)) {
-			trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
+			trace_xdp_exception(netdev, xdp_prog, verdict);
 			xdp_stat = &rx_ring->rx_stats.xdp_aborted;
 			verdict = ENA_XDP_RECYCLE;
 			break;
 		}
 
 		/* Find xmit queue */
-		xdp_ring = rx_ring->xdp_ring;
+		xdp_ring = &rx_ring->adapter->tx_ring[qid];
 
-		/* The XDP queues are shared between XDP_TX and XDP_REDIRECT */
-		spin_lock(&xdp_ring->xdp_tx_lock);
+		txq = netdev_get_tx_queue(netdev, qid);
+		__netif_tx_lock(txq, smp_processor_id());
+
+		/* Avoid TX time out as we are sharing the queues */
+		txq_trans_cond_update(txq);
 
 		if (ena_xdp_xmit_frame(xdp_ring, rx_ring->adapter, xdpf))
 			xdp_return_frame(xdpf);
+		else
+			ena_update_tx_stats(xdp_ring, 1, xdpf->len);
 
-		spin_unlock(&xdp_ring->xdp_tx_lock);
+		__netif_tx_unlock(txq);
 		xdp_stat = &rx_ring->rx_stats.xdp_tx;
 		verdict = ENA_XDP_TX;
 		break;
 	case XDP_REDIRECT:
-		if (likely(!xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog))) {
+		if (likely(!xdp_do_redirect(netdev, xdp, xdp_prog))) {
 			xdp_stat = &rx_ring->rx_stats.xdp_redirect;
 			verdict = ENA_XDP_REDIRECT;
 			break;
 		}
-		trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
+		trace_xdp_exception(netdev, xdp_prog, verdict);
 		xdp_stat = &rx_ring->rx_stats.xdp_aborted;
 		if (likely(!ena_xdp_return_buff(xdp)))
 			verdict = ENA_XDP_DROP;
@@ -181,7 +167,7 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 
 		break;
 	case XDP_ABORTED:
-		trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
+		trace_xdp_exception(netdev, xdp_prog, verdict);
 		xdp_stat = &rx_ring->rx_stats.xdp_aborted;
 		verdict = ENA_XDP_RECYCLE;
 		break;
@@ -194,7 +180,7 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 		verdict = ENA_XDP_PASS;
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(rx_ring->netdev, xdp_prog, verdict);
+		bpf_warn_invalid_xdp_action(netdev, xdp_prog, verdict);
 		xdp_stat = &rx_ring->rx_stats.xdp_invalid;
 		verdict = ENA_XDP_RECYCLE;
 	}
@@ -203,9 +189,18 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 
 	return verdict;
 }
+
+static inline void ena_xdp_buff_fill(struct xdp_buff *xdp,
+				     struct ena_com_rx_ctx *ena_rx_ctx)
+{
+	struct ena_xdp_buff *ena_xdp = container_of(xdp, struct ena_xdp_buff,
+						    xdp_buff);
+
+	ena_xdp->ena_rx_ctx = ena_rx_ctx;
+}
+
 #else /* ENA_XDP_SUPPORT */
 
-#define ENA_IS_XDP_INDEX(adapter, index) (false)
 #define xdp_return_frame(frame) do {} while (0)
 
 static inline bool ena_xdp_present_ring(struct ena_ring *ring)
@@ -219,12 +214,6 @@ static inline int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 }
 
 static inline void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring) {}
-
-static inline bool ena_xdp_legal_queue_count(struct ena_adapter *adapter,
-					     u32 queues)
-{
-	return false;
-}
 
 static inline bool ena_xdp_present(struct ena_adapter *adapter)
 {
