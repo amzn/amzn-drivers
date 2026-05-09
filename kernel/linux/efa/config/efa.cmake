@@ -25,29 +25,29 @@ function(try_compile_prog_test)
   file(REMOVE_RECURSE ${CMAKE_CURRENT_BINARY_DIR}/${tmp_dir})
 endfunction()
 
-function(wait_for_pid pid)
-  execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config/wait_for_pid.sh ${pid})
+function(wait_for_completion donefile)
+  execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config/wait_for_completion.sh ${donefile})
 endfunction()
 
-function(wait_for_pids)
+function(wait_for_completions)
   # Wait for everyone to finish
-  foreach(pid ${pids})
-    wait_for_pid(${pid})
+  foreach(donefile ${pending})
+    wait_for_completion(${donefile})
   endforeach()
 endfunction()
 
 function(process_rl)
-  list(LENGTH pids list_len)
+  list(LENGTH pending list_len)
   if(list_len EQUAL max_process)
-    list(GET pids 0 pid)
-    wait_for_pid(${pid})
-    list(REMOVE_AT pids 0)
-    set(pids "${pids}" CACHE INTERNAL "")
+    list(GET pending 0 donefile)
+    wait_for_completion(${donefile})
+    list(REMOVE_AT pending 0)
+    set(pending "${pending}" CACHE INTERNAL "")
   endif()
 endfunction()
 
 # CMake "global" variable
-set(pids "" CACHE INTERNAL "")
+set(pending "" CACHE INTERNAL "")
 
 include(ProcessorCount)
 ProcessorCount(max_process)
@@ -59,9 +59,9 @@ function(try_compile prologue body success_def fail_def)
   execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config/runbg.sh ${CMAKE_SOURCE_DIR}/config/compile_conftest.sh ${CMAKE_CURRENT_BINARY_DIR}/${tmp_dir} ${KERNEL_DIR} "${success_def}" "${fail_def}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     OUTPUT_STRIP_TRAILING_WHITESPACE
-    OUTPUT_VARIABLE pid)
-  list(APPEND pids ${pid})
-  set(pids "${pids}" CACHE INTERNAL "")
+    OUTPUT_VARIABLE donefile)
+  list(APPEND pending ${donefile})
+  set(pending "${pending}" CACHE INTERNAL "")
 endfunction()
 
 function(try_compile_dev_or_ops fp_name prologue fn success_def fail_def)
@@ -534,5 +534,5 @@ char *name = errname(ERR_PTR(-EIO));
   "
   HAVE_PRINT_ERR_PTR "")
 
-wait_for_pids()
+wait_for_completions()
 message("-- Inspecting kernel - done")

@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 # Copyright 2021 Amazon.com, Inc. or its affiliates. All rights reserved.
 
-donefile=$(mktemp -u).done
-(nohup "$@" &>/dev/null </dev/null; touch "$donefile") &
-echo "$donefile"
+donefile=$1
+
+while [ ! -f "$donefile" ]; do
+	sleep 0.2
+done
+rm -f "$donefile"
