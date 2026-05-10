@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2021-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2021-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 list(APPEND efa_sources
   efa_com_cmd.c efa_com.c efa_main.c efa_verbs.c efa_sysfs.c
@@ -33,6 +33,9 @@ if(ENABLE_KVERBS)
 endif()
 
 set(module_cmd make -C ${KERNEL_DIR} M=${CMAKE_CURRENT_BINARY_DIR})
+if(KERNEL_LLVM)
+  set(module_cmd ${module_cmd} LLVM=1)
+endif()
 if(GCOV_PROFILE)
   set(module_cmd ${module_cmd} GCOV_PROFILE=y)
 endif()

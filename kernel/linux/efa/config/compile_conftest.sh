@@ -1,13 +1,13 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
-# Copyright 2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+# Copyright 2021-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 tmpdir=$1
-kerneldir=$2
+make_opts=$2
 success=$3
 fail=$4
 
-make -C $tmpdir KERNEL_DIR=$kerneldir >/dev/null 2>$tmpdir/output.log
+make -C $tmpdir $make_opts >/dev/null 2>$tmpdir/output.log
 err=$?
 
 if [[ "$err" -eq 0 ]] && [[ -n "$success" ]]; then

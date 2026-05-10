@@ -13,9 +13,16 @@ function(set_conf_tmp_dir prologue body)
   configure_file(${CMAKE_SOURCE_DIR}/config/Makefile ${tmp_dir} COPYONLY)
 endfunction()
 
+# Make options for conftest builds
+set(CONFTEST_MAKE_OPTS "KERNEL_DIR=${KERNEL_DIR}")
+if(KERNEL_LLVM)
+  set(CONFTEST_MAKE_OPTS "${CONFTEST_MAKE_OPTS} LLVM=1")
+endif()
+
 function(verify_kernel_headers)
   set_conf_tmp_dir("" "")
-  execute_process(COMMAND make -C ${tmp_dir} KERNEL_DIR=${KERNEL_DIR}
+  separate_arguments(make_args UNIX_COMMAND "${CONFTEST_MAKE_OPTS}")
+  execute_process(COMMAND make -C ${tmp_dir} ${make_args}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     OUTPUT_QUIET ERROR_QUIET
     RESULT_VARIABLE res)
@@ -41,7 +48,7 @@ set(conftest_cmds "" CACHE INTERNAL "")
 
 function(add_compile_conftest prologue body success_def fail_def)
   set_conf_tmp_dir("${prologue}" "${body}")
-  set(cmd "${CMAKE_SOURCE_DIR}/config/compile_conftest.sh ${CMAKE_CURRENT_BINARY_DIR}/${tmp_dir} ${KERNEL_DIR} '${success_def}' '${fail_def}'")
+  set(cmd "${CMAKE_SOURCE_DIR}/config/compile_conftest.sh ${CMAKE_CURRENT_BINARY_DIR}/${tmp_dir} '${CONFTEST_MAKE_OPTS}' '${success_def}' '${fail_def}'")
   list(APPEND conftest_cmds "${cmd}")
   set(conftest_cmds "${conftest_cmds}" CACHE INTERNAL "")
 endfunction()
