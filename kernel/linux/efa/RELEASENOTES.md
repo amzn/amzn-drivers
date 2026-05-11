@@ -3,6 +3,16 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r3.1.0 release notes
+* Add support for extended max inline buffer size
+* Add feature mismatch error reporting
+* Improve out-of-tree build compatibility
+* Backport upstream kernel changes for CQ, QP, and DMA iterator handling
+* Fix possible deadlock in admin command execution
+* Fix use of completion context after free
+* Add missing min SQ depth padding for kernel QPs
+* Fix support for RHEL10 RPM build
+
 ## r3.0.0 release notes
 * Improve admin error handling
 * Check for QP number correctness on completion poll
