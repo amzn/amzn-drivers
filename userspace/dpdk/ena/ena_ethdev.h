@@ -194,6 +194,11 @@ struct __rte_cache_aligned ena_ring {
 
 	bool disable_meta_caching;
 
+	/* HW RX timestamp (cached per-ring to avoid adapter pointer chase) */
+	bool hw_ts_enabled;
+	int timestamp_dynfield_offset;
+	uint64_t timestamp_rx_dynflag;
+
 	union {
 		struct ena_stats_rx rx_stats;
 		struct ena_stats_tx tx_stats;
@@ -358,6 +363,11 @@ struct ena_adapter {
 	alignas(RTE_CACHE_LINE_SIZE) uint64_t metrics_stats[ENA_MAX_CUSTOMER_METRICS];
 	uint16_t metrics_num;
 	alignas(RTE_CACHE_LINE_SIZE) struct ena_stats_srd srd_stats;
+
+	bool hw_ts_rx_supported;
+	bool hw_ts_enabled;
+	int timestamp_dynfield_offset;
+	uint64_t timestamp_rx_dynflag;
 };
 
 int ena_mp_indirect_table_set(struct ena_adapter *adapter);

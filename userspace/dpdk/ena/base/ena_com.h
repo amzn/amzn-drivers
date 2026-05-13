@@ -382,6 +382,9 @@ struct ena_com_dev {
 	struct ena_com_mmio_read mmio_read;
 	struct ena_com_phc_info phc;
 
+	bool use_extended_tx_cdesc;
+	bool use_extended_rx_cdesc;
+
 	struct ena_rss rss;
 	u32 supported_features;
 	u32 capabilities;
@@ -421,6 +424,7 @@ struct ena_com_create_io_ctx {
 	u32 msix_vector;
 	u16 queue_size;
 	u16 qid;
+	bool use_extended_cdesc;
 };
 
 typedef void (*ena_aenq_handler)(void *data,
@@ -489,6 +493,32 @@ int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp);
  * @return - 0 on success, negative value on failure
  */
 int ena_com_phc_get_error_bound(struct ena_com_dev *ena_dev, u32 *error_bound);
+
+/* ena_com_hw_timestamping_supported - Check if HW timestamping is supported
+ * @ena_dev: ENA communication layer struct
+ * @return - true if supported
+ */
+bool ena_com_hw_timestamping_supported(struct ena_com_dev *ena_dev);
+
+/* ena_com_get_hw_timestamping_support - Query HW timestamp TX/RX support
+ * @ena_dev: ENA communication layer struct
+ * @tx_support: returned TX support level
+ * @rx_support: returned RX support level
+ * @return - 0 on success, negative value on failure
+ */
+int ena_com_get_hw_timestamping_support(struct ena_com_dev *ena_dev,
+					uint8_t *tx_support,
+					uint8_t *rx_support);
+
+/* ena_com_set_hw_timestamping_configuration - Enable/disable HW timestamps
+ * @ena_dev: ENA communication layer struct
+ * @tx_enable: enable TX timestamps
+ * @rx_enable: enable RX timestamps
+ * @return - 0 on success, negative value on failure
+ */
+int ena_com_set_hw_timestamping_configuration(struct ena_com_dev *ena_dev,
+					      uint8_t tx_enable,
+					      uint8_t rx_enable);
 
 /* ena_com_set_mmio_read_mode - Enable/disable the indirect mmio reg read mechanism
  * @ena_dev: ENA communication layer struct
