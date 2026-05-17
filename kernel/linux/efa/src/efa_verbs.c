@@ -1056,7 +1056,7 @@ static void efa_setup_qp(struct efa_qp *qp, struct efa_dev *dev, struct ib_qp_ca
 	qp->rq.wq.max_sge = cap->max_recv_sge;
 	rq_desc_cnt = roundup_pow_of_two(cap->max_recv_sge * cap->max_recv_wr);
 	qp->rq.wq.queue_mask = rq_desc_cnt - 1;
-	qp->rq.wq.max_wqes = rq_desc_cnt / qp->rq.wq.max_sge;
+	qp->rq.wq.max_wqes = qp->rq.wq.max_sge == 0 ? 0 : (rq_desc_cnt / qp->rq.wq.max_sge);
 }
 
 static int efa_wq_initialize(struct efa_dev *dev, struct efa_wq *wq, u32 db_off, u16 sub_cq_idx)
