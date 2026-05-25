@@ -150,6 +150,10 @@ static const char *const efa_port_stats_descs[] = {
 #define EFA_CHUNK_USED_SIZE \
 	((EFA_PTRS_PER_CHUNK * EFA_CHUNK_PAYLOAD_PTR_SIZE) + EFA_CHUNK_PTR_SIZE)
 
+#ifdef HAVE_EFA_KVERBS
+#define EFA_IO_TX_DESC_SIZE_64 (sizeof(struct efa_io_tx_wqe))
+#endif
+
 struct pbl_chunk {
 	dma_addr_t dma_addr;
 	u64 *buf;
@@ -910,8 +914,16 @@ err_remove_mmap:
 	return -ENOMEM;
 }
 
+#ifdef HAVE_EFA_KVERBS
+static u32 efa_calc_sq_wqe_size_kernel(struct ib_qp_cap *cap)
+{
+	return EFA_IO_TX_DESC_SIZE_64;
+}
+#endif
+
 static int efa_qp_validate_cap(struct efa_dev *dev,
-			       struct ib_qp_init_attr *init_attr)
+			       struct ib_qp_init_attr *init_attr,
+			       u32 sq_ring_size)
 {
 	if (init_attr->cap.max_send_wr > dev->dev_attr.max_sq_depth) {
 		ibdev_dbg(&dev->ibdev,
@@ -920,6 +932,14 @@ static int efa_qp_validate_cap(struct efa_dev *dev,
 			  dev->dev_attr.max_sq_depth);
 		return -EINVAL;
 	}
+
+	if (sq_ring_size > dev->dev_attr.max_llq_size) {
+		ibdev_dbg(&dev->ibdev,
+			  "qp: requested sq ring size[%u] exceeds the max[%u]\n",
+			  sq_ring_size, dev->dev_attr.max_llq_size);
+		return -EINVAL;
+	}
+
 	if (init_attr->cap.max_recv_wr > dev->dev_attr.max_rq_depth) {
 		ibdev_dbg(&dev->ibdev,
 			  "qp: requested receive wr[%u] exceeds the max[%u]\n",
@@ -1012,14 +1032,19 @@ static void efa_qp_init_indices(struct efa_qp *qp)
 	qp->rq.wq.wrid_idx_pool_next = 0;
 }
 
+static u32 efa_calc_sq_depth(struct efa_dev *dev, struct ib_qp_cap *cap)
+{
+	return roundup_pow_of_two(max_t(u32, cap->max_send_wr,
+					dev->dev_attr.min_sq_depth));
+}
+
 static void efa_setup_qp(struct efa_qp *qp, struct efa_dev *dev, struct ib_qp_cap *cap)
 {
 	u32 rq_desc_cnt;
 
 	efa_qp_init_indices(qp);
 
-	qp->sq.wq.max_wqes = roundup_pow_of_two(max_t(u32, cap->max_send_wr,
-						      dev->dev_attr.min_sq_depth));
+	qp->sq.wq.max_wqes = efa_calc_sq_depth(dev, cap);
 	qp->sq.wq.max_sge = cap->max_send_sge;
 	qp->sq.wq.queue_mask = qp->sq.wq.max_wqes - 1;
 
@@ -1124,9 +1149,13 @@ static int efa_create_qp_kernel(struct ib_qp *ibqp, struct ib_qp_init_attr *init
 	struct efa_com_create_qp_result create_qp_resp;
 	struct efa_dev *dev = to_edev(ibqp->device);
 	struct efa_qp *qp = to_eqp(ibqp);
+	u32 sq_ring_size;
 	int err;
 
-	err = efa_qp_validate_cap(dev, init_attr);
+	sq_ring_size = efa_calc_sq_depth(dev, &init_attr->cap) *
+		efa_calc_sq_wqe_size_kernel(&init_attr->cap);
+
+	err = efa_qp_validate_cap(dev, init_attr, sq_ring_size);
 	if (err)
 		goto err_out;
 
@@ -1243,14 +1272,6 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 				       NULL;
 #endif
 
-	err = efa_qp_validate_cap(dev, init_attr);
-	if (err)
-		goto err_out;
-
-	err = efa_qp_validate_attr(dev, init_attr);
-	if (err)
-		goto err_out;
-
 	if (offsetofend(typeof(cmd), driver_qp_type) > udata->inlen) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, no input udata\n");
@@ -1291,6 +1312,14 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
+
+	err = efa_qp_validate_cap(dev, init_attr, cmd.sq_ring_size);
+	if (err)
+		goto err_out;
+
+	err = efa_qp_validate_attr(dev, init_attr);
+	if (err)
+		goto err_out;
 
 	create_qp_params.uarn = ucontext->uarn;
 	create_qp_params.pd = to_epd(ibqp->pd)->pdn;
