@@ -235,6 +235,7 @@ struct efa_sq {
 	u32 max_batch_wr;
 	enum ib_sig_type sig_type;
 	u16 wqe_size;
+	bool inline_write_enabled;
 };
 #endif
 

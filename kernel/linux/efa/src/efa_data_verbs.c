@@ -14,18 +14,26 @@
 
 #define EFA_INIT_SQ_WQE_CTX(wqe_ctx, type) do { \
 	type *wqe = (type *)(wqe_ctx)->wqe_buf; \
-	(wqe_ctx)->inline_data = wqe->data.inline_data; \
+	(wqe_ctx)->send_inline_data = wqe->data.inline_data; \
 	(wqe_ctx)->md = &wqe->meta; \
 	(wqe_ctx)->sgl = wqe->data.sgl; \
 	(wqe_ctx)->remote_mem = &wqe->data.rdma_req.remote_mem; \
 	(wqe_ctx)->local_mem = wqe->data.rdma_req.local_mem; \
 	(wqe_ctx)->reg_mr_req = &wqe->data.reg_mr_req; \
 	(wqe_ctx)->inv_mr_req = &wqe->data.inv_mr_req; \
+	(wqe_ctx)->write_inline_data = NULL; \
+} while (0)
+
+#define EFA_INIT_SQ_WQE_CTX_WITH_RW_INLINE(wqe_ctx, type) do { \
+	EFA_INIT_SQ_WQE_CTX(wqe_ctx, type); \
+	(wqe_ctx)->write_inline_data = \
+		((type *)(wqe_ctx)->wqe_buf)->data.rdma_req.inline_data; \
 } while (0)
 
 struct efa_tx_wqe_ctx {
 	u8 wqe_buf[EFA_IO_TX_DESC_SIZE_128];
-	u8 *inline_data;
+	u8 *send_inline_data;
+	u8 *write_inline_data;
 	struct efa_io_tx_meta_desc *md;
 	struct efa_io_tx_buf_desc *sgl;
 	struct efa_io_tx_buf_desc *local_mem;
@@ -94,6 +102,11 @@ static int efa_post_send_validate(struct efa_qp *qp, const struct ib_send_wr *wr
 		if (unlikely(efa_sge_total_bytes(wr->sg_list, wr->num_sge) >
 			     qp->sq.max_inline_data))
 			return -EINVAL;
+
+		if (unlikely((wr->opcode == IB_WR_RDMA_WRITE ||
+			      wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM) &&
+			     !qp->sq.inline_write_enabled))
+			return -EINVAL;
 	} else {
 		max_sge = send_op ? qp->sq.wq.max_sge : qp->sq.max_rdma_sges;
 
@@ -104,9 +117,8 @@ static int efa_post_send_validate(struct efa_qp *qp, const struct ib_send_wr *wr
 	return 0;
 }
 
-static void efa_wqe_set_send_inline_data(const struct ib_send_wr *wr,
-					 struct efa_io_tx_meta_desc *md,
-					 u8 *inline_data)
+static void efa_wqe_set_inline_data(const struct ib_send_wr *wr, struct efa_io_tx_meta_desc *md,
+				    u8 *inline_data)
 {
 	const struct ib_sge *sgl = wr->sg_list;
 	u32 total_length = 0;
@@ -149,20 +161,33 @@ static void efa_wqe_set_send_sgl(const struct ib_send_wr *wr, struct efa_io_tx_m
 	md->length = wr->num_sge;
 }
 
-static void efa_wqe_set_rdma_info(const struct ib_send_wr *wr, struct efa_io_tx_meta_desc *md,
-				  struct efa_io_remote_mem_addr *remote_mem,
-				  struct efa_io_tx_buf_desc *local_mem)
+static void efa_wqe_set_rdma_common_info(const struct ib_send_wr *wr,
+					 struct efa_io_remote_mem_addr *remote_mem)
 {
 	const struct ib_srd_rdma_wr *srdrdmawr = srd_rdma_wr(wr);
 
-	remote_mem->length = wr->sg_list[0].length;
 	remote_mem->rkey = srdrdmawr->rkey;
 	remote_mem->buf_addr_hi = srdrdmawr->remote_addr >> 32;
 	remote_mem->buf_addr_lo = srdrdmawr->remote_addr & 0xffffffff;
+}
 
+static void efa_wqe_set_rdma_sgl(const struct ib_send_wr *wr,
+				 struct efa_io_tx_meta_desc *md,
+				 struct efa_io_remote_mem_addr *remote_mem,
+				 struct efa_io_tx_buf_desc *local_mem)
+{
+	remote_mem->length = wr->sg_list[0].length;
 	efa_set_tx_buf(local_mem, wr->sg_list[0].addr, wr->sg_list[0].lkey, wr->sg_list[0].length);
-
 	md->length = 1;
+}
+
+static void efa_wqe_set_rdma_write_inline_data(const struct ib_send_wr *wr,
+					       struct efa_io_tx_meta_desc *md,
+					       struct efa_io_remote_mem_addr *remote_mem,
+					       u8 *inline_data)
+{
+	efa_wqe_set_inline_data(wr, md, inline_data);
+	remote_mem->length = md->length;
 }
 
 static void efa_wqe_set_fast_reg_info(const struct ib_send_wr *wr,
@@ -288,7 +313,7 @@ static void efa_init_wqe_ctx(struct efa_sq *sq, struct efa_tx_wqe_ctx *wqe_ctx)
 		EFA_INIT_SQ_WQE_CTX(wqe_ctx, struct efa_io_tx_wqe);
 		break;
 	case EFA_IO_TX_DESC_SIZE_128:
-		EFA_INIT_SQ_WQE_CTX(wqe_ctx, struct efa_io_tx_wqe_128);
+		EFA_INIT_SQ_WQE_CTX_WITH_RW_INLINE(wqe_ctx, struct efa_io_tx_wqe_128);
 		break;
 	}
 }
@@ -327,7 +352,8 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		switch (wr->opcode) {
 		case IB_WR_RDMA_READ:
 			opcode = EFA_IO_RDMA_READ;
-			efa_wqe_set_rdma_info(wr, md, wqe_ctx.remote_mem, wqe_ctx.local_mem);
+			efa_wqe_set_rdma_common_info(wr, wqe_ctx.remote_mem);
+			efa_wqe_set_rdma_sgl(wr, md, wqe_ctx.remote_mem, wqe_ctx.local_mem);
 			efa_set_dest_info_srd(wr, md);
 			break;
 		case IB_WR_RDMA_WRITE_WITH_IMM:
@@ -335,7 +361,13 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			fallthrough;
 		case IB_WR_RDMA_WRITE:
 			opcode = EFA_IO_RDMA_WRITE;
-			efa_wqe_set_rdma_info(wr, md, wqe_ctx.remote_mem, wqe_ctx.local_mem);
+			efa_wqe_set_rdma_common_info(wr, wqe_ctx.remote_mem);
+			if (wr->send_flags & IB_SEND_INLINE)
+				efa_wqe_set_rdma_write_inline_data(wr, md, wqe_ctx.remote_mem,
+								   wqe_ctx.write_inline_data);
+			else
+				efa_wqe_set_rdma_sgl(wr, md, wqe_ctx.remote_mem, wqe_ctx.local_mem);
+
 			efa_set_dest_info_srd(wr, md);
 			break;
 		case IB_WR_SEND_WITH_IMM:
@@ -344,7 +376,7 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		case IB_WR_SEND:
 			opcode = EFA_IO_SEND;
 			if (wr->send_flags & IB_SEND_INLINE)
-				efa_wqe_set_send_inline_data(wr, md, wqe_ctx.inline_data);
+				efa_wqe_set_inline_data(wr, md, wqe_ctx.send_inline_data);
 			else
 				efa_wqe_set_send_sgl(wr, md, wqe_ctx.sgl);
 

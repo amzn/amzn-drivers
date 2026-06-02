@@ -1142,6 +1142,7 @@ static int efa_sq_initialize(struct efa_dev *dev,
 	}
 
 	sq->sig_type = attr->sq_sig_type;
+	sq->inline_write_enabled = (sq->wqe_size > EFA_IO_TX_DESC_SIZE_64);
 
 	return 0;
 }
