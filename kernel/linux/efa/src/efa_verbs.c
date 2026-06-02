@@ -1044,6 +1044,7 @@ static void efa_setup_qp(struct efa_qp *qp, struct efa_dev *dev, struct ib_qp_ca
 
 	efa_qp_init_indices(qp);
 
+	qp->sq.wqe_size = efa_calc_sq_wqe_size_kernel(cap);
 	qp->sq.wq.max_wqes = efa_calc_sq_depth(dev, cap);
 	qp->sq.wq.max_sge = cap->max_send_sge;
 	qp->sq.wq.queue_mask = qp->sq.wq.max_wqes - 1;
@@ -1127,7 +1128,7 @@ static int efa_sq_initialize(struct efa_dev *dev,
 	sq->max_inline_data = attr->cap.max_inline_data;
 	sq->max_rdma_sges = 1;
 	sq->max_batch_wr = dev->dev_attr.max_tx_batch ?
-		(dev->dev_attr.max_tx_batch * 64) / sizeof(struct efa_io_tx_wqe) : U16_MAX;
+		(dev->dev_attr.max_tx_batch * 64) / sq->wqe_size : U16_MAX;
 
 	if (dev->dev_attr.min_sq_depth) {
 		/* The device can't accept a doorbell for the whole SQ at once,
@@ -1181,9 +1182,7 @@ static int efa_create_qp_kernel(struct ib_qp *ibqp, struct ib_qp_init_attr *init
 	create_qp_params.send_cq_idx = send_cq->cq_idx;
 	create_qp_params.recv_cq_idx = recv_cq->cq_idx;
 	create_qp_params.sq_depth = qp->sq.wq.max_wqes;
-	create_qp_params.sq_ring_size_in_bytes = (qp->sq.wq.queue_mask + 1) *
-			sizeof(struct efa_io_tx_wqe);
-
+	create_qp_params.sq_ring_size_in_bytes = (qp->sq.wq.queue_mask + 1) * qp->sq.wqe_size;
 	create_qp_params.rq_depth = qp->rq.wq.max_wqes;
 	create_qp_params.rq_ring_size_in_bytes = (qp->rq.wq.queue_mask + 1) *
 			sizeof(struct efa_io_rx_desc);

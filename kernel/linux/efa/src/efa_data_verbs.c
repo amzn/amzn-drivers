@@ -264,10 +264,11 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 #endif
 {
 	struct efa_qp *qp = to_eqp(ibqp);
+	struct efa_sq *sq = &qp->sq;
 	u32 current_batch = 0;
 	int err = 0;
 
-	spin_lock(&qp->sq.wq.lock);
+	spin_lock(&sq->wq.lock);
 	while (wr) {
 		struct efa_io_tx_meta_desc *md;
 		enum efa_io_send_op_type opcode;
@@ -331,19 +332,19 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 		/* Set rest of the descriptor fields */
 		efa_set_common_ctrl_flags(md, qp, opcode);
-		md->req_id = efa_wq_get_next_wrid_idx(&qp->sq.wq, wr->wr_id);
+		md->req_id = efa_wq_get_next_wrid_idx(&sq->wq, wr->wr_id);
 
 		/* Copy descriptor */
-		sq_desc_offset = (qp->sq.wq.pc & qp->sq.wq.queue_mask) * sizeof(tx_wqe);
-		__iowrite64_copy(qp->sq.desc + sq_desc_offset, &tx_wqe, sizeof(tx_wqe) / 8);
+		sq_desc_offset = (sq->wq.pc & sq->wq.queue_mask) * sq->wqe_size;
+		__iowrite64_copy(sq->desc + sq_desc_offset, &tx_wqe, sq->wqe_size / 8);
 
 		/* advance index and change phase */
 		efa_sq_advance_post_idx(qp);
 
 		current_batch++;
-		if (current_batch == qp->sq.max_batch_wr) {
+		if (current_batch == sq->max_batch_wr) {
 			wmb();
-			efa_sq_ring_doorbell(&qp->sq, qp->sq.wq.pc);
+			efa_sq_ring_doorbell(sq, sq->wq.pc);
 			current_batch = 0;
 			wmb();
 		}
@@ -354,10 +355,10 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 ring_db:
 	if (current_batch) {
 		wmb();
-		efa_sq_ring_doorbell(&qp->sq, qp->sq.wq.pc);
+		efa_sq_ring_doorbell(sq, sq->wq.pc);
 	}
 
-	spin_unlock(&qp->sq.wq.lock);
+	spin_unlock(&sq->wq.lock);
 
 	return err;
 }
