@@ -9,6 +9,31 @@
 #include "efa_verbs.h"
 #include "efa_io_defs.h"
 
+#define EFA_IO_TX_DESC_SIZE_64	(sizeof(struct efa_io_tx_wqe))
+#define EFA_IO_TX_DESC_SIZE_128 (sizeof(struct efa_io_tx_wqe_128))
+
+#define EFA_INIT_SQ_WQE_CTX(wqe_ctx, type) do { \
+	type *wqe = (type *)(wqe_ctx)->wqe_buf; \
+	(wqe_ctx)->inline_data = wqe->data.inline_data; \
+	(wqe_ctx)->md = &wqe->meta; \
+	(wqe_ctx)->sgl = wqe->data.sgl; \
+	(wqe_ctx)->remote_mem = &wqe->data.rdma_req.remote_mem; \
+	(wqe_ctx)->local_mem = wqe->data.rdma_req.local_mem; \
+	(wqe_ctx)->reg_mr_req = &wqe->data.reg_mr_req; \
+	(wqe_ctx)->inv_mr_req = &wqe->data.inv_mr_req; \
+} while (0)
+
+struct efa_tx_wqe_ctx {
+	u8 wqe_buf[EFA_IO_TX_DESC_SIZE_128];
+	u8 *inline_data;
+	struct efa_io_tx_meta_desc *md;
+	struct efa_io_tx_buf_desc *sgl;
+	struct efa_io_tx_buf_desc *local_mem;
+	struct efa_io_remote_mem_addr *remote_mem;
+	struct efa_io_fast_mr_reg_req *reg_mr_req;
+	struct efa_io_fast_mr_inv_req *inv_mr_req;
+};
+
 static inline struct efa_dev *to_edev(struct ib_device *ibdev)
 {
 	return container_of(ibdev, struct efa_dev, ibdev);
@@ -255,6 +280,19 @@ static void efa_sq_advance_post_idx(struct efa_qp *qp)
 		qp->sq.wq.phase++;
 }
 
+static void efa_init_wqe_ctx(struct efa_sq *sq, struct efa_tx_wqe_ctx *wqe_ctx)
+{
+	switch (sq->wqe_size) {
+	default:
+	case EFA_IO_TX_DESC_SIZE_64:
+		EFA_INIT_SQ_WQE_CTX(wqe_ctx, struct efa_io_tx_wqe);
+		break;
+	case EFA_IO_TX_DESC_SIZE_128:
+		EFA_INIT_SQ_WQE_CTX(wqe_ctx, struct efa_io_tx_wqe_128);
+		break;
+	}
+}
+
 #ifdef HAVE_POST_CONST_WR
 int efa_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		  const struct ib_send_wr **bad_wr)
@@ -264,15 +302,18 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 #endif
 {
 	struct efa_qp *qp = to_eqp(ibqp);
+	struct efa_io_tx_meta_desc *md;
+	struct efa_tx_wqe_ctx wqe_ctx;
 	struct efa_sq *sq = &qp->sq;
 	u32 current_batch = 0;
 	int err = 0;
 
+	efa_init_wqe_ctx(sq, &wqe_ctx);
+	md = wqe_ctx.md;
+
 	spin_lock(&sq->wq.lock);
 	while (wr) {
-		struct efa_io_tx_meta_desc *md;
 		enum efa_io_send_op_type opcode;
-		struct efa_io_tx_wqe tx_wqe;
 		u32 sq_desc_offset;
 
 		err = efa_post_send_validate(qp, wr);
@@ -281,14 +322,12 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			goto ring_db;
 		}
 
-		memset(&tx_wqe, 0, sizeof(tx_wqe));
-		md = &tx_wqe.meta;
+		memset(wqe_ctx.wqe_buf, 0, sq->wqe_size);
 
 		switch (wr->opcode) {
 		case IB_WR_RDMA_READ:
 			opcode = EFA_IO_RDMA_READ;
-			efa_wqe_set_rdma_info(wr, md, &tx_wqe.data.rdma_req.remote_mem,
-					      tx_wqe.data.rdma_req.local_mem);
+			efa_wqe_set_rdma_info(wr, md, wqe_ctx.remote_mem, wqe_ctx.local_mem);
 			efa_set_dest_info_srd(wr, md);
 			break;
 		case IB_WR_RDMA_WRITE_WITH_IMM:
@@ -296,8 +335,7 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			fallthrough;
 		case IB_WR_RDMA_WRITE:
 			opcode = EFA_IO_RDMA_WRITE;
-			efa_wqe_set_rdma_info(wr, md, &tx_wqe.data.rdma_req.remote_mem,
-					      tx_wqe.data.rdma_req.local_mem);
+			efa_wqe_set_rdma_info(wr, md, wqe_ctx.remote_mem, wqe_ctx.local_mem);
 			efa_set_dest_info_srd(wr, md);
 			break;
 		case IB_WR_SEND_WITH_IMM:
@@ -306,9 +344,9 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		case IB_WR_SEND:
 			opcode = EFA_IO_SEND;
 			if (wr->send_flags & IB_SEND_INLINE)
-				efa_wqe_set_send_inline_data(wr, md, tx_wqe.data.inline_data);
+				efa_wqe_set_send_inline_data(wr, md, wqe_ctx.inline_data);
 			else
-				efa_wqe_set_send_sgl(wr, md, tx_wqe.data.sgl);
+				efa_wqe_set_send_sgl(wr, md, wqe_ctx.sgl);
 
 			if (ibqp->qp_type == IB_QPT_UD)
 				efa_set_dest_info_ud(wr, md);
@@ -318,11 +356,11 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 		case IB_WR_REG_MR:
 			opcode = EFA_IO_FAST_REG;
-			efa_wqe_set_fast_reg_info(wr, &tx_wqe.data.reg_mr_req);
+			efa_wqe_set_fast_reg_info(wr, wqe_ctx.reg_mr_req);
 			break;
 		case IB_WR_LOCAL_INV:
 			opcode = EFA_IO_FAST_INV;
-			efa_wqe_set_fast_inv_info(wr, &tx_wqe.data.inv_mr_req);
+			efa_wqe_set_fast_inv_info(wr, wqe_ctx.inv_mr_req);
 			break;
 		default:
 			err = -EINVAL;
@@ -336,7 +374,7 @@ int efa_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 		/* Copy descriptor */
 		sq_desc_offset = (sq->wq.pc & sq->wq.queue_mask) * sq->wqe_size;
-		__iowrite64_copy(sq->desc + sq_desc_offset, &tx_wqe, sq->wqe_size / 8);
+		__iowrite64_copy(sq->desc + sq_desc_offset, wqe_ctx.wqe_buf, sq->wqe_size / 8);
 
 		/* advance index and change phase */
 		efa_sq_advance_post_idx(qp);

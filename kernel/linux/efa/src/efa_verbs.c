@@ -151,7 +151,8 @@ static const char *const efa_port_stats_descs[] = {
 	((EFA_PTRS_PER_CHUNK * EFA_CHUNK_PAYLOAD_PTR_SIZE) + EFA_CHUNK_PTR_SIZE)
 
 #ifdef HAVE_EFA_KVERBS
-#define EFA_IO_TX_DESC_SIZE_64 (sizeof(struct efa_io_tx_wqe))
+#define EFA_IO_TX_DESC_SIZE_64	(sizeof(struct efa_io_tx_wqe))
+#define EFA_IO_TX_DESC_SIZE_128 (sizeof(struct efa_io_tx_wqe_128))
 #endif
 
 struct pbl_chunk {
@@ -917,6 +918,9 @@ err_remove_mmap:
 #ifdef HAVE_EFA_KVERBS
 static u32 efa_calc_sq_wqe_size_kernel(struct ib_qp_cap *cap)
 {
+	if (cap->max_inline_data > EFA_IO_TX_DESC_INLINE_MAX_SIZE)
+		return EFA_IO_TX_DESC_SIZE_128;
+
 	return EFA_IO_TX_DESC_SIZE_64;
 }
 #endif
