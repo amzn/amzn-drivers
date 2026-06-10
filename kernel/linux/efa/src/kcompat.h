@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _KCOMPAT_H_
@@ -42,6 +42,10 @@
 
 #ifndef HAVE_IB_PORT_PHYS_STATE_LINK_UP
 #define IB_PORT_PHYS_STATE_LINK_UP 5
+#endif
+
+#ifndef HAVE_IB_SPEED_NDR
+#define IB_SPEED_NDR 128
 #endif
 
 #ifndef HAVE_CORE_MMAP_XA
