@@ -480,7 +480,6 @@ int efa_query_port(struct ib_device *ibdev, port_t port,
 	return 0;
 }
 
-#ifdef HAVE_QUERY_PORT_SPEED
 int efa_query_port_speed(struct ib_device *ibdev, u32 port_num, u64 *speed)
 {
 	struct efa_dev *dev = to_edev(ibdev);
@@ -489,7 +488,6 @@ int efa_query_port_speed(struct ib_device *ibdev, u32 port_num, u64 *speed)
 
 	return 0;
 }
-#endif
 
 int efa_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask,
@@ -3139,6 +3137,35 @@ static int UVERBS_HANDLER(EFA_IB_METHOD_MR_QUERY)(struct uverbs_attr_bundle *att
 	return uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_IC_ID_VALIDITY,
 			      &ic_id_validity, sizeof(ic_id_validity));
 }
+
+#ifndef HAVE_QUERY_PORT_SPEED
+static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_PORT_SPEED)(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_ucontext *ucontext;
+	struct ib_device *ibdev;
+	u32 port_num;
+	u64 speed;
+	int ret;
+
+	ucontext = ib_uverbs_get_ucontext(attrs);
+	if (IS_ERR(ucontext))
+		return PTR_ERR(ucontext);
+
+	ibdev = ucontext->device;
+
+	ret = uverbs_get_const(&port_num, attrs, UVERBS_ATTR_QUERY_PORT_SPEED_PORT_NUM);
+	if (ret)
+		return ret;
+
+	if (!rdma_is_port_valid(ibdev, port_num))
+		return -EINVAL;
+
+	efa_query_port_speed(ibdev, port_num, &speed);
+
+	return uverbs_copy_to(attrs, UVERBS_ATTR_QUERY_PORT_SPEED_RESP,
+			      &speed, sizeof(speed));
+}
+#endif
 #endif
 
 #if defined(HAVE_MR_DMABUF) && !defined(HAVE_IB_UMEM_DMABUF_PINNED)
@@ -3840,6 +3867,20 @@ ADD_UVERBS_METHODS(efa_mr,
 		   UVERBS_OBJECT_MR,
 		   &UVERBS_METHOD(EFA_IB_METHOD_MR_QUERY));
 
+#if !defined(HAVE_QUERY_PORT_SPEED)
+DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_QUERY_PORT_SPEED,
+			    UVERBS_ATTR_CONST_IN(UVERBS_ATTR_QUERY_PORT_SPEED_PORT_NUM,
+						 u32,
+						 UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_QUERY_PORT_SPEED_RESP,
+						UVERBS_ATTR_TYPE(u64),
+						UA_MANDATORY));
+
+ADD_UVERBS_METHODS(efa_device,
+		   UVERBS_OBJECT_DEVICE,
+		   &UVERBS_METHOD(UVERBS_METHOD_QUERY_PORT_SPEED));
+#endif
+
 #if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 ADD_UVERBS_ATTRIBUTES_SIMPLE(efa_cq_create,
 			     UVERBS_OBJECT_CQ,
@@ -3860,6 +3901,10 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(efa_cq_create,
 const struct uapi_definition efa_uapi_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_MR,
 				&efa_mr),
+#ifndef HAVE_QUERY_PORT_SPEED
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_DEVICE,
+				&efa_device),
+#endif
 #if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_CQ, &efa_cq_create),
 #endif
