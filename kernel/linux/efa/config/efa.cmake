@@ -531,6 +531,12 @@ struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length, 
   "
   HAVE_REG_USER_MR_DMAH "")
 
+add_dev_op_compile_conftest(query_port_speed ""
+  "
+int efa_query_port_speed(struct ib_device *ibdev, u32 port_num, u64 *speed) { return 0; }
+  "
+  HAVE_QUERY_PORT_SPEED "")
+
 add_compile_conftest(
   "
 #include <errname.h>

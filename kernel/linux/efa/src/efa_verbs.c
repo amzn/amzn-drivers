@@ -134,8 +134,6 @@ static const char *const efa_port_stats_descs[] = {
 	EFA_DEFINE_PORT_STATS(EFA_STATS_STR)
 };
 
-#define EFA_DEFAULT_LINK_SPEED_GBPS   100
-
 #define EFA_CHUNK_PAYLOAD_SHIFT       12
 #define EFA_CHUNK_PAYLOAD_SIZE        BIT(EFA_CHUNK_PAYLOAD_SHIFT)
 #define EFA_CHUNK_PAYLOAD_PTR_SIZE    8
@@ -470,7 +468,7 @@ int efa_query_port(struct ib_device *ibdev, port_t port,
 	props->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
-	link_gbps = dev->dev_attr.max_link_speed_gbps ?: EFA_DEFAULT_LINK_SPEED_GBPS;
+	link_gbps = dev->dev_attr.max_link_speed_gbps;
 	efa_link_gbps_to_speed_and_width(link_gbps, &link_speed, &link_width);
 	props->active_speed = link_speed;
 	props->active_width = link_width;
@@ -481,6 +479,17 @@ int efa_query_port(struct ib_device *ibdev, port_t port,
 
 	return 0;
 }
+
+#ifdef HAVE_QUERY_PORT_SPEED
+int efa_query_port_speed(struct ib_device *ibdev, u32 port_num, u64 *speed)
+{
+	struct efa_dev *dev = to_edev(ibdev);
+
+	*speed = dev->dev_attr.max_link_speed_gbps * 10;
+
+	return 0;
+}
+#endif
 
 int efa_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask,

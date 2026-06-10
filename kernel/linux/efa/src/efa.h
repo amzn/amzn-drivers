@@ -281,6 +281,9 @@ int efa_query_device(struct ib_device *ibdev,
 		     struct ib_udata *udata);
 int efa_query_port(struct ib_device *ibdev, port_t port,
 		   struct ib_port_attr *props);
+#ifdef HAVE_QUERY_PORT_SPEED
+int efa_query_port_speed(struct ib_device *ibdev, u32 port_num, u64 *speed);
+#endif
 int efa_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask,
 		 struct ib_qp_init_attr *qp_init_attr);
