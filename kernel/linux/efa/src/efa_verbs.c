@@ -416,7 +416,17 @@ static void efa_link_gbps_to_speed_and_width(u16 gbps,
 					     enum ib_port_speed *speed,
 					     enum ib_port_width *width)
 {
-	if (gbps >= 400) {
+#ifdef HAVE_IB_SPEED_XDR
+	if (gbps >= 1600) {
+		*width = IB_WIDTH_8X;
+		*speed = IB_SPEED_XDR;
+	} else if (gbps >= 800) {
+#else
+	if (gbps >= 800) {
+#endif
+		*width = IB_WIDTH_8X;
+		*speed = IB_SPEED_NDR;
+	} else if (gbps >= 400) {
 		*width = IB_WIDTH_8X;
 		*speed = IB_SPEED_HDR;
 	} else if (gbps >= 200) {

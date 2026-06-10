@@ -397,6 +397,10 @@ add_dev_op_compile_conftest(alloc_hw_port_stats ""
   "struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num) { return 0; }"
   HAVE_SPLIT_STATS_ALLOC "")
 
+add_compile_conftest("" "int a = IB_SPEED_XDR;" HAVE_IB_SPEED_XDR "")
+
+add_compile_conftest("" "int a = IB_SPEED_NDR;" HAVE_IB_SPEED_NDR "")
+
 add_compile_conftest("#include <linux/sysfs.h>"
   "
 sysfs_emit(NULL, \"Test\");
