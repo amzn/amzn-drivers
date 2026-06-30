@@ -553,5 +553,12 @@ char *name = errname(ERR_PTR(-EIO));
   "
   HAVE_PRINT_ERR_PTR "")
 
+add_compile_conftest("#include <rdma/uverbs_ioctl.h>"
+  "
+struct ib_udata *udata;
+_ib_copy_validate_udata_in(udata, NULL, 0, 0);
+  "
+  HAVE_IB_COPY_VALIDATE_UDATA_IN "")
+
 run_conftests()
 message("-- Inspecting kernel - done")

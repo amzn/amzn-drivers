@@ -423,6 +423,53 @@ rdma_udata_to_uverbs_attr_bundle(struct ib_udata *udata)
 }
 #endif
 
+#ifndef HAVE_IB_COPY_VALIDATE_UDATA_IN
+#include <rdma/ib_verbs.h>
+
+#ifdef HAVE_ATTR_BUNDLE_DRIVER_UDATA
+#include <rdma/uverbs_ioctl.h>
+
+static inline struct ib_device *rdma_udata_to_dev(struct ib_udata *udata)
+{
+	struct uverbs_attr_bundle *bundle =
+		rdma_udata_to_uverbs_attr_bundle(udata);
+
+	return bundle->context->device;
+}
+#define _efa_udata_dbg(udata, fmt, ...) \
+	ibdev_dbg(rdma_udata_to_dev(udata), fmt, ##__VA_ARGS__)
+#else
+#define _efa_udata_dbg(udata, fmt, ...) pr_debug(fmt, ##__VA_ARGS__)
+#endif
+
+static inline int _ib_copy_validate_udata_in(struct ib_udata *udata, void *req,
+					     size_t kernel_size,
+					     size_t minimum_size)
+{
+	int err;
+
+	if (udata->inlen < minimum_size) {
+		_efa_udata_dbg(udata, "Incompatible ABI params, no input udata\n");
+		return -EINVAL;
+	}
+
+	if (udata->inlen > kernel_size &&
+	    !ib_is_udata_cleared(udata, kernel_size, udata->inlen - kernel_size)) {
+		_efa_udata_dbg(udata, "Incompatible ABI params, unknown fields in udata\n");
+		return -EOPNOTSUPP;
+	}
+
+	err = ib_copy_from_udata(req, udata, min(kernel_size, udata->inlen));
+	if (err)
+		_efa_udata_dbg(udata, "Cannot copy udata\n");
+	return err;
+}
+
+#define ib_copy_validate_udata_in(_udata, _req, _end_member)      \
+	_ib_copy_validate_udata_in(_udata, &(_req), sizeof(_req), \
+				   offsetofend(typeof(_req), _end_member))
+#endif /* HAVE_IB_COPY_VALIDATE_UDATA_IN */
+
 #if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 enum efa_uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_BUFFER_VA = 8,
