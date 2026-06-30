@@ -2183,7 +2183,11 @@ static int efa_create_cq_umem_backport(struct ib_cq *ibcq, const struct ib_cq_in
 		    uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET))
 			return -EINVAL;
 
+#ifdef HAVE_IB_UMEM_GET_VA
+		umem = ib_umem_get_va(ibdev, buffer_va, buffer_length, IB_ACCESS_LOCAL_WRITE);
+#else
 		umem = ib_umem_get(ibdev, buffer_va, buffer_length, IB_ACCESS_LOCAL_WRITE);
+#endif
 		if (IS_ERR(umem))
 			return PTR_ERR(umem);
 
@@ -2913,7 +2917,9 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_out;
 	}
 
-#ifdef HAVE_IB_UMEM_GET_DEVICE_PARAM
+#ifdef HAVE_IB_UMEM_GET_VA
+	mr->umem = ib_umem_get_va(ibpd->device, start, length, access_flags);
+#elif defined(HAVE_IB_UMEM_GET_DEVICE_PARAM)
 	mr->umem = ib_umem_get(ibpd->device, start, length, access_flags);
 #elif defined(HAVE_IB_UMEM_GET_NO_DMASYNC)
 	mr->umem = ib_umem_get(udata, start, length, access_flags);
