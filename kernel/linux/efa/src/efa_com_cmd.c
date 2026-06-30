@@ -590,10 +590,8 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 		}
 
 		result->inline_buf_size_ex = resp.u.queue_attr_2.inline_buf_size_ex;
-#ifdef HAVE_IB_COMP_CNTR
 		result->max_event_counters = resp.u.queue_attr_2.max_event_counters;
 		result->event_counter_max_val = resp.u.queue_attr_2.event_counter_max_val;
-#endif
 	} else {
 		result->inline_buf_size_ex = result->inline_buf_size;
 	}
@@ -930,7 +928,6 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 	return 0;
 }
 
-#ifdef HAVE_IB_COMP_CNTR
 int efa_com_create_event_counter(struct efa_com_dev *edev,
 				 struct efa_com_create_event_counter_params *params,
 				 struct efa_com_create_event_counter_result *result)
@@ -1038,4 +1035,3 @@ int efa_com_modify_event_counter(struct efa_com_dev *edev,
 
 	return 0;
 }
-#endif

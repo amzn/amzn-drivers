@@ -54,6 +54,7 @@ override_dh_auto_install:
 	install -m 644 src/efa_regs_defs.h	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_sysfs.h		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/kcompat.h		${DESTDIR}/${INSTALL_PATH}/src
+	install -m 644 src/kcompat.c		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/CMakeLists.txt	${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/Kbuild.in		${DESTDIR}/${INSTALL_PATH}/src
 	install -m 644 src/efa_p2p.c		${DESTDIR}/${INSTALL_PATH}/src
