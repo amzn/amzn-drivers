@@ -15,6 +15,7 @@
 #include <rdma/ib_verbs.h>
 #include "kcompat.h"
 
+#include "efa_ah_cache.h"
 #include "efa_common_defs.h"
 #include "efa_admin_defs.h"
 #include "efa_admin_cmds_defs.h"
@@ -115,6 +116,8 @@ struct efa_com_dev {
 	u32 dma_addr_bits;
 
 	u32 dev_api_ver;
+	struct efa_ah_cache ah_cache;
+
 	struct efa_com_mmio_read mmio_read;
 };
 

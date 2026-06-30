@@ -2,8 +2,8 @@
 # Copyright 2021-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
 
 list(APPEND efa_sources
-  efa_com_cmd.c efa_com.c efa_main.c efa_verbs.c efa_sysfs.c
-  efa_admin_cmds_defs.h efa_admin_defs.h efa_com_cmd.h efa_com.h
+  efa_com_cmd.c efa_ah_cache.c efa_com.c efa_main.c efa_verbs.c efa_sysfs.c
+  efa_admin_cmds_defs.h efa_admin_defs.h efa_com_cmd.h efa_com.h efa_ah_cache.h
   efa_common_defs.h efa_regs_defs.h efa_sysfs.h
   efa_io_defs.h efa-abi.h efa.h kcompat.h)
 if(ENABLE_P2P)
