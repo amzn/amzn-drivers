@@ -497,6 +497,9 @@ static const struct ib_device_ops efa_dev_ops = {
 #elif defined(HAVE_CREATE_CQ_UMEM)
 	.create_cq_umem = efa_create_cq_umem,
 #endif
+#ifdef HAVE_IB_COMP_CNTR
+	.create_comp_cntr = efa_create_comp_cntr,
+#endif
 #ifdef HAVE_QP_CORE_ALLOCATION
 	.create_qp = efa_create_qp,
 #else
@@ -509,16 +512,25 @@ static const struct ib_device_ops efa_dev_ops = {
 	.dealloc_ucontext = efa_dealloc_ucontext,
 	.dereg_mr = efa_dereg_mr,
 	.destroy_ah = efa_destroy_ah,
+#ifdef HAVE_IB_COMP_CNTR
+	.destroy_comp_cntr = efa_destroy_comp_cntr,
+#endif
 	.destroy_cq = efa_destroy_cq,
 	.destroy_qp = efa_destroy_qp,
 	.get_hw_stats = efa_get_hw_stats,
 	.get_link_layer = efa_port_link_layer,
 	.get_port_immutable = efa_get_port_immutable,
+#ifdef HAVE_IB_COMP_CNTR
+	.modify_comp_cntr = efa_modify_comp_cntr,
+#endif
 	.mmap = efa_mmap,
 #ifdef HAVE_CORE_MMAP_XA
 	.mmap_free = efa_mmap_free,
 #endif
 	.modify_qp = efa_modify_qp,
+#ifdef HAVE_IB_COMP_CNTR
+	.qp_attach_comp_cntr = efa_qp_attach_comp_cntr,
+#endif
 	.query_device = efa_query_device,
 	.query_gid = efa_query_gid,
 	.query_pkey = efa_query_pkey,
@@ -530,6 +542,8 @@ static const struct ib_device_ops efa_dev_ops = {
 	.reg_user_mr = efa_reg_mr,
 #ifdef HAVE_MR_DMABUF
 	.reg_user_mr_dmabuf = efa_reg_user_mr_dmabuf,
+#endif
+#ifdef HAVE_IB_COMP_CNTR
 #endif
 #ifdef HAVE_EFA_KVERBS
 	.get_dma_mr = efa_get_dma_mr,
@@ -546,6 +560,9 @@ static const struct ib_device_ops efa_dev_ops = {
 #endif
 #ifdef HAVE_CQ_CORE_ALLOCATION
 	INIT_RDMA_OBJ_SIZE(ib_cq, efa_cq, ibcq),
+#endif
+#ifdef HAVE_IB_COMP_CNTR
+	INIT_RDMA_OBJ_SIZE(ib_comp_cntr, efa_comp_cntr, ibcc),
 #endif
 #ifdef HAVE_PD_CORE_ALLOCATION
 	INIT_RDMA_OBJ_SIZE(ib_pd, efa_pd, ibpd),

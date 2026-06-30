@@ -560,5 +560,14 @@ _ib_copy_validate_udata_in(udata, NULL, 0, 0);
   "
   HAVE_IB_COPY_VALIDATE_UDATA_IN "")
 
+add_compile_conftest(
+  "
+#include <rdma/ib_verbs.h>
+  "
+  "
+struct ib_comp_cntr cc;
+  "
+  HAVE_IB_COMP_CNTR "")
+
 run_conftests()
 message("-- Inspecting kernel - done")

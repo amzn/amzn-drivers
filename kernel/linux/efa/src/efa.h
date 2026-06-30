@@ -195,6 +195,16 @@ struct efa_cq {
 #endif
 };
 
+#ifdef HAVE_IB_COMP_CNTR
+struct efa_comp_cntr {
+	struct ib_comp_cntr ibcc;
+	struct ib_umem *comp_umem;
+	struct ib_umem *err_umem;
+	u32 comp_handle;
+	u32 err_handle;
+};
+#endif
+
 #ifdef HAVE_EFA_KVERBS
 struct efa_wq {
 	u64 *wrid;
@@ -359,6 +369,15 @@ struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev,
 			     struct ib_ucontext *ibucontext,
 			     struct ib_udata *udata);
 #endif
+#endif
+#ifdef HAVE_IB_COMP_CNTR
+int efa_create_comp_cntr(struct ib_comp_cntr *ibcc,
+			 struct uverbs_attr_bundle *attrs);
+int efa_destroy_comp_cntr(struct ib_comp_cntr *ibcc);
+int efa_modify_comp_cntr(struct ib_comp_cntr *ibcc, enum ib_comp_cntr_entry entry,
+			 enum ib_comp_cntr_modify_op op, u64 value);
+int efa_qp_attach_comp_cntr(struct ib_qp *ibqp, struct ib_comp_cntr *ibcc,
+			    struct ib_qp_attach_comp_cntr_attr *attr);
 #endif
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
