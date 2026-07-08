@@ -5858,6 +5858,9 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	ena_devlink_unregister(adapter->devlink);
 	ena_devlink_free(adapter->devlink);
 
+	ena_reset_reason_info_free(adapter);
+	ena_free_stats_buffers(adapter);
+
 	if (shutdown) {
 		netif_device_detach(netdev);
 		dev_close(netdev);
@@ -5865,6 +5868,7 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	} else {
 		rtnl_unlock();
 		unregister_netdev(netdev);
+		/* No access to adapter and netdev after this point */
 		free_netdev(netdev);
 	}
 
@@ -5872,11 +5876,7 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 
 	ena_com_flow_steering_destroy(ena_dev);
 
-	ena_reset_reason_info_free(adapter);
-
 	ena_com_delete_debug_area(ena_dev);
-
-	ena_free_stats_buffers(adapter);
 
 	ena_com_delete_host_info(ena_dev);
 
