@@ -31,6 +31,14 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.17.2 release notes
+**Bug Fixes**
+* Fix use-after-free of adapter memory in __ena_shutoff
+
+**Notes**
+* 2.17.1 version was skipped as it was used to symbolically distinguish
+  the drivers between Amazon Linux AMIs
+
 ## r2.17.0 release notes
 **New Features**
 * XDP hints and AF_XDP metadata support
