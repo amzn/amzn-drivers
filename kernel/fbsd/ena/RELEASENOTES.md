@@ -20,6 +20,15 @@ The driver was verified on the following distributions:
 | HEAD      | 8020c05683f |
 +-----------+-------------+
 
+## r2.8.4 release notes
+**Bug Fixes**
+* Fix false 'missing TX completions' warnings due to timestamp race
+* Put taskqueues into correct NUMA domain if !RSS
+
+**Minor Changes**
+* Batch RX statistics updates
+* Swap RX/TX completions cleanup order
+
 ## r2.8.3 release notes
 **Features**
 * Report RX overrun errors via sysctl hw stats
