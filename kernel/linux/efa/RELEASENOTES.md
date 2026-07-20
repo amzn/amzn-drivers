@@ -3,6 +3,9 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r3.1.99 release notes
+* Dev release with Completion Counters
+
 ## r3.1.0 release notes
 * Add support for extended max inline buffer size
 * Add feature mismatch error reporting

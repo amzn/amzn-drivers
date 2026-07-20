@@ -1,3 +1,8 @@
+efa (3.1.99-1.amzn1) unstable; urgency=medium
+  * Dev release with Completion Counters
+
+ -- Michael Margolin <mrgolin@amazon.com>  Mon, 20 Jul 2026 21:05:53 +0000
+
 efa (3.1.0-1.amzn1) unstable; urgency=medium
   * Add support for extended max inline buffer size
   * Add feature mismatch error reporting

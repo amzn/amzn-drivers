@@ -113,6 +113,9 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Mon Jul 20 2026 Michael Margolin <mrgolin@amazon.com> - 3.1.99
+- Dev release with Completion Counters
+
 * Mon May 11 2026 Yonatan Nachum <ynachum@amazon.com> - 3.1.0
 - Add support for extended max inline buffer size
 - Add feature mismatch error reporting
