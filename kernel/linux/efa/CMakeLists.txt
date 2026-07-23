@@ -4,13 +4,16 @@
 cmake_minimum_required(VERSION 3.10)
 project(efa C)
 
+set(KERNEL_DIR "" CACHE STRING "Kernel directory to build for")
 set(KERNEL_VER "" CACHE STRING "Kernel version to build for")
-if(NOT KERNEL_VER)
-  execute_process(COMMAND uname -r OUTPUT_VARIABLE uname_r
-                  OUTPUT_STRIP_TRAILING_WHITESPACE)
-  set(KERNEL_DIR "/lib/modules/${uname_r}/build")
-else()
-  set(KERNEL_DIR "/lib/modules/${KERNEL_VER}/build")
+if(NOT KERNEL_DIR)
+  if(NOT KERNEL_VER)
+    execute_process(COMMAND uname -r OUTPUT_VARIABLE uname_r
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(KERNEL_DIR "/lib/modules/${uname_r}/build")
+  else()
+    set(KERNEL_DIR "/lib/modules/${KERNEL_VER}/build")
+  endif()
 endif()
 
 unset(KERNEL_MAKEFILE CACHE)
