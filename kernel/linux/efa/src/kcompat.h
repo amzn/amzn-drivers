@@ -443,4 +443,12 @@ enum uverbs_attrs_query_port_speed_cmd_attr_ids {
 };
 #endif
 
+#ifndef HAVE_KZALLOC_OBJ
+#define __efa_default_gfp(a, b, ...) b
+#define _efa_gfp(...) __efa_default_gfp(, ##__VA_ARGS__, GFP_KERNEL)
+#define kzalloc_obj(P, ...)		((typeof(P) *)kzalloc(sizeof(P), _efa_gfp(__VA_ARGS__)))
+#define kzalloc_objs(P, COUNT, ...)	((typeof(P) *)kcalloc(COUNT, sizeof(P), _efa_gfp(__VA_ARGS__)))
+#define kmalloc_objs(P, COUNT, ...)	((typeof(P) *)kmalloc_array(COUNT, sizeof(P), _efa_gfp(__VA_ARGS__)))
+#endif
+
 #endif /* _KCOMPAT_H_ */

@@ -546,5 +546,14 @@ char *name = errname(ERR_PTR(-EIO));
   "
   HAVE_PRINT_ERR_PTR "")
 
+add_compile_conftest(
+  "
+#include <linux/slab.h>
+  "
+  "
+struct { int x; } *p = kzalloc_obj(*p);
+  "
+  HAVE_KZALLOC_OBJ "")
+
 run_conftests()
 message("-- Inspecting kernel - done")
