@@ -76,6 +76,7 @@ install -m 644 config/efa.cmake		%{buildroot}%{install_path}/config
 cd src
 install -m 644 efa_com.c		%{buildroot}%{install_path}/src
 install -m 644 efa_com_cmd.c		%{buildroot}%{install_path}/src
+install -m 644 efa_ah_cache.c		%{buildroot}%{install_path}/src
 install -m 644 efa_main.c		%{buildroot}%{install_path}/src
 install -m 644 efa_sysfs.c		%{buildroot}%{install_path}/src
 install -m 644 efa_verbs.c		%{buildroot}%{install_path}/src
@@ -84,6 +85,7 @@ install -m 644 efa-abi.h 		%{buildroot}%{install_path}/src
 install -m 644 efa_admin_cmds_defs.h 	%{buildroot}%{install_path}/src
 install -m 644 efa_admin_defs.h 	%{buildroot}%{install_path}/src
 install -m 644 efa_com_cmd.h		%{buildroot}%{install_path}/src
+install -m 644 efa_ah_cache.h		%{buildroot}%{install_path}/src
 install -m 644 efa_com.h		%{buildroot}%{install_path}/src
 install -m 644 efa_common_defs.h	%{buildroot}%{install_path}/src
 install -m 644 efa_io_defs.h		%{buildroot}%{install_path}/src
