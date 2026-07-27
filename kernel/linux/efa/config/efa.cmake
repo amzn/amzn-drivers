@@ -488,7 +488,13 @@ struct ib_block_iter biter;
   "
   HAVE_RDMA_ITER_H "")
 
-add_compile_conftest("" "fallthrough;" HAVE_FALLTHROUGH "")
+add_compile_conftest(
+  "
+#ifndef fallthrough
+#error fallthrough not defined
+#endif
+  "
+  "" HAVE_FALLTHROUGH "")
 
 add_compile_conftest("#include <linux/log2.h>" "u64 x = bits_per(1);" HAVE_LOG2_BITS_PER "")
 
