@@ -472,6 +472,13 @@ add_dev_op_compile_conftest(create_user_cq ""
 "int efa_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr, struct uverbs_attr_bundle *attrs) { return 0; }"
   HAVE_CREATE_USER_CQ "")
 
+add_compile_conftest("#include <rdma/ib_verbs.h>"
+  "
+struct ib_cq cq;
+struct ib_umem *umem = cq.umem;
+  "
+  HAVE_IB_CQ_UMEM "")
+
 add_compile_conftest(
   "
 #include <rdma/iter.h>
@@ -578,6 +585,12 @@ struct { int member; } req;
 ib_copy_validate_udata_in(udata, req, member);
   "
   HAVE_IB_COPY_VALIDATE_UDATA_IN "")
+
+add_compile_conftest("#include <rdma/ib_umem.h>"
+  "
+ib_umem_get_cq_buf(NULL, NULL, 0, 0);
+  "
+  HAVE_IB_UMEM_GET_CQ_BUF "")
 
 run_conftests()
 message("-- Inspecting kernel - done")

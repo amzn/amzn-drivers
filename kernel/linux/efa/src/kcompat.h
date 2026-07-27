@@ -516,7 +516,7 @@ err_fault:
 
 #endif /* HAVE_IB_COPY_VALIDATE_UDATA_IN */
 
-#if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
+#if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM)
 enum efa_uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_BUFFER_VA = 8,
 	UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH,
@@ -524,6 +524,96 @@ enum efa_uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET,
 };
 #endif
+
+#if !defined(HAVE_IB_UMEM_GET_CQ_BUF) && defined(HAVE_UVERBS_ATTR_RAW_FD)
+#include <rdma/ib_umem.h>
+#include <rdma/uverbs_ioctl.h>
+
+static inline struct ib_umem *
+ib_umem_get_cq_buf(struct ib_device *device,
+		   const struct uverbs_attr_bundle *attrs,
+		   size_t size, int access)
+{
+	struct ib_umem_dmabuf *umem_dmabuf;
+	struct ib_umem *umem;
+	u64 buffer_length;
+	u64 buffer_offset;
+	u64 buffer_va;
+	int buffer_fd;
+	int ret;
+
+	if (!attrs)
+		return NULL;
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_VA)) {
+		ret = uverbs_copy_from(&buffer_va, attrs,
+				       UVERBS_ATTR_CREATE_CQ_BUFFER_VA);
+		if (ret)
+			return ERR_PTR(ret);
+
+		ret = uverbs_copy_from(&buffer_length, attrs,
+				       UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH);
+		if (ret)
+			return ERR_PTR(ret);
+
+		if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_FD) ||
+		    uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET))
+			return ERR_PTR(-EINVAL);
+
+#ifdef HAVE_IB_UMEM_GET_VA
+		umem = ib_umem_get_va(device, buffer_va, buffer_length, access);
+#elif defined(HAVE_IB_UMEM_GET_DEVICE_PARAM)
+		umem = ib_umem_get(device, buffer_va, buffer_length, access);
+#else
+		return ERR_PTR(-EOPNOTSUPP);
+#endif
+		if (IS_ERR(umem))
+			return umem;
+
+	} else if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_FD)) {
+		ret = uverbs_get_raw_fd(&buffer_fd, attrs,
+					UVERBS_ATTR_CREATE_CQ_BUFFER_FD);
+		if (ret)
+			return ERR_PTR(ret);
+
+		ret = uverbs_copy_from(&buffer_offset, attrs,
+				       UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET);
+		if (ret)
+			return ERR_PTR(ret);
+
+		ret = uverbs_copy_from(&buffer_length, attrs,
+				       UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH);
+		if (ret)
+			return ERR_PTR(ret);
+
+		if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_VA))
+			return ERR_PTR(-EINVAL);
+
+#ifdef HAVE_IB_UMEM_DMABUF_PINNED
+		umem_dmabuf = ib_umem_dmabuf_get_pinned(device, buffer_offset,
+							buffer_length,
+							buffer_fd, access);
+		if (IS_ERR(umem_dmabuf))
+			return ERR_CAST(umem_dmabuf);
+		umem = &umem_dmabuf->umem;
+#else
+		return ERR_PTR(-EOPNOTSUPP);
+#endif
+	} else if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET) ||
+		   uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH)) {
+		return ERR_PTR(-EINVAL);
+	} else {
+		return NULL;
+	}
+
+	if (umem->length < size) {
+		ib_umem_release(umem);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return umem;
+}
+#endif /* !HAVE_IB_UMEM_GET_CQ_BUF && HAVE_UVERBS_ATTR_RAW_FD */
 
 #if !defined(HAVE_QUERY_PORT_SPEED)
 enum {
