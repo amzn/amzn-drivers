@@ -568,10 +568,10 @@ int efa_query_port_speed(struct ib_device *ibdev, u32 port_num, u64 *speed) { re
 
 add_compile_conftest(
   "
-#include <errname.h>
+#include <linux/errname.h>
   "
   "
-char *name = errname(ERR_PTR(-EIO));
+const char *name = errname(-EIO);
   "
   HAVE_PRINT_ERR_PTR "")
 
