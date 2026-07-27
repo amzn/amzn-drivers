@@ -359,7 +359,20 @@ int efa_com_create_ah(struct efa_com_dev *edev,
 	struct efa_admin_create_ah_resp cmd_completion;
 	struct efa_com_admin_queue *aq = &edev->aq;
 	struct efa_admin_create_ah_cmd ah_cmd = {};
+	struct efa_ah_cache_entry *entry;
 	int err;
+
+	entry = efa_ah_cache_get(&edev->ah_cache, params->pdn, params->dest_addr);
+	if (IS_ERR(entry))
+		return PTR_ERR(entry);
+
+	mutex_lock(&entry->lock);
+	if (entry->usecnt) {
+		result->ah = entry->ah;
+		entry->usecnt++;
+		mutex_unlock(&entry->lock);
+		return 0;
+	}
 
 	ah_cmd.aq_common_desc.opcode = EFA_ADMIN_CREATE_AH;
 
@@ -372,13 +385,18 @@ int efa_com_create_ah(struct efa_com_dev *edev,
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
+		mutex_unlock(&entry->lock);
+		efa_ah_cache_put(&edev->ah_cache, entry);
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to create ah for %pI6 [%d]\n",
 				      ah_cmd.dest_addr, err);
 		return err;
 	}
 
+	entry->ah = cmd_completion.ah;
 	result->ah = cmd_completion.ah;
+	entry->usecnt++;
+	mutex_unlock(&entry->lock);
 
 	return 0;
 }
@@ -389,11 +407,20 @@ int efa_com_destroy_ah(struct efa_com_dev *edev,
 	struct efa_admin_destroy_ah_resp cmd_completion;
 	struct efa_admin_destroy_ah_cmd ah_cmd = {};
 	struct efa_com_admin_queue *aq = &edev->aq;
-	int err;
+	struct efa_ah_cache_entry *entry;
+	int err = 0;
+
+	entry = efa_ah_cache_lookup(&edev->ah_cache, params->pdn, params->gid);
+	if (!entry)
+		return -EINVAL;
+
+	mutex_lock(&entry->lock);
+	if (entry->usecnt > 1)
+		goto out_put;
 
 	ah_cmd.aq_common_desc.opcode = EFA_ADMIN_DESTROY_AH;
-	ah_cmd.ah = params->ah;
-	ah_cmd.pd = params->pdn;
+	ah_cmd.ah = entry->ah;
+	ah_cmd.pd = entry->key.pd;
 
 	err = efa_com_cmd_exec(aq,
 			       (struct efa_admin_aq_entry *)&ah_cmd,
@@ -401,13 +428,19 @@ int efa_com_destroy_ah(struct efa_com_dev *edev,
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
+		mutex_unlock(&entry->lock);
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to destroy ah-%d pd-%d [%d]\n",
 				      ah_cmd.ah, ah_cmd.pd, err);
 		return err;
 	}
 
-	return 0;
+out_put:
+	entry->usecnt--;
+	mutex_unlock(&entry->lock);
+	efa_ah_cache_put(&edev->ah_cache, entry);
+
+	return err;
 }
 
 bool
