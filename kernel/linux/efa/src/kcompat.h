@@ -423,6 +423,99 @@ rdma_udata_to_uverbs_attr_bundle(struct ib_udata *udata)
 }
 #endif
 
+#ifndef HAVE_IB_COPY_VALIDATE_UDATA_IN
+#include <rdma/ib_verbs.h>
+#include <rdma/uverbs_ioctl.h>
+
+static inline struct ib_device *efa_udata_to_dev(struct ib_udata *udata)
+{
+#if defined(HAVE_ATTR_BUNDLE_DRIVER_UDATA) && defined(HAVE_ATTR_BUNDLE_CONTEXT)
+	struct uverbs_attr_bundle *bundle =
+		rdma_udata_to_uverbs_attr_bundle(udata);
+
+	return bundle->context->device;
+#else
+	return NULL;
+#endif
+}
+
+#define _efa_udata_dbg(udata, fmt, ...) \
+	ibdev_dbg(efa_udata_to_dev(udata), fmt, ##__VA_ARGS__)
+
+static inline int _ib_copy_validate_udata_in(struct ib_udata *udata, void *req,
+					     size_t kernel_size, size_t minimum_size)
+{
+	int err;
+
+	if (udata->inlen < minimum_size) {
+		_efa_udata_dbg(udata, "System call driver input udata too small\n");
+		return -EINVAL;
+	}
+
+	if (udata->inlen > kernel_size &&
+	    !ib_is_udata_cleared(udata, kernel_size, udata->inlen - kernel_size)) {
+		_efa_udata_dbg(udata, "System call driver input udata not zero\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (!req)
+		return 0;
+
+	memset(req, 0, kernel_size);
+	err = ib_copy_from_udata(req, udata, min(kernel_size, udata->inlen));
+	if (err)
+		_efa_udata_dbg(udata, "System call driver input udata EFAULT\n");
+
+	return err;
+}
+
+#define ib_copy_validate_udata_in(_udata, _req, _end_member)      \
+	_ib_copy_validate_udata_in(_udata, &(_req), sizeof(_req), \
+				   offsetofend(typeof(_req), _end_member))
+
+#define ib_copy_validate_udata_in_cm(_udata, _req, _end_member, _valid_cm)    \
+	({                                                                    \
+		typeof((_req).comp_mask) __valid_cm = _valid_cm;              \
+		int ret =                                                     \
+			ib_copy_validate_udata_in(_udata, _req, _end_member); \
+		if (!ret && ((_req).comp_mask & ~__valid_cm)) {               \
+			_efa_udata_dbg(_udata, "System call driver input udata has unsupported comp_mask\n"); \
+			ret = -EOPNOTSUPP;                                    \
+		}                                                             \
+		ret;                                                          \
+	})
+
+static inline int ib_is_udata_in_empty(struct ib_udata *udata)
+{
+	if (!udata || udata->inlen == 0)
+		return 0;
+	return _ib_copy_validate_udata_in(udata, NULL, 0, 0);
+}
+
+static inline int _ib_respond_udata(struct ib_udata *udata, const void *src, size_t len)
+{
+	size_t copy_len;
+
+	/* 0 length copy_len is a NOP for copy_to_user() and doesn't fail. */
+	copy_len = min(len, udata->outlen);
+	if (copy_to_user(udata->outbuf, src, copy_len))
+		goto err_fault;
+	if (copy_len < udata->outlen) {
+		if (clear_user(udata->outbuf + copy_len,
+			       udata->outlen - copy_len))
+			goto err_fault;
+	}
+	return 0;
+err_fault:
+	_efa_udata_dbg(udata, "System call driver out udata has EFAULT\n");
+	return -EFAULT;
+}
+
+#define ib_respond_udata(_udata, _rep) \
+	_ib_respond_udata(_udata, &(_rep), sizeof(_rep))
+
+#endif /* HAVE_IB_COPY_VALIDATE_UDATA_IN */
+
 #if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 enum efa_uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_BUFFER_VA = 8,

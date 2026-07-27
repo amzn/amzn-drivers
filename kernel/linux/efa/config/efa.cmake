@@ -265,6 +265,15 @@ struct uverbs_attr_bundle bundle = {
   "
   HAVE_ATTR_BUNDLE_DRIVER_UDATA "")
 
+add_compile_conftest(
+  "
+#include <rdma/uverbs_ioctl.h>"
+  "
+struct uverbs_attr_bundle bundle;
+struct ib_ucontext *ctx = bundle.context;
+  "
+  HAVE_ATTR_BUNDLE_CONTEXT "")
+
 add_compile_conftest(""
   "int a = IB_PORT_PHYS_STATE_LINK_UP;"
   HAVE_IB_PORT_PHYS_STATE_LINK_UP "")
@@ -554,6 +563,14 @@ add_compile_conftest(
 struct { int x; } *p = kzalloc_obj(*p);
   "
   HAVE_KZALLOC_OBJ "")
+
+add_compile_conftest("#include <rdma/uverbs_ioctl.h>"
+  "
+struct ib_udata *udata;
+struct { int member; } req;
+ib_copy_validate_udata_in(udata, req, member);
+  "
+  HAVE_IB_COPY_VALIDATE_UDATA_IN "")
 
 run_conftests()
 message("-- Inspecting kernel - done")
