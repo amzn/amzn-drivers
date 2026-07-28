@@ -208,10 +208,10 @@ struct efa_io_fast_mr_reg_req {
 
 	/*
 	 * control flags
-	 * 4:0 : phys_page_size_shift - page size is (1 <<
-	 *    phys_page_size_shift)
+	 * 4:0 : phys_page_size_shift_bits_0_4 - page size is
+	 *    (1 << phys_page_size_shift)
 	 * 6:5 : pbl_mode - enum efa_io_frwr_pbl_mode
-	 * 7 : reserved - MBZ
+	 * 7 : phys_page_size_shift_bit_5
 	 */
 	u8 flags;
 
@@ -414,8 +414,9 @@ struct efa_io_rx_cdesc_ex {
 #define EFA_IO_FAST_MR_REG_REQ_LOCAL_WRITE_ENABLE_MASK      BIT(0)
 #define EFA_IO_FAST_MR_REG_REQ_REMOTE_WRITE_ENABLE_MASK     BIT(1)
 #define EFA_IO_FAST_MR_REG_REQ_REMOTE_READ_ENABLE_MASK      BIT(2)
-#define EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_MASK    GENMASK(4, 0)
+#define EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_BITS_0_4_MASK GENMASK(4, 0)
 #define EFA_IO_FAST_MR_REG_REQ_PBL_MODE_MASK                GENMASK(6, 5)
+#define EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_BIT_5_MASK BIT(7)
 
 /* rx_desc */
 #define EFA_IO_RX_DESC_LKEY_MASK                            GENMASK(23, 0)
