@@ -94,6 +94,7 @@ install -m 644 efa_verbs.h		%{buildroot}%{install_path}/src
 install -m 644 efa_regs_defs.h		%{buildroot}%{install_path}/src
 install -m 644 efa_sysfs.h		%{buildroot}%{install_path}/src
 install -m 644 kcompat.h		%{buildroot}%{install_path}/src
+install -m 644 kcompat.c		%{buildroot}%{install_path}/src
 install -m 644 CMakeLists.txt		%{buildroot}%{install_path}/src
 install -m 644 Kbuild.in		%{buildroot}%{install_path}/src
 install -m 644 efa_p2p.c		%{buildroot}%{install_path}/src

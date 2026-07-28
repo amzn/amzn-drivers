@@ -195,7 +195,6 @@ struct efa_cq {
 #endif
 };
 
-#ifdef HAVE_IB_COMP_CNTR
 struct efa_comp_cntr {
 	struct ib_comp_cntr ibcc;
 	struct ib_umem *comp_umem;
@@ -203,7 +202,6 @@ struct efa_comp_cntr {
 	u32 comp_handle;
 	u32 err_handle;
 };
-#endif
 
 #ifdef HAVE_EFA_KVERBS
 struct efa_wq {
@@ -268,6 +266,12 @@ struct efa_qp {
 	u32 max_send_sge;
 	u32 max_recv_sge;
 	u32 max_inline_data;
+#ifndef HAVE_IB_COMP_CNTR
+#ifdef HAVE_XARRAY
+	struct xarray comp_cntrs;
+#endif
+	u32 comp_cntr_op_mask;
+#endif
 #ifdef HAVE_EFA_KVERBS
 	struct efa_sq sq;
 	struct efa_rq rq;
@@ -368,7 +372,7 @@ struct ib_cq *efa_kzalloc_cq(struct ib_device *ibdev,
 			     struct ib_udata *udata);
 #endif
 #endif
-#ifdef HAVE_IB_COMP_CNTR
+#ifdef HAVE_IB_DEVICE_DRIVER_DEF
 int efa_query_comp_cntr_caps(struct ib_device *ibdev,
 			     struct ib_comp_cntr_caps *caps,
 			     struct uverbs_attr_bundle *attrs);

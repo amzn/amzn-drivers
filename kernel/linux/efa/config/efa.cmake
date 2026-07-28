@@ -530,6 +530,15 @@ fd = uverbs_get_raw_fd(NULL, NULL, 0);
 
 add_compile_conftest(
   "
+#include <rdma/uverbs_ioctl.h>
+  "
+  "
+uverbs_finalize_uobj_create(NULL, 0);
+  "
+  HAVE_UVERBS_FINALIZE_UOBJ_CREATE "")
+
+add_compile_conftest(
+  "
 #include <rdma/ib_umem.h>
   "
   "

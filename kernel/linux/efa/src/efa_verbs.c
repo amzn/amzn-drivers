@@ -216,12 +216,10 @@ static inline struct efa_ah *to_eah(struct ib_ah *ibah)
 	return container_of(ibah, struct efa_ah, ibah);
 }
 
-#ifdef HAVE_IB_COMP_CNTR
 static inline struct efa_comp_cntr *to_ecc(struct ib_comp_cntr *ibcc)
 {
 	return container_of(ibcc, struct efa_comp_cntr, ibcc);
 }
-#endif
 
 static inline struct efa_user_mmap_entry *
 to_emmap(struct rdma_user_mmap_entry *rdma_entry)
@@ -398,7 +396,7 @@ int efa_query_device(struct ib_device *ibdev,
 		if (EFA_DEV_CAP(dev, UNSOLICITED_WRITE_RECV))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_UNSOLICITED_WRITE_RECV;
 
-#ifdef HAVE_IB_COMP_CNTR
+#ifdef HAVE_IB_DEVICE_DRIVER_DEF
 		if (EFA_DEV_CAP(dev, EVENT_COUNTERS))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_COMP_CNTR;
 #endif
@@ -758,6 +756,10 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 {
 	struct efa_dev *dev = to_edev(ibqp->pd->device);
 	struct efa_qp *qp = to_eqp(ibqp);
+#if !defined(HAVE_IB_COMP_CNTR) && defined(HAVE_XARRAY)
+	struct ib_comp_cntr *cc;
+	unsigned long index;
+#endif
 	int err;
 
 	ibdev_dbg(&dev->ibdev, "Destroy qp[%u]\n", ibqp->qp_num);
@@ -783,6 +785,12 @@ int efa_destroy_qp(struct ib_qp *ibqp)
 		efa_free_mapped(dev, qp->rq_cpu_addr, qp->rq_dma_addr,
 				qp->rq_size, DMA_TO_DEVICE);
 	}
+
+#if !defined(HAVE_IB_COMP_CNTR) && defined(HAVE_XARRAY)
+	xa_for_each(&qp->comp_cntrs, index, cc)
+		atomic_dec(&cc->usecnt);
+	xa_destroy(&qp->comp_cntrs);
+#endif
 
 #ifndef HAVE_QP_CORE_ALLOCATION
 	kfree(qp);
@@ -1273,6 +1281,9 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	u16 supported_efa_flags = 0;
 	int err;
 
+#if !defined(HAVE_IB_COMP_CNTR) && defined(HAVE_XARRAY)
+	xa_init(&qp->comp_cntrs);
+#endif
 #ifdef HAVE_EFA_KVERBS
 	if (!udata)
 		return efa_create_qp_kernel(ibqp, init_attr);
@@ -1401,6 +1412,9 @@ err_free_mapped:
 		efa_free_mapped(dev, qp->rq_cpu_addr, qp->rq_dma_addr,
 				qp->rq_size, DMA_TO_DEVICE);
 err_out:
+#if !defined(HAVE_IB_COMP_CNTR) && defined(HAVE_XARRAY)
+	xa_destroy(&qp->comp_cntrs);
+#endif
 	atomic64_inc(&dev->stats.create_qp_err);
 	return err;
 }
@@ -3692,7 +3706,7 @@ enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
 	return IB_LINK_LAYER_UNSPECIFIED;
 }
 
-#ifdef HAVE_IB_COMP_CNTR
+#ifdef HAVE_IB_DEVICE_DRIVER_DEF
 int efa_query_comp_cntr_caps(struct ib_device *ibdev,
 			     struct ib_comp_cntr_caps *caps,
 			     struct uverbs_attr_bundle *attrs)
@@ -3962,7 +3976,6 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(efa_cq_create,
 						UA_OPTIONAL));
 #endif
 
-#ifdef HAVE_IB_COMP_CNTR
 ADD_UVERBS_ATTRIBUTES_SIMPLE(
 	efa_comp_cntr_create,
 	UVERBS_OBJECT_COMP_CNTR,
@@ -3975,9 +3988,10 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(
 		EFA_IB_ATTR_CREATE_COMP_CNTR_ERR_BUFFER,
 		UVERBS_ATTR_STRUCT(struct ib_uverbs_buffer_desc, length),
 		UA_MANDATORY));
-#endif
 
+extern const struct uapi_definition efa_kcompat_uapi_defs[];
 const struct uapi_definition efa_uapi_defs[] = {
+	UAPI_DEF_CHAIN(efa_kcompat_uapi_defs),
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_MR,
 				&efa_mr),
 #ifndef HAVE_QUERY_PORT_SPEED
@@ -3987,10 +4001,8 @@ const struct uapi_definition efa_uapi_defs[] = {
 #if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM) && defined(HAVE_UVERBS_ATTR_RAW_FD) && defined(HAVE_IB_UMEM_DMABUF_PINNED)
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_CQ, &efa_cq_create),
 #endif
-#ifdef HAVE_IB_COMP_CNTR
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_COMP_CNTR,
 				&efa_comp_cntr_create),
-#endif
 	{},
 };
 #endif
