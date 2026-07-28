@@ -367,10 +367,10 @@ struct efa_admin_reg_mr_cmd {
 
 	/*
 	 * flags and page size
-	 * 4:0 : phys_page_size_shift - page size is (1 <<
+	 * 5:0 : phys_page_size_shift - page size is (1 <<
 	 *    phys_page_size_shift). Page size is used for
 	 *    building the Virtual to Physical address mapping
-	 * 6:5 : reserved - MBZ
+	 * 6 : reserved - MBZ
 	 * 7 : mem_addr_phy_mode_en - Enable bit for physical
 	 *    memory registration (no translation), can be used
 	 *    only by privileged clients. If set, PBL must
@@ -1103,7 +1103,7 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_MODIFY_QP_CMD_RNR_RETRY_MASK              BIT(5)
 
 /* reg_mr_cmd */
-#define EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK      GENMASK(4, 0)
+#define EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK      GENMASK(5, 0)
 #define EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN_MASK      BIT(7)
 #define EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK        BIT(0)
 #define EFA_ADMIN_REG_MR_CMD_REMOTE_WRITE_ENABLE_MASK       BIT(1)
