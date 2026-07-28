@@ -49,7 +49,7 @@ static const struct pci_device_id efa_pci_tbl[] = {
 #endif
 
 MODULE_VERSION(DRV_MODULE_VERSION);
-MODULE_SOFTDEP("pre: ib_uverbs");
+MODULE_SOFTDEP("pre: ib_uverbs crc16");
 
 static char version[] = DEVICE_NAME " v" DRV_MODULE_VERSION;
 
