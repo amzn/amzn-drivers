@@ -598,6 +598,12 @@ ib_umem_get_cq_buf(NULL, NULL, 0, 0);
   "
   HAVE_IB_UMEM_GET_CQ_BUF "")
 
+add_compile_conftest("#include <rdma/ib_umem.h>"
+  "
+ib_umem_get_attr(NULL, NULL, 0, 0, 0);
+  "
+  HAVE_IB_UMEM_GET_ATTR "")
+
 add_compile_conftest(
   "
 #include <rdma/ib_verbs.h>

@@ -516,6 +516,93 @@ err_fault:
 
 #endif /* HAVE_IB_COPY_VALIDATE_UDATA_IN */
 
+#ifndef HAVE_IB_UMEM_GET_ATTR
+#include <rdma/ib_umem.h>
+#include <rdma/uverbs_ioctl.h>
+
+enum ib_uverbs_buffer_type {
+	IB_UVERBS_BUFFER_TYPE_DMABUF,
+	IB_UVERBS_BUFFER_TYPE_VA,
+};
+
+struct ib_uverbs_buffer_desc {
+	__u32 type;
+	__s32 fd;
+	__u32 flags;
+	__u32 optional_flags;
+	__aligned_u64 addr;
+	__aligned_u64 length;
+};
+
+static inline struct ib_umem *
+ib_umem_get_attr(struct ib_device *device,
+		 const struct uverbs_attr_bundle *attrs,
+		 u16 attr_id, size_t size, int access)
+{
+	struct ib_uverbs_buffer_desc desc = {};
+	struct ib_umem *umem;
+	int ret;
+
+	if (!attrs)
+		return NULL;
+
+	ret = uverbs_copy_from(&desc, attrs, attr_id);
+	if (ret == -ENOENT)
+		return NULL;
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (desc.flags)
+		return ERR_PTR(-EINVAL);
+
+	switch (desc.type) {
+	case IB_UVERBS_BUFFER_TYPE_DMABUF:
+#ifdef HAVE_IB_UMEM_DMABUF_PINNED
+	{
+		struct ib_umem_dmabuf *umem_dmabuf;
+
+		umem_dmabuf = ib_umem_dmabuf_get_pinned(device, desc.addr,
+							desc.length, desc.fd,
+							access);
+		if (IS_ERR(umem_dmabuf))
+			return ERR_CAST(umem_dmabuf);
+		umem = &umem_dmabuf->umem;
+		break;
+	}
+#else
+		return ERR_PTR(-EOPNOTSUPP);
+#endif
+	case IB_UVERBS_BUFFER_TYPE_VA:
+#ifdef HAVE_IB_UMEM_GET_VA
+		umem = ib_umem_get_va(device, desc.addr, desc.length, access);
+#elif defined(HAVE_IB_UMEM_GET_DEVICE_PARAM)
+		umem = ib_umem_get(device, desc.addr, desc.length, access);
+#elif defined(HAVE_IB_UMEM_GET_NO_DMASYNC)
+		umem = ib_umem_get((struct ib_udata *)&attrs->driver_udata,
+				   desc.addr, desc.length, access);
+#elif defined(HAVE_IB_UMEM_GET_UDATA)
+		umem = ib_umem_get((struct ib_udata *)&attrs->driver_udata,
+				   desc.addr, desc.length, access, 0);
+#else
+		return ERR_PTR(-EOPNOTSUPP);
+#endif
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (IS_ERR(umem))
+		return umem;
+
+	if (umem->length < size) {
+		ib_umem_release(umem);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return umem;
+}
+#endif /* HAVE_IB_UMEM_GET_ATTR */
+
 #if !defined(HAVE_CREATE_USER_CQ) && !defined(HAVE_CREATE_CQ_UMEM)
 enum efa_uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_BUFFER_VA = 8,
