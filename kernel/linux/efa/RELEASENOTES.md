@@ -3,6 +3,24 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r3.3.0 release notes
+* Add Completion Counters support
+* Add support for creating QP and SQ that use 64-bit work request ids
+* Add support for 128-byte send queue WQEs
+* Add support for inline WRITE operation
+* Add 0xefa4 device support
+* Support reporting 800 and 1600 Gbps link speed
+* Expose link speed in Gbps using a new query verbs
+* Add checksum validation on Admin responses
+* Add driver support for >4GB MR page size
+* Add driver mechanism for reusing AH device objects
+* Backport core utilities for user memory copying and validation
+* Align driver to mainline 7.2 kernel changes
+* Fix corner cases in PBL construction during MR registration
+* Prevent devision by 0 when creating QP with zero size receive queue
+* Fix unsupported user data check in MR registration
+* Fix kernel compatibility check that prevented printing of error pointer strings
+
 ## r3.1.0 release notes
 * Add support for extended max inline buffer size
 * Add feature mismatch error reporting
