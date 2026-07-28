@@ -598,5 +598,14 @@ ib_umem_get_cq_buf(NULL, NULL, 0, 0);
   "
   HAVE_IB_UMEM_GET_CQ_BUF "")
 
+add_compile_conftest(
+  "
+#include <rdma/ib_verbs.h>
+  "
+  "
+struct ib_comp_cntr cc;
+  "
+  HAVE_IB_COMP_CNTR "")
+
 run_conftests()
 message("-- Inspecting kernel - done")
