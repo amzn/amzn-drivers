@@ -72,6 +72,7 @@ struct page *ena_lpc_get_page(struct ena_ring *rx_ring, dma_addr_t *dma,
 	struct ena_page_cache *page_cache = rx_ring->page_cache;
 	u32 head, cache_current_size;
 	struct ena_page *ena_page;
+	struct page *page;
 
 	/* Cache size of zero indicates disabled cache */
 	if (!page_cache) {
@@ -99,10 +100,11 @@ struct page *ena_lpc_get_page(struct ena_ring *rx_ring, dma_addr_t *dma,
 		ena_page = &page_cache->cache[cache_current_size];
 
 		/* Add a new page to the cache */
-		ena_page->page = ena_alloc_map_page(rx_ring, dma);
-		if (IS_ERR(ena_page->page))
-			return ena_page->page;
+		page = ena_alloc_map_page(rx_ring, dma);
+		if (IS_ERR(page))
+			return page;
 
+		ena_page->page = page;
 		ena_page->dma_addr = *dma;
 
 		/* Increase refcount to 2 so that the page is returned to the
