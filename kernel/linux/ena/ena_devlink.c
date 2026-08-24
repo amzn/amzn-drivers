@@ -12,12 +12,20 @@
 
 #if defined(ENA_PHC_SUPPORT) && defined(ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM)
 static int ena_devlink_enable_phc_validate(struct devlink *devlink, u32 id,
+#ifdef ENA_HAVE_DEVLINK_PARAM_BY_REF
+					   union devlink_param_value *val,
+#else
 					   union devlink_param_value val,
+#endif /* ENA_HAVE_DEVLINK_PARAM_BY_REF */
 					   struct netlink_ext_ack *extack)
 {
 	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
 
+#ifdef ENA_HAVE_DEVLINK_PARAM_BY_REF
+	if (!val->vbool)
+#else
 	if (!val.vbool)
+#endif /* ENA_HAVE_DEVLINK_PARAM_BY_REF */
 		return 0;
 
 	if (!ena_com_phc_supported(adapter->ena_dev)) {
@@ -67,7 +75,11 @@ void ena_devlink_disable_phc_param(struct devlink *devlink)
 	value.vbool = false;
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
+#ifdef ENA_HAVE_DEVLINK_PARAM_BY_REF
+					&value);
+#else
 					value);
+#endif /* ENA_HAVE_DEVLINK_PARAM_BY_REF */
 	devl_unlock(devlink);
 }
 
@@ -165,7 +177,11 @@ static int ena_devlink_configure_params(struct devlink *devlink)
 	value.vbool = ena_phc_is_enabled(adapter);
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
+#ifdef ENA_HAVE_DEVLINK_PARAM_BY_REF
+					&value);
+#else
 					value);
+#endif /* ENA_HAVE_DEVLINK_PARAM_BY_REF */
 	devl_unlock(devlink);
 
 #endif /* ENA_PHC_SUPPORT && ENA_HAS_GENERIC_ENABLE_PHC_DEVLINK_PARAM */

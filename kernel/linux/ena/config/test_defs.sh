@@ -355,3 +355,12 @@ try_compile_async "#include <linux/netdevice.h>"                  \
                   "ENA_HAVE_TXQ_TRANS_UPDATE"                     \
                   ""                                              \
                   "5.17.0 <= LINUX_VERSION_CODE"
+
+try_compile_async "#include <net/devlink.h>"                          \
+                  "{
+                    union devlink_param_value val;
+                    devl_param_driverinit_value_set(NULL, 0, &val);
+                  }"                                                  \
+                  "ENA_HAVE_DEVLINK_PARAM_BY_REF"                     \
+                  ""                                                  \
+                  "7.2.0 <= LINUX_VERSION_CODE"
