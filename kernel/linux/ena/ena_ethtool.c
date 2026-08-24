@@ -383,8 +383,10 @@ void ena_fetch_page_pool_stats(struct ena_adapter *adapter)
 		memset(&stats, 0, sizeof(stats));
 		pool = rx_ring->page_pool;
 
-		if (!pool || !page_pool_get_stats(pool, &stats))
+		if (!pool)
 			continue;
+
+		page_pool_get_stats(pool, &stats);
 
 		u64_stats_update_begin(&rx_ring->syncp);
 		rx_ring->rx_stats.pp_alloc_fast = stats.alloc_stats.fast;
