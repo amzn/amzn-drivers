@@ -67,6 +67,7 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_LINK_CONFIG                       = 27,
 	ENA_ADMIN_HOST_ATTR_CONFIG                  = 28,
 	ENA_ADMIN_PHC_CONFIG                        = 29,
+	ENA_ADMIN_HW_TIMESTAMP                      = 31,
 	ENA_ADMIN_FEATURES_OPCODE_NUM               = 32,
 };
 
@@ -153,6 +154,20 @@ enum ena_admin_phc_feature_version {
 enum ena_admin_phc_error_flags {
 	ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP   = BIT(0),
 	ENA_ADMIN_PHC_ERROR_FLAG_ERROR_BOUND = BIT(1),
+};
+
+enum ena_admin_hw_timestamp_feature_version {
+	ENA_ADMIN_HW_TIMESTAMP_FEATURE_VERSION_1    = 1,
+};
+
+enum ena_admin_hw_timestamp_tx_support {
+	ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_NONE      = 0,
+	ENA_ADMIN_HW_TIMESTAMP_TX_SUPPORT_ALL       = 1,
+};
+
+enum ena_admin_hw_timestamp_rx_support {
+	ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_NONE      = 0,
+	ENA_ADMIN_HW_TIMESTAMP_RX_SUPPORT_ALL       = 1,
 };
 
 /* ENA SRD configuration for ENI */
@@ -1106,6 +1121,12 @@ struct ena_admin_feature_phc_desc {
 	uint32_t output_length;
 };
 
+struct ena_admin_feature_hw_ts_desc {
+	uint8_t version;
+	uint8_t tx;
+	uint8_t rx;
+};
+
 struct ena_admin_get_feat_resp {
 	struct ena_admin_acq_common_desc acq_common_desc;
 
@@ -1137,6 +1158,8 @@ struct ena_admin_get_feat_resp {
 		struct ena_admin_ena_hw_hints hw_hints;
 
 		struct ena_admin_feature_phc_desc phc;
+
+		struct ena_admin_feature_hw_ts_desc hw_ts;
 
 		struct ena_admin_get_extra_properties_strings_desc extra_properties_strings;
 
@@ -1177,6 +1200,9 @@ struct ena_admin_set_feat_cmd {
 
 		/* PHC configuration */
 		struct ena_admin_feature_phc_desc phc;
+
+		/* HW timestamp configuration */
+		struct ena_admin_feature_hw_ts_desc hw_ts;
 	} u;
 };
 
