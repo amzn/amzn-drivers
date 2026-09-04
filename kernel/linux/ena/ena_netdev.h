@@ -193,6 +193,10 @@ struct ena_tx_buffer {
 
 	/* used for ordering TX completions when needed (e.g. AF_XDP) */
 	u8 acked;
+#ifdef ENA_XSK_MB_SUPPORT
+	/* Number of XSK TX descriptors consumed for this packet (multi-buffer) */
+	u16 xsk_tx_nr_descs;
+#endif /* ENA_XSK_MB_SUPPORT */
 #ifdef ENA_HAVE_XSK_TX_METADATA
 
 	/* Contains pointer to xsk completion metadata, filled at completion */
