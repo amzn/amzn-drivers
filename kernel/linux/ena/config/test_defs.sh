@@ -178,6 +178,21 @@ try_compile_async "#include <net/xdp.h>
                   ""                                                      \
                   "5.18 <= LINUX_VERSION_CODE"
 
+try_compile_async "#include <net/xdp_sock_drv.h>
+                   #include <linux/netdevice.h>"                          \
+                  "{
+                    struct xdp_buff xdp = {};
+                    struct xdp_desc desc = {};
+                    struct net_device dev = {};
+                    xsk_buff_set_size(&xdp, 0);
+                    xsk_buff_add_frag(&xdp);
+                    (void)xsk_is_eop_desc(&desc);
+                    dev.xdp_zc_max_segs = 1;
+                  }"                                                      \
+                  "ENA_HAVE_XSK_MULTI_BUFF"                               \
+                  ""                                                      \
+                  "6.6.0 <= LINUX_VERSION_CODE"
+
 try_compile_async "#include <linux/netdevice.h>"         \
                   "{
                     netif_enable_cpu_rmap(NULL, 0);

@@ -751,6 +751,10 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 #define ENA_AF_XDP_SUPPORT
 #endif
 
+#if defined(ENA_AF_XDP_SUPPORT) && defined(ENA_HAVE_XSK_MULTI_BUFF)
+#define ENA_XSK_MB_SUPPORT
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #define NAPIF_STATE_SCHED BIT(NAPI_STATE_SCHED)
 #endif

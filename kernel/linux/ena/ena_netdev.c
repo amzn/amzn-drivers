@@ -5718,6 +5718,18 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef ENA_HAVE_NETDEV_XDP_FEATURES
 	netdev->xdp_features = ENA_XDP_FEATURES;
+#ifdef ENA_XSK_MB_SUPPORT
+	/* Advertise only what we can actually place: the TX gather loop is
+	 * bounded by the TX SGL, and the RX assembler is bounded by both the
+	 * RX SGL and MAX_SKB_FRAGS (one head + MAX_SKB_FRAGS frags). Advertising
+	 * more would let the stack hand us frames the datapath has to truncate
+	 * (TX) or drop (RX).
+	 */
+	netdev->xdp_zc_max_segs = min_t(u32,
+					min_t(u16, adapter->max_tx_sgl_size,
+					      adapter->max_rx_sgl_size),
+					MAX_SKB_FRAGS + 1);
+#endif /* ENA_XSK_MB_SUPPORT */
 
 #endif
 	memcpy(adapter->netdev->perm_addr, adapter->mac_addr, netdev->addr_len);
