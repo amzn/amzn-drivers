@@ -31,6 +31,10 @@ The driver was verified on the following distributions:
 * SUSE Linux Enterprise Server 12 SP2 or newer
 * SUSE Linux Enterprise Server 15 or newer
 
+## r2.17.4 release notes
+**Bug Fixes**
+* Add support for xsk_buff_get_metadata() with 3 parameters
+
 ## r2.17.3 release notes
 **Bug Fixes**
 * Backport devlink param values passed by pointer
