@@ -949,6 +949,15 @@ static inline int irq_update_affinity_hint(unsigned int irq, const struct cpumas
 #define xsk_buff_dma_sync_for_cpu(xdp, xsk_pool) xsk_buff_dma_sync_for_cpu(xdp)
 #endif /* ENA_XSK_BUFF_DMA_SYNC_SINGLE_ARG */
 
+#if defined(ENA_HAVE_XSK_TX_METADATA_V1) || defined(ENA_HAVE_XSK_TX_METADATA_V2)
+#define ENA_HAVE_XSK_TX_METADATA
+#endif /* ENA_HAVE_XSK_TX_METADATA_V1 || ENA_HAVE_XSK_TX_METADATA_V2 */
+
+#ifdef ENA_HAVE_XSK_TX_METADATA_V1
+#include <net/xdp_sock_drv.h>
+#define xsk_buff_get_metadata(pool, addr, options) xsk_buff_get_metadata(pool, addr)
+#endif /* ENA_HAVE_XSK_TX_METADATA_V1 */
+
 #if defined(ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK) && !defined(ENA_KCOMAPT_NAPI_ALLOC_SKB)
 #define napi_alloc_skb(napi, len) __napi_alloc_skb(napi, len, GFP_ATOMIC | __GFP_NOWARN)
 #endif /* ENA_NAPI_ALLOC_SKB_EXPLICIT_GFP_MASK && !ENA_KCOMAPT_NAPI_ALLOC_SKB*/

@@ -828,7 +828,7 @@ static bool ena_xdp_xmit_irq_zc(struct ena_ring *tx_ring,
 #ifdef ENA_HAVE_XSK_TX_METADATA
 		if (unlikely(is_tx_metadata_enabled)) {
 			struct xsk_tx_metadata *meta =
-				xsk_buff_get_metadata(xsk_pool, desc.addr);
+				xsk_buff_get_metadata(xsk_pool, desc.addr, desc.options);
 
 			/* Save a pointer to completion metadata to fill it
 			 * later upon completion

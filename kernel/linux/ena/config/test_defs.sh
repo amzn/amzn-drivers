@@ -331,9 +331,27 @@ try_compile_async "#include <linux/skbuff.h>
                      xsk_buff_get_metadata(NULL, 0);
                      xsk_tx_metadata_to_compl(NULL, NULL);
                    }"                                             \
-                  "ENA_HAVE_XSK_TX_METADATA"                      \
+                  "ENA_HAVE_XSK_TX_METADATA_V1"                   \
                   ""                                              \
-                  "6.8.0 <= LINUX_VERSION_CODE"
+                  "6.8.0 <= LINUX_VERSION_CODE && LINUX_VERSION_CODE < 7.3.0"
+
+try_compile_async "#include <linux/skbuff.h>
+                   #include <net/xdp_sock.h>
+                   #include <net/xsk_buff_pool.h>
+                   #include <net/xdp_sock_drv.h>"                 \
+                  "{
+                     struct xsk_tx_metadata_compl compl;
+                     struct xsk_tx_metadata meta;
+                     struct xsk_tx_metadata_ops ops;
+
+                     xsk_tx_metadata_complete(NULL, NULL, NULL);
+                     xp_tx_metadata_enabled(NULL);
+                     xsk_buff_get_metadata(NULL, 0, 0);
+                     xsk_tx_metadata_to_compl(NULL, NULL);
+                   }"                                             \
+                  "ENA_HAVE_XSK_TX_METADATA_V2"                   \
+                  ""                                              \
+                  "7.3.0 <= LINUX_VERSION_CODE"
 
 try_compile_async "#include <linux/ethtool.h>"          \
                   "{
