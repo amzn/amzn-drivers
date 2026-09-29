@@ -239,7 +239,7 @@ static void *efa_zalloc_mapped(struct efa_dev *dev, dma_addr_t *dma_addr,
 {
 	void *addr;
 
-	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
+	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL);
 	if (!addr)
 		return NULL;
 
