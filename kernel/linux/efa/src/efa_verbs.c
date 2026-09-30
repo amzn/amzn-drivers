@@ -2620,7 +2620,9 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 	params.pd = to_epd(ibpd)->pdn;
 	params.iova = virt_addr;
 	params.mr_length_in_bytes = length;
-	params.permissions = access_flags;
+	params.permissions.local_write = !!(access_flags & IB_ACCESS_LOCAL_WRITE);
+	params.permissions.remote_write = !!(access_flags & IB_ACCESS_REMOTE_WRITE);
+	params.permissions.remote_read = !!(access_flags & IB_ACCESS_REMOTE_READ);
 
 #ifdef HAVE_EFA_P2P
 	if (mr->p2pmem) {
@@ -2923,7 +2925,9 @@ struct ib_mr *efa_get_dma_mr(struct ib_pd *ibpd, int access_flags)
 	params.pd = to_epd(ibpd)->pdn;
 	params.iova = 0;
 	params.mr_length_in_bytes = length;
-	params.permissions = access_flags;
+	params.permissions.local_write = !!(access_flags & IB_ACCESS_LOCAL_WRITE);
+	params.permissions.remote_write = !!(access_flags & IB_ACCESS_REMOTE_WRITE);
+	params.permissions.remote_read = !!(access_flags & IB_ACCESS_REMOTE_READ);
 	params.page_num = 0;
 
 	err = efa_com_register_mr(&dev->edev, &params, &result);
