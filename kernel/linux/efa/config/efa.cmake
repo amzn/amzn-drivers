@@ -340,6 +340,7 @@ ib_umem_get_va(dev, 0, 0, 0);
   HAVE_IB_UMEM_GET_VA "")
 
 add_compile_conftest("" "int a = IB_ACCESS_OPTIONAL;" HAVE_IB_ACCESS_OPTIONAL "")
+add_compile_conftest("" "int a = IB_ACCESS_RELAXED_ORDERING;" HAVE_IB_ACCESS_RELAXED_ORDERING "")
 
 add_compile_conftest("" "struct rdma_ah_init_attr ah_attr;" HAVE_CREATE_AH_INIT_ATTR "")
 

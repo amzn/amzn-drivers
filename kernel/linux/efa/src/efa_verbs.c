@@ -2623,6 +2623,9 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 	params.permissions.local_write = !!(access_flags & IB_ACCESS_LOCAL_WRITE);
 	params.permissions.remote_write = !!(access_flags & IB_ACCESS_REMOTE_WRITE);
 	params.permissions.remote_read = !!(access_flags & IB_ACCESS_REMOTE_READ);
+#ifdef HAVE_IB_ACCESS_RELAXED_ORDERING
+	params.relaxed_ordering = !!(access_flags & IB_ACCESS_RELAXED_ORDERING);
+#endif
 
 #ifdef HAVE_EFA_P2P
 	if (mr->p2pmem) {
