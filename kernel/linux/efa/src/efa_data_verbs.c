@@ -203,11 +203,18 @@ static void efa_wqe_set_fast_reg_info(const struct ib_send_wr *wr,
 	reg_mr_req->iova = mr->ibmr.iova;
 	reg_mr_req->mr_length = mr->ibmr.length;
 	reg_mr_req->lkey = mr->ibmr.lkey;
-	reg_mr_req->permissions = fr_wr->access;
+	reg_mr_req->permissions = fr_wr->access &
+		(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_READ | IB_ACCESS_REMOTE_WRITE);
 	EFA_SET(&reg_mr_req->flags, EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_BITS_0_4,
 		page_shift);
 	EFA_SET(&reg_mr_req->flags, EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_BIT_5,
 		page_shift >> 5);
+
+#ifdef HAVE_IB_ACCESS_RELAXED_ORDERING
+	if (fr_wr->access & IB_ACCESS_RELAXED_ORDERING)
+		EFA_SET(&reg_mr_req->flags_2,
+			EFA_IO_FAST_MR_REG_REQ_RELAXED_ORDERING_ENABLE, 1);
+#endif
 
 	if (mr->num_pages <= EFA_IO_TX_DESC_INLINE_PBL_SIZE) {
 		for (i = 0; i < mr->num_pages; i++)

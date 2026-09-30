@@ -234,8 +234,16 @@ struct efa_io_fast_mr_reg_req {
 	 */
 	u8 flags;
 
+	/*
+	 * flags_2
+	 * 0 : relaxed_ordering_enable - Enable PCIe relaxed
+	 *    ordering for this memory region
+	 * 7:1 : reserved - MBZ
+	 */
+	u8 flags_2;
+
 	/* MBZ */
-	u8 reserved[2];
+	u8 reserved;
 
 	/* IO Virtual Address associated with this MR */
 	u64 iova;
@@ -439,6 +447,7 @@ struct efa_io_rx_cdesc_ex {
 #define EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_BITS_0_4_MASK GENMASK(4, 0)
 #define EFA_IO_FAST_MR_REG_REQ_PBL_MODE_MASK                GENMASK(6, 5)
 #define EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_BIT_5_MASK BIT(7)
+#define EFA_IO_FAST_MR_REG_REQ_RELAXED_ORDERING_ENABLE_MASK BIT(0)
 
 /* rx_desc */
 #define EFA_IO_RX_DESC_LKEY_MASK                            GENMASK(23, 0)
