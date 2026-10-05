@@ -163,6 +163,14 @@ struct ena_eth_io_tx_cdesc {
 	uint16_t sq_head_idx;
 };
 
+struct ena_eth_io_tx_cdesc_ext {
+	struct ena_eth_io_tx_cdesc base;
+
+	uint32_t timestamp_low;
+
+	uint32_t timestamp_high;
+};
+
 struct ena_eth_io_rx_desc {
 	/* In bytes. 0 means 64KB */
 	uint16_t length;
@@ -255,9 +263,9 @@ struct ena_eth_io_rx_cdesc_ext {
 
 	uint16_t reserved16;
 
-	uint32_t reserved_w6;
+	uint32_t timestamp_low;
 
-	uint32_t reserved_w7;
+	uint32_t timestamp_high;
 };
 
 struct ena_eth_io_intr_reg {
