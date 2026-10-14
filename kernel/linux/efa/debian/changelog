@@ -1,3 +1,11 @@
+efa (3.4.0-1.amzn1) unstable; urgency=medium
+  * Add MR PCIe relaxed ordering support
+  * Improve RQ and CQ contiguous memory allocation
+  * Fix possible race between admin command timeout and completion
+  * Fix order between events and admin queues creation and IRQ registration
+
+ -- Michael Margolin <mrgolin@amazon.com>  Wed, 14 Oct 2026 10:47:18 +0000
+
 efa (3.3.1-1.amzn1) unstable; urgency=medium
   * Add support for 128-byte admin commands
   * Fix crash on CQ umem release on some old kernels

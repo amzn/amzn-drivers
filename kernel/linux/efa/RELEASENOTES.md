@@ -3,6 +3,12 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r3.4.0 release notes
+* Add MR PCIe relaxed ordering support
+* Improve RQ and CQ contiguous memory allocation
+* Fix possible race between admin command timeout and completion
+* Fix order between events and admin queues creation and IRQ registration
+
 ## r3.3.1 release notes
 * Add support for 128-byte admin commands
 * Fix crash on CQ umem release on some old kernels
