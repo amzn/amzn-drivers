@@ -67,6 +67,26 @@
 #define ENA_PAGE_SIZE PAGE_SIZE
 #endif
 
+#if defined(ENA_PAGE_POOL_SUPPORT) && PAGE_SIZE > ENA_PAGE_SIZE
+/* Pack ENA_RX_BUFS_PER_PAGE RX buffers into each page instead of using only
+ * the first ENA_PAGE_SIZE bytes of a page per RX descriptor. Every buffer
+ * stays within its own ENA_RX_BUF_WINDOW byte window of the page. The page
+ * is split into as many windows as still receive a 9001 byte MTU frame with
+ * headroom and tailroom as a single descriptor (six 10880 byte windows of a
+ * 64K page); the few bytes left at the end of the page are unused.
+ */
+#define ENA_RX_PAGE_PACKING
+#define ENA_RX_PACK_MIN_WINDOW \
+	ALIGN(9001 + ETH_HLEN + VLAN_HLEN + NET_SKB_PAD + \
+	      SKB_DATA_ALIGN(sizeof(struct skb_shared_info)), SMP_CACHE_BYTES)
+#define ENA_RX_BUFS_PER_PAGE (PAGE_SIZE / ENA_RX_PACK_MIN_WINDOW)
+#define ENA_RX_BUF_WINDOW ALIGN_DOWN(PAGE_SIZE / ENA_RX_BUFS_PER_PAGE, SMP_CACHE_BYTES)
+/* End offset in the page of the window holding rx_info's buffer */
+#define ENA_RX_BUF_END(rx_info) ((rx_info)->buf_end)
+#else
+#define ENA_RX_BUF_END(rx_info) ENA_PAGE_SIZE
+#endif
+
 #define ENA_MIN_MSIX_VEC		2
 
 #define ENA_REG_BAR			0
@@ -75,6 +95,11 @@
 
 #define ENA_DEFAULT_RING_SIZE		(1024)
 #define ENA_DEFAULT_WIDE_LLQ_RING_SIZE	(512)
+#ifdef ENA_RX_PAGE_PACKING
+#define ENA_DEFAULT_RX_RING_SIZE	(ENA_DEFAULT_RING_SIZE/2)
+#else
+#define ENA_DEFAULT_RX_RING_SIZE	ENA_DEFAULT_RING_SIZE
+#endif /* ENA_RX_PAGE_PACKING */
 #define ENA_MIN_RING_SIZE		(256)
 
 #define ENA_MIN_RX_BUF_SIZE (2048)
@@ -229,6 +254,10 @@ struct ena_rx_buffer {
 #endif /* ENA_AF_XDP_SUPPORT */
 	u32 page_offset;
 	u32 buf_offset;
+#ifdef ENA_RX_PAGE_PACKING
+	/* End offset in the page of the window holding this buffer */
+	u32 buf_end;
+#endif /* ENA_RX_PAGE_PACKING */
 	struct ena_com_buf ena_buf;
 #ifdef ENA_LPC_SUPPORT
 	bool is_lpc_page;
@@ -350,6 +379,14 @@ struct ena_ring {
 #ifdef ENA_PAGE_POOL_SUPPORT
 	struct page_pool *page_pool;
 #endif /* ENA_PAGE_POOL_SUPPORT */
+#ifdef ENA_RX_PAGE_PACKING
+	/* Page being split into RX buffers, the offset of its next free
+	 * window and the page_pool references not yet given to a buffer
+	 */
+	struct page *pack_page;
+	u32 pack_offset;
+	long pack_refs;
+#endif /* ENA_RX_PAGE_PACKING */
 	struct ena_com_dev *ena_dev;
 	struct ena_adapter *adapter;
 	struct ena_com_io_cq *ena_com_io_cq;

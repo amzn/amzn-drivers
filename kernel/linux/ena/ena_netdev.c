@@ -71,7 +71,7 @@ static int debug = -1;
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Debug level (-1=default,0=none,...,16=all)");
 
-static int rx_queue_size = ENA_DEFAULT_RING_SIZE;
+static int rx_queue_size = ENA_DEFAULT_RX_RING_SIZE;
 module_param(rx_queue_size, int, 0444);
 MODULE_PARM_DESC(rx_queue_size, "Rx queue size. The size should be a power of 2. Depending on instance type, max value can be up to 16K\n");
 
@@ -543,6 +543,23 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 	return 0;
 }
 
+#ifdef ENA_RX_PAGE_PACKING
+/* Drop the references of the windows of the current page that were never
+ * given to a buffer
+ */
+static void ena_free_rx_pack_page(struct ena_ring *rx_ring)
+{
+	struct page *page = rx_ring->pack_page;
+
+	if (!page)
+		return;
+
+	if (!page_pool_unref_page(page, rx_ring->pack_refs))
+		page_pool_put_full_page(rx_ring->page_pool, page, false);
+	rx_ring->pack_page = NULL;
+}
+
+#endif /* ENA_RX_PAGE_PACKING */
 /* ena_free_rx_resources - Free I/O Rx Resources
  * @adapter: network interface device structure
  * @qid: queue index
@@ -554,6 +571,9 @@ static void ena_free_rx_resources(struct ena_adapter *adapter,
 {
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
 
+#ifdef ENA_RX_PAGE_PACKING
+	ena_free_rx_pack_page(rx_ring);
+#endif /* ENA_RX_PAGE_PACKING */
 #ifdef ENA_PAGE_POOL_SUPPORT
 	page_pool_destroy(rx_ring->page_pool);
 	rx_ring->page_pool = NULL;
@@ -649,6 +669,59 @@ struct page *ena_alloc_map_page(struct ena_ring *rx_ring,
 	return page;
 }
 
+#ifdef ENA_RX_PAGE_PACKING
+/* Give rx_info the next ENA_RX_BUF_WINDOW bytes of the ring's current page,
+ * allocating a new page once all its windows are used. Each window takes an
+ * equal share of the page_pool references (the last one also the remainder)
+ * and uses it as its pagecnt_bias, so the DRB reuse and freeing code works
+ * as with a page per buffer.
+ */
+static int ena_alloc_rx_buffer_packed(struct ena_ring *rx_ring,
+				      struct ena_rx_buffer *rx_info)
+{
+	int tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	struct page *page = rx_ring->pack_page;
+	long refs = ENA_PAGECOUNT_MAX_BIAS / ENA_RX_BUFS_PER_PAGE;
+	dma_addr_t dma;
+
+	BUILD_BUG_ON(ENA_RX_BUF_WINDOW < ENA_RX_PACK_MIN_WINDOW);
+
+	if (!page) {
+		page = ena_alloc_map_page(rx_ring, &dma);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
+		page_pool_fragment_page(page, ENA_PAGECOUNT_MAX_BIAS);
+		rx_ring->pack_page = page;
+		rx_ring->pack_offset = 0;
+		rx_ring->pack_refs = ENA_PAGECOUNT_MAX_BIAS;
+	} else {
+		dma = page_pool_get_dma_addr(page);
+	}
+
+	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
+		  "Allocate page %p offset %u, rx_info %p\n", page,
+		  rx_ring->pack_offset, rx_info);
+
+	rx_info->page = page;
+	rx_info->dma_addr = dma;
+	rx_info->page_offset = rx_ring->pack_offset;
+	rx_info->buf_end = rx_ring->pack_offset + ENA_RX_BUF_WINDOW;
+	rx_info->ena_buf.paddr = dma + rx_info->page_offset + rx_ring->rx_headroom;
+	rx_info->ena_buf.len = ENA_RX_BUF_WINDOW - rx_ring->rx_headroom - tailroom;
+
+	rx_ring->pack_offset = rx_info->buf_end;
+	if (rx_ring->pack_offset + ENA_RX_BUF_WINDOW > PAGE_SIZE) {
+		refs = rx_ring->pack_refs;
+		rx_ring->pack_page = NULL;
+	}
+	rx_ring->pack_refs -= refs;
+	rx_info->pagecnt_bias = refs - 1;
+
+	return 0;
+}
+
+#endif /* ENA_RX_PAGE_PACKING */
 static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 			       struct ena_rx_buffer *rx_info)
 {
@@ -684,6 +757,12 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 	}
 #endif /* ENA_AF_XDP_SUPPORT */
 
+#ifdef ENA_RX_PAGE_PACKING
+	/* For XDP, DRB is not used so we don't pack the page */
+	if (!ena_xdp_present_ring(rx_ring))
+		return ena_alloc_rx_buffer_packed(rx_ring, rx_info);
+
+#endif /* ENA_RX_PAGE_PACKING */
 	/* We handle DMA here */
 #ifdef ENA_LPC_SUPPORT
 	page = ena_lpc_get_page(rx_ring, &dma, &rx_info->is_lpc_page);
@@ -1327,7 +1406,7 @@ void ena_fill_rx_frags(struct ena_ring *rx_ring,
 				/* Make sure buf_len represents the actual size used
 				 * by the buffer as expected from skb->truesize
 				 */
-				buf_len = ENA_PAGE_SIZE - page_offset;
+				buf_len = ENA_RX_BUF_END(rx_info) - page_offset;
 #ifdef ENA_PAGE_POOL_SUPPORT
 				page_pool_unref_page(rx_info->page,
 						     rx_info->pagecnt_bias);
@@ -1457,7 +1536,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring, u32 descs)
 		/* Make sure buf_len represents the actual size used
 		 * by the buffer as expected from skb->truesize
 		 */
-		buf_len = ENA_PAGE_SIZE - page_offset;
+		buf_len = ENA_RX_BUF_END(rx_info) - page_offset;
 	}
 
 	skb = ena_alloc_skb(rx_ring, buf_addr, buf_len);
@@ -2616,7 +2695,11 @@ static int ena_create_page_pool(struct ena_adapter *adapter)
 
 	pp_params.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
 	pp_params.dma_dir = DMA_BIDIRECTIONAL;
+#ifdef ENA_RX_PAGE_PACKING
+	pp_params.max_len = PAGE_SIZE;
+#else
 	pp_params.max_len = ENA_PAGE_SIZE;
+#endif /* ENA_RX_PAGE_PACKING */
 	pp_params.order = 0;
 	pp_params.netdev = adapter->netdev;
 	pp_params.dev = &adapter->pdev->dev;
