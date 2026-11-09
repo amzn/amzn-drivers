@@ -6,6 +6,8 @@
 #ifndef _EFA_P2P_H_
 #define _EFA_P2P_H_
 
+#include <linux/kref.h>
+
 #include "efa.h"
 
 struct efa_p2p_ops {
@@ -31,13 +33,20 @@ struct efa_p2p_provider {
 	const struct efa_p2p_ops ops;
 };
 
+struct efa_p2p_node {
+	u64 ticket;
+	bool initialized;
+	u32 lkey;
+	struct efa_p2pmem *p2pmem;
+	struct completion init_done;
+	struct list_head list;
+	struct kref refcount;
+};
+
 struct efa_p2pmem {
 	struct efa_dev *dev;
 	const struct efa_p2p_provider *prov;
 	u64 ticket;
-	u32 lkey;
-	bool needs_dereg;
-	struct list_head list; /* member of efa_p2p_list */
 };
 
 void efa_p2p_init(void);
@@ -49,6 +58,7 @@ unsigned int efa_p2p_get_page_size(struct efa_dev *dev,
 int efa_p2p_to_page_list(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
 			 u64 *page_list);
 int efa_p2p_put(u64 ticket, bool in_cb);
+void efa_p2p_commit_done(u64 ticket, u32 lkey);
 
 /* Provider specific stuff go here */
 const struct efa_p2p_provider *nvmem_v1_get_provider(void);

@@ -2701,10 +2701,8 @@ skip_umem_pg_sz:
 	mr->ic_info.rdma_read_ic_id_valid = result.ic_info.rdma_read_ic_id_valid;
 	mr->ic_info.rdma_recv_ic_id_valid = result.ic_info.rdma_recv_ic_id_valid;
 #ifdef HAVE_EFA_P2P
-	if (mr->p2pmem) {
-		mr->p2pmem->lkey = result.l_key;
-		mr->p2pmem->needs_dereg = true;
-	}
+	if (mr->p2pmem)
+		efa_p2p_commit_done(mr->p2p_ticket, result.l_key);
 #endif
 	ibdev_dbg(&dev->ibdev, "Registered mr[%d]\n", mr->ibmr.lkey);
 
@@ -2808,7 +2806,7 @@ static struct efa_p2pmem *efa_p2p_get_and_validate(struct efa_dev *dev, struct e
 
 	return p2pmem;
 err_put:
-	efa_p2p_put(p2pmem->ticket, false);
+	efa_p2p_put(mr->p2p_ticket, false);
 	return NULL;
 }
 #endif
@@ -2882,7 +2880,7 @@ reg_mr:
 err_release:
 #ifdef HAVE_EFA_P2P
 	if (mr->p2pmem)
-		efa_p2p_put(mr->p2pmem->ticket, false);
+		efa_p2p_put(mr->p2p_ticket, false);
 	else
 		ib_umem_release(mr->umem);
 #else

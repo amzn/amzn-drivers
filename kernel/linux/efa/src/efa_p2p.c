@@ -32,17 +32,55 @@ void efa_p2p_init(void)
 	p2p_providers_init();
 }
 
-static struct efa_p2pmem *ticket_to_p2p(u64 ticket)
+/* Returns the node with a reference held; caller must efa_p2p_put_node() when done. */
+static struct efa_p2p_node *efa_p2p_lookup_locked(u64 ticket)
 {
-	struct efa_p2pmem *p2pmem;
+	struct efa_p2p_node *node;
 
 	lockdep_assert_held(&p2p_list_lock);
-	list_for_each_entry(p2pmem, &p2p_list, list) {
-		if (p2pmem->ticket == ticket)
-			return p2pmem;
+	list_for_each_entry(node, &p2p_list, list) {
+		if (node->ticket == ticket) {
+			kref_get(&node->refcount);
+			return node;
+		}
 	}
 
 	return NULL;
+}
+
+static void efa_p2p_node_release(struct kref *kref)
+{
+	struct efa_p2p_node *node =
+		container_of(kref, struct efa_p2p_node, refcount);
+
+	kfree(node);
+}
+
+static void efa_p2p_put_node(struct efa_p2p_node *node)
+{
+	kref_put(&node->refcount, efa_p2p_node_release);
+}
+
+static void efa_p2p_list_get_and_add(struct efa_p2p_node *node)
+{
+	mutex_lock(&p2p_list_lock);
+	kref_get(&node->refcount);
+	list_add(&node->list, &p2p_list);
+	mutex_unlock(&p2p_list_lock);
+}
+
+static void efa_p2p_list_del_and_put_locked(struct efa_p2p_node *node)
+{
+	lockdep_assert_held(&p2p_list_lock);
+	list_del_init(&node->list);
+	efa_p2p_put_node(node);
+}
+
+static void efa_p2p_list_del_and_put(struct efa_p2p_node *node)
+{
+	mutex_lock(&p2p_list_lock);
+	efa_p2p_list_del_and_put_locked(node);
+	mutex_unlock(&p2p_list_lock);
 }
 
 char *efa_p2p_provider_string(void)
@@ -65,71 +103,114 @@ char *efa_p2p_provider_string(void)
 int efa_p2p_put(u64 ticket, bool in_cb)
 {
 	struct efa_com_dereg_mr_params params = {};
+	struct efa_p2p_node *node;
 	struct efa_p2pmem *p2pmem;
 	struct efa_dev *dev;
-	int err;
+	int status;
 
 	mutex_lock(&p2p_list_lock);
-	p2pmem = ticket_to_p2p(ticket);
-	if (!p2pmem) {
-		pr_debug("Ticket %llu not found in the p2pmem list\n", ticket);
+	node = efa_p2p_lookup_locked(ticket);
+	if (!node) {
+		pr_debug("Ticket %llu not found in the p2p list\n", ticket);
 		mutex_unlock(&p2p_list_lock);
 		return 0;
 	}
 
-	dev = p2pmem->dev;
-	if (p2pmem->needs_dereg) {
-		params.l_key = p2pmem->lkey;
-		err = efa_com_dereg_mr(&dev->edev, &params);
-		if (err) {
-			mutex_unlock(&p2p_list_lock);
-			return err;
+	if (in_cb && !node->initialized) {
+		mutex_unlock(&p2p_list_lock);
+		wait_for_completion(&node->init_done);
+		mutex_lock(&p2p_list_lock);
+		if (list_empty(&node->list)) {
+			status = 0;
+			goto dec_and_done;
 		}
-		p2pmem->needs_dereg = false;
 	}
 
-	list_del(&p2pmem->list);
+	p2pmem = node->p2pmem;
+	dev = p2pmem->dev;
+	if (node->initialized) {
+		params.l_key = node->lkey;
+		status = efa_com_dereg_mr(&dev->edev, &params);
+		if (status) {
+			goto dec_and_done;
+		}
+	}
+	efa_p2p_list_del_and_put_locked(node);
 	mutex_unlock(&p2p_list_lock);
+	/* Wakes a callback parked on an uninitialized node; a no-op once committed. */
+	complete_all(&node->init_done);
 	p2pmem->prov->ops.release(dev, p2pmem, in_cb);
+	efa_p2p_put_node(node); /* access reference */
 
 	return 0;
+
+dec_and_done:
+	mutex_unlock(&p2p_list_lock);
+	efa_p2p_put_node(node); /* access reference */
+	return status;
 }
 
 struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
 			       u64 length)
 {
 	const struct efa_p2p_provider *prov;
+	struct efa_p2p_node *node;
 	static bool message_printed;
 	struct efa_p2pmem *p2pmem;
 	u64 ticket;
 	int i;
 
 	ticket = atomic64_fetch_inc(&next_p2p_ticket);
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return NULL;
+	node->ticket = ticket;
+	init_completion(&node->init_done);
+	kref_init(&node->refcount);
+	efa_p2p_list_get_and_add(node);
+
 	for (i = 0; i < EFA_P2P_PROVIDER_MAX; i++) {
 		prov = prov_arr[i];
 		p2pmem = prov->ops.try_get(dev, ticket, start, length);
 		if (p2pmem)
 			break;
 	}
-	if (!p2pmem)
+	if (!p2pmem) {
 		/* No provider was found, most likely cpu pages */
+		efa_p2p_list_del_and_put(node);
+		complete_all(&node->init_done);
+		efa_p2p_put_node(node); /* creation reference */
 		return NULL;
+	}
 
 	p2pmem->dev = dev;
-	p2pmem->ticket = ticket;
 	p2pmem->prov = prov;
-	mr->p2p_ticket = p2pmem->ticket;
+	mr->p2p_ticket = ticket;
+	node->p2pmem = p2pmem;
 
 	if (!message_printed) {
 		pr_info("efa: Acquired peer memory using P2P");
 		message_printed = true;
 	}
 
-	mutex_lock(&p2p_list_lock);
-	list_add(&p2pmem->list, &p2p_list);
-	mutex_unlock(&p2p_list_lock);
-
+	/* Hand off: the list now owns the node; drop the creation reference. */
+	efa_p2p_put_node(node);
 	return p2pmem;
+}
+
+void efa_p2p_commit_done(u64 ticket, u32 lkey)
+{
+	struct efa_p2p_node *node;
+
+	mutex_lock(&p2p_list_lock);
+	node = efa_p2p_lookup_locked(ticket);
+	/* Set lkey before signalling, so a woken callback observes it. */
+	node->lkey = lkey;
+	node->initialized = true;
+	mutex_unlock(&p2p_list_lock);
+	complete_all(&node->init_done);
+	efa_p2p_put_node(node); /* access reference */
 }
 
 int efa_p2p_to_page_list(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
