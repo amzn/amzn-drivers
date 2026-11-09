@@ -3,6 +3,11 @@
 ## Supported Kernel Versions and Distributions
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis
 
+## r3.4.1 release notes
+* Improve driver documentation
+* Fix possible race between P2P MR registration and invalidation callback
+* Improve init order between P2P and sysfs
+
 ## r3.4.0 release notes
 * Add MR PCIe relaxed ordering support
 * Improve RQ and CQ contiguous memory allocation

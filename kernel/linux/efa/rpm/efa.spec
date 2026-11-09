@@ -113,6 +113,11 @@ install -m 644 neuron_p2p.h		%{buildroot}%{install_path}/src
 /etc/modprobe.d/efa.conf
 
 %changelog
+* Mon Nov 09 2026 Michael Margolin <mrgolin@amazon.com> - 3.4.1
+- Improve driver documentation
+- Fix possible race between P2P MR registration and invalidation callback
+- Improve init order between P2P and sysfs
+
 * Wed Oct 14 2026 Michael Margolin <mrgolin@amazon.com> - 3.4.0
 - Add MR PCIe relaxed ordering support
 - Improve RQ and CQ contiguous memory allocation

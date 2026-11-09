@@ -1,3 +1,10 @@
+efa (3.4.1-1.amzn1) unstable; urgency=medium
+  * Improve driver documentation
+  * Fix possible race between P2P MR registration and invalidation callback
+  * Improve init order between P2P and sysfs
+
+ -- Michael Margolin <mrgolin@amazon.com>  Mon, 09 Nov 2026 15:41:07 +0000
+
 efa (3.4.0-1.amzn1) unstable; urgency=medium
   * Add MR PCIe relaxed ordering support
   * Improve RQ and CQ contiguous memory allocation
