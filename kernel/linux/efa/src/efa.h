@@ -140,7 +140,6 @@ struct efa_mr {
 			struct efa_mr_interconnect_info ic_info;
 #ifdef HAVE_EFA_P2P
 			struct efa_p2pmem *p2pmem;
-			u64 p2p_ticket;
 #endif
 		};
 	};
@@ -152,7 +151,6 @@ struct efa_mr {
 	struct efa_mr_interconnect_info ic_info;
 #ifdef HAVE_EFA_P2P
 	struct efa_p2pmem *p2pmem;
-	u64 p2p_ticket;
 #endif
 };
 #endif /* HAVE_EFA_KVERBS */

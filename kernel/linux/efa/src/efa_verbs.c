@@ -2702,7 +2702,7 @@ skip_umem_pg_sz:
 	mr->ic_info.rdma_recv_ic_id_valid = result.ic_info.rdma_recv_ic_id_valid;
 #ifdef HAVE_EFA_P2P
 	if (mr->p2pmem)
-		efa_p2p_commit_done(mr->p2p_ticket, result.l_key);
+		efa_p2p_commit_done(mr->p2pmem->ticket, result.l_key);
 #endif
 	ibdev_dbg(&dev->ibdev, "Registered mr[%d]\n", mr->ibmr.lkey);
 
@@ -2780,13 +2780,13 @@ err_out:
 #endif
 
 #ifdef HAVE_EFA_P2P
-static struct efa_p2pmem *efa_p2p_get_and_validate(struct efa_dev *dev, struct efa_mr *mr,
-						   u64 start, u64 length, u64 virt_addr)
+static struct efa_p2pmem *efa_p2p_get_and_validate(struct efa_dev *dev, u64 start,
+						   u64 length, u64 virt_addr)
 {
 	struct efa_p2pmem *p2pmem;
 	unsigned int pg_sz;
 
-	p2pmem = efa_p2p_get(dev, mr, start, length);
+	p2pmem = efa_p2p_get(dev, start, length);
 	if (!p2pmem)
 		return NULL;
 
@@ -2806,7 +2806,7 @@ static struct efa_p2pmem *efa_p2p_get_and_validate(struct efa_dev *dev, struct e
 
 	return p2pmem;
 err_put:
-	efa_p2p_put(mr->p2p_ticket, false);
+	efa_p2p_put(p2pmem->ticket, false);
 	return NULL;
 }
 #endif
@@ -2849,7 +2849,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 #endif
 	if (IS_ERR(mr->umem)) {
 #ifdef HAVE_EFA_P2P
-		mr->p2pmem = efa_p2p_get_and_validate(dev, mr, start, length, virt_addr);
+		mr->p2pmem = efa_p2p_get_and_validate(dev, start, length, virt_addr);
 		if (mr->p2pmem) {
 			/* Avoid referencing an error-pointer later on */
 			mr->umem = NULL;
@@ -2880,7 +2880,7 @@ reg_mr:
 err_release:
 #ifdef HAVE_EFA_P2P
 	if (mr->p2pmem)
-		efa_p2p_put(mr->p2p_ticket, false);
+		efa_p2p_put(mr->p2pmem->ticket, false);
 	else
 		ib_umem_release(mr->umem);
 #else
@@ -3139,7 +3139,7 @@ int efa_dereg_mr(struct ib_mr *ibmr)
 #else
 	if (mr->p2pmem) {
 #endif
-		err = efa_p2p_put(mr->p2p_ticket, false);
+		err = efa_p2p_put(mr->p2pmem->ticket, false);
 		if (err)
 			return err;
 

@@ -150,8 +150,7 @@ dec_and_done:
 	return status;
 }
 
-struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
-			       u64 length)
+struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, u64 start, u64 length)
 {
 	const struct efa_p2p_provider *prov;
 	struct efa_p2p_node *node;
@@ -186,7 +185,7 @@ struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start
 
 	p2pmem->dev = dev;
 	p2pmem->prov = prov;
-	mr->p2p_ticket = ticket;
+	p2pmem->ticket = ticket;
 	node->p2pmem = p2pmem;
 
 	if (!message_printed) {

@@ -51,8 +51,7 @@ struct efa_p2pmem {
 
 void efa_p2p_init(void);
 char *efa_p2p_provider_string(void);
-struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, struct efa_mr *mr, u64 start,
-			       u64 length);
+struct efa_p2pmem *efa_p2p_get(struct efa_dev *dev, u64 start, u64 length);
 unsigned int efa_p2p_get_page_size(struct efa_dev *dev,
 				   struct efa_p2pmem *p2pmem);
 int efa_p2p_to_page_list(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
