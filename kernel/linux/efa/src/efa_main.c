@@ -1014,15 +1014,15 @@ static int __init efa_init(void)
 
 	pr_info("%s\n", version);
 
+#ifdef HAVE_EFA_P2P
+	efa_p2p_init();
+#endif
+
 	err = pci_register_driver(&efa_pci_driver);
 	if (err) {
 		pr_err("Couldn't register efa driver\n");
 		return err;
 	}
-
-#ifdef HAVE_EFA_P2P
-	efa_p2p_init();
-#endif
 
 	return 0;
 }
