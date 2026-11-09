@@ -66,7 +66,7 @@ install -D -m 644 conf/efa-modprobe.conf	%{buildroot}/etc/modprobe.d/efa.conf
 install -m 644 conf/dkms.conf		%{buildroot}%{install_path}
 install -m 744 conf/configure-dkms.sh	%{buildroot}%{install_path}
 install -m 644 CMakeLists.txt		%{buildroot}%{install_path}
-install -m 644 README			%{buildroot}%{install_path}
+install -m 644 README.md		%{buildroot}%{install_path}
 install -m 644 RELEASENOTES.md		%{buildroot}%{install_path}
 install -m 644 config/Makefile		%{buildroot}%{install_path}/config
 install -m 644 config/main.c.in		%{buildroot}%{install_path}/config

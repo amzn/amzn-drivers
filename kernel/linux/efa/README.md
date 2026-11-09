@@ -1,0 +1,249 @@
+# Linux kernel driver for Elastic Fabric Adapter (EFA)
+
+## Overview
+
+Elastic Fabric Adapter (EFA) is a network device that provides reliable userspace
+communication and kernel bypass capabilities, targeting more consistent latency
+and higher throughput than traditional TCP-based communication.
+EFA is available in AWS EC2 instances, and is optimized for cloud-scale
+network infrastructure.
+
+EFA brings the scalability, flexibility, and elasticity of cloud to
+tightly-coupled applications like HPC and Machine Learning Training, that
+would benefit from the lower and more consistent latency and higher throughput.
+Applications would use [rdma-core](https://github.com/linux-rdma/rdma-core) as
+the userspace library to use EFA.
+
+EFA supports datagram send/receive operations and can support RDMA read/write
+operations on some of the devices. EFA supports unreliable datagrams (UD) as
+well as a new Scalable (unordered) Reliable Datagram protocol (SRD). SRD provides
+support for reliable datagrams and more complete error handling than typically
+seen with other Reliable Datagram (RD) implementations, but, unlike RD, it does
+not support ordering or segmentation.
+
+EFA depends on the following kernel modules:
+
+- `ib_core`
+- `ib_uverbs`
+- `ib_uverbs_support` (newer kernels only; on older kernels its functionality
+  is part of `ib_uverbs`)
+- `crc16`
+
+User verbs are supported via a dedicated userspace EFA provider in rdma-core,
+and kernel verbs are supported through the standard ib_verbs interface combined
+with some additional EFA extensions that must be included separately.
+
+## Driver distribution
+
+In addition to this repository, EFA driver can be found in upstream Linux kernel
+and in various Linux distributions' kernel trees, e.g. Amazon Linux, Ubuntu and
+RHEL. As a general approach, features and bug fixes that are relevant and suitable
+for mainline kernel, are being updated in both repositories around the same time.
+In addition to receiving bug fixes from stable kernel trees, some Linux
+distributions may backport EFA driver from more advanced kernel trees into their
+kernels. In Amazon Linux case, kernels are expected to have up-to-date EFA driver
+shortly after it is released in this repository.
+
+## Driver compilation
+
+For list of supported kernels and distributions, please refer to the
+[EFA documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-amis).
+
+### Prerequisites
+
+Kernel must be compiled with `CONFIG_INFINIBAND`, `CONFIG_INFINIBAND_USER_ACCESS`
+and `CONFIG_CRC16` in Kconfig.
+
+On RHEL / Amazon Linux:
+
+```sh
+sudo yum update
+sudo yum install gcc cmake
+sudo yum install kernel-devel-$(uname -r)
+```
+
+On Ubuntu / Debian:
+
+```sh
+sudo apt update
+sudo apt install gcc cmake
+sudo apt install linux-headers-$(uname -r)
+```
+
+### Compilation
+
+```sh
+mkdir build
+cd build
+cmake ..
+make
+```
+
+`efa.ko` is created inside the `src/` folder.
+
+Kernel verbs support can be disabled by running cmake with the following
+parameter:
+
+```sh
+cmake -DENABLE_KVERBS=0 ..
+```
+
+### Device memory registration
+
+EFA supports registration of device memory (e.g. GPU memory) for RDMA
+operations. The primary mechanism is DMA-BUF based memory registration,
+which uses the standard kernel DMA-BUF interface to import memory exported
+by peer devices.
+
+EFA also supports PCIe peer-to-peer (P2P) memory access using proprietary
+interfaces. Currently supported P2P architectures are:
+
+- GPUDirect RDMA (GDR), see the
+  [NVIDIA GPUDirect RDMA documentation](https://docs.nvidia.com/cuda/gpudirect-rdma/index.html)
+- NeuronLink RDMA
+
+P2P support can be disabled by running cmake with the following parameter:
+
+```sh
+cmake -DENABLE_P2P=0 ..
+```
+
+### Packaging
+
+To build EFA RPMs run `make` in the `rpm/` folder. Your environment will need
+to be set up to build RPMs. The EFA RPM will install the EFA kernel driver
+source, set up DKMS in order to build the driver when the kernel is updated,
+and update the configuration files to load EFA and its dependencies at boot
+time.
+
+To build EFA DEBs run `dpkg-buildpackage` in the top-level efa directory. Your
+environment will need the `dpkg-dev` and `debhelper` packages installed. Like
+the RPM, the resulting DEB installs the driver source under `/usr/src/` and
+configures DKMS to rebuild the driver on kernel updates.
+
+## Driver installation
+
+### Loading driver
+
+```sh
+modprobe ib_core
+modprobe ib_uverbs
+modprobe ib_uverbs_support  # newer kernels only
+modprobe crc16
+insmod efa.ko
+```
+
+### Loading on boot
+
+1. Add `efa` to `/etc/modules-load.d/efa.conf`.
+2. Copy `efa.ko` to `/lib/modules/$(uname -r)/` and run `sudo depmod`.
+3. If a previous driver was loaded from initramfs, update the initramfs as
+   well (e.g. with `dracut`).
+4. Reboot the instance.
+
+## Supported PCI vendor ID/device IDs
+
+| Vendor:Device | Description                                         |
+|---------------|-----------------------------------------------------|
+| `1d0f:efa0`   | EFA used in EC2 virtualized and bare-metal instances |
+| `1d0f:efa1`   | EFA used in EC2 virtualized and bare-metal instances |
+| `1d0f:efa2`   | EFA used in EC2 virtualized and bare-metal instances |
+| `1d0f:efa3`   | EFA used in EC2 virtualized and bare-metal instances |
+| `1d0f:efa4`   | EFA used in EC2 virtualized and bare-metal instances |
+
+## EFA source code directory structure (under `src/`)
+
+| File(s) | Description |
+|---------|-------------|
+| `efa_main.c`, `efa.h` | Main Linux kernel driver. |
+| `efa_verbs.c` | Control verbs implementations. |
+| `efa_data_verbs.c` | Data path verbs implementations. |
+| `efa_com.[ch]`, `efa_com_cmd.[ch]` | Management (admin) communication layer between the driver and the device. |
+| `efa_common_defs.h` | Common definitions for efa_com layer. |
+| `efa_admin_defs.h`, `efa_admin_cmds_defs.h` | Definition of EFA management interface. |
+| `efa_regs_defs.h` | Definition of EFA PCI memory-mapped (MMIO) registers. |
+| `efa_io_defs.h` | Definition of EFA datapath types. |
+| `efa_sysfs.[ch]` | Sysfs files. |
+| `efa_verbs.h` | EFA extension to ib_verbs.h intended for ULPs' use. |
+| `efa-abi.h` | Kernel driver <-> Userspace provider ABI. |
+| `efa_ah_cache.[ch]` | Address Handle cache. |
+| `efa_p2p.[ch]` | Peer-to-peer memory layer implementation. |
+| `efa_nvmem_impl.h`, `efa_nvmem_v1.c`, `efa_nvmem_v2.c` | GPUDirect RDMA implementation. |
+| `nv-p2p.h`, `nv-p2p_v2.h` | NVIDIA GDR API. |
+| `efa_neuronmem.c` | Neuron implementation. |
+| `neuron_p2p.h` | Neuron P2P API. |
+| `kcompat.[ch]` | Kernel compatibility layer. |
+
+## Management interface
+
+EFA management interface is exposed by means of:
+
+- PCIe Configuration Space
+- Device Registers
+- Admin Queue (AQ) and Admin Completion Queue (ACQ)
+- Asynchronous Event Notification Queue (AENQ)
+
+AQ is used for submitting management commands, and the results/responses are
+reported asynchronously through ACQ.
+
+EFA introduces a small set of management commands. Most of the management
+operations are framed in a generic get/set feature command.
+
+The following admin queue commands are supported:
+
+- Create/Modify/Query/Destroy Queue Pair
+- Create/Destroy Completion Queue
+- Register/Deregister/Allocate Memory Region
+- Create/Destroy Address Handle
+- Allocate/Deallocate Protection Domain
+- Allocate/Deallocate UAR
+- Create/Destroy Event Queue
+- Create/Destroy/Modify/Attach/Detach Event Counter
+- Get Statistics
+- Get feature
+- Set feature
+
+Refer to `efa_admin_cmds_defs.h` for the list of supported get/set feature
+properties.
+
+The Asynchronous Event Notification Queue (AENQ) is a unidirectional queue used
+by the EFA device to send to the driver events that cannot be reported using
+ACQ. AENQ events are subdivided into groups. Each group may have multiple
+syndromes, as shown below:
+
+| Group      | Syndrome |
+|------------|----------|
+| Keep-Alive | -        |
+
+ACQ and AENQ share the same MSI-X vector.
+
+## Interrupt modes
+
+Management interrupt registration is performed when the Linux kernel probes the
+adapter, and it is un-registered when the adapter is removed.
+
+The management interrupt is named:
+
+```
+efa-mgmnt@pci:<PCI domain:bus:slot.function>
+```
+
+## Data path interface
+
+I/O operations are based on Queue Pairs (QPs) - Send Queues (SQs) and Receive
+Queues (RQs). Each queue has a Completion Queue (CQ) associated with it.
+
+The QPs and CQs are implemented as Work/Completion Queue Elements (WQEs/CQEs)
+rings in contiguous physical memory.
+
+The EFA supports Low Latency Queue (LLQ) mode for SQs. In this mode the
+userspace provider writes the WQEs directly to the EFA device memory space,
+while the packet data resides in the host's memory. The device uses a dedicated
+PCI device memory BAR, which is mapped with write-combine capability.
+
+The RQs reside in the host's memory. The EFA device fetches the EFA RX WQEs
+directly from host memory.
+
+The user notifies the EFA device of new WQEs by writing to a dedicated PCI
+device memory BAR referred as Doorbells BAR which can be mapped to the
+userspace provider.
